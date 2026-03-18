@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Download, RefreshCw, Trash2, StickyNote } from 'lucide-react';
-import { TableHeader } from '../components/ui/TableHeader';
-import { useTableResize } from '../hooks/useTableResize';
+import { TableHeader } from '../../app/components/ui/TableHeader';
+import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
-import { StatusBadge, type StatusType } from '../components/StatusBadge';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { NotesDrawer, type Note } from '../components/NotesDrawer';
-import { Checkbox } from '../components/ui/checkbox';
+import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
+import { Checkbox } from '../../app/components/ui/checkbox';
 
 interface CheckReport {
   id: string;

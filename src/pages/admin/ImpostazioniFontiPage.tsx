@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLavorazioni } from '../data/LavorazioniContext';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useLavorazioni } from '../../app/data/LavorazioniContext';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 
 const inputStyle: React.CSSProperties = {
   padding: '0.5rem 0.625rem',

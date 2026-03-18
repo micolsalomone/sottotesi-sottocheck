@@ -1,18 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Briefcase, UserCheck, ExternalLink } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { useAreeTematiche } from '../data/AreeTematicheContext';
-import { useLavorazioni } from '../data/LavorazioniContext';
-import { CreateCoachDrawer, type Coach } from '../components/CreateCoachDrawer';
-import { StatusBadge, type StatusType } from '../components/StatusBadge';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { NotesDrawer, type Note } from '../components/NotesDrawer';
-import { useDrawer } from '../hooks/useDrawer';
-import { Checkbox } from '../components/ui/checkbox';
-import { TableHeader } from '../components/ui/TableHeader';
-import { useTableResize } from '../hooks/useTableResize';
+import { useAreeTematiche } from '../../app/data/AreeTematicheContext';
+import { useLavorazioni } from '../../app/data/LavorazioniContext';
+import { CreateCoachDrawer, type Coach } from '../../app/components/CreateCoachDrawer';
+import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
+import { useDrawer } from '../../app/hooks/useDrawer';
+import { Checkbox } from '../../app/components/ui/checkbox';
+import { TableHeader } from '../../app/components/ui/TableHeader';
+import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
 
 // ─── Mock admin corrente ───────────────────────────────────

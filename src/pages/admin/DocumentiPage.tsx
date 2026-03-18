@@ -13,11 +13,11 @@ import {
   ExternalLink,
   Plus
 } from 'lucide-react';
-import { TableHeader } from '../components/ui/TableHeader';
-import { useTableResize } from '../hooks/useTableResize';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { Checkbox } from '../components/ui/checkbox';
+import { TableHeader } from '../../app/components/ui/TableHeader';
+import { useTableResize } from '../../app/hooks/useTableResize';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { Checkbox } from '../../app/components/ui/checkbox';
 import { toast } from 'sonner';
 
 interface Document {

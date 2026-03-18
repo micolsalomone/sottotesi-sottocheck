@@ -1,16 +1,16 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinus, X, StickyNote, Trash2, Send, TicketIcon, CreditCard, FileText, MessageSquare, ArrowUpRight, Download, Users, User } from 'lucide-react';
-import { TimelineDrawer } from '../components/TimelineDrawer';
-import { StudentDetailDrawer } from '../components/StudentDetailDrawer';
-import { StatusBadge } from '../components/StatusBadge';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { NotesDrawer, type Note } from '../components/NotesDrawer';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar } from '../components/BulkActionsBar';
-import { Checkbox } from '../components/ui/checkbox';
-import { TableHeader } from '../components/ui/TableHeader';
-import { useTableResize } from '../hooks/useTableResize';
-import { useLavorazioni } from '../data/LavorazioniContext';
+import { TimelineDrawer } from '../../app/components/TimelineDrawer';
+import { StudentDetailDrawer } from '../../app/components/StudentDetailDrawer';
+import { StatusBadge } from '../../app/components/StatusBadge';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar } from '../../app/components/BulkActionsBar';
+import { Checkbox } from '../../app/components/ui/checkbox';
+import { TableHeader } from '../../app/components/ui/TableHeader';
+import { useTableResize } from '../../app/hooks/useTableResize';
+import { useLavorazioni } from '../../app/data/LavorazioniContext';
 
 // --- Types ---
 type StudentStatus = 'pending_payment' | 'active' | 'paused' | 'completed' | 'cancelled' | 'expired';

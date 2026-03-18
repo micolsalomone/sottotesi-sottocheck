@@ -2,17 +2,17 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, GitBranch, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useLavorazioni, REFERENTI_SOTTOTESI } from '../data/LavorazioniContext';
-import type { Student, StudentService } from '../data/LavorazioniContext';
-import { CreateStudentDrawer } from '../components/CreateStudentDrawer';
-import { StatusBadge, type StatusType } from '../components/StatusBadge';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { NotesDrawer, type Note } from '../components/NotesDrawer';
-import { Checkbox } from '../components/ui/checkbox';
-import { TableHeader } from '../components/ui/TableHeader';
-import { useTableResize } from '../hooks/useTableResize';
+import { useLavorazioni, REFERENTI_SOTTOTESI } from '../../app/data/LavorazioniContext';
+import type { Student, StudentService } from '../../app/data/LavorazioniContext';
+import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
+import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
+import { Checkbox } from '../../app/components/ui/checkbox';
+import { TableHeader } from '../../app/components/ui/TableHeader';
+import { useTableResize } from '../../app/hooks/useTableResize';
 
 // ─── Mock admin corrente ───────────────────────────────────
 const CURRENT_ADMIN = 'Francesca';

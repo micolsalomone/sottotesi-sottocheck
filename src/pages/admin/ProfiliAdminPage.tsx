@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Users, Mail, Pencil, Check, X } from 'lucide-react';
-import { ADMIN_PROFILES, type AdminProfile } from '../data/LavorazioniContext';
+import { ADMIN_PROFILES, type AdminProfile } from '../../app/data/LavorazioniContext';
 import { toast } from 'sonner';
 
 const CURRENT_ADMIN = 'Francesca';

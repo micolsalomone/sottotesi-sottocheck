@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, X, Check, Pencil, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAreeTematiche, type AreaTematica } from '../data/AreeTematicheContext';
+import { useAreeTematiche, type AreaTematica } from '../../app/data/AreeTematicheContext';
 
 // Coach list — coerente con CoachPage e COACH_ID_MAP
 const COACHES_LIST = [

@@ -4,10 +4,10 @@ import { useState, useMemo, useCallback, useEffect, useRef, MouseEvent, CSSPrope
 import { Plus, ExternalLink, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Clock, AlertTriangle, Pencil, Check, Settings, ChevronRight, Calendar, UserPlus, StickyNote, Trash2, User, GraduationCap, Download, PauseCircle, Mail } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { StatusBadge, type StatusType } from '../components/StatusBadge';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { Checkbox } from '../components/ui/checkbox';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { Checkbox } from '../../app/components/ui/checkbox';
 import {
   useLavorazioni,
   REFERENTI_SOTTOTESI,
@@ -20,13 +20,13 @@ import {
   type DegreeLevel,
   type PayoutStatus,
   type CoachPayout,
-} from '../data/LavorazioniContext';
-import { CreateStudentDrawer } from '../components/CreateStudentDrawer';
-import { useAreeTematiche } from '../data/AreeTematicheContext';
-import { NotesDrawer, type Note } from '../components/NotesDrawer';
-import { LavorazioneDetailDrawer } from '../components/LavorazioneDetailDrawer';
-import { SmartCoachSelect } from '../components/SmartCoachSelect';
-import { CreateLavorazioneDrawer } from '../components/CreateLavorazioneDrawer';
+} from '../../app/data/LavorazioniContext';
+import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
+import { useAreeTematiche } from '../../app/data/AreeTematicheContext';
+import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
+import { LavorazioneDetailDrawer } from '../../app/components/LavorazioneDetailDrawer';
+import { SmartCoachSelect } from '../../app/components/SmartCoachSelect';
+import { CreateLavorazioneDrawer } from '../../app/components/CreateLavorazioneDrawer';
 
 // ─── Vista types ────────────────────────────────────────────
 type Vista = 'lavorazioni' | 'compensi';

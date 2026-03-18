@@ -1,26 +1,37 @@
 import { createBrowserRouter, redirect } from 'react-router';
-import { AdminLayout } from './components/AdminLayout';
-import { Dashboard } from './pages/Dashboard';
-import { PipelinesPage } from './pages/PipelinesPage';
-import { StudentiPage } from './pages/StudentiPage';
-import { CoachPage } from './pages/CoachPage';
-import { CatalogoServiziPage } from './pages/CatalogoServiziPage';
-import { ServiziStudentiPage } from './pages/ServiziStudentiPage';
-import { FatturePage } from './pages/FatturePage';
-import { DocumentiPage } from './pages/DocumentiPage';
-import { TimelinePage } from './pages/TimelinePage';
-import { JobPage } from './pages/JobPage';
-import { EventiSistemaPage } from './pages/EventiSistemaPage';
-import { KpiMonitoraggioPage } from './pages/KpiMonitoraggioPage';
-import { AreeTematichePage } from './pages/AreeTematichePage';
-import { LavorazioniSottocheckPage } from './pages/LavorazioniSottocheckPage';
-import { ImpostazioniSottocheckPage } from './pages/ImpostazioniSottocheckPage';
-import { ProfiliAdminPage } from './pages/ProfiliAdminPage';
-import { InfoAccountPage } from './pages/InfoAccountPage';
-import { ImpostazioniFontiPage } from './pages/ImpostazioniFontiPage';
 
-// Router configuration — v2.0
+// Admin
+import { AdminLayout } from './components/AdminLayout';
+import { Dashboard } from '../pages/admin/Dashboard';
+import { PipelinesPage } from '../pages/admin/PipelinesPage';
+import { StudentiPage } from '../pages/admin/StudentiPage';
+import { CoachPage } from '../pages/admin/CoachPage';
+import { CatalogoServiziPage } from '../pages/admin/CatalogoServiziPage';
+import { ServiziStudentiPage } from '../pages/admin/ServiziStudentiPage';
+import { FatturePage } from '../pages/admin/FatturePage';
+import { DocumentiPage } from '../pages/admin/DocumentiPage';
+import { TimelinePage } from '../pages/admin/TimelinePage';
+import { JobPage } from '../pages/admin/JobPage';
+import { EventiSistemaPage } from '../pages/admin/EventiSistemaPage';
+import { KpiMonitoraggioPage } from '../pages/admin/KpiMonitoraggioPage';
+import { AreeTematichePage } from '../pages/admin/AreeTematichePage';
+import { LavorazioniSottocheckPage } from '../pages/admin/LavorazioniSottocheckPage';
+import { ImpostazioniSottocheckPage } from '../pages/admin/ImpostazioniSottocheckPage';
+import { ProfiliAdminPage } from '../pages/admin/ProfiliAdminPage';
+import { InfoAccountPage } from '../pages/admin/InfoAccountPage';
+import { ImpostazioniFontiPage } from '../pages/admin/ImpostazioniFontiPage';
+
+// Coach View (vista utente — accesso solo tramite URL diretto)
+import { CoachLayout } from './components/coach/CoachLayout';
+import { DashboardPage } from '../pages/coach/DashboardPage';
+import { StudentiPage as CoachStudentiPage } from '../pages/coach/StudentiPage';
+import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
+import { SottocheckPage } from '../pages/coach/SottocheckPage';
+import { ArchivioPage } from '../pages/coach/ArchivioPage';
+import { NotFoundPage } from '../pages/coach/NotFoundPage';
+
 export const router = createBrowserRouter([
+  // Vista Admin
   {
     path: '/',
     Component: AdminLayout,
@@ -33,7 +44,7 @@ export const router = createBrowserRouter([
       { path: 'sottocheck/pagamenti-fatture', Component: FatturePage },
       { path: 'studenti', Component: StudentiPage },
       { path: 'documenti', Component: DocumentiPage },
-      { path: 'coach', Component: CoachPage },
+      { path: 'coach', Component: CoachPage },  // gestione coach lato admin
       { path: 'coaching/timeline', Component: TimelinePage },
       { path: 'sottocheck/job', Component: JobPage },
       { path: 'aree-tematiche', Component: AreeTematichePage },
@@ -46,6 +57,19 @@ export const router = createBrowserRouter([
       { path: 'impostazioni/profili', Component: ProfiliAdminPage },
       { path: 'impostazioni/account', Component: InfoAccountPage },
       { path: '*', Component: Dashboard },
+    ],
+  },
+  // Vista Coach — solo URL diretto, NON dalla sidebar admin
+  {
+    path: '/coach-view',
+    Component: CoachLayout,
+    children: [
+      { index: true, Component: DashboardPage },
+      { path: 'studenti', Component: CoachStudentiPage },
+      { path: 'studenti/:studentId', Component: StudentTimelinePage },
+      { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'archivio', Component: ArchivioPage },
+      { path: '*', Component: NotFoundPage },
     ],
   },
 ]);

@@ -55,7 +55,7 @@
   /* The color used for background in destructive actions, such as delete buttons or error messages. */
   --destructive: rgba(254, 243, 242, 1.00);
   /* The default color for text or elements that appear on top of destructive colored elements. */
-  --destructive-foreground: rgba(220, 38, 38, 1.00);
+  --destructive-foreground: rgba(180, 35, 24, 1.00);
   /* The default border color for elements such as inputs, buttons, and other containers. */
   --border: rgba(229, 231, 235, 1.00);
   /* The default background color for input fields once the text has been filled. Should be either transparent or match the input-background. */

@@ -3,16 +3,16 @@ import { useState, useEffect, useMemo, useRef, MouseEvent, CSSProperties } from 
 import { useNavigate, useSearchParams } from 'react-router';
 import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, Users, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLavorazioni } from '../data/LavorazioniContext';
-import type { Pipeline } from '../data/LavorazioniContext';
-import { PipelineDetailDrawer } from '../components/PipelineDetailDrawer';
-import { CreatePipelineDrawer } from '../components/CreatePipelineDrawer';
-import { CreateLavorazioneDrawer } from '../components/CreateLavorazioneDrawer';
-import { CreateStudentDrawer } from '../components/CreateStudentDrawer';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { Checkbox } from '../components/ui/checkbox';
+import { useLavorazioni } from '../../app/data/LavorazioniContext';
+import type { Pipeline } from '../../app/data/LavorazioniContext';
+import { PipelineDetailDrawer } from '../../app/components/PipelineDetailDrawer';
+import { CreatePipelineDrawer } from '../../app/components/CreatePipelineDrawer';
+import { CreateLavorazioneDrawer } from '../../app/components/CreateLavorazioneDrawer';
+import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { Checkbox } from '../../app/components/ui/checkbox';
 import { 
   TableRoot, 
   TableHeaderCell, 
@@ -24,7 +24,7 @@ import {
   CellTextSecondary,
   CellContentStack,
   StatusPill
-} from '../components/TablePrimitives';
+} from '../../app/components/TablePrimitives';
 
 type SortKey = 'student_name' | 'email' | 'created_at' | 'lavorazioni_count' | null;
 

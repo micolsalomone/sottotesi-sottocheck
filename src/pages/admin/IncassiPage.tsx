@@ -2,11 +2,11 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download, ExternalLink, Check, AlertTriangle, Clock, Pencil, Trash2, FileText, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useLavorazioni, type InstallmentStatus } from '../data/LavorazioniContext';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { Checkbox } from '../components/ui/checkbox';
+import { useLavorazioni, type InstallmentStatus } from '../../app/data/LavorazioniContext';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { ConfirmDialog } from '../../app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { Checkbox } from '../../app/components/ui/checkbox';
 
 const STATUS_LABELS: Record<InstallmentStatus, string> = {
   paid: 'Pagata',

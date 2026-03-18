@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { MoreVertical, X, ChevronUp, ChevronDown, ChevronsUpDown, FileText, AlertTriangle, CheckCircle, Download, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BulkActionsBar, type BulkAction } from '../components/BulkActionsBar';
-import { TableActions, type TableAction } from '../components/TableActions';
-import { Checkbox } from '../components/ui/checkbox';
+import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
+import { TableActions, type TableAction } from '../../app/components/TableActions';
+import { Checkbox } from '../../app/components/ui/checkbox';
 
 interface Payment {
   id: string;
