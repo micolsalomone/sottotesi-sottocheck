@@ -6,7 +6,7 @@ import {
   THESIS_TYPE_LABELS,
   ADMIN_REFERENTI
 } from './studentsData';
-import { useParams, useNavigate } from 'react-router';
+import { useLocation, useParams, useNavigate } from 'react-router';
 import { InfoCoachingCard, ShareWithStudentCard } from '../../app/components/StudentProfile';
 import { DocumentArchiveDrawer, Document } from '../../app/components/coach/DocumentArchiveDrawer';
 import { TimelineEditDrawer, TimelineStepEdit, TimelineOverview } from '../../app/components/coach/TimelineEditDrawer';
@@ -18,10 +18,13 @@ import { StepOption } from '../../app/components/coach/AssignStepModal';
 import { Calendar, Plus, ClipboardList, ListPlus } from 'lucide-react';
 import { getStudentTimeline } from './studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
+import { getViewBasePath } from './viewBasePath';
 
 export function StudentTimelinePage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const viewBasePath = getViewBasePath(location.pathname);
 
   const student = STUDENTS_DATA.find(s => s.id === studentId);
   const studentName = student?.name || 'Studente';
@@ -412,7 +415,7 @@ export function StudentTimelinePage() {
         >
           <span
             className="hover:text-[var(--foreground)] cursor-pointer transition-colors"
-            onClick={() => navigate('/coach-view/studenti')}
+            onClick={() => navigate(`${viewBasePath}/studenti`)}
           >
             Studenti
           </span>

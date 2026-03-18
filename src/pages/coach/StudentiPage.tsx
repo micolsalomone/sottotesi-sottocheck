@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import {
   Search,
   ChevronDown,
@@ -27,6 +27,7 @@ import {
 } from './studentsData';
 import { CalendarTableView } from '../../app/components/coach/CalendarTableView.tsx';
 import { getFileTypeFromName, getFileExtension, formatFileSize, FILE_TYPE_LABELS } from '../../app/utils/fileTypeUtils';
+import { getViewBasePath } from './viewBasePath';
 
 type TabMode = 'active' | 'past' | 'calendar';
 type SortField = 'name' | 'degree' | 'status' | 'planStart' | 'planEnd' | 'serviceType' | 'thesisType';
@@ -40,6 +41,8 @@ const PAST_STATUSES: StudentStatus[] = ['completed', 'cancelled', 'expired'];
 
 export function StudentiPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const viewBasePath = getViewBasePath(location.pathname);
 
   const [activeTab, setActiveTab] = useState<TabMode>('active');
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,7 +279,7 @@ export function StudentiPage() {
                 <div
                   className="flex items-stretch transition-colors cursor-pointer border-b border-[var(--border)] hover:bg-[var(--muted)]"
                   style={{ minHeight: '68px' }}
-                  onClick={() => navigate(`/coach-view/studenti/${student.id}`)}
+                  onClick={() => navigate(`${viewBasePath}/studenti/${student.id}`)}
                 >
                   {/* Name + optional university + activity indicator */}
                   <Cell width="w-[18%] min-w-[150px]">

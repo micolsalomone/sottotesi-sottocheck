@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { ExternalLink } from 'lucide-react';
 import { STUDENTS_DATA, StudentData, STATUS_LABELS, STATUS_STYLES } from './studentsData';
+import { getViewBasePath } from './viewBasePath';
 
 /* ─── Types ─── */
 
@@ -118,6 +119,8 @@ function formatDateShort(d: Date): string {
 
 export function CalendarTableView() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const viewBasePath = getViewBasePath(location.pathname);
   const [rangeMonths, setRangeMonths] = useState<6 | 12>(6);
 
   const allEvents = useMemo(() => generateMockEvents(), []);
@@ -427,7 +430,7 @@ export function CalendarTableView() {
                       {/* Action */}
                       <div className="w-[60px] shrink-0 px-[16px] py-[10px] flex items-center justify-center">
                         <button
-                          onClick={() => navigate(`/coach-view/studenti/${evt.studentId}`)}
+                          onClick={() => navigate(`${viewBasePath}/studenti/${evt.studentId}`)}
                           className="p-[6px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
                           style={{ borderRadius: 'calc(var(--radius) - 4px)' }}
                           title="Apri timeline"

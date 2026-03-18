@@ -23,6 +23,7 @@ import { ImpostazioniFontiPage } from '../pages/admin/ImpostazioniFontiPage';
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
+import { StudentLayout } from './components/student/StudentLayout';
 import { DashboardPage } from '../pages/coach/DashboardPage';
 import { StudentiPage as CoachStudentiPage } from '../pages/coach/StudentiPage';
 import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
@@ -63,6 +64,19 @@ export const router = createBrowserRouter([
   {
     path: '/coach-view',
     Component: CoachLayout,
+    children: [
+      { index: true, Component: DashboardPage },
+      { path: 'studenti', Component: CoachStudentiPage },
+      { path: 'studenti/:studentId', Component: StudentTimelinePage },
+      { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'archivio', Component: ArchivioPage },
+      { path: '*', Component: NotFoundPage },
+    ],
+  },
+  // Vista Studente — al momento allineata alla coach view
+  {
+    path: '/student-view',
+    Component: StudentLayout,
     children: [
       { index: true, Component: DashboardPage },
       { path: 'studenti', Component: CoachStudentiPage },

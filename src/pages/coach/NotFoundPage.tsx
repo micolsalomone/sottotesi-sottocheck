@@ -1,7 +1,10 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
+import { getViewBasePath } from './viewBasePath';
 
 export function NotFoundPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const viewBasePath = getViewBasePath(location.pathname);
 
   return (
     <div className="px-[40px] py-[32px] flex flex-col items-center justify-center min-h-[400px]">
@@ -27,7 +30,7 @@ export function NotFoundPage() {
         La pagina che stai cercando non esiste.
       </p>
       <button
-        onClick={() => navigate('/coach-view')}
+        onClick={() => navigate(viewBasePath)}
         className="px-5 py-3 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
         style={{
           borderRadius: 'var(--radius)',

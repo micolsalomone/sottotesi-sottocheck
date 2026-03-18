@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import {
   Users,
   ChevronRight,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { STUDENTS_DATA, STATUS_LABELS, STATUS_STYLES } from './studentsData';
+import { getViewBasePath } from './viewBasePath';
 
 /* ── Availability types ── */
 type CoachAvailability = 'disponibile' | 'limitata' | 'pieno' | 'non_disponibile';
@@ -101,16 +102,14 @@ const MOCK_TICKETS: Ticket[] = [
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const [availability, setAvailability] = useState<CoachAvailability>('disponibile');
-  const [showAvailabilityMenu, setShowAvailabilityMenu] = useState(false);
+  const location = useLocation();
+  const viewBasePath = getViewBasePath(location.pathname);
   const [dashboardTab, setDashboardTab] = useState<'tickets' | 'unassigned'>('tickets');
 
   const assigned = STUDENTS_DATA.filter(s => s.assigned);
   const activeCount = assigned.filter(s => s.status === 'active').length;
   const pendingStudents = STUDENTS_DATA.filter(s => !s.assigned);
   const openTickets = MOCK_TICKETS.filter(t => t.status === 'open');
-
-  const currentAvail = AVAILABILITY_CONFIG[availability];
 
   return (
     <div className="px-[40px] py-[32px]">
@@ -145,7 +144,7 @@ export function DashboardPage() {
         <div
           className="border border-[var(--border)] bg-[var(--card)] p-6 flex flex-col justify-between cursor-pointer hover:border-[var(--primary)] transition-colors"
           style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
-          onClick={() => navigate('/coach-view/studenti')}
+          onClick={() => navigate(`${viewBasePath}/studenti`)}
         >
           <div className="flex items-center justify-between mb-4">
             <span
@@ -185,113 +184,6 @@ export function DashboardPage() {
           </p>
         </div>
 
-        {/* Disponibilità */}
-        <div
-          className="border border-[var(--border)] bg-[var(--card)] p-6 relative"
-          style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <span
-              className="text-[var(--muted-foreground)]"
-              style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
-                fontWeight: 'var(--font-weight-medium)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Disponibilità
-            </span>
-            <Circle className="w-5 h-5" style={{ color: currentAvail.color }} />
-          </div>
-
-          <button
-            onClick={() => setShowAvailabilityMenu(!showAvailabilityMenu)}
-            className="w-full flex items-center justify-between px-4 py-3 border border-[var(--border)] hover:border-[var(--foreground)] transition-colors"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <div className="flex items-center gap-3">
-              <span
-                className="w-[10px] h-[10px] shrink-0"
-                style={{
-                  background: currentAvail.color,
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: 'var(--foreground)',
-                }}
-              >
-                {currentAvail.label}
-              </span>
-            </div>
-            <ChevronRight
-              className="w-4 h-4 text-[var(--muted-foreground)] transition-transform"
-              style={{
-                transform: showAvailabilityMenu ? 'rotate(90deg)' : 'rotate(0deg)',
-              }}
-            />
-          </button>
-
-          {/* Dropdown */}
-          {showAvailabilityMenu && (
-            <div
-              className="absolute left-6 right-6 mt-2 border border-[var(--border)] bg-[var(--card)] z-10 overflow-hidden"
-              style={{
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--elevation-sm)',
-              }}
-            >
-              {AVAILABILITY_OPTIONS.map(opt => {
-                const cfg = AVAILABILITY_CONFIG[opt];
-                const isActive = opt === availability;
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => {
-                      setAvailability(opt);
-                      setShowAvailabilityMenu(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${isActive ? 'bg-[var(--muted)]' : 'hover:bg-[var(--muted)]'}`}
-                  >
-                    <span
-                      className="w-[10px] h-[10px] shrink-0"
-                      style={{
-                        background: cfg.color,
-                        borderRadius: '50%',
-                        display: 'inline-block',
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: isActive
-                          ? 'var(--font-weight-medium)'
-                          : 'var(--font-weight-regular)',
-                        color: 'var(--foreground)',
-                      }}
-                    >
-                      {cfg.label}
-                    </span>
-                    {isActive && (
-                      <CheckCircle2
-                        className="w-4 h-4 ml-auto"
-                        style={{ color: cfg.color }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
         {/* Illustration placeholder */}
         <div
