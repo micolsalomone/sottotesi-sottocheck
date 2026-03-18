@@ -1,8 +1,7 @@
-import { useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Users, ClipboardCheck, Archive } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
+import { LayoutDashboard, Users, ClipboardCheck, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NavItem {
-  id: string;
   label: string;
   icon: React.ReactNode;
   path: string;
@@ -10,34 +9,34 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    id: 'dashboard',
     label: 'Dashboard',
-    icon: <LayoutDashboard className="w-5 h-5" />,
+    icon: <LayoutDashboard size={20} />,
     path: '/coach-view',
   },
   {
-    id: 'studenti',
     label: 'Studenti',
-    icon: <Users className="w-5 h-5" />,
+    icon: <Users size={20} />,
     path: '/coach-view/studenti',
   },
   {
-    id: 'sottocheck',
     label: 'Sottocheck',
-    icon: <ClipboardCheck className="w-5 h-5" />,
+    icon: <ClipboardCheck size={20} />,
     path: '/coach-view/sottocheck',
   },
   {
-    id: 'archivio',
     label: 'Archivio',
-    icon: <Archive className="w-5 h-5" />,
+    icon: <Archive size={20} />,
     path: '/coach-view/archivio',
   },
 ];
 
-export function CoachSidebar() {
+interface CoachSidebarProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+export function CoachSidebar({ collapsed, onToggleCollapse }: CoachSidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
 
   function isActive(path: string) {
     if (path === '/coach-view') return location.pathname === '/coach-view';
@@ -45,35 +44,46 @@ export function CoachSidebar() {
   }
 
   return (
-    <aside
-      className="w-[260px] min-h-full border-r border-[var(--border)] bg-[var(--background)] flex flex-col"
-    >
-      <nav className="flex flex-col gap-[4px] p-[8px] pt-[12px]">
-        {navItems.map((item) => {
-          const active = isActive(item.path);
-          return (
-            <button
-              key={item.id}
-              onClick={() => navigate(item.path)}
-              className={`flex items-center gap-[12px] px-[16px] h-[44px] w-full transition-colors ${
-                active
-                  ? 'bg-[var(--foreground)] text-[var(--background)]'
-                  : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]'
-              }`}
-              style={{
-                borderRadius: 'calc(var(--radius) - 2px)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 'var(--font-weight-medium)',
-                textAlign: 'left',
-              }}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-    </aside>
+    <>
+      <button
+        className={`sidebar-collapse-toggle ${collapsed ? 'collapsed' : 'expanded'}`}
+        onClick={onToggleCollapse}
+        aria-label={collapsed ? 'Espandi menu' : 'Comprimi menu'}
+      >
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+
+      <aside className={`admin-sidebar ${collapsed ? 'collapsed' : 'expanded'}`}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+        }}>
+          <nav style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: '8px',
+            paddingTop: '8px',
+          }}>
+            {navItems.map((item) => {
+              const active = isActive(item.path);
+              return (
+                <div key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={`sidebar-item ${active ? 'active' : ''} ${collapsed ? 'collapsed' : ''}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="sidebar-item-icon">{item.icon}</span>
+                    {!collapsed && <span className="sidebar-item-label">{item.label}</span>}
+                  </Link>
+                </div>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+    </>
   );
 }
