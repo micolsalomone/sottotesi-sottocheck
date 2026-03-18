@@ -41,6 +41,61 @@ export const TableRoot = ({ children, minWidth = '1200px' }: { children: ReactNo
 );
 
 /**
+ * Responsive Table Layout
+ * Desktop: render tabella classica
+ * Mobile: render cards/lista alternativa
+ */
+export const ResponsiveTableLayout = ({
+  desktop,
+  mobile,
+}: {
+  desktop: ReactNode;
+  mobile: ReactNode;
+}) => (
+  <>
+    <div className="table-responsive-desktop">{desktop}</div>
+    <div className="table-responsive-mobile" style={{ display: 'none' }}>{mobile}</div>
+
+    <style>{`
+      @media (max-width: 768px) {
+        .table-responsive-desktop {
+          display: none !important;
+        }
+
+        .table-responsive-mobile {
+          display: block !important;
+        }
+      }
+    `}</style>
+  </>
+);
+
+/**
+ * Mobile cards wrapper for responsive table alternative
+ */
+export const ResponsiveMobileCards = ({ children }: { children: ReactNode }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    {children}
+  </div>
+);
+
+/**
+ * Single mobile card primitive
+ */
+export const ResponsiveMobileCard = ({ children }: { children: ReactNode }) => (
+  <div
+    style={{
+      backgroundColor: 'var(--card)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)',
+      padding: '1rem',
+    }}
+  >
+    {children}
+  </div>
+);
+
+/**
  * Table Header Cell with Resize and Sort
  */
 export const TableHeaderCell = ({

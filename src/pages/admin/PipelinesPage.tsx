@@ -14,6 +14,9 @@ import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
 import { Checkbox } from '../../app/components/ui/checkbox';
 import { 
+  ResponsiveTableLayout,
+  ResponsiveMobileCards,
+  ResponsiveMobileCard,
   TableRoot, 
   TableHeaderCell, 
   TableRow, 
@@ -266,6 +269,30 @@ export function PipelinesPage() {
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const getQuoteVariant = (status?: string): any => {
+    switch (status) {
+      case 'accepted': return 'success';
+      case 'rejected': return 'error';
+      case 'sent': return 'info';
+      case 'expired': return 'error';
+      case 'expiring_soon': return 'warning';
+      case 'draft': return 'neutral';
+      default: return 'neutral';
+    }
+  };
+
+  const getQuoteLabel = (status?: string) => {
+    switch (status) {
+      case 'accepted': return 'Accettato';
+      case 'rejected': return 'Rifiutato';
+      case 'sent': return 'Inviato';
+      case 'expired': return 'Scaduto';
+      case 'expiring_soon': return 'In scadenza';
+      case 'draft': return 'Bozza';
+      default: return '—';
+    }
+  };
+
   return (
     <div>
       {/* PAGE HEADER */}
@@ -375,8 +402,10 @@ export function PipelinesPage() {
         onClearSelection={() => setSelectedIds([])}
       />
 
-      {/* DATA TABLE */}
-      <TableRoot minWidth="1200px">
+      {/* DATA TABLE (desktop) + CARDS (mobile) */}
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1200px">
         <thead>
           <tr>
             <TableHeaderCell id="checkbox" label="" width={columnWidths.checkbox} onResize={handleMouseDown}>
@@ -440,28 +469,6 @@ export function PipelinesPage() {
           ) : (
             filteredData.map(pipeline => {
               const quote = pipeline.quotes?.[0];
-              const getQuoteVariant = (status?: string): any => {
-                switch (status) {
-                  case 'accepted': return 'success';
-                  case 'rejected': return 'error';
-                  case 'sent': return 'info';
-                  case 'expired': return 'error';
-                  case 'expiring_soon': return 'warning';
-                  case 'draft': return 'neutral';
-                  default: return 'neutral';
-                }
-              };
-              const getQuoteLabel = (status?: string) => {
-                switch (status) {
-                  case 'accepted': return 'Accettato';
-                  case 'rejected': return 'Rifiutato';
-                  case 'sent': return 'Inviato';
-                  case 'expired': return 'Scaduto';
-                  case 'expiring_soon': return 'In scadenza';
-                  case 'draft': return 'Bozza';
-                  default: return '—';
-                }
-              };
 
               return (
                 <TableRow
@@ -526,7 +533,117 @@ export function PipelinesPage() {
             })
           )}
         </tbody>
-      </TableRoot>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.length === 0 ? (
+              <ResponsiveMobileCard>
+                <div style={{
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-base)',
+                  color: 'var(--muted-foreground)',
+                  lineHeight: '1.5',
+                  padding: '1rem 0',
+                }}>
+                  Nessuna pipeline trovata
+                </div>
+              </ResponsiveMobileCard>
+            ) : (
+              filteredData.map((pipeline) => {
+                const quote = pipeline.quotes?.[0];
+                const isSelected = selectedIds.includes(pipeline.id);
+
+                return (
+                  <ResponsiveMobileCard key={pipeline.id}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                      marginBottom: '0.75rem',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleSelectRow(pipeline.id)}
+                        />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <div style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: 'var(--text-base)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              color: 'var(--foreground)',
+                              lineHeight: '1.5',
+                            }}>
+                              {pipeline.student_name}
+                            </div>
+                            <StudentTypeBadge isStudent={pipeline.lavorazioni_ids.length > 0 || pipeline.linked_existing_student === true} />
+                          </div>
+                          <div style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: '12px',
+                            color: 'var(--muted-foreground)',
+                            lineHeight: '1.5',
+                          }}>
+                            {pipeline.id}
+                          </div>
+                        </div>
+                      </div>
+
+                      <TableActions actions={getActions(pipeline)} />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} onClick={() => handleRowClick(pipeline)}>
+                      <div style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-label)',
+                        color: 'var(--muted-foreground)',
+                        lineHeight: '1.5',
+                      }}>
+                        {pipeline.email}
+                      </div>
+
+                      <div style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-label)',
+                        color: 'var(--muted-foreground)',
+                        lineHeight: '1.5',
+                      }}>
+                        {pipeline.phone}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                        {pipeline.sources.map((source) => (
+                          <StatusPill key={source} label={source} variant="neutral" />
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <StatusPill
+                          label={quote ? getQuoteLabel(quote.status) : '—'}
+                          variant={quote ? getQuoteVariant(quote.status) : 'neutral'}
+                        />
+
+                        <div style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 'var(--text-label)',
+                          color: 'var(--muted-foreground)',
+                          lineHeight: '1.5',
+                        }}>
+                          {pipeline.lavorazioni_ids.length} lav. · {formatDate(pipeline.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  </ResponsiveMobileCard>
+                );
+              })
+            )}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {/* DRAWERS */}
       {selectedPipeline && (
