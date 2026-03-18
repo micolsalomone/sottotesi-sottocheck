@@ -11,6 +11,7 @@ import { ServiziStudentiPage } from '../pages/admin/ServiziStudentiPage';
 import { FatturePage } from '../pages/admin/FatturePage';
 import { DocumentiPage } from '../pages/admin/DocumentiPage';
 import { TimelinePage } from '../pages/admin/TimelinePage';
+import { TicketPage } from '../pages/admin/TicketPage';
 import { JobPage } from '../pages/admin/JobPage';
 import { EventiSistemaPage } from '../pages/admin/EventiSistemaPage';
 import { KpiMonitoraggioPage } from '../pages/admin/KpiMonitoraggioPage';
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: 'documenti', Component: DocumentiPage },
       { path: 'coach', Component: CoachPage },  // gestione coach lato admin
       { path: 'coaching/timeline', Component: TimelinePage },
+      { path: 'coaching/ticket', Component: TicketPage },
       { path: 'sottocheck/job', Component: JobPage },
       { path: 'aree-tematiche', Component: AreeTematichePage },
       { path: 'sottocheck/lavorazioni', Component: LavorazioniSottocheckPage },

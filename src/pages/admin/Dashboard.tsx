@@ -9,12 +9,11 @@ import {
   Users,
   MessageSquare,
   Wrench,
-  Clock,
   ChevronRight,
-  AlertCircle,
   CheckCircle2,
   FileText,
 } from 'lucide-react';
+import { StatusPill } from '@/app/components/TablePrimitives';
 
 /* ─── Mock ticket data ───────────────────────────────────────── */
 type TicketPriority = 'alta' | 'media' | 'bassa';
@@ -100,30 +99,35 @@ const MOCK_TICKETS: Ticket[] = [
 ];
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
-const priorityStyles: Record<TicketPriority, { bg: string; color: string }> = {
-  alta: { bg: 'var(--destructive)', color: 'var(--destructive-foreground)' },
-  media: { bg: 'rgba(247, 144, 9, 0.1)', color: 'var(--chart-3)' },
-  bassa: { bg: 'var(--muted)', color: 'var(--muted-foreground)' },
-};
-
 const statusLabels: Record<TicketStatus, string> = {
   aperto: 'Aperto',
-  in_lavorazione: 'In lavorazione',
+  in_lavorazione: 'Preso in carico',
   risolto: 'Risolto',
 };
 
-const statusStyles: Record<TicketStatus, { bg: string; color: string }> = {
-  aperto: { bg: 'rgba(247, 144, 9, 0.1)', color: 'var(--chart-3)' },
-  in_lavorazione: { bg: 'rgba(46, 144, 250, 0.1)', color: 'var(--chart-2)' },
-  risolto: { bg: 'rgba(11, 182, 63, 0.1)', color: 'var(--primary)' },
+const sourceLabels: Record<TicketSource, string> = {
+  coach: 'Da coach',
+  studente: 'Da studente',
+};
+
+const priorityPillVariant: Record<TicketPriority, 'error' | 'warning' | 'neutral'> = {
+  alta: 'error',
+  media: 'warning',
+  bassa: 'neutral',
+};
+
+const statusPillVariant: Record<TicketStatus, 'warning' | 'info' | 'success'> = {
+  aperto: 'warning',
+  in_lavorazione: 'info',
+  risolto: 'success',
 };
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const [ticketFilter, setTicketFilter] = useState<'tutti' | 'coach' | 'studente'>('tutti');
+  const [ticketFilter, setTicketFilter] = useState<'aperti' | 'coach' | 'studente'>('aperti');
 
   const filteredTickets = MOCK_TICKETS.filter(t => {
-    if (ticketFilter === 'tutti') return t.status !== 'risolto';
+    if (ticketFilter === 'aperti') return t.status !== 'risolto';
     return t.source === ticketFilter && t.status !== 'risolto';
   });
 
@@ -379,7 +383,7 @@ export function Dashboard() {
                 fontWeight: 'var(--font-weight-medium)', color: 'var(--chart-3)',
                 lineHeight: '1.5',
               }}>
-                <AlertCircle size={12} />
+                
                 {openCount} aperti
               </span>
             )}
@@ -393,7 +397,7 @@ export function Dashboard() {
                 fontWeight: 'var(--font-weight-medium)', color: 'var(--chart-2)',
                 lineHeight: '1.5',
               }}>
-                <Clock size={12} />
+                
                 {inProgressCount} in lavorazione
               </span>
             )}
@@ -408,9 +412,9 @@ export function Dashboard() {
           paddingBottom: '0',
         }}>
           {([
-            { key: 'tutti' as const, label: 'Tutti' },
-            { key: 'coach' as const, label: 'Da coach', icon: <GraduationCap size={14} /> },
-            { key: 'studente' as const, label: 'Assistenza studenti', icon: <Wrench size={14} /> },
+            { key: 'aperti' as const, label: 'Aperti' },
+            { key: 'coach' as const, label: 'Aperti (da coach)', icon: <GraduationCap size={14} /> },
+            { key: 'studente' as const, label: 'Aperti (da studente)', icon: <Wrench size={14} /> },
           ]).map(tab => (
             <button
               key={tab.key}
@@ -446,7 +450,7 @@ export function Dashboard() {
               fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)',
               color: 'var(--muted-foreground)', lineHeight: '1.5',
             }}>
-              Nessun ticket {ticketFilter !== 'tutti' ? `da ${ticketFilter === 'coach' ? 'coach' : 'studenti'}` : 'aperto'}
+              Nessun ticket {ticketFilter !== 'aperti' ? (ticketFilter === 'coach' ? 'aperto da coach' : 'aperto da studente') : 'aperto'}
             </div>
           </div>
         ) : (
@@ -470,16 +474,6 @@ export function Dashboard() {
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                {/* Source icon */}
-                <div style={{
-                  width: '32px', height: '32px', borderRadius: 'var(--radius)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  background: ticket.source === 'coach' ? 'rgba(46, 144, 250, 0.1)' : 'rgba(122, 90, 248, 0.1)',
-                  color: ticket.source === 'coach' ? 'var(--chart-2)' : 'var(--chart-5)',
-                }}>
-                  {ticket.source === 'coach' ? <MessageSquare size={16} /> : <Wrench size={16} />}
-                </div>
 
                 {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -510,30 +504,13 @@ export function Dashboard() {
                 </div>
 
                 {/* Priority badge */}
-                <span style={{
-                  padding: '0.125rem 0.5rem',
-                  borderRadius: 'var(--radius-badge)',
-                  background: priorityStyles[ticket.priority].bg,
-                  color: priorityStyles[ticket.priority].color,
-                  fontFamily: 'var(--font-inter)', fontSize: '11px',
-                  fontWeight: 'var(--font-weight-medium)', lineHeight: '1.5',
-                  textTransform: 'capitalize', flexShrink: 0,
-                }}>
-                  {ticket.priority}
-                </span>
+                <StatusPill label={ticket.priority} variant={priorityPillVariant[ticket.priority]} />
 
                 {/* Status badge */}
-                <span style={{
-                  padding: '0.125rem 0.5rem',
-                  borderRadius: 'var(--radius-badge)',
-                  background: statusStyles[ticket.status].bg,
-                  color: statusStyles[ticket.status].color,
-                  fontFamily: 'var(--font-inter)', fontSize: '11px',
-                  fontWeight: 'var(--font-weight-medium)', lineHeight: '1.5',
-                  flexShrink: 0,
-                }}>
-                  {statusLabels[ticket.status]}
-                </span>
+                <StatusPill label={statusLabels[ticket.status]} variant={statusPillVariant[ticket.status]} />
+
+                {/* Source badge */}
+                <StatusPill label={sourceLabels[ticket.source]} variant="neutral" />
 
                 {/* Date */}
                 <span style={{

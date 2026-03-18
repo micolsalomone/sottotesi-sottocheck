@@ -46,6 +46,7 @@ const extraSections: NavSection[] = [
       { label: 'Coach', path: '/coach' },
       { label: 'Documenti', path: '/documenti' },
       { label: 'Timelines', path: '/coaching/timeline' },
+      { label: 'Ticket', path: '/coaching/ticket' },
       { label: 'Sottocheck Coach', path: '/sottocheck/job' },
       { label: 'Aree tematiche', path: '/aree-tematiche' },
     ],
