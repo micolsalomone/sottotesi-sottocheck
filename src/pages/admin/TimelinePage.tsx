@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, ChevronUp, ChevronDown, ChevronRight, ChevronsUpDown, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinus, X, StickyNote, Trash2, Send, TicketIcon, CreditCard, FileText, MessageSquare, ArrowUpRight, Download, Users, User } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinus, X, StickyNote, Trash2, Send, TicketIcon, CreditCard, FileText, MessageSquare, ArrowUpRight, Download } from 'lucide-react';
 import { TimelineDrawer } from '../../app/components/TimelineDrawer';
 import { StudentDetailDrawer } from '../../app/components/StudentDetailDrawer';
 import { StatusBadge } from '../../app/components/StatusBadge';
@@ -8,7 +8,23 @@ import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar } from '../../app/components/BulkActionsBar';
 import { Checkbox } from '../../app/components/ui/checkbox';
-import { TableHeader } from '../../app/components/ui/TableHeader';
+import {
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { useLavorazioni } from '../../app/data/LavorazioniContext';
 
@@ -945,7 +961,6 @@ export function TimelinePage() {
       });
   }, [services, realStudents]);
   const [activeTab, setActiveTab] = useState<TabKey>('active');
-  const [viewMode, setViewMode] = useState<'per_studente' | 'timelines'>('per_studente');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterServiceType, setFilterServiceType] = useState('all');
@@ -967,9 +982,6 @@ export function TimelinePage() {
   // Detail drawer state
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
   const [studentDetailDrawer, setStudentDetailDrawer] = useState<StudentData | null>(null);
-
-  // Timelines view — expanded coaches
-  const [expandedCoaches, setExpandedCoaches] = useState<Set<string>>(new Set());
 
   // Column widths (resize)
   const { columnWidths, handleResize: handleMouseDown } = useTableResize({
@@ -1089,33 +1101,6 @@ export function TimelinePage() {
     return data;
   }, [students, activeTab, filterStatus, filterServiceType, searchQuery, sortColumn, sortDirection]);
 
-  // ─── Coach-grouped data ────────────────────────────────────
-  const coachGroupedData = useMemo(() => {
-    const groups: Record<string, { coach: string; students: StudentData[]; activeCount: number; completedSteps: number; totalSteps: number }> = {};
-    const unassigned: StudentData[] = [];
-
-    filteredStudents.forEach(s => {
-      const coach = s.assignedCoachName;
-      if (!coach) {
-        unassigned.push(s);
-        return;
-      }
-      if (!groups[coach]) {
-        groups[coach] = { coach, students: [], activeCount: 0, completedSteps: 0, totalSteps: 0 };
-      }
-      groups[coach].students.push(s);
-      if (s.status === 'active') groups[coach].activeCount++;
-      groups[coach].completedSteps += s.stepsCompleted ?? 0;
-      groups[coach].totalSteps += s.stepsTotal ?? 0;
-    });
-
-    const sorted = Object.values(groups).sort((a, b) => b.students.length - a.students.length);
-    if (unassigned.length > 0) {
-      sorted.push({ coach: 'Non assegnato', students: unassigned, activeCount: unassigned.filter(s => s.status === 'active').length, completedSteps: 0, totalSteps: 0 });
-    }
-    return sorted;
-  }, [filteredStudents]);
-
   const handleSort = (col: SortKey) => {
     if (sortColumn === col) {
       if (sortDirection === 'asc') {
@@ -1128,24 +1113,6 @@ export function TimelinePage() {
       setSortColumn(col);
       setSortDirection('asc');
     }
-  };
-
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortColumn !== col) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc'
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
-  };
-
-  const toggleCoachExpand = (coachName: string) => {
-    setExpandedCoaches(prev => {
-      const next = new Set(prev);
-      if (next.has(coachName)) next.delete(coachName);
-      else next.add(coachName);
-      return next;
-    });
   };
 
   const handleTabChange = (tab: TabKey) => {
@@ -1171,8 +1138,8 @@ export function TimelinePage() {
   const tableColCount = 11; // aggiornato per includere checkbox
 
   // Bulk selection handlers
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
       setSelectedIds(new Set(filteredStudents.map(s => s.id)));
     } else {
       setSelectedIds(new Set());
@@ -1191,22 +1158,6 @@ export function TimelinePage() {
 
   const allSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.has(s.id));
   const someSelected = filteredStudents.some(s => selectedIds.has(s.id)) && !allSelected;
-
-  // --- Sub-components (local to TimelinePage for access to state) ---
-  function ThCell({ col, label, align = 'left' }: { col: SortKey; label: string; align?: 'left' | 'center' | 'right' }) {
-    return (
-      <TableHeader
-        label={label}
-        columnKey={col as string}
-        width={columnWidths[col as string]}
-        sortColumn={sortColumn as string}
-        sortDirection={sortDirection}
-        onSort={() => handleSort(col)}
-        onResize={handleMouseDown}
-        align={align}
-      />
-    );
-  }
 
   // Bulk actions
   const handleBulkComplete = () => {
@@ -1409,77 +1360,6 @@ export function TimelinePage() {
           Calendario
         </button>
       </div>
-
-      {/* View Mode Switcher */}
-      {activeTab !== 'calendar' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '1rem',
-        }}>
-          <span style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-label)',
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--muted-foreground)',
-            lineHeight: '1.5',
-            marginRight: '0.25rem',
-          }}>
-            Vista:
-          </span>
-          <div style={{
-            display: 'inline-flex',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            overflow: 'hidden',
-          }}>
-            <button
-              onClick={() => setViewMode('per_studente')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.375rem',
-                padding: '0.375rem 0.75rem',
-                border: 'none',
-                background: viewMode === 'per_studente' ? 'var(--primary)' : 'var(--card)',
-                color: viewMode === 'per_studente' ? '#fff' : 'var(--foreground)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-                cursor: 'pointer',
-                lineHeight: '1.5',
-                transition: 'background 0.15s ease, color 0.15s ease',
-              }}
-            >
-              <User size={14} />
-              Per studente
-            </button>
-            <button
-              onClick={() => setViewMode('timelines')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.375rem',
-                padding: '0.375rem 0.75rem',
-                border: 'none',
-                boxShadow: 'inset 1px 0 0 0 var(--border)',
-                background: viewMode === 'timelines' ? 'var(--primary)' : 'var(--card)',
-                color: viewMode === 'timelines' ? 'var(--primary-foreground)' : 'var(--foreground)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-                cursor: 'pointer',
-                lineHeight: '1.5',
-                transition: 'background 0.15s ease, color 0.15s ease',
-              }}
-            >
-              <Users size={14} />
-              Timelines
-            </button>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'calendar' ? (
         <div style={{
@@ -1743,322 +1623,150 @@ export function TimelinePage() {
             />
           )}
 
-          {viewMode === 'per_studente' ? (
-          <>
-          {/* Table */}
-          <div style={{
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            background: 'var(--card)',
-            boxShadow: 'var(--elevation-sm)',
-            overflow: 'hidden',
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1200px', tableLayout: 'fixed' }}>
+          <ResponsiveTableLayout
+            desktop={(
+              <TableRoot minWidth="1200px">
                 <thead>
-                  <tr style={{ background: 'var(--muted)', height: '54px' }}>
-                    <th style={{
-                      width: '44px',
-                      minWidth: '44px',
-                      padding: '0 12px',
-                      textAlign: 'left',
-                    }}>
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Seleziona tutti"
-                        className={someSelected ? 'data-[state=checked]:bg-primary/50' : ''}
-                      />
-                    </th>
-                    <ThCell col="name" label="Nome" />
-                    <ThCell col="coach" label="Coach" />
-                    <ThCell col="degree" label="Corso" />
-                    <ThCell col="thesisType" label="Tipologia" />
-                    <ThCell col="serviceType" label="Lavorazione" />
-                    <ThCell col="status" label="Stato" />
-                    {/* Contextual column */}
+                  <tr>
+                    <TableSelectionHeaderCell
+                      width={columnWidths.checkbox}
+                      checked={someSelected ? 'indeterminate' : allSelected}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <TableHeaderCell id="name" label="Nome" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="coach" label="Coach" width={columnWidths.coach} sortable sortDirection={sortColumn === 'coach' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="degree" label="Corso" width={columnWidths.degree} sortable sortDirection={sortColumn === 'degree' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="thesisType" label="Tipologia" width={columnWidths.thesisType} sortable sortDirection={sortColumn === 'thesisType' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="serviceType" label="Lavorazione" width={columnWidths.serviceType} sortable sortDirection={sortColumn === 'serviceType' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     {isActiveTab ? (
-                      <ThCell col="progress" label="Progresso" />
+                      <TableHeaderCell id="progress" label="Progresso" width={columnWidths.progress} sortable sortDirection={sortColumn === 'progress' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     ) : (
-                      <ThCell col="closedReason" label="Motivo" />
+                      <TableHeaderCell id="closedReason" label="Motivo" width={columnWidths.closedReason} sortable sortDirection={sortColumn === 'closedReason' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     )}
-                    <ThCell col="planStart" label="Inizio" />
-                    <ThCell col="planEnd" label={isActiveTab ? 'Scadenza' : 'Chiusura'} />
-                    <th style={{
-                      position: 'sticky',
-                      right: 0,
-                      backgroundColor: 'var(--muted)',
-                      zIndex: 11,
-                      width: '5%',
-                      minWidth: '44px',
-                      padding: '0 12px',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--muted-foreground)',
-                      textAlign: 'left',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.7px',
-                      lineHeight: '1.5',
-                      boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)'
-                    }} />
+                    <TableHeaderCell id="planStart" label="Inizio" width={columnWidths.planStart} sortable sortDirection={sortColumn === 'planStart' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="planEnd" label={isActiveTab ? 'Scadenza' : 'Chiusura'} width={columnWidths.planEnd} sortable sortDirection={sortColumn === 'planEnd' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderActionCell width={columnWidths.actions} />
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStudents.length === 0 ? (
-                    <tr>
-                      <td colSpan={tableColCount} style={{ padding: '3rem 1rem', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <Search size={40} style={{ color: 'var(--muted-foreground)', opacity: 0.3 }} />
-                          <p style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-base)',
-                            fontWeight: 'var(--font-weight-medium)',
-                            color: 'var(--foreground)',
-                            margin: 0,
-                            lineHeight: '1.5',
-                          }}>
-                            Nessuno studente trovato
-                          </p>
-                          <p style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                            color: 'var(--muted-foreground)',
-                            margin: 0,
-                            lineHeight: '1.5',
-                          }}>
-                            Prova a modificare i filtri di ricerca
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredStudents.map(student => (
-                    <tr
-                      key={student.id}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        minHeight: '68px',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => setDrawerStudent(student)}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = '')}
-                    >
-                      {/* Checkbox */}
-                      <td style={{ padding: '0 12px' }} onClick={e => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedIds.has(student.id)}
-                          onCheckedChange={(checked) => handleSelectOne(student.id, checked as boolean)}
-                          aria-label={`Seleziona ${student.name}`}
-                        />
-                      </td>
-
-                      {/* Nome + badges */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.name}px`, minWidth: `${columnWidths.name}px` }}>
+                    <TableEmptyState message="Nessuno studente trovato" colSpan={tableColCount} />
+                  ) : filteredStudents.map((student) => (
+                    <TableRow key={student.id} onClick={() => setDrawerStudent(student)} selected={selectedIds.has(student.id)} selectedBackgroundColor="var(--selected-row-bg)">
+                      <TableSelectionCell
+                        checked={selectedIds.has(student.id)}
+                        onCheckedChange={(checked) => handleSelectOne(student.id, checked === true)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <TableCell>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              <span style={{
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: 'var(--text-base)',
-                                fontWeight: 'var(--font-weight-medium)',
-                                color: 'var(--foreground)',
-                                lineHeight: '1.5',
-                              }}>
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
                                 {student.name}
                               </span>
                               {(student.openTicketCount ?? 0) > 0 && (
                                 <span
                                   title={`${student.openTicketCount} ticket aperti`}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    background: 'rgba(238, 70, 188, 0.12)',
-                                    borderRadius: '10px',
-                                    padding: '1px 6px',
-                                    height: '18px',
-                                  }}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(238, 70, 188, 0.12)', borderRadius: '10px', padding: '1px 6px', height: '18px' }}
                                 >
                                   <TicketIcon size={10} style={{ color: 'var(--chart-4)' }} />
-                                  <span style={{
-                                    fontFamily: 'var(--font-inter)',
-                                    fontSize: '11px',
-                                    fontWeight: 'var(--font-weight-medium)',
-                                    color: 'var(--chart-4)',
-                                    lineHeight: '1.5',
-                                  }}>
+                                  <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--chart-4)', lineHeight: '1.5' }}>
                                     {student.openTicketCount}
                                   </span>
                                 </span>
                               )}
                             </div>
                             {student.university && (
-                              <span style={{
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: '12px',
-                                fontWeight: 'var(--font-weight-regular)',
-                                color: 'var(--muted-foreground)',
-                                lineHeight: '1.5',
-                              }}>
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                                 {student.university}
                               </span>
                             )}
                           </div>
                         </div>
-                      </td>
-
-                      {/* Coach */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.coach}px`, minWidth: `${columnWidths.coach}px` }}>
+                      </TableCell>
+                      <TableCell>
                         {student.assignedCoachName ? (
-                          <span style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                            color: 'var(--foreground)',
-                            lineHeight: '1.5',
-                          }}>
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--foreground)', lineHeight: '1.5' }}>
                             {student.assignedCoachName}
                           </span>
                         ) : (
-                          <span style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                            color: 'var(--muted-foreground)',
-                            fontStyle: 'italic',
-                            lineHeight: '1.5',
-                          }}>
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>
                             —
                           </span>
                         )}
-                      </td>
-
-                      {/* Corso di Laurea */}
-                      <td style={{
-                        padding: '12px 16px',
-                        width: `${columnWidths.degree}px`,
-                        minWidth: `${columnWidths.degree}px`,
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: 'var(--font-weight-regular)',
-                        color: 'var(--foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {student.degree}
-                      </td>
-
-                      {/* Tipologia */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.thesisType}px`, minWidth: `${columnWidths.thesisType}px` }}>
+                      </TableCell>
+                      <TableCell>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                          {student.degree}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         {student.thesisType ? (
                           <PillBadge label={THESIS_TYPE_LABELS[student.thesisType]} />
                         ) : (
                           <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
                         )}
-                      </td>
-
-                      {/* Lavorazione */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.serviceType}px`, minWidth: `${columnWidths.serviceType}px` }}>
+                      </TableCell>
+                      <TableCell>
                         <PillBadge label={SERVICE_TYPE_LABELS[student.serviceType]} />
-                      </td>
-
-                      {/* Stato + payment warning */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>
+                      </TableCell>
+                      <TableCell>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              display: 'inline-block',
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '3px',
-                              background: STATUS_DOT_COLORS[student.status],
-                              flexShrink: 0,
-                            }} />
-                            <span style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-medium)',
-                              color: STATUS_DOT_COLORS[student.status],
-                              lineHeight: '1.5',
-                            }}>
+                            <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '3px', background: STATUS_DOT_COLORS[student.status], flexShrink: 0 }} />
+                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: STATUS_DOT_COLORS[student.status], lineHeight: '1.5' }}>
                               {STATUS_LABELS[student.status]}
                             </span>
                           </div>
-                          {/* Payment overdue warning */}
                           {student.installmentStatus === 'overdue' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
-                              <span style={{
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: '11px',
-                                fontWeight: 'var(--font-weight-regular)',
-                                color: 'var(--destructive-foreground)',
-                                lineHeight: '1.5',
-                              }}>
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
                                 Rata scaduta{(student.installmentOverdueCount ?? 0) > 1 ? ` (${student.installmentOverdueCount})` : ''}
                               </span>
                             </div>
                           )}
-                          {/* Contract not signed warning */}
                           {student.contractStatus === 'pending' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <FileText size={11} style={{ color: 'var(--chart-3)' }} />
-                              <span style={{
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: '11px',
-                                fontWeight: 'var(--font-weight-regular)',
-                                color: 'var(--chart-3)',
-                                lineHeight: '1.5',
-                              }}>
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--chart-3)', lineHeight: '1.5' }}>
                                 Contratto da firmare
                               </span>
                             </div>
                           )}
-                          {/* Timeline missing */}
                           {!student.hasTimeline && student.status === 'pending_payment' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <AlertTriangle size={11} style={{ color: 'var(--chart-3)' }} />
-                              <span style={{
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: '11px',
-                                fontWeight: 'var(--font-weight-regular)',
-                                color: 'var(--chart-3)',
-                                lineHeight: '1.5',
-                              }}>
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--chart-3)', lineHeight: '1.5' }}>
                                 Timeline mancante
                               </span>
                             </div>
                           )}
                         </div>
-                      </td>
-
-                      {/* Contextual column: Progresso (active) or Motivo chiusura (past) */}
+                      </TableCell>
                       {isActiveTab ? (
-                        <td style={{ padding: '12px 16px', width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>
+                        <TableCell>
                           <ProgressCell completed={student.stepsCompleted ?? 0} total={student.stepsTotal ?? 0} />
-                        </td>
+                        </TableCell>
                       ) : (
-                        <td style={{ padding: '12px 16px', width: `${columnWidths.closedReason}px`, minWidth: `${columnWidths.closedReason}px` }}>
+                        <TableCell>
                           {student.closedReason ? (
                             <ClosedReasonBadge reason={student.closedReason} />
                           ) : (
                             <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
                           )}
-                        </td>
+                        </TableCell>
                       )}
-
-                      {/* Inizio piano */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.planStart}px`, minWidth: `${columnWidths.planStart}px` }}>
+                      <TableCell>
                         {student.planStartDate ? (
                           <DateCell date={student.planStartDate} />
                         ) : (
                           <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
                         )}
-                      </td>
-
-                      {/* Scadenza piano (active) or Data chiusura (past) */}
-                      <td style={{ padding: '12px 16px', width: `${columnWidths.planEnd}px`, minWidth: `${columnWidths.planEnd}px` }}>
+                      </TableCell>
+                      <TableCell>
                         {isActiveTab ? (
                           student.planEndDate ? (
                             <DateCell date={student.planEndDate} />
@@ -2072,422 +1780,78 @@ export function TimelinePage() {
                             <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
                           )
                         )}
-                      </td>
-
-                      {/* Azioni */}
-                      <td 
-                        onClick={e => e.stopPropagation()}
-                        style={{ 
-                          position: 'sticky', 
-                          right: 0, 
-                          backgroundColor: 'var(--background)', 
-                          zIndex: 10,
-                          boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                          padding: '12px 12px',
-                          textAlign: 'right'
-                        }}
-                      >
+                      </TableCell>
+                      <TableActionCell width={columnWidths.actions} onClick={(e) => e.stopPropagation()}>
                         <TableActions actions={getStudentActions(student)} />
-                      </td>
-                    </tr>
+                      </TableActionCell>
+                    </TableRow>
                   ))}
                 </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Mobile Card View */}
-          <div style={{ display: 'none' }} className="timeline-mobile-cards">
-            {filteredStudents.map(student => (
-              <div
-                key={student.id}
-                onClick={() => setDrawerStudent(student)}
-                style={{
-                  backgroundColor: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  padding: '1rem',
-                  marginBottom: '1rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--foreground)',
-                      lineHeight: '1.5',
-                    }}>
-                      {student.name}
-                    </div>
-                    {student.university && (
-                      <div style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
-                        color: 'var(--muted-foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {student.university}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '3px',
-                      background: STATUS_DOT_COLORS[student.status],
-                    }} />
-                    <span style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: STATUS_DOT_COLORS[student.status],
-                      lineHeight: '1.5',
-                    }}>
-                      {STATUS_LABELS[student.status]}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                  <PillBadge label={SERVICE_TYPE_LABELS[student.serviceType]} />
-                  {student.thesisType && <PillBadge label={THESIS_TYPE_LABELS[student.thesisType]} />}
-                </div>
-                {student.stepsTotal && student.stepsTotal > 0 && (
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <ProgressCell completed={student.stepsCompleted ?? 0} total={student.stepsTotal} />
-                  </div>
-                )}
-                {student.assignedCoachName && (
-                  <div style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    color: 'var(--muted-foreground)',
-                    marginBottom: '0.5rem',
-                    lineHeight: '1.5',
-                  }}>
-                    Coach: <span style={{ color: 'var(--foreground)' }}>{student.assignedCoachName}</span>
-                  </div>
-                )}
-                {student.installmentStatus === 'overdue' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                    <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
-                    <span style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '11px',
-                      fontWeight: 'var(--font-weight-regular)',
-                      color: 'var(--destructive-foreground)',
-                      lineHeight: '1.5',
-                    }}>
-                      Rata scaduta
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <style>{`
-            @media (max-width: 768px) {
-              .timeline-mobile-cards { display: block !important; }
-            }
-            @media (max-width: 768px) {
-              table { display: none !important; }
-            }
-          `}</style>
-          </>
-          ) : (
-          /* ═══ Vista Timelines — tabella con righe espandibili per coach ═══ */
-          <div style={{
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            background: 'var(--card)',
-            boxShadow: 'var(--elevation-sm)',
-            overflow: 'hidden',
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px', tableLayout: 'fixed' }}>
-                <thead>
-                  <tr style={{ background: 'var(--muted)', height: '54px' }}>
-                    <th style={{ width: '44px', minWidth: '44px', background: 'var(--muted)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
-                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px', background: 'var(--border)' }} />
-                    </th>
-                    <TableHeader label="Coach / Studente" columnKey="coach" width={250} />
-                    <TableHeader label="Servizio" columnKey="service" width={120} />
-                    <TableHeader label="Stato" columnKey="status" width={150} />
-                    <TableHeader label="Progresso" columnKey="progress" width={100} />
-                    <TableHeader label="Inizio" columnKey="start" width={110} />
-                    <TableHeader label={isActiveTab ? 'Scadenza' : 'Chiusura'} columnKey="end" width={110} />
-                    <th style={{
-                      position: 'sticky', right: 0, backgroundColor: 'var(--muted)',
-                      zIndex: 11, width: '44px', minWidth: '44px', padding: '0 12px',
-                      borderBottom: '1px solid var(--border)',
-                      boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                    }} />
-                  </tr>
-                </thead>
-                {coachGroupedData.length === 0 ? (
-                  <tbody>
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <Search size={40} style={{ color: 'var(--muted-foreground)', opacity: 0.3 }} />
-                          <p style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)',
-                            fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)',
-                            margin: 0, lineHeight: '1.5',
-                          }}>Nessuno studente trovato</p>
+              </TableRoot>
+            )}
+            mobile={(
+              <ResponsiveMobileCards>
+                {filteredStudents.map((student) => (
+                  <ResponsiveMobileCard key={student.id}>
+                    <div onClick={() => setDrawerStudent(student)} style={{ cursor: 'pointer' }}>
+                    <ResponsiveMobileCardHeader>
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                          {student.name}
                         </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                ) : coachGroupedData.map(group => {
-                  const isExpanded = expandedCoaches.has(group.coach);
-                  const hasStudents = group.students.length > 0;
-                  const isUnassigned = group.coach === 'Non assegnato';
-                  const progressPct = group.totalSteps > 0 ? Math.round((group.completedSteps / group.totalSteps) * 100) : 0;
-
-                  return (
-                    <tbody key={group.coach}>
-                      {/* ─── Coach group row ─────────────────────── */}
-                      <tr
-                        onClick={() => { if (hasStudents) toggleCoachExpand(group.coach); }}
-                        style={{
-                          cursor: hasStudents ? 'pointer' : 'default',
-                          borderBottom: '1px solid var(--border)',
-                          background: 'var(--background)',
-                        }}
-                        onMouseEnter={e => { if (hasStudents) e.currentTarget.style.background = 'var(--muted)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--background)'; }}
-                      >
-                        {/* Chevron */}
-                        <td style={{ padding: '0 12px' }}>
-                          {hasStudents && (
-                            <ChevronRight
-                              size={14}
-                              style={{
-                                color: 'var(--muted-foreground)',
-                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.15s ease',
-                              }}
-                            />
-                          )}
-                        </td>
-                        {/* Coach name + count */}
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-base)',
-                              fontWeight: 'var(--font-weight-medium)',
-                              color: isUnassigned ? 'var(--muted-foreground)' : 'var(--foreground)',
-                              fontStyle: isUnassigned ? 'italic' : 'normal',
-                              lineHeight: '1.5',
-                            }}>
-                              {group.coach}
-                            </span>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: 'var(--radius-badge)',
-                              background: 'var(--muted)',
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
-                              fontWeight: 'var(--font-weight-medium)',
-                              color: 'var(--muted-foreground)',
-                              lineHeight: '1.5',
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {group.students.length} {group.students.length === 1 ? 'studente' : 'studenti'}
-                            </span>
-                            {group.activeCount > 0 && (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                padding: '0.125rem 0.5rem',
-                                borderRadius: 'var(--radius-badge)',
-                                background: 'rgba(11, 182, 63, 0.1)',
-                                fontFamily: 'var(--font-inter)',
-                                fontSize: '12px',
-                                fontWeight: 'var(--font-weight-medium)',
-                                color: 'var(--primary)',
-                                lineHeight: '1.5',
-                                whiteSpace: 'nowrap',
-                              }}>
-                                {group.activeCount} attivi
-                              </span>
-                            )}
+                        {student.university && (
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                            {student.university}
                           </div>
-                        </td>
-                        {/* Service spacer */}
-                        <td />
-                        {/* Status spacer */}
-                        <td />
-                        {/* Progress — aggregate */}
-                        <td style={{ padding: '12px 16px' }}>
-                          {group.totalSteps > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '60px' }}>
-                              <span style={{
-                                fontFamily: 'var(--font-inter)', fontSize: '11px',
-                                fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5',
-                              }}>
-                                {group.completedSteps}/{group.totalSteps}
-                              </span>
-                              <div style={{
-                                width: '100%', height: '4px', borderRadius: '2px',
-                                background: 'var(--border)', overflow: 'hidden',
-                              }}>
-                                <div style={{
-                                  width: `${progressPct}%`, height: '100%', borderRadius: '2px',
-                                  background: progressPct === 100 ? 'var(--primary)' : progressPct >= 50 ? 'var(--chart-2)' : 'var(--chart-3)',
-                                  transition: 'width 0.3s ease',
-                                }} />
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                        {/* Start spacer */}
-                        <td />
-                        {/* End spacer */}
-                        <td />
-                        {/* Actions sticky spacer */}
-                        <td style={{
-                          position: 'sticky', right: 0, backgroundColor: 'var(--background)',
-                          zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                        }} />
-                      </tr>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '3px', background: STATUS_DOT_COLORS[student.status] }} />
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: STATUS_DOT_COLORS[student.status], lineHeight: '1.5' }}>
+                          {STATUS_LABELS[student.status]}
+                        </span>
+                      </div>
+                    </ResponsiveMobileCardHeader>
 
-                      {/* ─── Expanded student rows ──────────────── */}
-                      {isExpanded && group.students.map(student => (
-                        <tr
-                          key={student.id}
-                          style={{ backgroundColor: 'var(--muted)', borderBottom: '1px solid var(--border)' }}
-                          onClick={() => setDrawerStudent(student)}
-                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--accent)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--muted)'; }}
-                        >
-                          {/* Spacer for chevron */}
-                          <td />
-                          {/* Student name */}
-                          <td style={{ padding: '10px 16px', cursor: 'pointer' }}>
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span style={{
-                                  fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)',
-                                  fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5',
-                                }}>
-                                  {student.name}
-                                </span>
-                                {(student.openTicketCount ?? 0) > 0 && (
-                                  <span title={`${student.openTicketCount} ticket aperti`} style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                    background: 'rgba(238, 70, 188, 0.12)', borderRadius: '10px',
-                                    padding: '1px 6px', height: '18px',
-                                  }}>
-                                    <TicketIcon size={10} style={{ color: 'var(--chart-4)' }} />
-                                    <span style={{
-                                      fontFamily: 'var(--font-inter)', fontSize: '11px',
-                                      fontWeight: 'var(--font-weight-medium)', color: 'var(--chart-4)', lineHeight: '1.5',
-                                    }}>{student.openTicketCount}</span>
-                                  </span>
-                                )}
-                              </div>
-                              {student.university && (
-                                <span style={{
-                                  fontFamily: 'var(--font-inter)', fontSize: '12px',
-                                  fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', lineHeight: '1.5',
-                                }}>
-                                  {student.university}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          {/* Service type */}
-                          <td style={{ padding: '10px 16px' }}>
-                            <PillBadge label={SERVICE_TYPE_LABELS[student.serviceType]} />
-                          </td>
-                          {/* Status */}
-                          <td style={{ padding: '10px 16px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{
-                                  display: 'inline-block', width: '6px', height: '6px', borderRadius: '3px',
-                                  background: STATUS_DOT_COLORS[student.status], flexShrink: 0,
-                                }} />
-                                <span style={{
-                                  fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                                  fontWeight: 'var(--font-weight-medium)',
-                                  color: STATUS_DOT_COLORS[student.status], lineHeight: '1.5',
-                                }}>
-                                  {STATUS_LABELS[student.status]}
-                                </span>
-                              </div>
-                              {student.installmentStatus === 'overdue' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
-                                  <span style={{
-                                    fontFamily: 'var(--font-inter)', fontSize: '11px',
-                                    fontWeight: 'var(--font-weight-regular)',
-                                    color: 'var(--destructive-foreground)', lineHeight: '1.5',
-                                  }}>
-                                    Rata scaduta{(student.installmentOverdueCount ?? 0) > 1 ? ` (${student.installmentOverdueCount})` : ''}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          {/* Progress */}
-                          <td style={{ padding: '10px 16px' }}>
-                            {isActiveTab ? (
-                              <ProgressCell completed={student.stepsCompleted ?? 0} total={student.stepsTotal ?? 0} />
-                            ) : (
-                              student.closedReason ? (
-                                <ClosedReasonBadge reason={student.closedReason} />
-                              ) : (
-                                <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
-                              )
-                            )}
-                          </td>
-                          {/* Start date */}
-                          <td style={{ padding: '10px 16px' }}>
-                            {student.planStartDate ? (
-                              <DateCell date={student.planStartDate} />
-                            ) : (
-                              <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
-                            )}
-                          </td>
-                          {/* End date */}
-                          <td style={{ padding: '10px 16px' }}>
-                            {isActiveTab ? (
-                              student.planEndDate ? <DateCell date={student.planEndDate} /> : <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
-                            ) : (
-                              student.closedAt ? <DateCell date={student.closedAt} /> : <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>—</span>
-                            )}
-                          </td>
-                          {/* Actions */}
-                          <td
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              position: 'sticky', right: 0,
-                              backgroundColor: 'var(--muted)',
-                              zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                              padding: '10px 12px', textAlign: 'right',
-                            }}
-                          >
-                            <TableActions actions={getStudentActions(student)} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  );
-                })}
-              </table>
-            </div>
-          </div>
-          )}
+                    <ResponsiveMobileCardSection marginBottom="0.75rem">
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <PillBadge label={SERVICE_TYPE_LABELS[student.serviceType]} />
+                        {student.thesisType && <PillBadge label={THESIS_TYPE_LABELS[student.thesisType]} />}
+                      </div>
+                    </ResponsiveMobileCardSection>
+
+                    {student.stepsTotal && student.stepsTotal > 0 && (
+                      <ResponsiveMobileCardSection marginBottom="0.75rem">
+                        <ResponsiveMobileFieldLabel>Progresso</ResponsiveMobileFieldLabel>
+                        <ProgressCell completed={student.stepsCompleted ?? 0} total={student.stepsTotal} />
+                      </ResponsiveMobileCardSection>
+                    )}
+
+                    {student.assignedCoachName && (
+                      <ResponsiveMobileCardSection marginBottom="0.75rem">
+                        <ResponsiveMobileFieldLabel>Coach</ResponsiveMobileFieldLabel>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                          {student.assignedCoachName}
+                        </span>
+                      </ResponsiveMobileCardSection>
+                    )}
+
+                    {student.installmentStatus === 'overdue' && (
+                      <ResponsiveMobileCardSection marginBottom="0">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                            Rata scaduta
+                          </span>
+                        </div>
+                      </ResponsiveMobileCardSection>
+                    )}
+                    </div>
+                  </ResponsiveMobileCard>
+                ))}
+              </ResponsiveMobileCards>
+            )}
+          />
         </>
       )}
 

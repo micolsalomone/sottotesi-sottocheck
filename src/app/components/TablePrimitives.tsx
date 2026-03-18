@@ -634,8 +634,8 @@ export const TableSelectionHeaderCell = ({
   onCheckedChange,
 }: {
   width?: number;
-  checked: boolean;
-  onCheckedChange: () => void;
+  checked: boolean | 'indeterminate';
+  onCheckedChange: (checked: boolean | 'indeterminate') => void;
 }) => (
   <th
     style={{
@@ -660,7 +660,7 @@ export const TableSelectionCell = ({
   onClick,
 }: {
   checked: boolean;
-  onCheckedChange: () => void;
+  onCheckedChange: (checked: boolean | 'indeterminate') => void;
   onClick?: (e: MouseEvent) => void;
 }) => (
   <TableCell onClick={onClick}>
