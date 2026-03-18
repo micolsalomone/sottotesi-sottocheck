@@ -31,6 +31,8 @@ import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
+import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
+import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 
 export const router = createBrowserRouter([
   // Vista Admin
@@ -91,7 +93,8 @@ export const router = createBrowserRouter([
         },
         Component: StudentTimelinePage,
       },
-      { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: '*', Component: NotFoundPage },
     ],
