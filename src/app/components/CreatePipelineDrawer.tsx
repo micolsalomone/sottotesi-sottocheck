@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, TrendingUp, Mail, MessageCircle, Phone, Trash2, Save, CheckCircle, Circle, Pencil, X, Search, GraduationCap, UserPlus, User, Calendar, Tag, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLavorazioni, ADMIN_USERS } from '../data/LavorazioniContext';
+import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, Student, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
 import {
   DrawerOverlay,
@@ -42,6 +42,13 @@ const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
 ];
+
+const SERVICE_LINK_OPTIONS: { value: string; label: string }[] = SERVICE_CATALOG.map((service) => {
+  if (service.name === 'Starter Pack') return { value: 'starter_pack', label: service.name };
+  if (service.name === 'Coaching Plus') return { value: 'coaching_plus', label: service.name };
+  if (service.name === 'Coaching') return { value: 'coaching', label: service.name };
+  return { value: service.id, label: service.name };
+});
 
 // ─── Stile riga consenso marketing (specifico di questo drawer) ──
 const consentRowStyle: React.CSSProperties = {
@@ -479,21 +486,11 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
   };
 
   const buildPipeline = (): Pipeline | null => {
-    if (mode === 'new') {
-      if (!formData.first_name || !formData.last_name || !formData.email || formData.sources.length === 0) {
-        toast.error('Compila tutti i campi obbligatori (Nome, Cognome, Email, Fonte)');
-        return null;
-      }
-    } else {
-      if (!selectedStudentId || formData.sources.length === 0) {
-        toast.error('Seleziona lo studente e specifica la fonte');
-        return null;
-      }
-    }
+    const hasLinkedExistingStudent = mode === 'existing' && !!selectedStudentId;
 
     // In modalità 'new': genera un ID temporaneo che diventerà student_id alla conversione in lavorazione.
-    // In modalità 'existing': usa l'ID dello studente già in anagrafica (re-enrollment).
-    const studentId = mode === 'existing'
+    // In modalità 'existing': usa l'ID dello studente già in anagrafica quando selezionato.
+    const studentId = hasLinkedExistingStudent
       ? selectedStudentId
       : `STU-${Math.floor(Math.random() * 9000) + 1000}`;
 
@@ -508,10 +505,12 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
       academicData.thesis_professor || academicData.thesis_subject || academicData.thesis_type
     );
 
+    const studentName = `${formData.first_name} ${formData.last_name}`.trim() || formData.email.trim() || 'Lead senza nome';
+
     const newPipeline: Pipeline = {
       id: `PIP-${String(maxId + 1).padStart(3, '0')}`,
       student_id: studentId,
-      student_name: `${formData.first_name} ${formData.last_name}`,
+      student_name: studentName,
       first_name: formData.first_name,
       last_name: formData.last_name,
       email: formData.email,
@@ -539,7 +538,7 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
         foreign_language: academicData.foreign_language || undefined,
         thesis_language: academicData.thesis_language || undefined,
       } : undefined,
-      linked_existing_student: mode === 'existing' ? true : undefined,
+      linked_existing_student: hasLinkedExistingStudent ? true : undefined,
     };
 
     return newPipeline;
@@ -703,7 +702,7 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
 
               {mode === 'existing' ? (
                 <div style={{ position: 'relative' }}>
-                  <DrawerLabel required>Cerca studente in anagrafica</DrawerLabel>
+                  <DrawerLabel>Cerca studente in anagrafica</DrawerLabel>
                   <div style={{
                     padding: '0.5rem 0.75rem',
                     marginBottom: '0.75rem',
@@ -771,7 +770,7 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
-                    <DrawerLabel required>Nome</DrawerLabel>
+                    <DrawerLabel>Nome</DrawerLabel>
                     <input
                       type="text"
                       style={drawerInputStyle}
@@ -781,7 +780,7 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
                     />
                   </DrawerFieldGroup>
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
-                    <DrawerLabel required>Cognome</DrawerLabel>
+                    <DrawerLabel>Cognome</DrawerLabel>
                     <input
                       type="text"
                       style={drawerInputStyle}
@@ -840,7 +839,7 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
               )}
               {/* Email principale */}
               <div style={contactCardMuted}>
-                <DrawerMicroLabel>Email principale *</DrawerMicroLabel>
+                <DrawerMicroLabel>Email principale</DrawerMicroLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
                   <input
                     type="email"
@@ -1106,6 +1105,20 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
                 <option value="">Non assegnato</option>
                 {ADMIN_USERS.filter(u => u !== 'Non assegnato').map(user => (
                   <option key={user} value={user}>{user}</option>
+                ))}
+              </select>
+            </DrawerSection>
+
+            {/* ── SERVIZIO ── */}
+            <DrawerSection title="Servizio" icon={<TrendingUp size={16} />}>
+              <select
+                style={drawerSelectStyle}
+                value={formData.service_link}
+                onChange={e => setFormData(prev => ({ ...prev, service_link: e.target.value }))}
+              >
+                <option value="">Nessuno</option>
+                {SERVICE_LINK_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </DrawerSection>

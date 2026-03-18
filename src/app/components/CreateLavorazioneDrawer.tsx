@@ -38,6 +38,19 @@ interface CreateLavorazioneDrawerProps {
   prefilledPipeline?: Pipeline;
 }
 
+const PIPELINE_SERVICE_TO_SERVICE_ID: Record<string, string> = {
+  starter_pack: 'SRV-001',
+  coaching: 'SRV-002',
+  coaching_plus: 'SRV-003',
+};
+
+const resolveServiceIdFromPipeline = (pipeline?: Pipeline | null): string => {
+  if (!pipeline?.service_link) return '';
+  const directMatch = SERVICE_CATALOG.find(s => s.id === pipeline.service_link);
+  if (directMatch) return directMatch.id;
+  return PIPELINE_SERVICE_TO_SERVICE_ID[pipeline.service_link] || '';
+};
+
 // ─── Read-only contact block ──────────────────────────────────
 function ContactBlock({ pipeline }: { pipeline: Pipeline }) {
   const allEmails = [pipeline.email, ...(pipeline.emails || [])];
@@ -276,9 +289,22 @@ export function CreateLavorazioneDrawer({
       setSelectedPipelineId(prefilledPipeline?.id || '');
       setPipelineSearch('');
       setShowPipelinePicker(false);
-      setFormData({ service_id: '', referente: '', area_tematica: '', plan_start_date: '', plan_end_date: '' });
+      setFormData({
+        service_id: resolveServiceIdFromPipeline(prefilledPipeline),
+        referente: '',
+        area_tematica: '',
+        plan_start_date: '',
+        plan_end_date: '',
+      });
     }
   }, [open, prefilledPipeline]);
+
+  useEffect(() => {
+    if (!open || !selectedPipeline) return;
+    const autoServiceId = resolveServiceIdFromPipeline(selectedPipeline);
+    if (!autoServiceId) return;
+    setFormData(prev => (prev.service_id === autoServiceId ? prev : { ...prev, service_id: autoServiceId }));
+  }, [open, selectedPipeline]);
 
   // ── Filtered pipelines for picker ──
   const filteredPipelines = useMemo(() => {

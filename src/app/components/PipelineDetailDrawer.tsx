@@ -9,7 +9,7 @@ import {
 
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useLavorazioni, ADMIN_USERS } from '../data/LavorazioniContext';
+import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
 
 const CURRENT_ADMIN = 'Francesca';
@@ -46,7 +46,17 @@ const SERVICE_LINK_LABELS: Record<string, string> = {
   coaching_plus: 'Coaching Plus',
   starter_pack: 'Starter Pack',
   check_plagio: 'Check plagio/AI',
+  'SRV-001': 'Starter Pack',
+  'SRV-002': 'Coaching',
+  'SRV-003': 'Coaching Plus',
 };
+
+const SERVICE_LINK_OPTIONS: { value: string; label: string }[] = SERVICE_CATALOG.map((service) => {
+  if (service.name === 'Starter Pack') return { value: 'starter_pack', label: service.name };
+  if (service.name === 'Coaching Plus') return { value: 'coaching_plus', label: service.name };
+  if (service.name === 'Coaching') return { value: 'coaching', label: service.name };
+  return { value: service.id, label: service.name };
+});
 
 // ─── Costanti dati accademici ──────────────────────────────────
 const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
@@ -1042,9 +1052,9 @@ export function PipelineDetailDrawer({
                     style={drawerSelectStyle}
                   >
                     <option value="">Nessuno</option>
-                    <option value="coaching">Coaching</option>
-                    <option value="coaching_plus">Coaching Plus</option>
-                    <option value="starter_pack">Starter Pack</option>
+                    {SERVICE_LINK_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                     <option value="check_plagio">Check plagio/AI</option>
                   </select>
                 </div>
