@@ -30,6 +30,14 @@ import {
 } from '../../app/components/TablePrimitives';
 
 type SortKey = 'student_name' | 'email' | 'created_at' | 'lavorazioni_count' | null;
+type GroupingPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+interface PipelineGroup {
+  key: string;
+  label: string;
+  pipelines: Pipeline[];
+  sortTimestamp: number;
+}
 
 const SERVICE_LINK_LABELS: Record<string, string> = {
   coaching: 'Coaching',
@@ -50,6 +58,7 @@ export function PipelinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [quoteStatusFilter, setQuoteStatusFilter] = useState<string>('all');
+  const [groupingPeriod, setGroupingPeriod] = useState<GroupingPeriod>('daily');
   
   // ─── Sort ─────────────────────────────────────────────────
   const [sortColumn, setSortColumn] = useState<SortKey>('created_at');
@@ -275,6 +284,105 @@ export function PipelinesPage() {
     setSortDirection('desc');
   };
 
+  const toLocalDate = (dateStr: string) => {
+    if (dateStr.includes('T')) return new Date(dateStr);
+    return new Date(`${dateStr}T00:00:00`);
+  };
+
+  const getDayKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const startOfWeek = (date: Date) => {
+    const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const day = normalized.getDay();
+    const distanceToMonday = day === 0 ? -6 : 1 - day;
+    normalized.setDate(normalized.getDate() + distanceToMonday);
+    return normalized;
+  };
+
+  const endOfWeek = (weekStart: Date) => {
+    const end = new Date(weekStart);
+    end.setDate(weekStart.getDate() + 6);
+    return end;
+  };
+
+  const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+  const formatDailyLabel = (date: Date) =>
+    capitalize(
+      date.toLocaleDateString('it-IT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      })
+    );
+
+  const formatWeeklyLabel = (weekStart: Date) => {
+    const weekEnd = endOfWeek(weekStart);
+    const sameMonth = weekStart.getMonth() === weekEnd.getMonth() && weekStart.getFullYear() === weekEnd.getFullYear();
+
+    if (sameMonth) {
+      const monthYear = weekEnd.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      return `${weekStart.getDate()}–${weekEnd.getDate()} ${monthYear}`;
+    }
+
+    const startLabel = weekStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    const endLabel = weekEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${startLabel} – ${endLabel}`;
+  };
+
+  const formatMonthlyLabel = (date: Date) =>
+    capitalize(date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }));
+
+  const formatYearlyLabel = (date: Date) => `${date.getFullYear()}`;
+
+  const groupedPipelines = useMemo((): PipelineGroup[] => {
+    const groupMap = new Map<string, PipelineGroup>();
+
+    filteredData.forEach((pipeline) => {
+      const date = toLocalDate(pipeline.created_at);
+      let groupKey = '';
+      let label = '';
+      let sortTimestamp = 0;
+
+      if (groupingPeriod === 'daily') {
+        groupKey = getDayKey(date);
+        label = formatDailyLabel(date);
+        sortTimestamp = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+      } else if (groupingPeriod === 'weekly') {
+        const weekStart = startOfWeek(date);
+        groupKey = getDayKey(weekStart);
+        label = formatWeeklyLabel(weekStart);
+        sortTimestamp = weekStart.getTime();
+      } else if (groupingPeriod === 'monthly') {
+        groupKey = `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
+        label = formatMonthlyLabel(date);
+        sortTimestamp = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+      } else {
+        groupKey = `${date.getFullYear()}`;
+        label = formatYearlyLabel(date);
+        sortTimestamp = new Date(date.getFullYear(), 0, 1).getTime();
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, {
+          key: groupKey,
+          label,
+          pipelines: [],
+          sortTimestamp,
+        });
+      }
+
+      groupMap.get(groupKey)!.pipelines.push(pipeline);
+    });
+
+    return Array.from(groupMap.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+  }, [filteredData, groupingPeriod]);
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -405,6 +513,53 @@ export function PipelinesPage() {
         </div>
       </div>
 
+      <div style={{
+        display: 'flex',
+        gap: '0.25rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        {([
+          { key: 'daily', label: 'Giornaliero' },
+          { key: 'weekly', label: 'Settimanale' },
+          { key: 'monthly', label: 'Mensile' },
+          { key: 'yearly', label: 'Annuale' },
+        ] as Array<{ key: GroupingPeriod; label: string }>).map(tab => {
+          const isActive = groupingPeriod === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setGroupingPeriod(tab.key);
+                setSelectedIds([]);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '0.5rem 1rem',
+                border: '2px solid transparent',
+                borderTopColor: 'transparent',
+                borderLeftColor: 'transparent',
+                borderRightColor: 'transparent',
+                borderBottomColor: isActive ? 'var(--primary)' : 'transparent',
+                borderRadius: '0',
+                background: 'none',
+                fontFamily: 'var(--font-inter)',
+                fontSize: 'var(--text-label)',
+                fontWeight: isActive ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
+                color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)',
+                cursor: 'pointer',
+                lineHeight: '1.5',
+                transition: 'border-color 0.15s ease, color 0.15s ease',
+                marginBottom: '-1px',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* BULK ACTIONS BAR */}
       <BulkActionsBar
         selectedCount={selectedIds.length}
@@ -479,78 +634,103 @@ export function PipelinesPage() {
           {filteredData.length === 0 ? (
             <TableEmptyState message="Nessuna pipeline trovata" colSpan={10} />
           ) : (
-            filteredData.map(pipeline => {
-              const quote = pipeline.quotes?.[0];
+            groupedPipelines.flatMap(group => [
+              <TableRow key={`group-${group.key}`} style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)' }}>
+                <TableCell colSpan={10} style={{ padding: '0.5rem 1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: 'var(--foreground)',
+                      lineHeight: '1.5',
+                    }}>
+                      {group.label}
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: '1.5',
+                    }}>
+                      {group.pipelines.length} {group.pipelines.length === 1 ? 'pipeline' : 'pipelines'}
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>,
+              ...group.pipelines.map(pipeline => {
+                const quote = pipeline.quotes?.[0];
 
-              return (
-                <TableRow
-                  key={pipeline.id}
-                  onClick={() => handleRowClick(pipeline)}
-                  highlighted={highlightId === pipeline.id}
-                >
-                  <TableCell width={columnWidths.checkbox} align="center" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.includes(pipeline.id)}
-                      onCheckedChange={() => handleSelectRow(pipeline.id)}
-                    />
-                  </TableCell>
+                return (
+                  <TableRow
+                    key={pipeline.id}
+                    onClick={() => handleRowClick(pipeline)}
+                    highlighted={highlightId === pipeline.id}
+                  >
+                    <TableCell width={columnWidths.checkbox} align="center" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.includes(pipeline.id)}
+                        onCheckedChange={() => handleSelectRow(pipeline.id)}
+                      />
+                    </TableCell>
 
-                  <TableCell width={columnWidths.name}>
-                    <CellContentStack>
-                      <div className="flex items-center gap-2">
-                        <CellTextPrimary>{pipeline.student_name}</CellTextPrimary>
-                        <StudentTypeBadge isStudent={pipeline.lavorazioni_ids.length > 0 || pipeline.linked_existing_student === true} />
+                    <TableCell width={columnWidths.name}>
+                      <CellContentStack>
+                        <div className="flex items-center gap-2">
+                          <CellTextPrimary>{pipeline.student_name}</CellTextPrimary>
+                          <StudentTypeBadge isStudent={pipeline.lavorazioni_ids.length > 0 || pipeline.linked_existing_student === true} />
+                        </div>
+                        <CellTextSecondary>{pipeline.id}</CellTextSecondary>
+                      </CellContentStack>
+                    </TableCell>
+
+                    <TableCell width={columnWidths.email}>
+                      <CellTextSecondary>{pipeline.email}</CellTextSecondary>
+                    </TableCell>
+
+                    <TableCell width={columnWidths.phone}>
+                      <CellTextSecondary>{pipeline.phone}</CellTextSecondary>
+                    </TableCell>
+
+                    <TableCell width={columnWidths.sources}>
+                      <div className="flex flex-wrap gap-1">
+                        {pipeline.sources.map(source => (
+                          <StatusPill key={source} label={source} variant="neutral" />
+                        ))}
                       </div>
-                      <CellTextSecondary>{pipeline.id}</CellTextSecondary>
-                    </CellContentStack>
-                  </TableCell>
+                    </TableCell>
 
-                  <TableCell width={columnWidths.email}>
-                    <CellTextSecondary>{pipeline.email}</CellTextSecondary>
-                  </TableCell>
+                    <TableCell width={columnWidths.service}>
+                      {pipeline.service_link ? (
+                        <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
+                      ) : (
+                        <CellTextSecondary>—</CellTextSecondary>
+                      )}
+                    </TableCell>
 
-                  <TableCell width={columnWidths.phone}>
-                    <CellTextSecondary>{pipeline.phone}</CellTextSecondary>
-                  </TableCell>
+                    <TableCell width={columnWidths.created_at}>
+                      <CellTextSecondary>{formatDate(pipeline.created_at)}</CellTextSecondary>
+                    </TableCell>
 
-                  <TableCell width={columnWidths.sources}>
-                    <div className="flex flex-wrap gap-1">
-                      {pipeline.sources.map(source => (
-                        <StatusPill key={source} label={source} variant="neutral" />
-                      ))}
-                    </div>
-                  </TableCell>
+                    <TableCell width={columnWidths.quote_status}>
+                      {quote ? (
+                        <StatusPill label={getQuoteLabel(quote.status)} variant={getQuoteVariant(quote.status)} />
+                      ) : (
+                        <CellTextSecondary>—</CellTextSecondary>
+                      )}
+                    </TableCell>
 
-                  <TableCell width={columnWidths.service}>
-                    {pipeline.service_link ? (
-                      <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
-                    ) : (
-                      <CellTextSecondary>—</CellTextSecondary>
-                    )}
-                  </TableCell>
+                    <TableCell width={columnWidths.lavorazioni} align="center">
+                      <CellTextPrimary>{pipeline.lavorazioni_ids.length}</CellTextPrimary>
+                    </TableCell>
 
-                  <TableCell width={columnWidths.created_at}>
-                    <CellTextSecondary>{formatDate(pipeline.created_at)}</CellTextSecondary>
-                  </TableCell>
-
-                  <TableCell width={columnWidths.quote_status}>
-                    {quote ? (
-                      <StatusPill label={getQuoteLabel(quote.status)} variant={getQuoteVariant(quote.status)} />
-                    ) : (
-                      <CellTextSecondary>—</CellTextSecondary>
-                    )}
-                  </TableCell>
-
-                  <TableCell width={columnWidths.lavorazioni} align="center">
-                    <CellTextPrimary>{pipeline.lavorazioni_ids.length}</CellTextPrimary>
-                  </TableCell>
-
-                  <TableCell width={columnWidths.actions} sticky="right" align="center" onClick={(e) => e.stopPropagation()}>
-                    <TableActions actions={getActions(pipeline)} />
-                  </TableCell>
-                </TableRow>
-              );
-            })
+                    <TableCell width={columnWidths.actions} sticky="right" align="center" onClick={(e) => e.stopPropagation()}>
+                      <TableActions actions={getActions(pipeline)} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ])
           )}
         </tbody>
           </TableRoot>
@@ -571,85 +751,87 @@ export function PipelinesPage() {
                 </div>
               </ResponsiveMobileCard>
             ) : (
-              filteredData.map((pipeline) => {
-                const quote = pipeline.quotes?.[0];
-                const isSelected = selectedIds.includes(pipeline.id);
-
-                return (
-                  <ResponsiveMobileCard key={pipeline.id}>
+              groupedPipelines.flatMap((group) => [
+                <ResponsiveMobileCard key={`mobile-group-${group.key}`}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                  }}>
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      marginBottom: '0.75rem',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 'var(--font-weight-semibold)',
+                      color: 'var(--foreground)',
+                      lineHeight: '1.5',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleSelectRow(pipeline.id)}
-                        />
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {group.label}
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      color: 'var(--muted-foreground)',
+                      lineHeight: '1.5',
+                    }}>
+                      {group.pipelines.length}
+                    </div>
+                  </div>
+                </ResponsiveMobileCard>,
+                ...group.pipelines.map((pipeline) => {
+                  const quote = pipeline.quotes?.[0];
+                  const isSelected = selectedIds.includes(pipeline.id);
+
+                  return (
+                    <ResponsiveMobileCard key={pipeline.id}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        marginBottom: '0.75rem',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleSelectRow(pipeline.id)}
+                          />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <div style={{
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: 'var(--text-base)',
+                                fontWeight: 'var(--font-weight-medium)',
+                                color: 'var(--foreground)',
+                                lineHeight: '1.5',
+                              }}>
+                                {pipeline.student_name}
+                              </div>
+                              <StudentTypeBadge isStudent={pipeline.lavorazioni_ids.length > 0 || pipeline.linked_existing_student === true} />
+                            </div>
                             <div style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-base)',
-                              fontWeight: 'var(--font-weight-medium)',
-                              color: 'var(--foreground)',
+                              fontSize: '12px',
+                              color: 'var(--muted-foreground)',
                               lineHeight: '1.5',
                             }}>
-                              {pipeline.student_name}
+                              {pipeline.id}
                             </div>
-                            <StudentTypeBadge isStudent={pipeline.lavorazioni_ids.length > 0 || pipeline.linked_existing_student === true} />
-                          </div>
-                          <div style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: '12px',
-                            color: 'var(--muted-foreground)',
-                            lineHeight: '1.5',
-                          }}>
-                            {pipeline.id}
                           </div>
                         </div>
+
+                        <TableActions actions={getActions(pipeline)} />
                       </div>
 
-                      <TableActions actions={getActions(pipeline)} />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} onClick={() => handleRowClick(pipeline)}>
-                      <div style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        color: 'var(--muted-foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {pipeline.email}
-                      </div>
-
-                      <div style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        color: 'var(--muted-foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {pipeline.phone}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                        {pipeline.sources.map((source) => (
-                          <StatusPill key={source} label={source} variant="neutral" />
-                        ))}
-                      </div>
-
-                      {pipeline.service_link && (
-                        <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <StatusPill
-                          label={quote ? getQuoteLabel(quote.status) : '—'}
-                          variant={quote ? getQuoteVariant(quote.status) : 'neutral'}
-                        />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }} onClick={() => handleRowClick(pipeline)}>
+                        <div style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 'var(--text-label)',
+                          color: 'var(--muted-foreground)',
+                          lineHeight: '1.5',
+                        }}>
+                          {pipeline.email}
+                        </div>
 
                         <div style={{
                           fontFamily: 'var(--font-inter)',
@@ -657,13 +839,39 @@ export function PipelinesPage() {
                           color: 'var(--muted-foreground)',
                           lineHeight: '1.5',
                         }}>
-                          {pipeline.lavorazioni_ids.length} lav. · {formatDate(pipeline.created_at)}
+                          {pipeline.phone}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                          {pipeline.sources.map((source) => (
+                            <StatusPill key={source} label={source} variant="neutral" />
+                          ))}
+                        </div>
+
+                        {pipeline.service_link && (
+                          <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <StatusPill
+                            label={quote ? getQuoteLabel(quote.status) : '—'}
+                            variant={quote ? getQuoteVariant(quote.status) : 'neutral'}
+                          />
+
+                          <div style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 'var(--text-label)',
+                            color: 'var(--muted-foreground)',
+                            lineHeight: '1.5',
+                          }}>
+                            {pipeline.lavorazioni_ids.length} lav. · {formatDate(pipeline.created_at)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </ResponsiveMobileCard>
-                );
-              })
+                    </ResponsiveMobileCard>
+                  );
+                })
+              ])
             )}
           </ResponsiveMobileCards>
         )}
