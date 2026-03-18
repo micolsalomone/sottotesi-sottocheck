@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Briefcase, UserCheck, ExternalLink } from 'lucide-react';
+import { Plus, ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Briefcase, UserCheck, ExternalLink } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAreeTematiche } from '../../app/data/AreeTematicheContext';
 import { useLavorazioni } from '../../app/data/LavorazioniContext';
@@ -11,7 +11,29 @@ import { BulkActionsBar, type BulkAction } from '../../app/components/BulkAction
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { useDrawer } from '../../app/hooks/useDrawer';
 import { Checkbox } from '../../app/components/ui/checkbox';
-import { TableHeader } from '../../app/components/ui/TableHeader';
+import {
+  CellContentStack,
+  CellTextPrimary,
+  CellTextSecondary,
+  NotesBadgeButton,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardFooter,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableActionPlaceholderCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
 
@@ -309,15 +331,6 @@ export function CoachPage() {
       setSortColumn(column);
       setSortDirection('asc');
     }
-  };
-
-  const getSortIcon = (column: SortKey) => {
-    if (sortColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc'
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
   };
 
   // ─── Filtered + sorted data ───────────────────────────────
@@ -856,192 +869,381 @@ export function CoachPage() {
         onClearSelection={() => setSelectedIds([])}
       />
 
-      {/* Table - Desktop */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1200px', tableLayout: 'fixed' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1200px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.checkbox}px`, position: 'relative', background: 'var(--muted)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
-                  <Checkbox
-                    checked={selectedIds.length === filteredData.length && filteredData.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px', background: 'var(--border)' }} />
-                </th>
-                <TableHeader label="ID" columnKey="id" width={columnWidths.id} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Nome" columnKey="fullName" width={columnWidths.fullName} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Aree Tematiche" columnKey="areeTematiche" width={columnWidths.areeTematiche} onResize={handleMouseDown} />
-                <TableHeader label="Lavorazioni" columnKey="lavorazioniCount" width={columnWidths.lavorazioni} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Stato" columnKey="status" width={columnWidths.status} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Disponibilità" columnKey="availability" width={columnWidths.availability} onResize={handleMouseDown} />
-                <TableHeader label="Referente" columnKey="referente" width={columnWidths.referente} onResize={handleMouseDown} />
-                <TableHeader label="Attivazione" columnKey="activationDate" width={columnWidths.activationDate} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Note" columnKey="notes" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
-                <th style={{ width: `${columnWidths.actions}px`, background: 'var(--muted)', borderBottom: '1px solid var(--border)' }} />
+                <TableSelectionHeaderCell
+                  width={columnWidths.checkbox}
+                  checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="fullName" label="Nome" width={columnWidths.fullName} sortable sortDirection={sortColumn === 'fullName' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="areeTematiche" label="Aree Tematiche" width={columnWidths.areeTematiche} onResize={handleMouseDown} />
+                <TableHeaderCell id="lavorazioniCount" label="Lavorazioni" width={columnWidths.lavorazioni} sortable sortDirection={sortColumn === 'lavorazioniCount' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="availability" label="Disponibilità" width={columnWidths.availability} onResize={handleMouseDown} />
+                <TableHeaderCell id="referente" label="Referente" width={columnWidths.referente} onResize={handleMouseDown} />
+                <TableHeaderCell id="activationDate" label="Attivazione" width={columnWidths.activationDate} sortable sortDirection={sortColumn === 'activationDate' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="notes" label="Note" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
-            {filteredData.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      color: 'var(--muted-foreground)',
-                      lineHeight: '1.5',
-                    }}>
-                      Nessun coach trovato
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              filteredData.map((coach) => {
-                const lavorazioniCount = getLavorazioniCount(coach);
-                const coachLavorazioni = getCoachLavorazioni(coach);
-                const hasLavorazioni = coachLavorazioni.length > 0;
-                const isExpanded = expandedRows.has(coach.id);
-                const noteCount = coach.notes?.length || 0;
-                const isSelected = selectedIds.includes(coach.id);
 
-                return (
-                  <tbody key={coach.id}>
-                    <tr 
-                      onClick={() => handleEditCoach(coach)}
-                      style={{ cursor: 'pointer', backgroundColor: isSelected ? 'var(--selected-row-bg)' : undefined }}
-                    >
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
+            <tbody>
+              {filteredData.length === 0 ? (
+                <TableEmptyState message="Nessun coach trovato" colSpan={11} />
+              ) : (
+                filteredData.map((coach) => {
+                  const lavorazioniCount = getLavorazioniCount(coach);
+                  const coachLavorazioni = getCoachLavorazioni(coach);
+                  const hasLavorazioni = coachLavorazioni.length > 0;
+                  const isExpanded = expandedRows.has(coach.id);
+                  const noteCount = coach.notes?.length || 0;
+                  const isSelected = selectedIds.includes(coach.id);
+
+                  return (
+                    <React.Fragment key={coach.id}>
+                      <TableRow onClick={() => handleEditCoach(coach)} selected={isSelected} selectedBackgroundColor="var(--selected-row-bg)">
+                        <TableSelectionCell
                           checked={isSelected}
                           onCheckedChange={() => handleSelectRow(coach.id)}
+                          onClick={(e) => e.stopPropagation()}
                         />
-                      </td>
-                      <td style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        color: 'var(--muted-foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {coach.id}
-                      </td>
-                      <td>
-                        <div>
-                          <div style={{
+
+                        <TableCell>
+                          <CellTextSecondary>{coach.id}</CellTextSecondary>
+                        </TableCell>
+
+                        <TableCell>
+                          <CellContentStack>
+                            <CellTextPrimary>{coach.fullName}</CellTextPrimary>
+                            <CellTextSecondary>{coach.email}</CellTextSecondary>
+                          </CellContentStack>
+                        </TableCell>
+
+                        <TableCell>
+                          {(() => {
+                            const areas = getAreasForCoach(coach.id);
+                            if (areas.length === 0) {
+                              return (
+                                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                                  Nessuna
+                                </span>
+                              );
+                            }
+                            return (
+                              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                {areas.map(area => (
+                                  <span key={area.id} style={{
+                                    display: 'inline-block',
+                                    padding: '0.125rem 0.5rem',
+                                    backgroundColor: 'var(--muted)',
+                                    borderRadius: 'var(--radius-badge)',
+                                    fontFamily: 'var(--font-inter)',
+                                    fontSize: '12px',
+                                    fontWeight: 'var(--font-weight-medium)',
+                                    color: 'var(--foreground)',
+                                    lineHeight: '1.5',
+                                  }}>
+                                    {area.name}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+
+                        <TableCell onClick={(e) => { e.stopPropagation(); if (hasLavorazioni) toggleRowExpand(coach.id); }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: hasLavorazioni ? 'pointer' : 'default' }}>
+                            {hasLavorazioni && (
+                              <ChevronRight
+                                size={14}
+                                style={{
+                                  color: 'var(--muted-foreground)',
+                                  transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.15s ease',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
+                            <span style={{
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              color: hasLavorazioni ? 'var(--foreground)' : 'var(--muted-foreground)',
+                            }}>
+                              {hasLavorazioni ? (
+                                <>{lavorazioniCount} {lavorazioniCount === 1 ? 'servizio' : 'servizi'}</>
+                              ) : (
+                                <span style={{ fontStyle: 'italic' }}>—</span>
+                              )}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <StatusBadge status={coach.status === 'active' ? 'active' : 'inactive'} />
+                        </TableCell>
+
+                        <TableCell>
+                          <StatusBadge status={getCoachAvailabilityStatus(coach)} label={getCoachAvailabilityLabel(coach)} />
+                        </TableCell>
+
+                        <TableCell>
+                          {(() => {
+                            const referenti = getCoachReferenti(coach);
+                            if (referenti.length === 0) {
+                              return <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>—</span>;
+                            }
+                            return (
+                              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                {referenti.map(ref => (
+                                  <span key={ref} style={{
+                                    fontFamily: 'var(--font-inter)',
+                                    fontSize: 'var(--text-label)',
+                                    color: 'var(--foreground)',
+                                    lineHeight: '1.5',
+                                  }}>
+                                    {ref}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+
+                        <TableCell>
+                          <CellTextPrimary>{coach.activationDate}</CellTextPrimary>
+                        </TableCell>
+
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          <NotesBadgeButton count={noteCount} onClick={() => handleOpenNotesDrawer(coach)} />
+                        </TableCell>
+
+                        <TableActionCell
+                          width={columnWidths.actions}
+                          backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--background)'}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TableActions actions={getTableActions(coach)} />
+                        </TableActionCell>
+                      </TableRow>
+
+                      {isExpanded && coachLavorazioni.map((svc) => (
+                        <TableRow key={svc.id} selected selectedBackgroundColor="var(--muted)">
+                          <TableCell />
+
+                          <TableCell
+                            onClick={() => navigateToLavorazione(svc.id)}
+                          >
+                            <div style={{
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
+                              color: 'var(--primary)', cursor: 'pointer',
+                              textDecoration: 'underline', textDecorationColor: 'transparent',
+                              textUnderlineOffset: '2px', transition: 'text-decoration-color 0.15s ease',
+                              display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.textDecorationColor = 'var(--primary)'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.textDecorationColor = 'transparent'; }}
+                              title="Vai alla lavorazione"
+                            >
+                              {svc.id}
+                              <ExternalLink size={11} style={{ opacity: 0.6 }} />
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <CellContentStack>
+                              <CellTextPrimary>{svc.student_name}</CellTextPrimary>
+                              <CellTextSecondary>{svc.service_name}</CellTextSecondary>
+                            </CellContentStack>
+                          </TableCell>
+
+                          <TableCell />
+
+                          <TableCell>
+                            {svc.coach_fee !== undefined && svc.coach_fee !== null && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: 'var(--text-label)',
+                                lineHeight: '1.5',
+                              }}>
+                                <span style={{
+                                  color: 'var(--muted-foreground)',
+                                  fontWeight: 'var(--font-weight-regular)',
+                                }}>
+                                  Compenso:
+                                </span>
+                                <span style={{
+                                  fontWeight: 'var(--font-weight-medium)',
+                                  color: 'var(--foreground)',
+                                }}>
+                                  €{svc.coach_fee.toLocaleString('it-IT')}
+                                </span>
+                              </div>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <StatusBadge
+                              status={SERVICE_STATUS_MAP[svc.status] || 'inactive'}
+                              label={SERVICE_STATUS_LABELS[svc.status] || svc.status}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                              {(() => {
+                                const startDate = svc.start_date || svc.plan_start_date;
+                                const endDate = svc.end_date || svc.plan_end_date;
+
+                                if (!startDate) {
+                                  return <span style={{ fontStyle: 'italic' }}>Non avviato</span>;
+                                }
+
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                    <span>{startDate}</span>
+                                    <span>→</span>
+                                    {endDate ? (
+                                      <span style={{
+                                        fontFamily: 'var(--font-inter)',
+                                        fontSize: 'var(--text-label)',
+                                        fontWeight: 'var(--font-weight-medium)',
+                                        color: 'var(--foreground)',
+                                      }}>
+                                        {endDate}
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        fontFamily: 'var(--font-inter)',
+                                        fontSize: '11px',
+                                        fontWeight: 'var(--font-weight-medium)',
+                                        color: 'var(--chart-2)',
+                                        fontStyle: 'italic',
+                                      }}>
+                                        in corso
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: 'var(--text-label)',
+                              color: svc.referente ? 'var(--foreground)' : 'var(--muted-foreground)',
+                              lineHeight: '1.5',
+                            }}>
+                              {svc.referente || '—'}
+                            </div>
+                          </TableCell>
+
+                          <TableCell />
+                          <TableCell />
+                          <TableActionPlaceholderCell width={columnWidths.actions} backgroundColor="var(--muted)" />
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.map((coach) => {
+              const lavorazioniCount = getLavorazioniCount(coach);
+              const coachLavorazioniMobile = getCoachLavorazioni(coach);
+              const isExpandedMobile = expandedRows.has(coach.id);
+              const noteCount = coach.notes?.length || 0;
+              const isSelected = selectedIds.includes(coach.id);
+
+              return (
+                <ResponsiveMobileCard key={coach.id} backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--card)'}>
+                  <ResponsiveMobileCardHeader>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleSelectRow(coach.id)}
+                      />
+                      <CellContentStack>
+                        <CellTextSecondary>{coach.id}</CellTextSecondary>
+                        <CellTextPrimary>{coach.fullName}</CellTextPrimary>
+                        <CellTextSecondary>{coach.email}</CellTextSecondary>
+                      </CellContentStack>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <StatusBadge status={coach.status === 'active' ? 'active' : 'inactive'} />
+                      <TableActions actions={getTableActions(coach)} />
+                    </div>
+                  </ResponsiveMobileCardHeader>
+
+                  <ResponsiveMobileCardSection>
+                    <ResponsiveMobileFieldLabel>Aree Tematiche</ResponsiveMobileFieldLabel>
+                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      {(() => {
+                        const areas = getAreasForCoach(coach.id);
+                        if (areas.length === 0) {
+                          return <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>Nessuna area assegnata</span>;
+                        }
+                        return areas.map(area => (
+                          <span key={area.id} style={{
+                            display: 'inline-block',
+                            padding: '0.125rem 0.5rem',
+                            backgroundColor: 'var(--muted)',
+                            borderRadius: 'var(--radius-badge)',
                             fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-base)',
+                            fontSize: '12px',
                             fontWeight: 'var(--font-weight-medium)',
                             color: 'var(--foreground)',
                             lineHeight: '1.5',
                           }}>
-                            {coach.fullName}
-                          </div>
-                          <div style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: '12px',
-                            color: 'var(--muted-foreground)',
-                            lineHeight: '1.5',
-                          }}>
-                            {coach.email}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        {(() => {
-                          const areas = getAreasForCoach(coach.id);
-                          if (areas.length === 0) {
-                            return <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>Nessuna</span>;
-                          }
-                          return (
-                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                              {areas.map(area => (
-                                <span key={area.id} style={{
-                                  display: 'inline-block',
-                                  padding: '0.125rem 0.5rem',
-                                  backgroundColor: 'var(--muted)',
-                                  borderRadius: 'var(--radius-badge)',
-                                  fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
-                                  fontWeight: 'var(--font-weight-medium)',
-                                  color: 'var(--foreground)',
-                                  lineHeight: '1.5',
-                                }}>
-                                  {area.name}
-                                </span>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      {/* Lavorazioni — expandable */}
-                      <td onClick={(e) => { e.stopPropagation(); if (hasLavorazioni) toggleRowExpand(coach.id); }} style={{ cursor: hasLavorazioni ? 'pointer' : 'default' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {hasLavorazioni && (
-                            <ChevronRight
-                              size={14}
-                              style={{
-                                color: 'var(--muted-foreground)',
-                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.15s ease',
-                                flexShrink: 0,
-                              }}
-                            />
-                          )}
-                          <span style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                            color: hasLavorazioni ? 'var(--foreground)' : 'var(--muted-foreground)',
-                          }}>
-                            {hasLavorazioni ? (
-                              <>{lavorazioniCount} {lavorazioniCount === 1 ? 'servizio' : 'servizi'}</>
-                            ) : (
-                              <span style={{ fontStyle: 'italic' }}>—</span>
-                            )}
+                            {area.name}
                           </span>
-                        </div>
-                      </td>
-                      <td>
-                        <StatusBadge
-                          status={coach.status === 'active' ? 'active' : 'inactive'}
-                        />
-                      </td>
-                      <td>
-                        <StatusBadge
-                          status={getCoachAvailabilityStatus(coach)}
-                          label={getCoachAvailabilityLabel(coach)}
-                        />
-                      </td>
-                      <td>
-                        {(() => {
-                          const referenti = getCoachReferenti(coach);
-                          if (referenti.length === 0) {
-                            return <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>—</span>;
-                          }
-                          return (
-                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                              {referenti.map(ref => (
-                                <span key={ref} style={{
-                                  fontFamily: 'var(--font-inter)',
-                                  fontSize: 'var(--text-label)',
-                                  color: 'var(--foreground)',
-                                  lineHeight: '1.5',
-                                }}>
-                                  {ref}
-                                </span>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        color: 'var(--foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {coach.activationDate}
-                      </td>
-                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        ));
+                      })()}
+                    </div>
+                  </ResponsiveMobileCardSection>
+
+                  <ResponsiveMobileCardSection>
+                    <div style={{ display: 'flex', gap: '1.5rem' }}>
+                      <div>
+                        <ResponsiveMobileFieldLabel>Lavorazioni</ResponsiveMobileFieldLabel>
+                        {coachLavorazioniMobile.length > 0 ? (
+                          <button
+                            onClick={() => toggleRowExpand(coach.id)}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)',
+                              fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)',
+                            }}
+                          >
+                            {lavorazioniCount} {lavorazioniCount === 1 ? 'servizio' : 'servizi'}
+                            <ChevronRight size={12} style={{ transform: isExpandedMobile ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }} />
+                          </button>
+                        ) : (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>—</span>
+                        )}
+                      </div>
+
+                      <div>
+                        <ResponsiveMobileFieldLabel>Disponibilità</ResponsiveMobileFieldLabel>
+                        <StatusBadge status={getCoachAvailabilityStatus(coach)} label={getCoachAvailabilityLabel(coach)} />
+                      </div>
+
+                      <div>
+                        <ResponsiveMobileFieldLabel>Note</ResponsiveMobileFieldLabel>
                         <button
                           onClick={() => handleOpenNotesDrawer(coach)}
                           style={{
@@ -1050,423 +1252,61 @@ export function CoachPage() {
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                            padding: '0.25rem',
+                            gap: '0.25rem',
                             color: noteCount > 0 ? 'var(--primary)' : 'var(--muted-foreground)',
-                          }}
-                          title={`${noteCount} note`}
-                        >
-                          <StickyNote size={18} />
-                          {noteCount > 0 && (
-                            <span style={{
-                              position: 'absolute',
-                              top: '-4px',
-                              right: '-4px',
-                              backgroundColor: 'var(--primary)',
-                              color: 'var(--primary-foreground)',
-                              borderRadius: '50%',
-                              width: '16px',
-                              height: '16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '10px',
-                              fontWeight: 'var(--font-weight-medium)',
-                              fontFamily: 'var(--font-inter)',
-                            }}>
-                              {noteCount}
-                            </span>
-                          )}
-                        </button>
-                      </td>
-                      <td 
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ 
-                          position: 'sticky', 
-                          right: 0, 
-                          backgroundColor: isSelected ? 'var(--selected-row-bg)' : 'var(--background)', 
-                          zIndex: 10,
-                          boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)'
-                        }}
-                      >
-                        <TableActions actions={getTableActions(coach)} />
-                      </td>
-                    </tr>
-
-                    {/* ─── Expanded lavorazioni rows ──────────────── */}
-                    {isExpanded && coachLavorazioni.map((svc) => (
-                      <tr
-                        key={svc.id}
-                        style={{ backgroundColor: 'var(--muted)' }}
-                      >
-                        {/* Spacer for checkbox */}
-                        <td />
-                        {/* ID lavorazione — link */}
-                        <td
-                          onClick={() => navigateToLavorazione(svc.id)}
-                          style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                            color: 'var(--primary)', cursor: 'pointer',
-                            textDecoration: 'underline', textDecorationColor: 'transparent',
-                            textUnderlineOffset: '2px', transition: 'text-decoration-color 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLTableCellElement).style.textDecorationColor = 'var(--primary)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLTableCellElement).style.textDecorationColor = 'transparent'; }}
-                          title="Vai alla lavorazione"
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            {svc.id}
-                            <ExternalLink size={11} style={{ opacity: 0.6 }} />
-                          </div>
-                        </td>
-                        {/* Studente + Servizio */}
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                            {svc.student_name}
-                          </div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                            {svc.service_name}
-                          </div>
-                        </td>
-                        {/* Aree tematiche spacer */}
-                        <td />
-                        {/* Compenso lavorazione */}
-                        <td>
-                          {svc.coach_fee !== undefined && svc.coach_fee !== null && (
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.35rem',
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              lineHeight: '1.5',
-                            }}>
-                              <span style={{
-                                color: 'var(--muted-foreground)',
-                                fontWeight: 'var(--font-weight-regular)',
-                              }}>
-                                Compenso:
-                              </span>
-                              <span style={{
-                                fontWeight: 'var(--font-weight-medium)',
-                                color: 'var(--foreground)',
-                              }}>
-                                €{svc.coach_fee.toLocaleString('it-IT')}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        {/* Stato lavorazione */}
-                        <td>
-                          <StatusBadge
-                            status={SERVICE_STATUS_MAP[svc.status] || 'inactive'}
-                            label={SERVICE_STATUS_LABELS[svc.status] || svc.status}
-                          />
-                        </td>
-                        {/* Date (Disponibilità col) */}
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                            {(() => {
-                              const startDate = svc.start_date || svc.plan_start_date;
-                              const endDate = svc.end_date || svc.plan_end_date;
-
-                              if (!startDate) {
-                                return <span style={{ fontStyle: 'italic' }}>Non avviato</span>;
-                              }
-
-                              return (
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                  <span>{startDate}</span>
-                                  <span>→</span>
-                                  {endDate ? (
-                                    <span style={{
-                                      fontFamily: 'var(--font-inter)',
-                                      fontSize: 'var(--text-label)',
-                                      fontWeight: 'var(--font-weight-medium)',
-                                      color: 'var(--foreground)',
-                                    }}>
-                                      {endDate}
-                                    </span>
-                                  ) : (
-                                    <span style={{
-                                      fontFamily: 'var(--font-inter)',
-                                      fontSize: '11px',
-                                      fontWeight: 'var(--font-weight-medium)',
-                                      color: 'var(--chart-2)',
-                                      fontStyle: 'italic',
-                                    }}>
-                                      in corso
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </td>
-                        {/* Referente lavorazione */}
-                        <td>
-                          <div style={{
                             fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            color: svc.referente ? 'var(--foreground)' : 'var(--muted-foreground)',
-                            lineHeight: '1.5',
-                          }}>
-                            {svc.referente || '—'}
-                          </div>
-                        </td>
-                        {/* Attivazione spacer */}
-                        <td>
-                          
-                        </td>
-                        {/* Empty note */}
-                        <td />
-                        {/* Empty actions */}
-                        <td style={{
-                          position: 'sticky', right: 0,
-                          backgroundColor: 'var(--muted)',
-                          zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)'
-                        }} />
-                      </tr>
-                    ))}
-                  </tbody>
-                );
-              })
-            )}
-          </table>
-        </div>
-      </div>
-
-      {/* Mobile Card View */}
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {filteredData.map((coach) => {
-          const lavorazioniCount = getLavorazioniCount(coach);
-          const coachLavorazioniMobile = getCoachLavorazioni(coach);
-          const isExpandedMobile = expandedRows.has(coach.id);
-          const noteCount = coach.notes?.length || 0;
-          const isSelected = selectedIds.includes(coach.id);
-
-          return (
-            <div
-              key={coach.id}
-              style={{
-                backgroundColor: isSelected ? 'var(--selected-row-bg)' : 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '1rem',
-                marginBottom: '1rem',
-              }}
-            >
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '1rem',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => handleSelectRow(coach.id)}
-                  />
-                  <div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      color: 'var(--muted-foreground)',
-                      marginBottom: '0.25rem',
-                      lineHeight: '1.5',
-                    }}>
-                      {coach.id}
-                    </div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--foreground)',
-                      lineHeight: '1.5',
-                    }}>
-                      {coach.fullName}
-                    </div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
-                      color: 'var(--muted-foreground)',
-                      lineHeight: '1.5',
-                    }}>
-                      {coach.email}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <StatusBadge status={coach.status === 'active' ? 'active' : 'inactive'} />
-                  <TableActions actions={getTableActions(coach)} />
-                </div>
-              </div>
-
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-                marginBottom: '1rem',
-              }}>
-                <div>
-                  <div style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--muted-foreground)',
-                    marginBottom: '0.25rem',
-                    lineHeight: '1.5',
-                  }}>
-                    Aree Tematiche
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                    {(() => {
-                      const areas = getAreasForCoach(coach.id);
-                      if (areas.length === 0) {
-                        return <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>Nessuna area assegnata</span>;
-                      }
-                      return areas.map(area => (
-                        <span key={area.id} style={{
-                          display: 'inline-block',
-                          padding: '0.125rem 0.5rem',
-                          backgroundColor: 'var(--muted)',
-                          borderRadius: 'var(--radius-badge)',
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: '12px',
-                          fontWeight: 'var(--font-weight-medium)',
-                          color: 'var(--foreground)',
-                          lineHeight: '1.5',
-                        }}>
-                          {area.name}
-                        </span>
-                      ));
-                    })()}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1.5rem' }}>
-                  <div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      color: 'var(--muted-foreground)',
-                      marginBottom: '0.25rem',
-                      lineHeight: '1.5',
-                    }}>
-                      Lavorazioni
-                    </div>
-                    {coachLavorazioniMobile.length > 0 ? (
-                      <button
-                        onClick={() => toggleRowExpand(coach.id)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                          fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)',
-                          fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)',
-                        }}
-                      >
-                        {lavorazioniCount} {lavorazioniCount === 1 ? 'servizio' : 'servizi'}
-                        <ChevronRight size={12} style={{ transform: isExpandedMobile ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }} />
-                      </button>
-                    ) : (
-                      <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>—</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      color: 'var(--muted-foreground)',
-                      marginBottom: '0.25rem',
-                      lineHeight: '1.5',
-                    }}>
-                      Disponibilità
-                    </div>
-                    <StatusBadge
-                      status={getCoachAvailabilityStatus(coach)}
-                      label={getCoachAvailabilityLabel(coach)}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      color: 'var(--muted-foreground)',
-                      marginBottom: '0.25rem',
-                      lineHeight: '1.5',
-                    }}>
-                      Note
-                    </div>
-                    <button
-                      onClick={() => handleOpenNotesDrawer(coach)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        color: noteCount > 0 ? 'var(--primary)' : 'var(--muted-foreground)',
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-base)',
-                        fontWeight: 'var(--font-weight-medium)',
-                      }}
-                    >
-                      <StickyNote size={16} />
-                      {noteCount}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Expanded lavorazioni mobile */}
-              {isExpandedMobile && coachLavorazioniMobile.length > 0 && (
-                <div style={{
-                  display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                  padding: '0.75rem', backgroundColor: 'var(--muted)',
-                  borderRadius: 'var(--radius)', marginBottom: '0.75rem',
-                }}>
-                  {coachLavorazioniMobile.map((svc) => (
-                    <div
-                      key={svc.id}
-                      onClick={() => navigateToLavorazione(svc.id)}
-                      style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        cursor: 'pointer', padding: '0.375rem 0',
-                        borderBottom: '1px solid var(--border)',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {svc.id} <ExternalLink size={10} style={{ opacity: 0.5 }} />
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {svc.student_name} · {svc.service_name}
-                        </div>
+                            fontSize: 'var(--text-base)',
+                            fontWeight: 'var(--font-weight-medium)',
+                          }}
+                        >
+                          <StickyNote size={16} />
+                          {noteCount}
+                        </button>
                       </div>
-                      <StatusBadge status={SERVICE_STATUS_MAP[svc.status] || 'inactive'} label={SERVICE_STATUS_LABELS[svc.status] || svc.status} />
                     </div>
-                  ))}
-                </div>
-              )}
+                  </ResponsiveMobileCardSection>
 
-              <div style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                color: 'var(--muted-foreground)',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid var(--border)',
-                lineHeight: '1.5',
-              }}>
-                Attivazione: {coach.activationDate}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  {isExpandedMobile && coachLavorazioniMobile.length > 0 && (
+                    <ResponsiveMobileCardSection marginBottom="0.75rem">
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                        padding: '0.75rem', backgroundColor: 'var(--muted)',
+                        borderRadius: 'var(--radius)',
+                      }}>
+                        {coachLavorazioniMobile.map((svc) => (
+                          <div
+                            key={svc.id}
+                            onClick={() => navigateToLavorazione(svc.id)}
+                            style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              cursor: 'pointer', padding: '0.375rem 0',
+                              borderBottom: '1px solid var(--border)',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {svc.id} <ExternalLink size={10} style={{ opacity: 0.5 }} />
+                              </div>
+                              <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                                {svc.student_name} · {svc.service_name}
+                              </div>
+                            </div>
+                            <StatusBadge status={SERVICE_STATUS_MAP[svc.status] || 'inactive'} label={SERVICE_STATUS_LABELS[svc.status] || svc.status} />
+                          </div>
+                        ))}
+                      </div>
+                    </ResponsiveMobileCardSection>
+                  )}
+
+                  <ResponsiveMobileCardFooter>
+                    Attivazione: {coach.activationDate}
+                  </ResponsiveMobileCardFooter>
+                </ResponsiveMobileCard>
+              );
+            })}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {/* Drawer Coach */}
       <CreateCoachDrawer
@@ -1519,24 +1359,7 @@ export function CoachPage() {
         />
       )}
 
-      <style>{`
-        @media (max-width: 768px) {
-          .data-table {
-            display: none !important;
-          }
-          .mobile-cards {
-            display: block !important;
-          }
-        }
-        
-        .data-table tbody tr {
-          transition: background-color 0.15s ease;
-        }
-        
-        .data-table tbody tr:hover {
-          background-color: var(--muted);
-        }
-      `}</style>
+
     </div>
   );
 }

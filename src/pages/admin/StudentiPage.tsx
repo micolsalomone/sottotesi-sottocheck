@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, GitBranch, Clock } from 'lucide-react';
+import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, GitBranch, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI } from '../../app/data/LavorazioniContext';
@@ -11,7 +11,28 @@ import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { Checkbox } from '../../app/components/ui/checkbox';
-import { TableHeader } from '../../app/components/ui/TableHeader';
+import {
+  CellContentStack,
+  CellTextPrimary,
+  CellTextSecondary,
+  NotesBadgeButton,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableActionPlaceholderCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 
 // ─── Mock admin corrente ───────────────────────────────────
@@ -237,15 +258,6 @@ export function StudentiPage() {
       setSortColumn(column);
       setSortDirection('asc');
     }
-  };
-
-  const getSortIcon = (column: SortKey) => {
-    if (sortColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc'
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
   };
 
   // Filter + sort
@@ -603,416 +615,354 @@ export function StudentiPage() {
         onClearSelection={() => setSelectedIds([])}
       />
 
-      {/* Table - Desktop */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1000px', tableLayout: 'fixed' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1000px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.checkbox}px`, position: 'relative', background: 'var(--muted)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
-                  <Checkbox
-                    checked={selectedIds.length === filteredData.length && filteredData.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px', background: 'var(--border)' }} />
-                </th>
-                <TableHeader label="ID" columnKey="id" width={columnWidths.id} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Studente" columnKey="name" width={columnWidths.name} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Stato" columnKey="status" width={columnWidths.status} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Lavorazioni" columnKey="coaching" width={columnWidths.coaching} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Timeline" columnKey="timeline" width={columnWidths.timeline} onResize={handleMouseDown} icon={<GitBranch size={13} style={{ color: 'var(--muted-foreground)' }} />} />
-                <TableHeader label="Referente" columnKey="referente" width={columnWidths.referente} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Inserito da" columnKey="created_by" width={columnWidths.created_by} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Note" columnKey="notes" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
-                <th style={{ width: `${columnWidths.actions}px`, position: 'sticky', right: 0, background: 'var(--muted)', borderBottom: '1px solid var(--border)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', textAlign: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Azioni</span>
-                </th>
+                <TableSelectionHeaderCell
+                  width={columnWidths.checkbox}
+                  checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="name" label="Studente" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="coaching" label="Lavorazioni" width={columnWidths.coaching} sortable sortDirection={sortColumn === 'coaching' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="timeline" label="Timeline" width={columnWidths.timeline} onResize={handleMouseDown} icon={<GitBranch size={13} style={{ color: 'var(--muted-foreground)' }} />} />
+                <TableHeaderCell id="referente" label="Referente" width={columnWidths.referente} sortable sortDirection={sortColumn === 'referente' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="created_by" label="Inserito da" width={columnWidths.created_by} sortable sortDirection={sortColumn === 'created_by' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="notes" label="Note" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
-            {filteredData.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={totalColumns} style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                      Nessuno studente trovato
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              filteredData.map((student) => {
-                const noteCount = student.notes?.length || 0;
-                const isSelected = selectedIds.includes(student.id);
-                const isExpanded = expandedRows.has(student.id);
-                const studentLavorazioni = getStudentLavorazioni(student.id);
-                const hasLavorazioni = studentLavorazioni.length > 0;
-                const activeRef = getActiveReferente(student.id);
-                const extraRef = getActiveReferenteExtra(student.id);
-                const isInCoaching = getCoachingStatus(student.id);
-                const derivedStatus = getDerivedStatus(student);
-                const hasTimeline = getHasTimeline(student.id);
-                const needsTimelineMissing = getNeedsTimelineButMissing(student.id);
 
-                return (
-                  <tbody key={student.id}>
-                    <tr
-                      onClick={() => handleEditStudent(student)}
-                      style={{ cursor: 'pointer', backgroundColor: isSelected ? 'var(--selected-row-bg)' : undefined }}
-                    >
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <Checkbox checked={isSelected} onCheckedChange={() => handleSelectRow(student.id)} />
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        {student.id}
-                      </td>
-                      <td>
-                        <div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                            {student.name}
+            <tbody>
+              {filteredData.length === 0 ? (
+                <TableEmptyState message="Nessuno studente trovato" colSpan={totalColumns} />
+              ) : (
+                filteredData.map((student) => {
+                  const noteCount = student.notes?.length || 0;
+                  const isSelected = selectedIds.includes(student.id);
+                  const isExpanded = expandedRows.has(student.id);
+                  const studentLavorazioni = getStudentLavorazioni(student.id);
+                  const hasLavorazioni = studentLavorazioni.length > 0;
+                  const activeRef = getActiveReferente(student.id);
+                  const extraRef = getActiveReferenteExtra(student.id);
+                  const isInCoaching = getCoachingStatus(student.id);
+                  const derivedStatus = getDerivedStatus(student);
+                  const hasTimeline = getHasTimeline(student.id);
+                  const needsTimelineMissing = getNeedsTimelineButMissing(student.id);
+
+                  return (
+                    <React.Fragment key={student.id}>
+                      <TableRow onClick={() => handleEditStudent(student)} selected={isSelected} selectedBackgroundColor="var(--selected-row-bg)">
+                        <TableSelectionCell checked={isSelected} onCheckedChange={() => handleSelectRow(student.id)} onClick={(e) => e.stopPropagation()} />
+
+                        <TableCell>
+                          <CellTextSecondary>{student.id}</CellTextSecondary>
+                        </TableCell>
+
+                        <TableCell>
+                          <CellContentStack>
+                            <CellTextPrimary>{student.name}</CellTextPrimary>
+                            <CellTextSecondary>{student.email}</CellTextSecondary>
+                          </CellContentStack>
+                        </TableCell>
+
+                        <TableCell>
+                          <StatusBadge status={derivedStatus.status} label={derivedStatus.label} />
+                        </TableCell>
+
+                        <TableCell onClick={(e) => { e.stopPropagation(); if (hasLavorazioni) toggleRowExpand(student.id); }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: hasLavorazioni ? 'pointer' : 'default' }}>
+                            {hasLavorazioni && (
+                              <ChevronRight
+                                size={14}
+                                style={{
+                                  color: 'var(--muted-foreground)',
+                                  transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.15s ease',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
+                            <span style={{
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              color: isInCoaching ? 'var(--primary)' : hasLavorazioni ? 'var(--foreground)' : 'var(--muted-foreground)',
+                            }}>
+                              {hasLavorazioni ? (
+                                <>
+                                  {studentLavorazioni.length} {studentLavorazioni.length === 1 ? 'servizio' : 'servizi'}
+                                  {isInCoaching && (
+                                    <span style={{
+                                      marginLeft: '0.375rem', fontSize: '10px',
+                                      padding: '0.0625rem 0.375rem', borderRadius: 'var(--radius-badge)',
+                                      backgroundColor: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+                                      color: 'var(--primary)', fontWeight: 'var(--font-weight-medium)',
+                                    }}>
+                                      coaching
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span style={{ fontStyle: 'italic' }}>—</span>
+                              )}
+                            </span>
                           </div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                            {student.email}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <StatusBadge status={derivedStatus.status} label={derivedStatus.label} />
-                      </td>
-                      {/* Lavorazioni — expandable */}
-                      <td onClick={(e) => { e.stopPropagation(); if (hasLavorazioni) toggleRowExpand(student.id); }} style={{ cursor: hasLavorazioni ? 'pointer' : 'default' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {hasLavorazioni && (
-                            <ChevronRight
-                              size={14}
-                              style={{
-                                color: 'var(--muted-foreground)',
-                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.15s ease',
-                                flexShrink: 0,
-                              }}
-                            />
+                        </TableCell>
+
+                        <TableCell>
+                          {hasTimeline ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
+                              <GitBranch size={11} />
+                              Presente
+                            </span>
+                          ) : needsTimelineMissing ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--destructive-foreground)', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
+                              <Clock size={11} />
+                              Da creare
+                            </span>
+                          ) : (
+                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>—</span>
                           )}
-                          <span style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                            color: isInCoaching ? 'var(--primary)' : hasLavorazioni ? 'var(--foreground)' : 'var(--muted-foreground)',
-                          }}>
-                            {hasLavorazioni ? (
+                        </TableCell>
+
+                        <TableCell>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: activeRef ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                            {activeRef ? (
                               <>
-                                {studentLavorazioni.length} {studentLavorazioni.length === 1 ? 'servizio' : 'servizi'}
-                                {isInCoaching && (
+                                {activeRef}
+                                {extraRef > 0 && (
                                   <span style={{
-                                    marginLeft: '0.375rem', fontSize: '10px',
-                                    padding: '0.0625rem 0.375rem', borderRadius: 'var(--radius-badge)',
-                                    backgroundColor: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                                    color: 'var(--primary)', fontWeight: 'var(--font-weight-medium)',
+                                    marginLeft: '0.25rem', fontSize: '10px',
+                                    color: 'var(--muted-foreground)',
+                                    fontWeight: 'var(--font-weight-medium)',
                                   }}>
-                                    coaching
+                                    +{extraRef}
                                   </span>
                                 )}
                               </>
                             ) : (
                               <span style={{ fontStyle: 'italic' }}>—</span>
                             )}
-                          </span>
-                        </div>
-                      </td>
-                      {/* Timeline — basata su needs_timeline della lavorazione */}
-                      <td>
-                        {hasTimeline ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
-                            <GitBranch size={11} />
-                            Presente
-                          </span>
-                        ) : needsTimelineMissing ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: '#dc2626', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, #dc2626 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
-                            <Clock size={11} />
-                            Da creare
-                          </span>
-                        ) : (
-                          // needs_timeline:false oppure servizi non-coaching: timeline non prevista
-                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>—</span>
-                        )}
-                      </td>
-                      {/* Referente (dalla lavorazione attiva) */}
-                      <td>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: activeRef ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {activeRef ? (
-                            <>
-                              {activeRef}
-                              {extraRef > 0 && (
-                                <span style={{
-                                  marginLeft: '0.25rem', fontSize: '10px',
-                                  color: 'var(--muted-foreground)',
-                                  fontWeight: 'var(--font-weight-medium)',
-                                }}>
-                                  +{extraRef}
-                                </span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <CellTextSecondary>{student.created_by || '—'}</CellTextSecondary>
+                        </TableCell>
+
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          <NotesBadgeButton count={noteCount} onClick={() => handleOpenNotesDrawer(student)} />
+                        </TableCell>
+
+                        <TableActionCell
+                          width={columnWidths.actions}
+                          backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--background)'}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TableActions actions={getTableActions(student)} />
+                        </TableActionCell>
+                      </TableRow>
+
+                      {isExpanded && studentLavorazioni.map((svc) => (
+                        <TableRow key={svc.id} selected selectedBackgroundColor="var(--muted)">
+                          <TableCell />
+
+                          <TableCell onClick={() => navigateToLavorazione(svc.id)}>
+                            <div style={{
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
+                              color: 'var(--primary)', cursor: 'pointer',
+                              textDecoration: 'underline', textDecorationColor: 'transparent',
+                              textUnderlineOffset: '2px', transition: 'text-decoration-color 0.15s ease',
+                              display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.textDecorationColor = 'var(--primary)'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.textDecorationColor = 'transparent'; }}
+                              title="Vai alla lavorazione"
+                            >
+                              {svc.id}
+                              <ExternalLink size={11} style={{ opacity: 0.6 }} />
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <CellContentStack>
+                              <CellTextPrimary>{svc.service_name}</CellTextPrimary>
+                              {svc.coach_name && <CellTextSecondary>Coach: {svc.coach_name}</CellTextSecondary>}
+                            </CellContentStack>
+                          </TableCell>
+
+                          <TableCell />
+
+                          <TableCell>
+                            <StatusBadge
+                              status={SERVICE_STATUS_MAP[svc.status] || 'inactive'}
+                              label={SERVICE_STATUS_LABELS[svc.status] || svc.status}
+                            />
+                            {svc.status === 'paused' && (
+                              <div style={{
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: '11px',
+                                color: 'var(--muted-foreground)',
+                                lineHeight: '1.5',
+                                marginTop: '0.125rem',
+                              }}>
+                                {svc.pause_start_date ? (
+                                  <>
+                                    {svc.pause_start_date}
+                                    {svc.pause_end_date ? ` → ${svc.pause_end_date}` : ' → in corso'}
+                                  </>
+                                ) : (
+                                  <span style={{ fontStyle: 'italic' }}>Date pausa N/D</span>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                              {svc.plan_start_date ? (
+                                <>{svc.plan_start_date}{svc.plan_end_date ? ` → ${svc.plan_end_date}` : ' → in corso'}</>
+                              ) : (
+                                <span style={{ fontStyle: 'italic' }}>N/D</span>
                               )}
-                            </>
-                          ) : (
-                            <span style={{ fontStyle: 'italic' }}>—</span>
-                          )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div style={{
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              color: svc.referente ? 'var(--foreground)' : 'var(--muted-foreground)',
+                              lineHeight: '1.5',
+                            }}>
+                              {svc.referente || '—'}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <CellTextSecondary>{svc.created_at}</CellTextSecondary>
+                          </TableCell>
+
+                          <TableCell />
+                          <TableActionPlaceholderCell width={columnWidths.actions} backgroundColor="var(--muted)" />
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.map((student) => {
+              const noteCount = student.notes?.length || 0;
+              const isSelected = selectedIds.includes(student.id);
+              const studentLavorazioni = getStudentLavorazioni(student.id);
+              const activeRef = getActiveReferente(student.id);
+              const isExpanded = expandedRows.has(student.id);
+              const mobileStatus = getDerivedStatus(student);
+
+              return (
+                <ResponsiveMobileCard key={student.id} backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--card)'}>
+                  <ResponsiveMobileCardHeader>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <Checkbox checked={isSelected} onCheckedChange={() => handleSelectRow(student.id)} />
+                      <CellContentStack>
+                        <CellTextSecondary>{student.id}</CellTextSecondary>
+                        <CellTextPrimary>{student.name}</CellTextPrimary>
+                        <CellTextSecondary>{student.email}</CellTextSecondary>
+                      </CellContentStack>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <StatusBadge status={mobileStatus.status} label={mobileStatus.label} />
+                      <TableActions actions={getTableActions(student)} />
+                    </div>
+                  </ResponsiveMobileCardHeader>
+
+                  <ResponsiveMobileCardSection>
+                    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div>
+                        <ResponsiveMobileFieldLabel>Referente</ResponsiveMobileFieldLabel>
+                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                          {activeRef || '—'}
                         </div>
-                      </td>
-                      {/* Inserito da */}
-                      <td>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {student.created_by || '—'}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      </div>
+
+                      <div>
+                        <ResponsiveMobileFieldLabel>Lavorazioni</ResponsiveMobileFieldLabel>
+                        {studentLavorazioni.length > 0 ? (
+                          <button
+                            onClick={() => toggleRowExpand(student.id)}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--primary)',
+                              fontWeight: 'var(--font-weight-medium)', display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            }}
+                          >
+                            {studentLavorazioni.length} {studentLavorazioni.length === 1 ? 'servizio' : 'servizi'}
+                            <ChevronRight size={12} style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }} />
+                          </button>
+                        ) : (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>—</span>
+                        )}
+                      </div>
+
+                      <div>
+                        <ResponsiveMobileFieldLabel>Note</ResponsiveMobileFieldLabel>
                         <button
                           onClick={() => handleOpenNotesDrawer(student)}
                           style={{
                             background: 'none', border: 'none', cursor: 'pointer',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            position: 'relative', padding: '0.25rem',
+                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                             color: noteCount > 0 ? 'var(--primary)' : 'var(--muted-foreground)',
+                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)',
                           }}
-                          title={`${noteCount} note`}
                         >
-                          <StickyNote size={18} />
-                          {noteCount > 0 && (
-                            <span style={{
-                              position: 'absolute', top: '-4px', right: '-4px',
-                              backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)',
-                              borderRadius: '50%', width: '16px', height: '16px',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '10px', fontWeight: 'var(--font-weight-medium)', fontFamily: 'var(--font-inter)',
-                            }}>
-                              {noteCount}
-                            </span>
-                          )}
+                          <StickyNote size={16} /> {noteCount}
                         </button>
-                      </td>
-                      <td
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          position: 'sticky', right: 0,
-                          backgroundColor: isSelected ? 'var(--selected-row-bg)' : 'var(--background)',
-                          zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)'
-                        }}
-                      >
-                        <TableActions actions={getTableActions(student)} />
-                      </td>
-                    </tr>
-
-                    {/* ─── Expanded lavorazioni rows ──────────────── */}
-                    {isExpanded && studentLavorazioni.map((svc) => (
-                      <tr
-                        key={svc.id}
-                        style={{ backgroundColor: 'var(--muted)' }}
-                      >
-                        {/* Spacer for checkbox */}
-                        <td />
-                        {/* ID lavorazione */}
-                        <td
-                          onClick={() => navigateToLavorazione(svc.id)}
-                          style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                            color: 'var(--primary)', cursor: 'pointer',
-                            textDecoration: 'underline', textDecorationColor: 'transparent',
-                            textUnderlineOffset: '2px', transition: 'text-decoration-color 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLTableCellElement).style.textDecorationColor = 'var(--primary)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLTableCellElement).style.textDecorationColor = 'transparent'; }}
-                          title="Vai alla lavorazione"
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            {svc.id}
-                            <ExternalLink size={11} style={{ opacity: 0.6 }} />
-                          </div>
-                        </td>
-                        {/* Servizio */}
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                            {svc.service_name}
-                          </div>
-                          {svc.coach_name && (
-                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                              Coach: {svc.coach_name}
-                            </div>
-                          )}
-                        </td>
-                        {/* Skip marketing */}
-                        <td />
-                        {/* Stato lavorazione */}
-                        <td>
-                          <StatusBadge
-                            status={SERVICE_STATUS_MAP[svc.status] || 'inactive'}
-                            label={SERVICE_STATUS_LABELS[svc.status] || svc.status}
-                          />
-                          {svc.status === 'paused' && (
-                            <div style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: '11px',
-                              color: 'var(--muted-foreground)',
-                              lineHeight: '1.5',
-                              marginTop: '0.125rem',
-                            }}>
-                              {svc.pause_start_date ? (
-                                <>
-                                  {svc.pause_start_date}
-                                  {svc.pause_end_date ? ` → ${svc.pause_end_date}` : ' → in corso'}
-                                </>
-                              ) : (
-                                <span style={{ fontStyle: 'italic' }}>Date pausa N/D</span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        {/* Date piano */}
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                            {svc.plan_start_date ? (
-                              <>{svc.plan_start_date}{svc.plan_end_date ? ` → ${svc.plan_end_date}` : ' → in corso'}</>
-                            ) : (
-                              <span style={{ fontStyle: 'italic' }}>N/D</span>
-                            )}
-                          </div>
-                        </td>
-                        {/* Referente lavorazione */}
-                        <td>
-                          <div style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                            color: svc.referente ? 'var(--foreground)' : 'var(--muted-foreground)',
-                            lineHeight: '1.5',
-                          }}>
-                            {svc.referente || '—'}
-                          </div>
-                        </td>
-                        {/* Creato da (lavorazione) */}
-                        <td>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                            {svc.created_at}
-                          </div>
-                        </td>
-                        {/* Empty note + actions */}
-                        <td />
-                        <td style={{
-                          position: 'sticky', right: 0,
-                          backgroundColor: 'var(--muted)',
-                          zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)'
-                        }} />
-                      </tr>
-                    ))}
-                  </tbody>
-                );
-              })
-            )}
-          </table>
-        </div>
-      </div>
-
-      {/* Mobile Card View */}
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {filteredData.map((student) => {
-          const noteCount = student.notes?.length || 0;
-          const isSelected = selectedIds.includes(student.id);
-          const studentLavorazioni = getStudentLavorazioni(student.id);
-          const activeRef = getActiveReferente(student.id);
-          const isExpanded = expandedRows.has(student.id);
-          const mobileStatus = getDerivedStatus(student);
-
-          return (
-            <div
-              key={student.id}
-              style={{
-                backgroundColor: isSelected ? 'var(--selected-row-bg)' : 'var(--card)',
-                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                padding: '1rem', marginBottom: '1rem'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <Checkbox checked={isSelected} onCheckedChange={() => handleSelectRow(student.id)} />
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>{student.id}</div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{student.name}</div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{student.email}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <StatusBadge status={mobileStatus.status} label={mobileStatus.label} />
-                  <TableActions actions={getTableActions(student)} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
-                    Referente
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                    {activeRef || '—'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
-                    Lavorazioni
-                  </div>
-                  {studentLavorazioni.length > 0 ? (
-                    <button
-                      onClick={() => toggleRowExpand(student.id)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                        fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--primary)',
-                        fontWeight: 'var(--font-weight-medium)', display: 'flex', alignItems: 'center', gap: '0.25rem',
-                      }}
-                    >
-                      {studentLavorazioni.length} {studentLavorazioni.length === 1 ? 'servizio' : 'servizi'}
-                      <ChevronRight size={12} style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }} />
-                    </button>
-                  ) : (
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>—</span>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>Note</div>
-                  <button
-                    onClick={() => handleOpenNotesDrawer(student)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                      color: noteCount > 0 ? 'var(--primary)' : 'var(--muted-foreground)',
-                      fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    <StickyNote size={16} /> {noteCount}
-                  </button>
-                </div>
-              </div>
-              {/* Mobile expanded lavorazioni */}
-              {isExpanded && studentLavorazioni.length > 0 && (
-                <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                  {studentLavorazioni.map(svc => (
-                    <div
-                      key={svc.id}
-                      onClick={() => navigateToLavorazione(svc.id)}
-                      style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '0.5rem 0.75rem', backgroundColor: 'var(--muted)',
-                        borderRadius: 'var(--radius)', marginBottom: '0.375rem', cursor: 'pointer',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {svc.id} <ExternalLink size={10} style={{ opacity: 0.5 }} />
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {svc.service_name} {svc.referente && `· Ref: ${svc.referente}`}
-                        </div>
                       </div>
-                      <StatusBadge status={SERVICE_STATUS_MAP[svc.status] || 'inactive'} label={SERVICE_STATUS_LABELS[svc.status] || svc.status} />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  </ResponsiveMobileCardSection>
+
+                  {isExpanded && studentLavorazioni.length > 0 && (
+                    <ResponsiveMobileCardSection marginBottom="0">
+                      <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                        {studentLavorazioni.map(svc => (
+                          <div
+                            key={svc.id}
+                            onClick={() => navigateToLavorazione(svc.id)}
+                            style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              padding: '0.5rem 0.75rem', backgroundColor: 'var(--muted)',
+                              borderRadius: 'var(--radius)', marginBottom: '0.375rem', cursor: 'pointer',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {svc.id} <ExternalLink size={10} style={{ opacity: 0.5 }} />
+                              </div>
+                              <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                                {svc.service_name} {svc.referente && `· Ref: ${svc.referente}`}
+                              </div>
+                            </div>
+                            <StatusBadge status={SERVICE_STATUS_MAP[svc.status] || 'inactive'} label={SERVICE_STATUS_LABELS[svc.status] || svc.status} />
+                          </div>
+                        ))}
+                      </div>
+                    </ResponsiveMobileCardSection>
+                  )}
+                </ResponsiveMobileCard>
+              );
+            })}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {/* Drawer Studente */}
       <CreateStudentDrawer
@@ -1057,14 +1007,7 @@ export function StudentiPage() {
         />
       )}
 
-      <style>{`
-        @media (max-width: 768px) {
-          .data-table { display: none !important; }
-          .mobile-cards { display: block !important; }
-        }
-        .data-table tbody tr { transition: background-color 0.15s ease; }
-        .data-table tbody tr:hover { background-color: var(--muted); }
-      `}</style>
+
     </div>
   );
 }

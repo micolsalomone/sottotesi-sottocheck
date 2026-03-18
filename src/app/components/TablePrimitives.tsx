@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { MouseEvent, ReactNode } from 'react';
 import { ChevronsUpDown, ChevronUp, ChevronDown, ChevronRight, Pencil, StickyNote } from 'lucide-react';
+import { Checkbox } from './ui/checkbox';
 
 /**
  * TABLE PRIMITIVES
@@ -16,6 +17,7 @@ export interface TableColumnProps {
   id: string;
   label: string;
   width: number;
+  icon?: ReactNode;
   sortable?: boolean;
   align?: 'left' | 'center' | 'right';
   sticky?: 'left' | 'right';
@@ -82,15 +84,53 @@ export const ResponsiveMobileCards = ({ children }: { children: ReactNode }) => 
 /**
  * Single mobile card primitive
  */
-export const ResponsiveMobileCard = ({ children }: { children: ReactNode }) => (
+export const ResponsiveMobileCard = ({ children, backgroundColor }: { children: ReactNode; backgroundColor?: string }) => (
   <div
     style={{
-      backgroundColor: 'var(--card)',
+      backgroundColor: backgroundColor || 'var(--card)',
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius)',
       padding: '1rem',
     }}
   >
+    {children}
+  </div>
+);
+
+export const ResponsiveMobileCardHeader = ({ children }: { children: ReactNode }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+    {children}
+  </div>
+);
+
+export const ResponsiveMobileCardSection = ({ children, marginBottom = '1rem' }: { children: ReactNode; marginBottom?: string }) => (
+  <div style={{ marginBottom }}>
+    {children}
+  </div>
+);
+
+export const ResponsiveMobileFieldLabel = ({ children }: { children: ReactNode }) => (
+  <div style={{
+    fontFamily: 'var(--font-inter)',
+    fontSize: 'var(--text-label)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--muted-foreground)',
+    marginBottom: '0.25rem',
+    lineHeight: '1.5',
+  }}>
+    {children}
+  </div>
+);
+
+export const ResponsiveMobileCardFooter = ({ children }: { children: ReactNode }) => (
+  <div style={{
+    fontFamily: 'var(--font-inter)',
+    fontSize: 'var(--text-label)',
+    color: 'var(--muted-foreground)',
+    paddingTop: '0.75rem',
+    borderTop: '1px solid var(--border)',
+    lineHeight: '1.5',
+  }}>
     {children}
   </div>
 );
@@ -102,6 +142,7 @@ export const TableHeaderCell = ({
   id,
   label,
   width,
+  icon,
   sortable,
   align = 'left',
   sticky,
@@ -144,6 +185,9 @@ export const TableHeaderCell = ({
         justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'space-between' 
       }}>
         <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
           fontFamily: 'var(--font-inter)',
           fontSize: 'var(--text-label)',
           fontWeight: 'var(--font-weight-medium)',
@@ -151,6 +195,7 @@ export const TableHeaderCell = ({
           lineHeight: '1.5',
         }}>
           {label || children}
+          {icon}
         </span>
         
         {sortable && (
@@ -200,12 +245,14 @@ export const TableCell = ({
   align = 'left', 
   sticky,
   width,
+  backgroundColor,
   onClick
 }: { 
-  children: ReactNode; 
+  children?: ReactNode; 
   align?: 'left' | 'center' | 'right';
   sticky?: 'left' | 'right';
   width?: number;
+  backgroundColor?: string;
   onClick?: (e: MouseEvent) => void;
 }) => {
   const isStickyRight = sticky === 'right';
@@ -219,7 +266,7 @@ export const TableCell = ({
         position: sticky ? 'sticky' : 'relative',
         right: isStickyRight ? 0 : undefined,
         left: sticky === 'left' ? 0 : undefined,
-        backgroundColor: sticky ? 'var(--background)' : 'inherit',
+        backgroundColor: backgroundColor ?? (sticky ? 'var(--background)' : 'inherit'),
         zIndex: sticky ? 10 : 1,
         boxShadow: isStickyRight ? '-2px 0 4px rgba(0, 0, 0, 0.05)' : undefined,
         width: width ? `${width}px` : undefined,
@@ -239,6 +286,7 @@ export const TableRow = ({
   children, 
   onClick, 
   selected,
+  selectedBackgroundColor,
   highlighted,
   expanded,
   className = ""
@@ -246,6 +294,7 @@ export const TableRow = ({
   children: ReactNode; 
   onClick?: () => void;
   selected?: boolean;
+  selectedBackgroundColor?: string;
   highlighted?: boolean;
   expanded?: boolean;
   className?: string;
@@ -254,7 +303,7 @@ export const TableRow = ({
     onClick={onClick}
     style={{
       cursor: onClick ? 'pointer' : 'default',
-      backgroundColor: selected ? 'var(--muted)' : highlighted ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
+      backgroundColor: selected ? (selectedBackgroundColor || 'var(--muted)') : highlighted ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
       transition: 'background-color 0.15s ease',
       borderBottom: expanded ? 'none' : '1px solid var(--border)',
     }}
@@ -561,11 +610,73 @@ export const ExpandToggle = ({ isExpanded, onClick }: { isExpanded: boolean; onC
 /**
  * Table Action Cell (Sticky Right)
  */
-export const TableActionCell = ({ children }: { children: ReactNode }) => (
-  <TableCell align="center" sticky="right" width={60}>
+export const TableActionCell = ({
+  children,
+  width = 60,
+  backgroundColor,
+  onClick,
+}: {
+  children: ReactNode;
+  width?: number;
+  backgroundColor?: string;
+  onClick?: (e: MouseEvent) => void;
+}) => (
+  <TableCell align="center" sticky="right" width={width} backgroundColor={backgroundColor} onClick={onClick}>
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       {children}
     </div>
+  </TableCell>
+);
+
+export const TableSelectionHeaderCell = ({
+  width = 50,
+  checked,
+  onCheckedChange,
+}: {
+  width?: number;
+  checked: boolean;
+  onCheckedChange: () => void;
+}) => (
+  <th
+    style={{
+      width: `${width}px`,
+      minWidth: `${width}px`,
+      position: 'relative',
+      background: 'var(--muted)',
+      borderBottom: '1px solid var(--border)',
+      padding: '0 1rem',
+      textAlign: 'center',
+      userSelect: 'none',
+    }}
+  >
+    <Checkbox checked={checked} onCheckedChange={onCheckedChange} />
+    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px', background: 'var(--border)' }} />
+  </th>
+);
+
+export const TableSelectionCell = ({
+  checked,
+  onCheckedChange,
+  onClick,
+}: {
+  checked: boolean;
+  onCheckedChange: () => void;
+  onClick?: (e: MouseEvent) => void;
+}) => (
+  <TableCell onClick={onClick}>
+    <Checkbox checked={checked} onCheckedChange={onCheckedChange} />
+  </TableCell>
+);
+
+export const TableActionPlaceholderCell = ({
+  width = 60,
+  backgroundColor,
+}: {
+  width?: number;
+  backgroundColor?: string;
+}) => (
+  <TableCell align="center" sticky="right" width={width} backgroundColor={backgroundColor}>
+    <span style={{ visibility: 'hidden' }}>—</span>
   </TableCell>
 );
 
