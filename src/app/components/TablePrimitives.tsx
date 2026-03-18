@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { MouseEvent, ReactNode } from 'react';
+import { CSSProperties, MouseEvent, ReactNode, Ref } from 'react';
 import { ChevronsUpDown, ChevronUp, ChevronDown, ChevronRight, Pencil, StickyNote } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 
@@ -238,6 +238,37 @@ export const TableHeaderCell = ({
 };
 
 /**
+ * Generic Table Header Cell
+ * Lightweight primitive used to replace legacy raw <th> markup when custom
+ * header content is required.
+ */
+export const TableHeaderBaseCell = ({
+  children,
+  onClick,
+  style,
+  className,
+}: {
+  children?: ReactNode;
+  onClick?: (e: MouseEvent) => void;
+  style?: CSSProperties;
+  className?: string;
+}) => (
+  <th
+    onClick={onClick}
+    className={className}
+    style={{
+      padding: '0.75rem 1rem',
+      borderBottom: '1px solid var(--border)',
+      textAlign: 'left',
+      verticalAlign: 'middle',
+      ...style,
+    }}
+  >
+    {children}
+  </th>
+);
+
+/**
  * Table Body Cell
  */
 export const TableCell = ({ 
@@ -246,7 +277,10 @@ export const TableCell = ({
   sticky,
   width,
   backgroundColor,
-  onClick
+  onClick,
+  style,
+  className,
+  colSpan,
 }: { 
   children?: ReactNode; 
   align?: 'left' | 'center' | 'right';
@@ -254,12 +288,17 @@ export const TableCell = ({
   width?: number;
   backgroundColor?: string;
   onClick?: (e: MouseEvent) => void;
+  style?: CSSProperties;
+  className?: string;
+  colSpan?: number;
 }) => {
   const isStickyRight = sticky === 'right';
   
   return (
     <td
       onClick={onClick}
+      className={className}
+      colSpan={colSpan}
       style={{
         padding: '0.75rem 1rem',
         textAlign: align,
@@ -272,6 +311,7 @@ export const TableCell = ({
         width: width ? `${width}px` : undefined,
         minWidth: width ? `${width}px` : undefined,
         borderBottom: '1px solid var(--border)',
+        ...style,
       }}
     >
       {children}
@@ -289,7 +329,9 @@ export const TableRow = ({
   selectedBackgroundColor,
   highlighted,
   expanded,
-  className = ""
+  className = "",
+  style,
+  rowRef,
 }: { 
   children: ReactNode; 
   onClick?: () => void;
@@ -298,20 +340,29 @@ export const TableRow = ({
   highlighted?: boolean;
   expanded?: boolean;
   className?: string;
-}) => (
-  <tr
-    onClick={onClick}
-    style={{
-      cursor: onClick ? 'pointer' : 'default',
-      backgroundColor: selected ? (selectedBackgroundColor || 'var(--muted)') : highlighted ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
-      transition: 'background-color 0.15s ease',
-      borderBottom: expanded ? 'none' : '1px solid var(--border)',
-    }}
-    className={`hover:bg-muted/50 ${className}`}
-  >
-    {children}
-  </tr>
-);
+  style?: CSSProperties;
+  rowRef?: Ref<HTMLTableRowElement>;
+}) => {
+  const hoverClass = onClick ? 'hover:bg-muted/50' : '';
+  const rowClassName = `${hoverClass} ${className}`.trim();
+
+  return (
+    <tr
+      ref={rowRef}
+      onClick={onClick}
+      style={{
+        cursor: onClick ? 'pointer' : 'default',
+        backgroundColor: selected ? (selectedBackgroundColor || 'var(--muted)') : highlighted ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
+        transition: 'background-color 0.15s ease',
+        borderBottom: expanded ? 'none' : '1px solid var(--border)',
+        ...style,
+      }}
+      className={rowClassName}
+    >
+      {children}
+    </tr>
+  );
+};
 
 /**
  * Table Group Header Row

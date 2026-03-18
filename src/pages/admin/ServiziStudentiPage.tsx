@@ -27,6 +27,21 @@ import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { LavorazioneDetailDrawer } from '../../app/components/LavorazioneDetailDrawer';
 import { SmartCoachSelect } from '../../app/components/SmartCoachSelect';
 import { CreateLavorazioneDrawer } from '../../app/components/CreateLavorazioneDrawer';
+import {
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableHeaderBaseCell,
+  TableHeaderActionCell,
+  TableRow,
+  TableRoot,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 
 // ─── Vista types ────────────────────────────────────────────
 type Vista = 'lavorazioni' | 'compensi';
@@ -1476,197 +1491,192 @@ export function ServiziStudentiPage() {
         onClearSelection={() => setSelectedIds([])}
       />
 
-      {/* Table - Desktop */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1450px' }}>
+      {/* Table */}
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1450px">
             <thead>
-              <tr>
-                <th style={{ width: `${columnWidths.checkbox}px`, position: 'relative', ...colVis('checkbox') }}>
-                  <Checkbox
-                    checked={selectedIds.length === filteredAndSortedData.length && filteredAndSortedData.length > 0}
+              <TableRow>
+                {visibleCols.has('checkbox') && (
+                  <TableSelectionHeaderCell
+                    width={columnWidths.checkbox}
+                    checked={
+                      selectedIds.length === 0
+                        ? false
+                        : selectedIds.length === filteredAndSortedData.length
+                        ? true
+                        : 'indeterminate'
+                    }
                     onCheckedChange={handleSelectAll}
                   />
-                  {resizeHandle('checkbox')}
-                </th>
-                <th style={{ width: `${columnWidths.id}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('id') }} onClick={() => handleSort('id')}>
+                )}
+                <TableHeaderBaseCell style={{ width: `${columnWidths.id}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('id') }} onClick={() => handleSort('id')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>{activeVista === 'compensi' ? 'Lav.' : 'ID'}</span>
                     {getSortIcon('id')}
                   </div>
                   {resizeHandle('id')}
-                </th>
-                <th style={{ width: `${columnWidths.coach}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('coach') }} onClick={() => handleSort('coach_name')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.coach}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('coach') }} onClick={() => handleSort('coach_name')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Coach</span>
                     {getSortIcon('coach_name')}
                   </div>
                   {resizeHandle('coach')}
-                </th>
-                <th style={{ width: `${columnWidths.student}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('student') }} onClick={() => handleSort('student_name')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.student}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('student') }} onClick={() => handleSort('student_name')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Studente</span>
                     {getSortIcon('student_name')}
                   </div>
                   {resizeHandle('student')}
-                </th>
-                <th style={{ width: `${columnWidths.status}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('status') }} onClick={() => handleSort('status')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.status}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('status') }} onClick={() => handleSort('status')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Stato</span>
                     {getSortIcon('status')}
                   </div>
                   {resizeHandle('status')}
-                </th>
-                <th style={{ width: `${columnWidths.createdAt}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('createdAt') }} onClick={() => handleSort('plan_start_date')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.createdAt}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('createdAt') }} onClick={() => handleSort('plan_start_date')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Inizio piano</span>
                     {getSortIcon('plan_start_date')}
                   </div>
                   {resizeHandle('createdAt')}
-                </th>
-                <th style={{ width: `${columnWidths.expiresAt}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('expiresAt') }} onClick={() => handleSort('plan_end_date')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.expiresAt}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('expiresAt') }} onClick={() => handleSort('plan_end_date')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Scadenza piano</span>
                     {getSortIcon('plan_end_date')}
                   </div>
                   {resizeHandle('expiresAt')}
-                </th>
-                <th style={{ width: `${columnWidths.servizio}px`, position: 'relative', userSelect: 'none', ...colVis('servizio') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.servizio}px`, position: 'relative', userSelect: 'none', ...colVis('servizio') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Servizio</span>
                   </div>
                   {resizeHandle('servizio')}
-                </th>
-                <th style={{ width: `${columnWidths.rate}px`, position: 'relative', userSelect: 'none', ...colVis('rate') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.rate}px`, position: 'relative', userSelect: 'none', ...colVis('rate') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Rate</span>
                   </div>
                   {resizeHandle('rate')}
-                </th>
-                <th style={{ width: `${columnWidths.contratto}px`, position: 'relative', userSelect: 'none', ...colVis('contratto') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.contratto}px`, position: 'relative', userSelect: 'none', ...colVis('contratto') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Contratto</span>
                   </div>
                   {resizeHandle('contratto')}
-                </th>
-                <th style={{ width: `${columnWidths.fattura}px`, position: 'relative', userSelect: 'none', ...colVis('fattura') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.fattura}px`, position: 'relative', userSelect: 'none', ...colVis('fattura') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>N. Fattura</span>
                   </div>
                   {resizeHandle('fattura')}
-                </th>
-                <th style={{ width: `${columnWidths.netto}px`, position: 'relative', userSelect: 'none', ...colVis('netto') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.netto}px`, position: 'relative', userSelect: 'none', ...colVis('netto') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Netto</span>
                   </div>
                   {resizeHandle('netto')}
-                </th>
-                <th style={{ width: `${columnWidths.lordo}px`, position: 'relative', userSelect: 'none', ...colVis('lordo') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.lordo}px`, position: 'relative', userSelect: 'none', ...colVis('lordo') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Lordo</span>
                   </div>
                   {resizeHandle('lordo')}
-                </th>
-                <th style={{ width: `${columnWidths.incassato}px`, position: 'relative', userSelect: 'none', ...colVis('incassato') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.incassato}px`, position: 'relative', userSelect: 'none', ...colVis('incassato') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Incassato</span>
                   </div>
                   {resizeHandle('incassato')}
-                </th>
-                <th style={{ width: `${columnWidths.coachCompenso}px`, position: 'relative', userSelect: 'none', ...colVis('coachCompenso') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.coachCompenso}px`, position: 'relative', userSelect: 'none', ...colVis('coachCompenso') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Comp. Coach</span>
                   </div>
                   {resizeHandle('coachCompenso')}
-                </th>
-                <th style={{ width: `${columnWidths.nextDue}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('nextDue') }} onClick={() => handleSort('nextDue')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.nextDue}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('nextDue') }} onClick={() => handleSort('nextDue')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Prossima rata</span>
                     {getSortIcon('nextDue')}
                   </div>
                   {resizeHandle('nextDue')}
-                </th>
-                <th style={{ width: `${columnWidths.coachName}px`, position: 'relative', userSelect: 'none', ...colVis('coachName') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.coachName}px`, position: 'relative', userSelect: 'none', ...colVis('coachName') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Coach</span>
                   </div>
                   {resizeHandle('coachName')}
-                </th>
-                <th style={{ width: `${columnWidths.statoLav}px`, position: 'relative', userSelect: 'none', ...colVis('statoLav') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.statoLav}px`, position: 'relative', userSelect: 'none', ...colVis('statoLav') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Stato lav.</span>
                   </div>
                   {resizeHandle('statoLav')}
-                </th>
-                <th style={{ width: `${columnWidths.compenso}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('compenso') }} onClick={() => handleSort('compenso')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.compenso}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('compenso') }} onClick={() => handleSort('compenso')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Compenso</span>
                     {getSortIcon('compenso')}
                   </div>
                   {resizeHandle('compenso')}
-                </th>
-                <th style={{ width: `${columnWidths.nNotula}px`, position: 'relative', userSelect: 'none', ...colVis('nNotula') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.nNotula}px`, position: 'relative', userSelect: 'none', ...colVis('nNotula') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>N. Notula</span>
                   </div>
                   {resizeHandle('nNotula')}
-                </th>
-                <th style={{ width: `${columnWidths.dataNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('dataNotula') }} onClick={() => handleSort('dataNotula')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.dataNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('dataNotula') }} onClick={() => handleSort('dataNotula')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Data notula</span>
                     {getSortIcon('dataNotula')}
                   </div>
                   {resizeHandle('dataNotula')}
-                </th>
-                <th style={{ width: `${columnWidths.scad40gg}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('scad40gg') }} onClick={() => handleSort('scad40gg')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.scad40gg}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('scad40gg') }} onClick={() => handleSort('scad40gg')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Scad. 40gg</span>
                     {getSortIcon('scad40gg')}
                   </div>
                   {resizeHandle('scad40gg')}
-                </th>
-                <th style={{ width: `${columnWidths.statoPag}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('statoPag') }} onClick={() => handleSort('statoPag')}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.statoPag}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('statoPag') }} onClick={() => handleSort('statoPag')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Stato pag.</span>
                     {getSortIcon('statoPag')}
                   </div>
                   {resizeHandle('statoPag')}
-                </th>
-                <th style={{ width: `${columnWidths.pagatoIl}px`, position: 'relative', userSelect: 'none', ...colVis('pagatoIl') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.pagatoIl}px`, position: 'relative', userSelect: 'none', ...colVis('pagatoIl') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Pagato il</span>
                   </div>
                   {resizeHandle('pagatoIl')}
-                </th>
-                <th style={{ width: `${columnWidths.rifPag}px`, position: 'relative', userSelect: 'none', ...colVis('rifPag') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.rifPag}px`, position: 'relative', userSelect: 'none', ...colVis('rifPag') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span>Rif. pag.</span>
                   </div>
                   {resizeHandle('rifPag')}
-                </th>
-                <th style={{ width: `${columnWidths.notes}px`, position: 'relative', userSelect: 'none', textAlign: 'center', ...colVis('notes') }}>
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.notes}px`, position: 'relative', userSelect: 'none', textAlign: 'center', ...colVis('notes') }}>
                   <span>Note</span>
                   {resizeHandle('notes')}
-                </th>
-                <th style={{
-                  width: `${columnWidths.actions}px`,
-                  position: 'sticky',
-                  right: 0,
-                  backgroundColor: 'var(--muted)',
-                  zIndex: 11,
-                  boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                  textAlign: 'center',
-                  userSelect: 'none',
-                }}>
-                  <span>Azioni</span>
-                </th>
-              </tr>
+                </TableHeaderBaseCell>
+                {visibleCols.has('actions') && <TableHeaderActionCell width={columnWidths.actions} />}
+              </TableRow>
             </thead>
               {/* ─── Monthly grouped rendering ──────────────────── */}
               {monthGroups.flatMap((group) => [
                   <tbody key={`month-header-${group.key}`}>
-                    <tr style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-                      <td colSpan={['checkbox','id','coach','student','status','createdAt','expiresAt','servizio','rate','contratto','fattura'].filter(c => visibleCols.has(c)).length} style={{ padding: '0.5rem 1rem' }}>
+                    <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                      <TableCell colSpan={['checkbox','id','coach','student','status','createdAt','expiresAt','servizio','rate','contratto','fattura'].filter(c => visibleCols.has(c)).length} style={{ padding: '0.5rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <span style={{
                             fontFamily: 'var(--font-inter)',
@@ -1700,34 +1710,34 @@ export function ServiziStudentiPage() {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('netto') }}>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('netto') }}>
                         {activeVista === 'lavorazioni' && `€${group.totalNetto.toLocaleString('it-IT')}`}
-                      </td>
-                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('lordo') }}>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('lordo') }}>
                         {activeVista === 'lavorazioni' && `€${group.totalLordo.toLocaleString('it-IT')}`}
-                      </td>
-                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalIncassato > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('incassato') }}>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalIncassato > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('incassato') }}>
                         {activeVista === 'lavorazioni' && `€${group.totalIncassato.toLocaleString('it-IT')}`}
-                      </td>
-                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalCoachFees > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('coachCompenso') }}>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalCoachFees > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('coachCompenso') }}>
                         {activeVista === 'lavorazioni' && `€${group.totalCoachFees.toLocaleString('it-IT')}`}
-                      </td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('nextDue') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('coachName') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('statoLav') }}></td>
-                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalCoachFees > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('compenso') }}>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('nextDue') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('coachName') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('statoLav') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalCoachFees > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('compenso') }}>
                         {activeVista === 'compensi' && `€${group.totalCoachFees.toLocaleString('it-IT')}`}
-                      </td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('nNotula') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('dataNotula') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('scad40gg') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('statoPag') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('pagatoIl') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('rifPag') }}></td>
-                      <td style={{ padding: '0.5rem 0.25rem', ...colVis('notes') }}></td>
-                      <td style={{ position: 'sticky', right: 0, backgroundColor: 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)' }}></td>
-                    </tr>
+                      </TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('nNotula') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('dataNotula') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('scad40gg') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('statoPag') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('pagatoIl') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('rifPag') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('notes') }}></TableCell>
+                      <TableCell style={{ position: 'sticky', right: 0, backgroundColor: 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)' }}></TableCell>
+                    </TableRow>
                   </tbody>,
               ...group.services.map((service) => {
                 const lordo = service.installments.reduce((sum, i) => sum + i.amount, 0);
@@ -1741,8 +1751,8 @@ export function ServiziStudentiPage() {
 
                 return (
                   <tbody key={service.id}>
-                    <tr
-                      ref={isHighlighted ? highlightRef : undefined}
+                    <TableRow
+                      rowRef={isHighlighted ? highlightRef : undefined}
                       className={isHighlighted ? 'row-highlight' : undefined}
                       onClick={() => handleRowClick(service.id)}
                       style={{
@@ -1754,10 +1764,14 @@ export function ServiziStudentiPage() {
                         } : undefined),
                       }}
                     >
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}>
-                        <Checkbox checked={selectedIds.includes(service.id)} onCheckedChange={() => handleSelectRow(service.id)} />
-                      </td>
-                      <td style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('id') }}>
+                      {visibleCols.has('checkbox') && (
+                        <TableSelectionCell
+                          checked={selectedIds.includes(service.id)}
+                          onCheckedChange={() => handleSelectRow(service.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                      <TableCell style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('id') }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           {rowIncomplete && (
                             <span
@@ -1774,13 +1788,13 @@ export function ServiziStudentiPage() {
                           )}
                           {service.id}
                         </div>
-                      </td>
-                      <td style={{ minWidth: columnWidths.coach, fontFamily: 'var(--font-inter)', ...colVis('coach') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.coach, fontFamily: 'var(--font-inter)', ...colVis('coach') }}>
                         <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
                           {service.coach_name || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                         </div>
-                      </td>
-                      <td style={{ minWidth: columnWidths.student, ...colVis('student') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.student, ...colVis('student') }}>
                         <div style={{ fontFamily: 'var(--font-inter)' }}>
                           {activeVista === 'compensi' ? (
                             <div style={{ fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
@@ -1793,8 +1807,8 @@ export function ServiziStudentiPage() {
                             </>
                           )}
                         </div>
-                      </td>
-                      <td style={{ minWidth: columnWidths.status, ...colVis('status') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.status, ...colVis('status') }}>
                         {getStatusBadge(service.status)}
                         {service.status === 'paused' && (
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', marginTop: '0.125rem' }}>
@@ -1808,8 +1822,8 @@ export function ServiziStudentiPage() {
                             )}
                           </div>
                         )}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.createdAt, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('createdAt') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.createdAt, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('createdAt') }}>
                         {service.service_category === 'Check plagio/AI' ? (
                           <span style={{ color: 'var(--muted-foreground)' }}>—</span>
                         ) : editingPlanStart === service.id ? (
@@ -1838,8 +1852,8 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
                           </div>
                         )}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.expiresAt, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('expiresAt') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.expiresAt, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('expiresAt') }}>
                         {service.service_category === 'Check plagio/AI' ? (
                           <span style={{ color: 'var(--muted-foreground)' }}>—</span>
                         ) : editingExpiresAt === service.id ? (
@@ -1868,11 +1882,11 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
                           </div>
                         )}
-                      </td>
-                      <td style={{ minWidth: columnWidths.servizio, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('servizio') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.servizio, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('servizio') }}>
                         {service.service_name}
-                      </td>
-                      <td onClick={(e) => { e.stopPropagation(); toggleRowExpand(service.id); }} style={{ minWidth: columnWidths.rate, cursor: 'pointer', ...colVis('rate') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => { e.stopPropagation(); toggleRowExpand(service.id); }} style={{ minWidth: columnWidths.rate, cursor: 'pointer', ...colVis('rate') }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <ChevronRight size={14} style={{ color: 'var(--muted-foreground)', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease', flexShrink: 0 }} />
                           <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: hasOverdue ? 'var(--destructive-foreground)' : paidCount === totalCount ? 'var(--primary)' : 'var(--foreground)' }}>
@@ -1880,8 +1894,8 @@ export function ServiziStudentiPage() {
                           </span>
                           {hasOverdue && <AlertTriangle size={12} style={{ color: 'var(--destructive-foreground)' }} />}
                         </div>
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.contratto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('contratto') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.contratto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('contratto') }}>
                         {service.service_category === 'Check plagio/AI' ? (
                           <span style={{ color: 'var(--muted-foreground)' }}>N/A</span>
                         ) : (
@@ -1903,8 +1917,8 @@ export function ServiziStudentiPage() {
                             <option value="cancelled">Annullato</option>
                           </select>
                         )}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.fattura, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('fattura') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.fattura, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('fattura') }}>
                         {service.installments.length > 1 ? (
                           <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>Multiple</span>
                         ) : editingInvoiceNumber === service.id ? (
@@ -1954,11 +1968,11 @@ export function ServiziStudentiPage() {
                             );
                           })()
                         )}
-                      </td>
-                      <td style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', ...colVis('netto') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', ...colVis('netto') }}>
                         €{netto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
                         {editingLordo === service.id ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={{ color: 'var(--muted-foreground)' }}>€</span>
@@ -1977,14 +1991,14 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ opacity: 0.5 }} />
                           </div>
                         )}
-                      </td>
-                      <td style={{ minWidth: columnWidths.incassato, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', ...colVis('incassato') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.incassato, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', ...colVis('incassato') }}>
                         {(() => {
                           const incassato = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
                           return <span style={{ color: incassato > 0 ? 'var(--primary)' : 'var(--muted-foreground)' }}>€{incassato.toLocaleString('it-IT')}</span>;
                         })()}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachCompenso, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', ...colVis('coachCompenso') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachCompenso, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', ...colVis('coachCompenso') }}>
                         {editingCoachFee === service.id && activeVista === 'lavorazioni' ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={{ color: 'var(--muted-foreground)' }}>€</span>
@@ -2006,8 +2020,8 @@ export function ServiziStudentiPage() {
                             )}
                           </div>
                         )}
-                      </td>
-                      <td style={{ minWidth: columnWidths.nextDue, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('nextDue') }}>
+                      </TableCell>
+                      <TableCell style={{ minWidth: columnWidths.nextDue, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('nextDue') }}>
                         {(() => {
                           const nextDue = getNextDueDate(service);
                           if (!nextDue) return <span style={{ color: 'var(--muted-foreground)' }}>—</span>;
@@ -2026,8 +2040,8 @@ export function ServiziStudentiPage() {
                             </div>
                           );
                         })()}
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachName, fontFamily: 'var(--font-inter)', ...colVis('coachName') }}>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachName, fontFamily: 'var(--font-inter)', ...colVis('coachName') }}>
                         <SmartCoachSelect
                           value={service.coach_name || ''}
                           onChange={(val) => updateCoachName(service.id, val)}
@@ -2036,13 +2050,13 @@ export function ServiziStudentiPage() {
                           title="Cambia coach"
                           emptyLabel="Nessun coach"
                         />
-                      </td>
+                      </TableCell>
                       {/* Stato lav. */}
-                      <td style={{ minWidth: columnWidths.statoLav, ...colVis('statoLav') }}>
+                      <TableCell style={{ minWidth: columnWidths.statoLav, ...colVis('statoLav') }}>
                         {getStatusBadge(service.status)}
-                      </td>
+                      </TableCell>
                       {/* Compenso — editabile */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.compenso, fontFamily: 'var(--font-inter)', ...colVis('compenso') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.compenso, fontFamily: 'var(--font-inter)', ...colVis('compenso') }}>
                         {editingCoachFee === service.id && activeVista === 'compensi' ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={{ color: 'var(--muted-foreground)' }}>€</span>
@@ -2064,9 +2078,9 @@ export function ServiziStudentiPage() {
                             )}
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       {/* N. Notula */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.nNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('nNotula') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.nNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('nNotula') }}>
                         {editingNotula === service.id ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.125rem' }}>
                             <input type="text" inputMode="numeric" value={notulaNumInput}
@@ -2092,9 +2106,9 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       {/* Data Notula */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.dataNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('dataNotula') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.dataNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('dataNotula') }}>
                         {editingDataNotula === service.id ? (
                           <input type="date" value={dataNotulaInput} onChange={(e) => setDataNotulaInput(e.target.value)} autoFocus
                             onKeyDown={(e) => { if (e.key === 'Enter' && dataNotulaInput) { updatePayoutField(service.id, { notula_issue_date: dataNotulaInput }); setEditingDataNotula(null); } if (e.key === 'Escape') setEditingDataNotula(null); }}
@@ -2110,9 +2124,9 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       {/* Scad. 40gg */}
-                      <td style={{ minWidth: columnWidths.scad40gg, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('scad40gg') }}>
+                      <TableCell style={{ minWidth: columnWidths.scad40gg, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('scad40gg') }}>
                         {(() => {
                           const scad = computeScad40gg(service.coach_payout?.notula_issue_date);
                           if (!scad) return <span style={{ color: 'var(--muted-foreground)' }}>—</span>;
@@ -2130,9 +2144,9 @@ export function ServiziStudentiPage() {
                             </span>
                           );
                         })()}
-                      </td>
+                      </TableCell>
                       {/* Stato pag. */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.statoPag, fontFamily: 'var(--font-inter)', ...colVis('statoPag') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.statoPag, fontFamily: 'var(--font-inter)', ...colVis('statoPag') }}>
                         <select
                           value={service.coach_payout?.status || 'pending_invoice'}
                           onChange={(e) => { const newStatus = e.target.value as PayoutStatus; updatePayoutField(service.id, { status: newStatus }); toast.success(`Stato pagamento aggiornato: ${getPayoutStatusLabel(newStatus)}`); }}
@@ -2144,9 +2158,9 @@ export function ServiziStudentiPage() {
                           <option value="paid">Pagato</option>
                           <option value="disputed">Contestato</option>
                         </select>
-                      </td>
+                      </TableCell>
                       {/* Pagato il */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.pagatoIl, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('pagatoIl') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.pagatoIl, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('pagatoIl') }}>
                         {editingPagatoIl === service.id ? (
                           <input type="date" value={pagatoIlInput} onChange={(e) => setPagatoIlInput(e.target.value)} autoFocus
                             onKeyDown={(e) => { if (e.key === 'Enter' && pagatoIlInput) { updatePayoutField(service.id, { paid_at: pagatoIlInput }); setEditingPagatoIl(null); } if (e.key === 'Escape') setEditingPagatoIl(null); }}
@@ -2162,9 +2176,9 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       {/* Rif. pag. */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.rifPag, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('rifPag') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.rifPag, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('rifPag') }}>
                         {editingRifPag === service.id ? (
                           <input type="text" value={rifPagInput} onChange={(e) => setRifPagInput(e.target.value)} autoFocus
                             onKeyDown={(e) => { if (e.key === 'Enter') { updatePayoutField(service.id, { payment_reference: rifPagInput }); setEditingRifPag(null); } if (e.key === 'Escape') setEditingRifPag(null); }}
@@ -2182,9 +2196,9 @@ export function ServiziStudentiPage() {
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4, flexShrink: 0 }} />
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                       {/* Note admin */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.notes, textAlign: 'center', ...colVis('notes') }}>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.notes, textAlign: 'center', ...colVis('notes') }}>
                         {(() => {
                           const noteCount = getNotesCount(service.id);
                           return (
@@ -2202,20 +2216,26 @@ export function ServiziStudentiPage() {
                             </button>
                           );
                         })()}
-                      </td>
+                      </TableCell>
                       {/* Azioni */}
-                      <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.actions, position: 'sticky', right: 0, backgroundColor: 'var(--background)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', textAlign: 'center', padding: '12px 8px' }}>
-                        <TableActions actions={getServiceActions(service)} />
-                      </td>
-                    </tr>
+                      {visibleCols.has('actions') && (
+                        <TableActionCell
+                          width={columnWidths.actions}
+                          backgroundColor="var(--background)"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TableActions actions={getServiceActions(service)} />
+                        </TableActionCell>
+                      )}
+                    </TableRow>
 
                     {/* Expanded installments */}
                     {isExpanded && service.installments.map((inst, idx) => (
-                      <tr key={inst.id} style={{ backgroundColor: inst.status === 'overdue' ? 'rgba(239, 68, 68, 0.04)' : 'var(--muted)' }}>
-                        <td style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></td>
-                        <td style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('id') }}>{inst.id}</td>
-                        <td style={{ ...colVis('coach') }}></td>
-                        <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5', ...colVis('student') }}>
+                      <TableRow key={inst.id} style={{ backgroundColor: inst.status === 'overdue' ? 'rgba(239, 68, 68, 0.04)' : 'var(--muted)' }}>
+                        <TableCell style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></TableCell>
+                        <TableCell style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('id') }}>{inst.id}</TableCell>
+                        <TableCell style={{ ...colVis('coach') }}></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5', ...colVis('student') }}>
                           <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.125rem' }}>Rata {idx + 1}</div>
                           {editingDueDate === inst.id ? (
                             <input type="date" value={dueDateInput} onChange={(e) => setDueDateInput(e.target.value)} autoFocus
@@ -2233,12 +2253,12 @@ export function ServiziStudentiPage() {
                               <Pencil size={9} style={{ opacity: 0.4 }} />
                             </span>
                           )}
-                        </td>
-                        <td style={colVis('status')}></td>
-                        <td style={colVis('createdAt')}></td>
-                        <td style={colVis('expiresAt')}></td>
-                        <td style={{ ...colVis('servizio') }}></td>
-                        <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('rate') }}>
+                        </TableCell>
+                        <TableCell style={colVis('status')}></TableCell>
+                        <TableCell style={colVis('createdAt')}></TableCell>
+                        <TableCell style={colVis('expiresAt')}></TableCell>
+                        <TableCell style={{ ...colVis('servizio') }}></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('rate') }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button onClick={() => toggleInstallmentPaid(service.id, inst.id)}
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--muted-foreground)' }}
@@ -2263,9 +2283,9 @@ export function ServiziStudentiPage() {
                               )
                             ) : null}
                           </div>
-                        </td>
-                        <td style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></td>
-                        <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.fattura, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('fattura') }}>
+                        </TableCell>
+                        <TableCell style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.fattura, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('fattura') }}>
                           {editingInstInvoice === inst.id ? (
                             (() => {
                               const saveInstInvoice = () => { const val = composeInvoiceNumber(instInvoiceNumInput, instInvoiceYearInput); updateInstallmentInvoiceNumber(service.id, inst.id, val || ''); };
@@ -2296,11 +2316,11 @@ export function ServiziStudentiPage() {
                               <Pencil size={9} style={{ opacity: 0.4 }} />
                             </div>
                           )}
-                        </td>
-                        <td style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('netto') }}>
+                        </TableCell>
+                        <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('netto') }}>
                           €{(inst.amount * (1 - taxPercent / 100)).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
                           {editingInstAmount === inst.id ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                               <span style={{ color: 'var(--muted-foreground)' }}>€</span>
@@ -2319,78 +2339,76 @@ export function ServiziStudentiPage() {
                               <Pencil size={10} style={{ opacity: 0.5 }} />
                             </div>
                           )}
-                        </td>
-                        <td style={colVis('incassato')}></td>
-                        <td style={colVis('coachCompenso')}></td>
-                        <td style={colVis('nextDue')}></td>
-                        <td style={colVis('coachName')}></td>
-                        <td style={colVis('statoLav')}></td>
-                        <td style={colVis('compenso')}></td>
-                        <td style={colVis('nNotula')}></td>
-                        <td style={colVis('dataNotula')}></td>
-                        <td style={colVis('scad40gg')}></td>
-                        <td style={colVis('statoPag')}></td>
-                        <td style={colVis('pagatoIl')}></td>
-                        <td style={colVis('rifPag')}></td>
-                        <td style={colVis('notes')}></td>
-                        <td style={{ position: 'sticky', right: 0, backgroundColor: inst.status === 'overdue' ? 'rgba(239, 68, 68, 0.04)' : 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', ...colVis('actions') }}></td>
-                      </tr>
+                        </TableCell>
+                        <TableCell style={colVis('incassato')}></TableCell>
+                        <TableCell style={colVis('coachCompenso')}></TableCell>
+                        <TableCell style={colVis('nextDue')}></TableCell>
+                        <TableCell style={colVis('coachName')}></TableCell>
+                        <TableCell style={colVis('statoLav')}></TableCell>
+                        <TableCell style={colVis('compenso')}></TableCell>
+                        <TableCell style={colVis('nNotula')}></TableCell>
+                        <TableCell style={colVis('dataNotula')}></TableCell>
+                        <TableCell style={colVis('scad40gg')}></TableCell>
+                        <TableCell style={colVis('statoPag')}></TableCell>
+                        <TableCell style={colVis('pagatoIl')}></TableCell>
+                        <TableCell style={colVis('rifPag')}></TableCell>
+                        <TableCell style={colVis('notes')}></TableCell>
+                        <TableCell style={{ position: 'sticky', right: 0, backgroundColor: inst.status === 'overdue' ? 'rgba(239, 68, 68, 0.04)' : 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', ...colVis('actions') }}></TableCell>
+                      </TableRow>
                     ))}
                     {/* Totale incassato row */}
                     {isExpanded && service.installments.length > 0 && (() => {
                       const paidTotal = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
                       const paidNetto = paidTotal * (1 - taxPercent / 100);
                       return (
-                        <tr style={{ backgroundColor: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
-                          <td style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></td>
-                          <td style={{ minWidth: columnWidths.id, ...colVis('id') }}></td>
-                          <td style={colVis('coach')}></td>
-                          <td style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('student') }}>Incassato</td>
-                          <td style={colVis('status')}></td>
-                          <td style={colVis('createdAt')}></td>
-                          <td style={colVis('expiresAt')}></td>
-                          <td style={colVis('servizio')}></td>
-                          <td style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('rate') }}>{paidCount}/{totalCount} pagate</td>
-                          <td style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></td>
-                          <td style={{ minWidth: columnWidths.fattura, ...colVis('fattura') }}></td>
-                          <td style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('netto') }}>€{paidNetto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                          <td style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('lordo') }}>€{paidTotal.toLocaleString('it-IT')}</td>
-                          <td style={{ minWidth: columnWidths.incassato, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('incassato') }}>€{paidTotal.toLocaleString('it-IT')}</td>
-                          <td style={colVis('coachCompenso')}></td>
-                          <td style={colVis('nextDue')}></td>
-                          <td style={colVis('coachName')}></td>
-                          <td style={colVis('statoLav')}></td>
-                          <td style={colVis('compenso')}></td>
-                          <td style={colVis('nNotula')}></td>
-                          <td style={colVis('dataNotula')}></td>
-                          <td style={colVis('scad40gg')}></td>
-                          <td style={colVis('statoPag')}></td>
-                          <td style={colVis('pagatoIl')}></td>
-                          <td style={colVis('rifPag')}></td>
-                          <td style={colVis('notes')}></td>
-                          <td style={{ position: 'sticky', right: 0, backgroundColor: 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', ...colVis('actions') }}></td>
-                        </tr>
+                        <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
+                          <TableCell style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.id, ...colVis('id') }}></TableCell>
+                          <TableCell style={colVis('coach')}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('student') }}>Incassato</TableCell>
+                          <TableCell style={colVis('status')}></TableCell>
+                          <TableCell style={colVis('createdAt')}></TableCell>
+                          <TableCell style={colVis('expiresAt')}></TableCell>
+                          <TableCell style={colVis('servizio')}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('rate') }}>{paidCount}/{totalCount} pagate</TableCell>
+                          <TableCell style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.fattura, ...colVis('fattura') }}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('netto') }}>€{paidNetto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
+                          <TableCell style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('lordo') }}>€{paidTotal.toLocaleString('it-IT')}</TableCell>
+                          <TableCell style={{ minWidth: columnWidths.incassato, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('incassato') }}>€{paidTotal.toLocaleString('it-IT')}</TableCell>
+                          <TableCell style={colVis('coachCompenso')}></TableCell>
+                          <TableCell style={colVis('nextDue')}></TableCell>
+                          <TableCell style={colVis('coachName')}></TableCell>
+                          <TableCell style={colVis('statoLav')}></TableCell>
+                          <TableCell style={colVis('compenso')}></TableCell>
+                          <TableCell style={colVis('nNotula')}></TableCell>
+                          <TableCell style={colVis('dataNotula')}></TableCell>
+                          <TableCell style={colVis('scad40gg')}></TableCell>
+                          <TableCell style={colVis('statoPag')}></TableCell>
+                          <TableCell style={colVis('pagatoIl')}></TableCell>
+                          <TableCell style={colVis('rifPag')}></TableCell>
+                          <TableCell style={colVis('notes')}></TableCell>
+                          <TableCell style={{ position: 'sticky', right: 0, backgroundColor: 'var(--muted)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', ...colVis('actions') }}></TableCell>
+                        </TableRow>
                       );
                     })()}
                   </tbody>
                 );
               })
               ])}
-          </table>
-        </div>
-      </div>
-
-      {/* Mobile Card View */}
-      <div style={{ display: 'none' }} className="mobile-cards">
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
         {filteredAndSortedData.map((service) => {
           const isMobileSelected = selectedIds.includes(service.id);
           return (
-          <div 
+          <ResponsiveMobileCard
             key={service.id}
-            onClick={() => handleRowClick(service.id)}
-            style={{ backgroundColor: isMobileSelected ? 'var(--selected-row-bg)' : 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem', cursor: 'pointer' }}
+            backgroundColor={isMobileSelected ? 'var(--selected-row-bg)' : 'var(--card)'}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+            <div onClick={() => handleRowClick(service.id)} style={{ cursor: 'pointer' }}>
+            <ResponsiveMobileCardHeader>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                 <div onClick={(e) => e.stopPropagation()} style={{ paddingTop: '0.125rem' }}>
                   <Checkbox checked={selectedIds.includes(service.id)} onCheckedChange={() => handleSelectRow(service.id)} />
@@ -2403,9 +2421,10 @@ export function ServiziStudentiPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 {getStatusBadge(service.status)}
               </div>
-            </div>
+            </ResponsiveMobileCardHeader>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+            <ResponsiveMobileCardSection marginBottom="0">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {(() => {
                 const mLordo = service.installments.reduce((s, i) => s + i.amount, 0);
                 const mNetto = mLordo * (1 - taxPercent / 100);
@@ -2450,19 +2469,17 @@ export function ServiziStudentiPage() {
                 })()}
               </div>
             </div>
-          </div>
+            </ResponsiveMobileCardSection>
+            </div>
+          </ResponsiveMobileCard>
           );
         })}
-      </div>
+          </ResponsiveMobileCards>
+        )}
+      />
 
       <style>{`
         @media (max-width: 768px) {
-          .data-table {
-            display: none !important;
-          }
-          .mobile-cards {
-            display: block !important;
-          }
           .action-toolbar {
             flex-direction: column;
             gap: 1rem;
