@@ -1,145 +1,40 @@
-**Coach Dashboard – System Guidelines**
+# Vista Coach — Guidelines
 
-<!--
-Use this file to guide LLMs when generating or updating
-the Student Dashboard experience.
-Focus on MVP, clarity, and minimal UI.
--->
+## A chi è rivolta
+Coach che seguono studenti nel percorso tesi. Accesso solo via URL diretto.
 
-# General guidelines
+## Path
+`/coach-view` — Layout: `src/app/components/coach/CoachLayout.tsx`
+Pagine: `src/pages/coach/`
 
-* This is an MVP. Prefer clarity over completeness.
-* Do NOT introduce new pages or complex navigation structures.
-* The student must stay inside the dashboard flow as much as possible.
-* Avoid drawers as “sources of truth”. Drawers are allowed only for actions (e.g. upload).
-* No real-time chat assumptions. Communication is asynchronous.
-* Do not add features unless explicitly requested.
+## Scopo
+Il coach controlla il completamento degli step, revisiona documenti,
+aggiunge note, avvia check plagio. Solo il coach può marcare uno step come completato.
 
-# General guidelines
+## Principi
+- MVP, preferire riuso di pattern dalla Student Dashboard
+- Nessuna complessità admin-level
+- Il coach è sempre nel contesto di uno studente specifico
+- Nessuna lista globale studenti in stile admin
 
-* This is an MVP.
-* Prefer reuse of layout and patterns from the Student Dashboard.
-* Do NOT introduce admin-level complexity.
-* Assume the coach is already inside a specific student timeline.
-* No global student list or admin navigation here.
+## Timeline
+- Struttura verticale per step (uguale a student view)
+- Step corrente sempre evidenziato
+- Step = thread contestuale (documenti + note + revisioni)
+- Non separare activity log in sezione separata
 
---------------
+## Azioni disponibili per step
+- Leggi / scarica documenti
+- Carica documenti revisionati
+- Aggiungi note (asincrone, non chat)
+- Avvia check plagio
+- Marca step come completato (esplicito e manuale)
 
-# Role principles (Coach)
+## Navigazione
+- Topbar: ruolo coach + contesto studente corrente
+- Accesso a profilo studente (drawer o vista secondaria)
+- ❌ Nessuna azione admin-only esposta
 
-* The coach:
-  - controls step completion
-  - reviews documents
-  - optionally adds notes
-  - can initiate plagiarism checks
-* Only the coach can mark a step as completed.
-* The coach view must clearly show:
-  - what the student has done
-  - what is pending
-  - what actions are available now
-
---------------
-
-# Timeline guidelines (Coach)
-
-* Same timeline structure as student:
-  - vertical
-  - step-based
-* Current step must be clearly highlighted.
-* Steps are treated as contextual “threads”:
-  - documents
-  - notes
-  - revisions
-* Do NOT separate activity logs into a different section.
-
---------------
-
-# Current step behavior (Coach)
-
-* The current step may contain:
-  - documents sent by the student
-  - notes from the student
-  - coach notes or uploads
-* Actions available to the coach:
-  - read / download documents
-  - upload revised documents
-  - add notes
-  - trigger plagiarism check
-  - mark step as completed
-* Step completion is explicit and manual.
-
---------------
-
-# Documents & archive (Coach)
-
-* Documents are always shown in context of a step.
-* An archive may exist but must be:
-  - minimal
-  - filterable by step
-* For each document show only:
-  - sender (student / coach)
-  - creation date
-  - related step
-  - plagiarism check status (if any)
-  - revision status (coach / optional internal reviewer)
-* Avoid heavy table layouts.
-
---------------
-
-# Notes (Coach)
-
-* Notes are asynchronous.
-* Notes are contextual to a step.
-* Notes are not a chat.
-* Notes may explain:
-  - decisions
-  - feedback
-  - next actions
-* Keep notes visually lightweight.
-
---------------
-
-# Timeline editing
-
-* The coach can enter “edit timeline mode”.
-* Timeline editing can be handled via a drawer.
-* In edit mode:
-  - current step end date must always be editable
-  - new steps can be added before or after existing ones
-* Do NOT redesign the full timeline editor yet.
-* Editing is incremental and contextual.
-
---------------
-
-# Simulations & visibility (for testing)
-
-* Simulate student actions:
-  - document upload
-  - note creation
-* These simulations must:
-  - be visually noticeable
-  - persist until the coach interacts
-* Use subtle transitions:
-  - no sounds
-  - no intrusive notifications
-
---------------
-
-# Navigation
-
-* Topbar should reflect:
-  - coach role
-  - student context (who this timeline belongs to)
-* Provide access to:
-  - student profile (drawer or secondary view)
-* Do NOT expose admin-only actions.
-
---------------
-
-# Design system
-
-* Keep visual consistency with Student Dashboard.
-* Reuse spacing, typography, and layout logic.
-* Minimal UI over feature density.
-* No decorative elements without function.
--->
+## Regole di isolamento
+- Non condividere CoachLayout con altre viste
+- Non esporre azioni admin nel topbar coach

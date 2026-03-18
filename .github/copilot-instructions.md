@@ -1,13 +1,21 @@
 # Copilot Instructions — Sottotesi
 
-Leggi sempre ARCHITECTURE.md prima di modificare routes o layout.
-Leggi il file docs/views/ corrispondente alla vista su cui stai lavorando.
+## Prima di qualsiasi modifica
+- Leggi `ARCHITECTURE.md` per la struttura generale e le route
+- Leggi `docs/views/[vista].md` per la vista su cui stai lavorando
 
 ## Viste del progetto
-- Admin (`/`) → docs/views/admin.md
-- Coach (`/coach-view`) → docs/views/coach.md
-- Student (`/student-view`) → docs/views/student.md
+| Vista | Path | File di riferimento |
+|-------|------|---------------------|
+| Admin | `/` | `docs/views/admin.md` |
+| Coach | `/coach-view` | `docs/views/coach.md` |
+| Student | `/student-view` | `docs/views/student.md` |
 
 ## Regole sempre valide
-- Non aggiungere route coach alla sidebar admin
-- Variabili CSS condivise in src/styles/theme.css
+- Usare sempre alias `@` per gli import, mai path relativi lunghi
+- Variabili CSS solo da `src/styles/theme.css`, nessun valore hardcoded
+- Non condividere Layout, Header, Sidebar tra viste diverse
+- Non aggiungere route coach/student alla sidebar admin
+- Non unire i Container.tsx delle viste diverse
+- Drawers solo per azioni, mai come fonte di verità
+- Nessuna feature non esplicitamente richiesta
