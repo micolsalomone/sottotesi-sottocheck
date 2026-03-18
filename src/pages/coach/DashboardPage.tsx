@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { STUDENTS_DATA, STATUS_LABELS, STATUS_STYLES } from './studentsData';
 import { getViewBasePath } from './viewBasePath';
+import { getStudentViewStudent, getStudentViewTimelinePath, isStudentViewPath } from '@/app/utils/studentView';
 
 /* ── Availability types ── */
 type CoachAvailability = 'disponibile' | 'limitata' | 'pieno' | 'non_disponibile';
@@ -104,12 +105,40 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const viewBasePath = getViewBasePath(location.pathname);
+  const isStudentView = isStudentViewPath(location.pathname);
+  const currentStudent = isStudentView ? getStudentViewStudent() : null;
   const [dashboardTab, setDashboardTab] = useState<'tickets' | 'unassigned'>('tickets');
 
   const assigned = STUDENTS_DATA.filter(s => s.assigned);
-  const activeCount = assigned.filter(s => s.status === 'active').length;
+  const activeCount = isStudentView
+    ? (currentStudent?.status === 'active' ? 1 : 0)
+    : assigned.filter(s => s.status === 'active').length;
+  const totalCount = isStudentView ? (currentStudent ? 1 : 0) : assigned.length;
   const pendingStudents = STUDENTS_DATA.filter(s => !s.assigned);
-  const openTickets = MOCK_TICKETS.filter(t => t.status === 'open');
+  const studentTickets: Ticket[] = currentStudent
+    ? [
+        {
+          id: 'ST-001',
+          subject: `Aggiornamento percorso ${currentStudent.id}`,
+          from: 'Coach · Teresa P.',
+          fromRole: 'coach',
+          date: '26 feb 2026',
+          status: 'open',
+          snippet: `La tua timeline è aggiornata fino a ${currentStudent.currentPhase}. Controlla la prossima consegna prevista.`,
+        },
+        {
+          id: 'ST-002',
+          subject: 'Nuovo documento disponibile in archivio',
+          from: 'Admin · Laura Ricci',
+          fromRole: 'admin',
+          date: '24 feb 2026',
+          status: 'closed',
+          snippet: 'Sono stati caricati nuovi materiali utili per il tuo percorso attivo.',
+        },
+      ]
+    : [];
+  const visibleTickets = isStudentView ? studentTickets : MOCK_TICKETS;
+  const openTickets = visibleTickets.filter(t => t.status === 'open');
 
   return (
     <div className="px-[40px] py-[32px]">
@@ -134,17 +163,19 @@ export function DashboardPage() {
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          Panoramica e gestione della tua attività di coaching
+          {isStudentView
+            ? 'Panoramica del tuo percorso attivo e delle attività recenti'
+            : 'Panoramica e gestione della tua attività di coaching'}
         </p>
       </div>
 
       {/* ── Top row: Stats + Availability ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-        {/* Studenti attivi */}
+        {/* Card principale */}
         <div
           className="border border-[var(--border)] bg-[var(--card)] p-6 flex flex-col justify-between cursor-pointer hover:border-[var(--primary)] transition-colors"
           style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
-          onClick={() => navigate(`${viewBasePath}/studenti`)}
+          onClick={() => navigate(isStudentView ? getStudentViewTimelinePath() : `${viewBasePath}/studenti`)}
         >
           <div className="flex items-center justify-between mb-4">
             <span
@@ -157,7 +188,7 @@ export function DashboardPage() {
                 letterSpacing: '0.05em',
               }}
             >
-              Studenti attivi
+              {isStudentView ? 'Percorso attivo' : 'Studenti attivi'}
             </span>
             <Users className="w-5 h-5 text-[var(--primary)]" />
           </div>
@@ -180,7 +211,9 @@ export function DashboardPage() {
               fontWeight: 'var(--font-weight-regular)',
             }}
           >
-            su {assigned.length} percorsi totali
+            {isStudentView
+              ? `${currentStudent?.currentPhase || 'Percorso in corso'} · scadenza ${currentStudent?.nextDeadlineDate || '-'}`
+              : `su ${totalCount} percorsi totali`}
           </p>
         </div>
 
@@ -207,7 +240,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Tabbed section: Tickets + Senza assegnazione ── */}
+      {/* ── Tabbed section ── */}
       <div
         className="border border-[var(--border)] bg-[var(--card)]"
         style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
@@ -252,49 +285,51 @@ export function DashboardPage() {
             )}
           </button>
 
-          <button
-            onClick={() => setDashboardTab('unassigned')}
-            className="relative px-1 py-4 transition-colors"
-            style={{
-              fontFamily: 'var(--font-inter)',
-              fontSize: 'var(--text-label)',
-              fontWeight: dashboardTab === 'unassigned' ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
-              color: dashboardTab === 'unassigned' ? 'var(--foreground)' : 'var(--muted-foreground)',
-            }}
-          >
-            <span className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
-              Senza assegnazione
-              {pendingStudents.length > 0 && (
+          {!isStudentView && (
+            <button
+              onClick={() => setDashboardTab('unassigned')}
+              className="relative px-1 py-4 transition-colors"
+              style={{
+                fontFamily: 'var(--font-inter)',
+                fontSize: 'var(--text-label)',
+                fontWeight: dashboardTab === 'unassigned' ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+                color: dashboardTab === 'unassigned' ? 'var(--foreground)' : 'var(--muted-foreground)',
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Senza assegnazione
+                {pendingStudents.length > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center px-[7px]"
+                    style={{
+                      background: 'var(--accent)',
+                      color: 'var(--accent-foreground)',
+                      borderRadius: 'var(--radius-badge)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: '11px',
+                      fontWeight: 'var(--font-weight-medium)',
+                      height: '20px',
+                    }}
+                  >
+                    {pendingStudents.length}
+                  </span>
+                )}
+              </span>
+              {dashboardTab === 'unassigned' && (
                 <span
-                  className="inline-flex items-center justify-center px-[7px]"
-                  style={{
-                    background: 'var(--accent)',
-                    color: 'var(--accent-foreground)',
-                    borderRadius: 'var(--radius-badge)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '11px',
-                    fontWeight: 'var(--font-weight-medium)',
-                    height: '20px',
-                  }}
-                >
-                  {pendingStudents.length}
-                </span>
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--foreground)]"
+                  style={{ borderRadius: '1px' }}
+                />
               )}
-            </span>
-            {dashboardTab === 'unassigned' && (
-              <span
-                className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--foreground)]"
-                style={{ borderRadius: '1px' }}
-              />
-            )}
-          </button>
+            </button>
+          )}
         </div>
 
         {/* Tab content */}
         {dashboardTab === 'tickets' ? (
           <div className="px-3 py-3">
-            {MOCK_TICKETS.length === 0 ? (
+            {visibleTickets.length === 0 ? (
               <p
                 className="text-[var(--muted-foreground)] py-10 text-center"
                 style={{
@@ -306,10 +341,10 @@ export function DashboardPage() {
                 Nessun ticket recente.
               </p>
             ) : (
-              MOCK_TICKETS.map((ticket, idx) => (
+              visibleTickets.map((ticket, idx) => (
                 <div
                   key={ticket.id}
-                  className={`p-4 hover:bg-[var(--muted)] transition-colors cursor-pointer ${idx < MOCK_TICKETS.length - 1 ? 'border-b border-[var(--border)]' : ''}`}
+                  className={`p-4 hover:bg-[var(--muted)] transition-colors cursor-pointer ${idx < visibleTickets.length - 1 ? 'border-b border-[var(--border)]' : ''}`}
                   style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
                 >
                   <div className="flex items-start justify-between gap-3 mb-1">

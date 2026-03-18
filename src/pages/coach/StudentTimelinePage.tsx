@@ -19,14 +19,20 @@ import { Calendar, Plus, ClipboardList, ListPlus } from 'lucide-react';
 import { getStudentTimeline } from './studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
 import { getViewBasePath } from './viewBasePath';
+import { getStudentViewStudent, getStudentViewTimelinePath, isStudentViewPath } from '@/app/utils/studentView';
 
 export function StudentTimelinePage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const viewBasePath = getViewBasePath(location.pathname);
+  const isStudentView = isStudentViewPath(location.pathname);
+  const currentStudent = isStudentView ? getStudentViewStudent() : null;
+  const effectiveStudentId = isStudentView ? currentStudent?.id : studentId;
 
-  const student = STUDENTS_DATA.find(s => s.id === studentId);
+  const student = isStudentView
+    ? currentStudent
+    : STUDENTS_DATA.find(s => s.id === effectiveStudentId);
   const studentName = student?.name || 'Studente';
 
   const [thesisSubject, setThesisSubject] = useState(student?.thesisSubject || '');
@@ -40,8 +46,8 @@ export function StudentTimelinePage() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   
   const initialTimeline = useMemo(
-    () => getStudentTimeline(studentId || '', studentName),
-    [studentId, studentName]
+    () => getStudentTimeline(effectiveStudentId || '', studentName),
+    [effectiveStudentId, studentName]
   );
 
   const [timelineSteps, setTimelineSteps] = useState<TimelineStepData[]>(initialTimeline.steps);
@@ -50,12 +56,17 @@ export function StudentTimelinePage() {
 
   // Reset state when navigating to a different student
   useEffect(() => {
+    if (isStudentView && studentId !== currentStudent?.id) {
+      navigate(getStudentViewTimelinePath(), { replace: true });
+      return;
+    }
+
     setTimelineSteps(initialTimeline.steps);
     setDocuments(initialTimeline.documents);
     setFilterMode('all');
     setStepArchiveId(null);
     setThesisSubject(student?.thesisSubject || '');
-  }, [studentId]);
+  }, [studentId, currentStudent?.id, initialTimeline, isStudentView, navigate, student?.thesisSubject]);
 
   function handleOpenArchive() { setIsArchiveDrawerOpen(true); }
   function handleOpenStudentProfile() {
@@ -368,7 +379,34 @@ export function StudentTimelinePage() {
     }));
   }, [timelineSteps]);
 
-  const stepOptions: StepOption[] = computedTimelineSteps.map(step => ({ id: step.id, phaseNumber: step.phaseNumber, title: step.title }));
+  const visibleTimelineSteps = useMemo(() => {
+    if (!isStudentView) {
+      return computedTimelineSteps;
+    }
+
+    const visibleSteps = computedTimelineSteps.filter((step) => step.isVisibleToStudent);
+
+    if (visibleSteps.length === 0) {
+      return [];
+    }
+
+    if (visibleSteps.some((step) => step.status === 'active')) {
+      return visibleSteps;
+    }
+
+    let activeAssigned = false;
+
+    return visibleSteps.map((step) => {
+      if (!activeAssigned && step.status !== 'completed') {
+        activeAssigned = true;
+        return { ...step, status: 'active' as const };
+      }
+
+      return step;
+    });
+  }, [computedTimelineSteps, isStudentView]);
+
+  const stepOptions: StepOption[] = visibleTimelineSteps.map(step => ({ id: step.id, phaseNumber: step.phaseNumber, title: step.title }));
 
   const planStartDate = student?.planStartDate || '';
   const planEndDate = student?.planEndDate || '';
@@ -392,7 +430,8 @@ export function StudentTimelinePage() {
     return parts.map(p => p[0]?.toUpperCase() || '').join('').slice(0, 2);
   }, [studentName]);
 
-  const statusStyle = STATUS_STYLES[student?.status || 'active'];
+  const effectiveStatus = isStudentView ? 'active' : (student?.status || 'active');
+  const statusStyle = STATUS_STYLES[effectiveStatus];
 
   const timelineOverview: TimelineOverview = {
     planStatus: `In corso · ${student?.currentPhase || 'Fase 3 di 6'}`,
@@ -516,7 +555,7 @@ export function StudentTimelinePage() {
                   color: statusStyle.text,
                 }}
               >
-                {STATUS_LABELS[student?.status || 'active']}
+                {STATUS_LABELS[effectiveStatus]}
               </span>
             </div>
           </div>
@@ -618,7 +657,7 @@ export function StudentTimelinePage() {
         <div className="min-w-0">
           
           <div className="mt-2">
-            {computedTimelineSteps.length === 0 ? (
+            {visibleTimelineSteps.length === 0 ? (
               <div
                 className="flex flex-col items-center justify-center py-[80px] px-[32px] border border-dashed border-[var(--border)] bg-[var(--card)]"
                 style={{ borderRadius: 'var(--radius)' }}
@@ -696,8 +735,9 @@ export function StudentTimelinePage() {
               </div>
             ) : (
               <CoachTimelineList 
-                steps={computedTimelineSteps} 
+                steps={visibleTimelineSteps} 
                 filterMode={filterMode} 
+                canManageSteps={!isStudentView}
                 onAddStep={handleAddStep}
                 onRemoveStep={handleRemoveStep}
                 onToggleStepStatus={handleToggleStepStatus}

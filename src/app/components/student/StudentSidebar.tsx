@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { LayoutDashboard, Users, ClipboardCheck, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getStudentViewTimelinePath } from '@/app/utils/studentView';
 
 interface NavItem {
   label: string;
@@ -14,9 +15,9 @@ const navItems: NavItem[] = [
     path: '/student-view',
   },
   {
-    label: 'Studenti',
+    label: 'Il mio percorso',
     icon: <Users size={20} />,
-    path: '/student-view/studenti',
+    path: getStudentViewTimelinePath(),
   },
   {
     label: 'Sottocheck',

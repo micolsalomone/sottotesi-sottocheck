@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
+import { getStudentViewStudent } from '@/app/utils/studentView';
 import SottotesiLogodefDefault from '../../../imports/SottotesiLogodefDefault';
 
 interface StudentHeaderProps {
@@ -7,6 +8,8 @@ interface StudentHeaderProps {
 }
 
 export function StudentHeader({ sidebarCollapsed }: StudentHeaderProps) {
+  const currentStudent = getStudentViewStudent();
+
   return (
     <header className="admin-header">
       <div
@@ -25,7 +28,7 @@ export function StudentHeader({ sidebarCollapsed }: StudentHeaderProps) {
         <div className="admin-user">
           <span className="admin-username">studente</span>
           <button className="admin-badge">
-            Teresa P.
+            {currentStudent.name}
             <ChevronDown size={14} />
           </button>
         </div>

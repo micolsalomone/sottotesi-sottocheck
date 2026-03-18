@@ -50,6 +50,7 @@ export interface ActivityItem {
 interface CoachTimelineListProps {
   steps: TimelineStepData[];
   filterMode: 'open' | 'upcoming' | 'completed' | 'all';
+  canManageSteps?: boolean;
   onAddStep?: (afterStepId: string | null, status?: 'active' | 'upcoming') => void;
   onRemoveStep?: (stepId: string) => void;
   onToggleStepStatus?: (stepId: string, newStatus: 'active' | 'upcoming') => void;
@@ -69,6 +70,7 @@ interface CoachTimelineListProps {
 export function CoachTimelineList({ 
   steps, 
   filterMode,
+  canManageSteps = true,
   onAddStep,
   onRemoveStep,
   onToggleStepStatus,
@@ -284,6 +286,10 @@ export function CoachTimelineList({
   }
 
   function renderStepActions(step: TimelineStepData, index: number) {
+    if (!canManageSteps) {
+      return null;
+    }
+
     const canMoveUp = index > 0;
     const canMoveDown = index < sortedSteps.length - 1;
 
@@ -660,7 +666,7 @@ export function CoachTimelineList({
                   </div>
                 ) : (
                   <h3 
-                    className="mb-3 cursor-pointer hover:text-[var(--muted-foreground)] transition-colors"
+                    className={`mb-3 transition-colors ${canManageSteps && onUpdateStepTitle ? 'cursor-pointer hover:text-[var(--muted-foreground)]' : ''}`}
                     style={{
                       fontFamily: 'var(--font-alegreya)',
                       fontSize: 'var(--text-h3)',
@@ -669,12 +675,12 @@ export function CoachTimelineList({
                       color: 'var(--foreground)',
                     }}
                     onClick={() => {
-                      if (onUpdateStepTitle) {
+                      if (canManageSteps && onUpdateStepTitle) {
                         setEditingField({ stepId: step.id, field: 'title' });
                         setEditDraft(step.title);
                       }
                     }}
-                    title="Clicca per modificare"
+                    title={canManageSteps && onUpdateStepTitle ? 'Clicca per modificare' : undefined}
                   >
                     {step.title}
                   </h3>
@@ -730,7 +736,7 @@ export function CoachTimelineList({
                 ) : (
                   step.description ? (
                     <p
-                      className="mb-3 text-[var(--muted-foreground)] cursor-pointer hover:text-[var(--foreground)] transition-colors"
+                      className={`mb-3 text-[var(--muted-foreground)] transition-colors ${canManageSteps && onUpdateStepDescription ? 'cursor-pointer hover:text-[var(--foreground)]' : ''}`}
                       style={{
                         fontFamily: 'var(--font-inter)',
                         fontSize: 'var(--text-label)',
@@ -739,16 +745,16 @@ export function CoachTimelineList({
                         whiteSpace: 'pre-wrap',
                       }}
                       onClick={() => {
-                        if (onUpdateStepDescription) {
+                        if (canManageSteps && onUpdateStepDescription) {
                           setEditingField({ stepId: step.id, field: 'description' });
                           setEditDraft(step.description);
                         }
                       }}
-                      title="Clicca per modificare"
+                      title={canManageSteps && onUpdateStepDescription ? 'Clicca per modificare' : undefined}
                     >
                       {step.description}
                     </p>
-                  ) : onUpdateStepDescription ? (
+                  ) : canManageSteps && onUpdateStepDescription ? (
                     <p
                       className="mb-3 cursor-pointer hover:text-[var(--muted-foreground)] transition-colors"
                       style={{
@@ -843,20 +849,20 @@ export function CoachTimelineList({
                             Inizio:{' '}
                           </span>
                           <span
-                            className="cursor-pointer hover:text-[var(--foreground)] transition-colors"
+                            className={canManageSteps && onUpdateStepStartDate ? 'cursor-pointer hover:text-[var(--foreground)] transition-colors' : undefined}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (onUpdateStepStartDate) {
+                              if (canManageSteps && onUpdateStepStartDate) {
                                 setEditingField({ stepId: step.id, field: 'startDate' });
                                 setEditDraft(italianDateToISO(step.startDate));
                               }
                             }}
-                            title="Clicca per modificare data inizio"
+                            title={canManageSteps && onUpdateStepStartDate ? 'Clicca per modificare data inizio' : undefined}
                           >
                             {stripDatePrefix(step.startDate)}
                           </span>
                         </>
-                      ) : onUpdateStepStartDate ? (
+                      ) : canManageSteps && onUpdateStepStartDate ? (
                         <span
                           className="cursor-pointer hover:text-[var(--foreground)] transition-colors"
                           style={{ fontStyle: 'italic', color: 'var(--border)' }}
@@ -879,16 +885,16 @@ export function CoachTimelineList({
                         Scadenza:{' '}
                       </span>
                       <span
-                        className="cursor-pointer hover:text-[var(--foreground)] transition-colors"
+                        className={canManageSteps && onUpdateStepDeadline ? 'cursor-pointer hover:text-[var(--foreground)] transition-colors' : undefined}
                         style={step.deadline === 'Data da definire' ? { fontStyle: 'italic', color: 'var(--border)' } : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onUpdateStepDeadline) {
+                          if (canManageSteps && onUpdateStepDeadline) {
                             setEditingField({ stepId: step.id, field: 'deadline' });
                             setEditDraft(italianDateToISO(step.deadline));
                           }
                         }}
-                        title="Clicca per modificare scadenza"
+                        title={canManageSteps && onUpdateStepDeadline ? 'Clicca per modificare scadenza' : undefined}
                       >
                         {stripDatePrefix(step.deadline)}
                       </span>
@@ -1375,7 +1381,7 @@ export function CoachTimelineList({
                 </div>
               ))}
 
-              {showAddButton && onAddStep && (
+              {canManageSteps && showAddButton && onAddStep && (
                 <div className="flex items-center justify-center gap-2" style={{ marginLeft: '22px' }}>
                   <button
                     onClick={() => {

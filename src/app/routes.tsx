@@ -30,6 +30,7 @@ import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
+import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 
 export const router = createBrowserRouter([
   // Vista Admin
@@ -79,8 +80,17 @@ export const router = createBrowserRouter([
     Component: StudentLayout,
     children: [
       { index: true, Component: DashboardPage },
-      { path: 'studenti', Component: CoachStudentiPage },
-      { path: 'studenti/:studentId', Component: StudentTimelinePage },
+      { path: 'studenti', loader: () => redirect(getStudentViewTimelinePath()) },
+      {
+        path: 'studenti/:studentId',
+        loader: ({ params }) => {
+          if (params.studentId !== STUDENT_VIEW_STUDENT_ID) {
+            return redirect(getStudentViewTimelinePath());
+          }
+          return null;
+        },
+        Component: StudentTimelinePage,
+      },
       { path: 'sottocheck', Component: SottocheckPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: '*', Component: NotFoundPage },
