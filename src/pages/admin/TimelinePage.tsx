@@ -863,10 +863,11 @@ const mockStudents: StudentData[] = [
   },
 ];
 
-const ACTIVE_STATUSES: StudentStatus[] = ['pending_payment', 'active', 'paused'];
+const ACTIVE_STATUSES: StudentStatus[] = ['active'];
+const ACTIVATION_STATUSES: StudentStatus[] = ['pending_payment', 'paused'];
 const PAST_STATUSES: StudentStatus[] = ['completed', 'cancelled', 'expired'];
 
-type TabKey = 'active' | 'past' | 'calendar';
+type TabKey = 'active' | 'activation' | 'past' | 'calendar';
 type SortKey = 'name' | 'coach' | 'degree' | 'thesisType' | 'serviceType' | 'status' | 'planStart' | 'planEnd' | 'progress' | 'closedReason';
 
 const COACHES = ['Martina Rossi', 'Marco Bianchi', 'Andrea Conti', 'Elena Ferretti', 'Lucia Marchetti', 'Marco Rossi', 'Laura Bianchi', 'Andrea Romano'];
@@ -1045,14 +1046,23 @@ export function TimelinePage() {
   };
 
   const activeCount = students.filter(s => ACTIVE_STATUSES.includes(s.status)).length;
+  const activationCount = students.filter(s => ACTIVATION_STATUSES.includes(s.status)).length;
   const pastCount = students.filter(s => PAST_STATUSES.includes(s.status)).length;
 
-  const tabStatuses = activeTab === 'active' ? ACTIVE_STATUSES : PAST_STATUSES;
+  const tabStatuses =
+    activeTab === 'active'
+      ? ACTIVE_STATUSES
+      : activeTab === 'activation'
+      ? ACTIVATION_STATUSES
+      : PAST_STATUSES;
 
   const activeStatusOptions = [
     { value: 'all', label: 'Tutti gli stati' },
-    { value: 'pending_payment', label: 'In attesa di pagamento' },
     { value: 'active', label: 'Attivo' },
+  ];
+  const activationStatusOptions = [
+    { value: 'all', label: 'Tutti gli stati' },
+    { value: 'pending_payment', label: 'In attesa di pagamento' },
     { value: 'paused', label: 'In pausa' },
   ];
   const pastStatusOptions = [
@@ -1061,7 +1071,12 @@ export function TimelinePage() {
     { value: 'cancelled', label: 'Annullato' },
     { value: 'expired', label: 'Scaduto' },
   ];
-  const statusFilterOptions = activeTab === 'active' ? activeStatusOptions : pastStatusOptions;
+  const statusFilterOptions =
+    activeTab === 'active'
+      ? activeStatusOptions
+      : activeTab === 'activation'
+      ? activationStatusOptions
+      : pastStatusOptions;
 
   const filteredStudents = useMemo(() => {
     let data = students.filter(s => tabStatuses.includes(s.status));
@@ -1134,7 +1149,7 @@ export function TimelinePage() {
   if (filterDateFrom) activeFilters.push({ label: `Da: ${filterDateFrom}`, onRemove: () => setFilterDateFrom('') });
   if (filterDateTo) activeFilters.push({ label: `A: ${filterDateTo}`, onRemove: () => setFilterDateTo('') });
 
-  const isActiveTab = activeTab === 'active';
+  const isOpenPathTab = activeTab === 'active' || activeTab === 'activation';
   const tableColCount = 11; // aggiornato per includere checkbox
 
   // Bulk selection handlers
@@ -1189,7 +1204,7 @@ export function TimelinePage() {
       },
     ];
 
-    if (isActiveTab && student.status !== 'completed') {
+    if (isOpenPathTab && student.status !== 'completed') {
       actions.push({
         label: 'Segna come completato',
         icon: <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} />,
@@ -1203,7 +1218,7 @@ export function TimelinePage() {
       onClick: () => setNotesModal(student),
     });
 
-    if (isActiveTab) {
+    if (isOpenPathTab) {
       actions.push({
         label: 'Riassegna coach',
         icon: <UserPlus size={16} />,
@@ -1293,6 +1308,43 @@ export function TimelinePage() {
               lineHeight: '1.5',
             }}>
               {activeCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange('activation')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            padding: '0.5rem 1rem',
+            border: '2px solid transparent',
+            borderTopColor: 'transparent',
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderBottomColor: activeTab === 'activation' ? 'var(--primary)' : 'transparent',
+            borderRadius: '0',
+            background: 'none',
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-label)',
+            fontWeight: activeTab === 'activation' ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
+            color: activeTab === 'activation' ? 'var(--foreground)' : 'var(--muted-foreground)',
+            cursor: 'pointer',
+            lineHeight: '1.5',
+            transition: 'border-color 0.15s ease, color 0.15s ease',
+            marginBottom: '-1px',
+          }}
+        >
+          In attivazione
+          {activationCount > 0 && (
+            <span style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: '10px',
+              fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--muted-foreground)',
+              lineHeight: '1.5',
+            }}>
+              {activationCount}
             </span>
           )}
         </button>
@@ -1603,7 +1655,7 @@ export function TimelinePage() {
               selectedCount={selectedIds.size}
               onDeselectAll={() => setSelectedIds(new Set())}
               actions={[
-                ...(isActiveTab ? [{
+                ...(isOpenPathTab ? [{
                   label: 'Segna come completato',
                   icon: <CheckCircle2 size={16} />,
                   onClick: handleBulkComplete,
@@ -1639,13 +1691,13 @@ export function TimelinePage() {
                     <TableHeaderCell id="thesisType" label="Tipologia" width={columnWidths.thesisType} sortable sortDirection={sortColumn === 'thesisType' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     <TableHeaderCell id="serviceType" label="Lavorazione" width={columnWidths.serviceType} sortable sortDirection={sortColumn === 'serviceType' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                    {isActiveTab ? (
+                    {isOpenPathTab ? (
                       <TableHeaderCell id="progress" label="Progresso" width={columnWidths.progress} sortable sortDirection={sortColumn === 'progress' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     ) : (
                       <TableHeaderCell id="closedReason" label="Motivo" width={columnWidths.closedReason} sortable sortDirection={sortColumn === 'closedReason' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     )}
                     <TableHeaderCell id="planStart" label="Inizio" width={columnWidths.planStart} sortable sortDirection={sortColumn === 'planStart' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                    <TableHeaderCell id="planEnd" label={isActiveTab ? 'Scadenza' : 'Chiusura'} width={columnWidths.planEnd} sortable sortDirection={sortColumn === 'planEnd' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="planEnd" label={isOpenPathTab ? 'Scadenza' : 'Chiusura'} width={columnWidths.planEnd} sortable sortDirection={sortColumn === 'planEnd' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     <TableHeaderActionCell width={columnWidths.actions} />
                   </tr>
                 </thead>
@@ -1746,7 +1798,7 @@ export function TimelinePage() {
                           )}
                         </div>
                       </TableCell>
-                      {isActiveTab ? (
+                      {isOpenPathTab ? (
                         <TableCell>
                           <ProgressCell completed={student.stepsCompleted ?? 0} total={student.stepsTotal ?? 0} />
                         </TableCell>
@@ -1767,7 +1819,7 @@ export function TimelinePage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {isActiveTab ? (
+                        {isOpenPathTab ? (
                           student.planEndDate ? (
                             <DateCell date={student.planEndDate} />
                           ) : (

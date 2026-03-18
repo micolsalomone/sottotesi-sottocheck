@@ -31,6 +31,16 @@ import {
 
 type SortKey = 'student_name' | 'email' | 'created_at' | 'lavorazioni_count' | null;
 
+const SERVICE_LINK_LABELS: Record<string, string> = {
+  coaching: 'Coaching',
+  coaching_plus: 'Coaching Plus',
+  starter_pack: 'Starter Pack',
+  check_plagio: 'Check plagio/AI',
+  'SRV-001': 'Starter Pack',
+  'SRV-002': 'Coaching',
+  'SRV-003': 'Coaching Plus',
+};
+
 export function PipelinesPage() {
   const { pipelines, removePipeline, students, updateStudent } = useLavorazioni();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,6 +93,7 @@ export function PipelinesPage() {
     email: 200,
     phone: 140,
     sources: 200,
+    service: 150,
     created_at: 120,
     quote_status: 150,
     lavorazioni: 100,
@@ -437,6 +448,7 @@ export function PipelinesPage() {
 
             <TableHeaderCell id="phone" label="Telefono" width={columnWidths.phone} onResize={handleMouseDown} />
             <TableHeaderCell id="sources" label="Fonti" width={columnWidths.sources} onResize={handleMouseDown} />
+            <TableHeaderCell id="service" label="Servizio" width={columnWidths.service} onResize={handleMouseDown} />
 
             <TableHeaderCell
               id="created_at"
@@ -465,7 +477,7 @@ export function PipelinesPage() {
         </thead>
         <tbody>
           {filteredData.length === 0 ? (
-            <TableEmptyState message="Nessuna pipeline trovata" colSpan={9} />
+            <TableEmptyState message="Nessuna pipeline trovata" colSpan={10} />
           ) : (
             filteredData.map(pipeline => {
               const quote = pipeline.quotes?.[0];
@@ -507,6 +519,14 @@ export function PipelinesPage() {
                         <StatusPill key={source} label={source} variant="neutral" />
                       ))}
                     </div>
+                  </TableCell>
+
+                  <TableCell width={columnWidths.service}>
+                    {pipeline.service_link ? (
+                      <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
+                    ) : (
+                      <CellTextSecondary>—</CellTextSecondary>
+                    )}
                   </TableCell>
 
                   <TableCell width={columnWidths.created_at}>
@@ -620,6 +640,10 @@ export function PipelinesPage() {
                           <StatusPill key={source} label={source} variant="neutral" />
                         ))}
                       </div>
+
+                      {pipeline.service_link && (
+                        <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
+                      )}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <StatusPill

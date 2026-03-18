@@ -142,8 +142,8 @@ export function ServiziStudentiPage() {
 
   // ─── Column visibility per vista ─────────────────────────
   const VISTA_COLUMNS: Record<Vista, Set<string>> = {
-    lavorazioni: new Set(['checkbox','id','student','rate','contratto','netto','lordo','incassato','coachCompenso','nextDue','coachName','createdAt','expiresAt','status','notes','actions']),
-    compensi:    new Set(['checkbox','id','coach','student','servizio','statoLav','compenso','nNotula','dataNotula','scad40gg','statoPag','pagatoIl','rifPag','actions']),
+    lavorazioni: new Set(['checkbox','student','rate','contratto','netto','lordo','incassato','coachCompenso','nextDue','coachName','createdAt','expiresAt','status','notes','actions']),
+    compensi:    new Set(['checkbox','coach','student','servizio','statoLav','compenso','nNotula','dataNotula','scad40gg','statoPag','pagatoIl','rifPag','actions']),
   };
   const visibleCols = VISTA_COLUMNS[activeVista];
   const colVis = (col: string): CSSProperties => visibleCols.has(col) ? {} : { display: 'none' };
@@ -1510,13 +1510,6 @@ export function ServiziStudentiPage() {
                     onCheckedChange={handleSelectAll}
                   />
                 )}
-                <TableHeaderBaseCell style={{ width: `${columnWidths.id}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('id') }} onClick={() => handleSort('id')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>{activeVista === 'compensi' ? 'Lav.' : 'ID'}</span>
-                    {getSortIcon('id')}
-                  </div>
-                  {resizeHandle('id')}
-                </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.coach}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('coach') }} onClick={() => handleSort('coach_name')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Coach</span>
@@ -1530,6 +1523,12 @@ export function ServiziStudentiPage() {
                     {getSortIcon('student_name')}
                   </div>
                   {resizeHandle('student')}
+                </TableHeaderBaseCell>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.coachName}px`, position: 'relative', userSelect: 'none', ...colVis('coachName') }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>Coach</span>
+                  </div>
+                  {resizeHandle('coachName')}
                 </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.status}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('status') }} onClick={() => handleSort('status')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
@@ -1606,12 +1605,6 @@ export function ServiziStudentiPage() {
                     {getSortIcon('nextDue')}
                   </div>
                   {resizeHandle('nextDue')}
-                </TableHeaderBaseCell>
-                <TableHeaderBaseCell style={{ width: `${columnWidths.coachName}px`, position: 'relative', userSelect: 'none', ...colVis('coachName') }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span>Coach</span>
-                  </div>
-                  {resizeHandle('coachName')}
                 </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.statoLav}px`, position: 'relative', userSelect: 'none', ...colVis('statoLav') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1771,24 +1764,6 @@ export function ServiziStudentiPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       )}
-                      <TableCell style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('id') }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          {rowIncomplete && (
-                            <span
-                              title="Setup incompleto"
-                              style={{
-                                display: 'inline-block',
-                                width: '7px',
-                                height: '7px',
-                                borderRadius: '50%',
-                                backgroundColor: 'var(--chart-3)',
-                                flexShrink: 0,
-                              }}
-                            />
-                          )}
-                          {service.id}
-                        </div>
-                      </TableCell>
                       <TableCell style={{ minWidth: columnWidths.coach, fontFamily: 'var(--font-inter)', ...colVis('coach') }}>
                         <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
                           {service.coach_name || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
@@ -1797,16 +1772,34 @@ export function ServiziStudentiPage() {
                       <TableCell style={{ minWidth: columnWidths.student, ...colVis('student') }}>
                         <div style={{ fontFamily: 'var(--font-inter)' }}>
                           {activeVista === 'compensi' ? (
-                            <div style={{ fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                              {service.student_name}
-                            </div>
+                            <>
+                              <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.student_name}</div>
+                              <div style={{ fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {rowIncomplete && <span title="Setup incompleto" style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--chart-3)', flexShrink: 0 }} />}
+                                {service.id}
+                              </div>
+                            </>
                           ) : (
                             <>
                               <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.student_name}</div>
                               <div style={{ fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{service.service_name}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', display: 'flex', alignItems: 'center', gap: '0.25rem', opacity: 0.7 }}>
+                                {rowIncomplete && <span title="Setup incompleto" style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--chart-3)', flexShrink: 0 }} />}
+                                {service.id}
+                              </div>
                             </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachName, fontFamily: 'var(--font-inter)', ...colVis('coachName') }}>
+                        <SmartCoachSelect
+                          value={service.coach_name || ''}
+                          onChange={(val) => updateCoachName(service.id, val)}
+                          areaTematica={service.area_tematica}
+                          style={{ ...inlineSelectStyle, fontSize: 'var(--text-label)', padding: '0.25rem 0.375rem', maxWidth: '130px', color: service.coach_name ? 'var(--foreground)' : 'var(--destructive-foreground)', fontWeight: 'var(--font-weight-medium)' }}
+                          title="Cambia coach"
+                          emptyLabel="Nessun coach"
+                        />
                       </TableCell>
                       <TableCell style={{ minWidth: columnWidths.status, ...colVis('status') }}>
                         {getStatusBadge(service.status)}
@@ -2041,16 +2034,6 @@ export function ServiziStudentiPage() {
                           );
                         })()}
                       </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.coachName, fontFamily: 'var(--font-inter)', ...colVis('coachName') }}>
-                        <SmartCoachSelect
-                          value={service.coach_name || ''}
-                          onChange={(val) => updateCoachName(service.id, val)}
-                          areaTematica={service.area_tematica}
-                          style={{ ...inlineSelectStyle, fontSize: 'var(--text-label)', padding: '0.25rem 0.375rem', maxWidth: '130px', color: service.coach_name ? 'var(--foreground)' : 'var(--destructive-foreground)', fontWeight: 'var(--font-weight-medium)' }}
-                          title="Cambia coach"
-                          emptyLabel="Nessun coach"
-                        />
-                      </TableCell>
                       {/* Stato lav. */}
                       <TableCell style={{ minWidth: columnWidths.statoLav, ...colVis('statoLav') }}>
                         {getStatusBadge(service.status)}
@@ -2233,8 +2216,7 @@ export function ServiziStudentiPage() {
                     {isExpanded && service.installments.map((inst, idx) => (
                       <TableRow key={inst.id} style={{ backgroundColor: inst.status === 'overdue' ? 'rgba(239, 68, 68, 0.04)' : 'var(--muted)' }}>
                         <TableCell style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></TableCell>
-                        <TableCell style={{ minWidth: columnWidths.id, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('id') }}>{inst.id}</TableCell>
-                        <TableCell style={{ ...colVis('coach') }}></TableCell>
+                        <TableCell style={colVis('coach')}></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5', ...colVis('student') }}>
                           <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.125rem' }}>Rata {idx + 1}</div>
                           {editingDueDate === inst.id ? (
@@ -2254,11 +2236,8 @@ export function ServiziStudentiPage() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell style={colVis('status')}></TableCell>
-                        <TableCell style={colVis('createdAt')}></TableCell>
-                        <TableCell style={colVis('expiresAt')}></TableCell>
-                        <TableCell style={{ ...colVis('servizio') }}></TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('rate') }}>
+                        <TableCell style={colVis('coachName')}></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.status, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('status') }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button onClick={() => toggleInstallmentPaid(service.id, inst.id)}
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--muted-foreground)' }}
@@ -2284,6 +2263,10 @@ export function ServiziStudentiPage() {
                             ) : null}
                           </div>
                         </TableCell>
+                        <TableCell style={colVis('createdAt')}></TableCell>
+                        <TableCell style={colVis('expiresAt')}></TableCell>
+                        <TableCell style={{ ...colVis('servizio') }}></TableCell>
+                        <TableCell style={{ minWidth: columnWidths.rate, ...colVis('rate') }}></TableCell>
                         <TableCell style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.fattura, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('fattura') }}>
                           {editingInstInvoice === inst.id ? (
@@ -2343,7 +2326,6 @@ export function ServiziStudentiPage() {
                         <TableCell style={colVis('incassato')}></TableCell>
                         <TableCell style={colVis('coachCompenso')}></TableCell>
                         <TableCell style={colVis('nextDue')}></TableCell>
-                        <TableCell style={colVis('coachName')}></TableCell>
                         <TableCell style={colVis('statoLav')}></TableCell>
                         <TableCell style={colVis('compenso')}></TableCell>
                         <TableCell style={colVis('nNotula')}></TableCell>
@@ -2363,14 +2345,14 @@ export function ServiziStudentiPage() {
                       return (
                         <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
                           <TableCell style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></TableCell>
-                          <TableCell style={{ minWidth: columnWidths.id, ...colVis('id') }}></TableCell>
                           <TableCell style={colVis('coach')}></TableCell>
                           <TableCell style={{ minWidth: columnWidths.student, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('student') }}>Incassato</TableCell>
-                          <TableCell style={colVis('status')}></TableCell>
+                          <TableCell style={colVis('coachName')}></TableCell>
+                          <TableCell style={{ minWidth: columnWidths.status, fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('status') }}>{paidCount}/{totalCount} pagate</TableCell>
                           <TableCell style={colVis('createdAt')}></TableCell>
                           <TableCell style={colVis('expiresAt')}></TableCell>
                           <TableCell style={colVis('servizio')}></TableCell>
-                          <TableCell style={{ minWidth: columnWidths.rate, fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('rate') }}>{paidCount}/{totalCount} pagate</TableCell>
+                          <TableCell style={{ minWidth: columnWidths.rate, ...colVis('rate') }}></TableCell>
                           <TableCell style={{ minWidth: columnWidths.contratto, ...colVis('contratto') }}></TableCell>
                           <TableCell style={{ minWidth: columnWidths.fattura, ...colVis('fattura') }}></TableCell>
                           <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('netto') }}>€{paidNetto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
@@ -2378,7 +2360,6 @@ export function ServiziStudentiPage() {
                           <TableCell style={{ minWidth: columnWidths.incassato, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: paidTotal > 0 ? 'var(--primary)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('incassato') }}>€{paidTotal.toLocaleString('it-IT')}</TableCell>
                           <TableCell style={colVis('coachCompenso')}></TableCell>
                           <TableCell style={colVis('nextDue')}></TableCell>
-                          <TableCell style={colVis('coachName')}></TableCell>
                           <TableCell style={colVis('statoLav')}></TableCell>
                           <TableCell style={colVis('compenso')}></TableCell>
                           <TableCell style={colVis('nNotula')}></TableCell>

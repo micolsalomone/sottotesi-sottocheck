@@ -357,36 +357,42 @@ export const SERVICE_CATALOG = [
 const INITIAL_PIPELINES: Pipeline[] = [
   { 
     id: 'PIP-001', student_id: 'STU-445', student_name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', sources: ['Form Coaching'], created_at: '2025-10-10', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-101'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-001', number: '124/2025', status: 'accepted', sent_at: '2025-10-15', expires_at: '2025-11-15' }
     ]
   },
   { 
     id: 'PIP-002', student_id: 'STU-478', student_name: 'Luca Neri', first_name: 'Luca', last_name: 'Neri', email: 'luca.neri@email.com', phone: '+39 340 9876543', sources: ['IG', 'Sottotelefono BO'], created_at: '2025-10-28', updated_at: '2026-02-14T09:15:00', updated_by: 'Giada', lavorazioni_ids: ['SS-117'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-002', number: '156/2025', status: 'accepted', sent_at: '2025-11-01', expires_at: '2025-12-01' }
     ]
   },
   { 
     id: 'PIP-003', student_id: 'STU-423', student_name: 'Sara Martini', first_name: 'Sara', last_name: 'Martini', email: 'sara.martini@email.com', phone: '+39 347 5551234', sources: ['Form Coaching Plus'], created_at: '2024-09-05', updated_at: '2025-11-08T14:22:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-088'],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-003', number: '098/2024', status: 'accepted', sent_at: '2024-09-10', expires_at: '2024-10-10' }
     ]
   },
   { 
     id: 'PIP-004', student_id: 'STU-501', student_name: 'Paolo Russo', first_name: 'Paolo', last_name: 'Russo', email: 'paolo.russo@email.com', phone: '+39 338 7778899', sources: ['Modulo meta ads'], created_at: '2026-01-05', updated_at: '2026-03-02T16:05:00', updated_by: 'Giada', lavorazioni_ids: ['SS-132'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-004', number: '001/2026', status: 'accepted', sent_at: '2026-01-10', expires_at: '2026-02-10' }
     ]
   },
   { 
     id: 'PIP-005', student_id: 'STU-467', student_name: 'Alessandro Brun', first_name: 'Alessandro', last_name: 'Brun', email: 'alessandro.brun@email.com', phone: '+39 320 1112233', sources: ['IG'], created_at: '2025-07-30', updated_at: '2025-08-10T11:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-125'],
+    service_link: 'starter_pack',
     quotes: [
       { id: 'Q-005', number: '088/2025', status: 'accepted', sent_at: '2025-08-05', expires_at: '2025-09-05' }
     ]
   },
   { 
     id: 'PIP-006', student_id: 'STU-512', student_name: 'Francesca Moretti', first_name: 'Francesca', last_name: 'Moretti', email: 'francesca.moretti@email.com', phone: '+39 349 4445566', sources: ['Gmail', 'Sottotelefono BO'], created_at: '2024-10-25', updated_at: '2025-10-10T09:45:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-092', 'SS-110'],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-006-1', number: '178/2024', status: 'accepted', sent_at: '2024-11-01', expires_at: '2024-12-01' },
       { id: 'Q-006-2', number: '045/2025', status: 'accepted', sent_at: '2025-10-05', expires_at: '2025-11-05' }
@@ -394,61 +400,71 @@ const INITIAL_PIPELINES: Pipeline[] = [
   },
   { 
     id: 'PIP-007', student_id: 'STU-520', student_name: 'Marco De Luca', first_name: 'Marco', last_name: 'De Luca', email: 'marco.deluca@email.com', phone: '+39 331 6667788', sources: ['Form Coaching'], created_at: '2025-10-15', updated_at: '2026-02-28T08:45:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-114', 'SS-165'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-007', number: '005/2025', status: 'accepted', sent_at: '2025-10-20', expires_at: '2025-11-20' }
     ]
   },
   { 
     id: 'PIP-008', student_id: 'STU-531', student_name: 'Chiara Lombardi', first_name: 'Chiara', last_name: 'Lombardi', email: 'chiara.lombardi@email.com', phone: '+39 345 9990011', sources: ['Modulo meta ads'], created_at: '2025-11-28', updated_at: '2026-01-18T14:20:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-119'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-008', number: '012/2025', status: 'accepted', sent_at: '2025-12-05', expires_at: '2026-01-05' }
     ]
   },
   { 
-    id: 'PIP-009', student_id: 'STU-540', student_name: 'Elena Mancini', first_name: 'Elena', last_name: 'Mancini', email: 'elena.mancini@email.com', phone: '+39 328 1110022', sources: ['IG', 'Gmail'], created_at: '2025-07-05', updated_at: '2025-12-18T10:30:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-135'],
+    id: 'PIP-009', student_id: 'STU-540', student_name: 'Elena Mancini', first_name: 'Elena', last_name: 'Mancini', email: 'elena.mancini@email.com', sources: ['IG', 'Gmail'], created_at: '2025-07-05', updated_at: '2025-12-18T10:30:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-135'],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-009', number: '075/2025', status: 'accepted', sent_at: '2025-07-10', expires_at: '2025-08-10' }
     ]
   },
   { 
     id: 'PIP-010', student_id: 'STU-545', student_name: 'Lorenzo Galli', first_name: 'Lorenzo', last_name: 'Galli', email: 'lorenzo.galli@email.com', phone: '+39 339 2223344', sources: ['Form Coaching Plus'], created_at: '2025-06-10', updated_at: '2025-11-22T16:30:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-138'],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-010', number: '062/2025', status: 'accepted', sent_at: '2025-06-15', expires_at: '2025-07-15' }
     ]
   },
   { 
     id: 'PIP-021', student_id: 'STU-551', student_name: 'Valentina Costa', first_name: 'Valentina', last_name: 'Costa', email: 'valentina.costa@email.com', phone: '+39 342 5556677', sources: ['Modulo meta ads'], created_at: '2025-11-25', updated_at: '2026-01-15T09:20:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-141'],
+    service_link: 'starter_pack',
     quotes: [
       { id: 'Q-021', number: '154/2025', status: 'accepted', sent_at: '2025-12-01', expires_at: '2026-01-01' }
     ]
   },
   { 
     id: 'PIP-022', student_id: 'STU-558', student_name: 'Andrea Pellegrini', first_name: 'Andrea', last_name: 'Pellegrini', email: 'andrea.pellegrini@email.com', phone: '+39 348 8889900', sources: ['IG'], created_at: '2025-10-01', updated_at: '2025-11-12T13:00:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-143', 'SS-145'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-022-1', number: '142/2025', status: 'accepted', sent_at: '2025-10-15', expires_at: '2025-11-15' },
       { id: 'Q-022-2', number: '168/2025', status: 'accepted', sent_at: '2025-11-10', expires_at: '2025-12-10' }
     ]
   },
   { 
-    id: 'PIP-023', student_id: 'STU-563', student_name: 'Martina Colombo', first_name: 'Martina', last_name: 'Colombo', email: 'martina.colombo@email.com', phone: '+39 335 3334455', sources: ['Form Coaching'], created_at: '2026-01-10', updated_at: '2026-02-20T10:45:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-148'],
+    id: 'PIP-023', student_id: 'STU-563', student_name: 'Martina Colombo', first_name: 'Martina', last_name: 'Colombo', email: 'martina.colombo@email.com', sources: ['Form Coaching'], created_at: '2026-01-10', updated_at: '2026-02-20T10:45:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-148'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-023', number: '008/2026', status: 'accepted', sent_at: '2026-01-15', expires_at: '2026-02-15' }
     ]
   },
   { 
     id: 'PIP-024', student_id: 'STU-570', student_name: 'Davide Barbieri', first_name: 'Davide', last_name: 'Barbieri', email: 'davide.barbieri@email.com', phone: '+39 327 6667700', sources: ['Gmail'], created_at: '2025-05-15', updated_at: '2025-09-03T17:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-150'],
+    service_link: 'starter_pack',
     quotes: [
       { id: 'Q-024', number: '055/2025', status: 'accepted', sent_at: '2025-05-25', expires_at: '2025-06-25' }
     ]
   },
   { 
     id: 'PIP-025', student_id: 'STU-577', student_name: 'Sofia Ricci', first_name: 'Sofia', last_name: 'Ricci', email: 'sofia.ricci@email.com', phone: '+39 334 9990088', sources: ['Sottotelefono BO'], created_at: '2025-08-20', updated_at: '2025-12-30T11:15:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-153'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-025', number: '092/2025', status: 'accepted', sent_at: '2025-09-10', expires_at: '2025-10-10' }
     ]
   },
   { 
     id: 'PIP-026', student_id: 'STU-583', student_name: 'Matteo Fontana', first_name: 'Matteo', last_name: 'Fontana', email: 'matteo.fontana@email.com', phone: '+39 329 1112244', sources: ['IG'], created_at: '2025-12-28', updated_at: '2026-02-05T09:30:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-155'],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-026', number: '002/2026', status: 'accepted', sent_at: '2026-01-05', expires_at: '2026-02-05' }
     ]
@@ -456,19 +472,22 @@ const INITIAL_PIPELINES: Pipeline[] = [
   // ─── Pipeline storiche (lavorazioni già esistenti prima dell'adozione del sistema) ─
   { 
     id: 'PIP-027', student_id: 'STU-602', student_name: 'Anna Greco', first_name: 'Anna', last_name: 'Greco', email: 'anna.greco@email.com', phone: '+39 330 2223300', sources: ['Sottotelefono BO'], created_at: '2025-09-05', updated_at: '2025-09-20T10:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-159'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-027', number: '110/2025', status: 'accepted', sent_at: '2025-09-15', expires_at: '2025-10-15' }
     ],
     assigned_to: 'Margherita'
   },
   { 
-    id: 'PIP-028', student_id: 'STU-608', student_name: 'Federico Rinaldi', first_name: 'Federico', last_name: 'Rinaldi', email: 'federico.rinaldi@email.com', phone: '+39 337 8889911', sources: ['IG'], created_at: '2025-11-10', updated_at: '2026-01-20T16:45:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-161'],
+    id: 'PIP-028', student_id: 'STU-608', student_name: 'Federico Rinaldi', first_name: 'Federico', last_name: 'Rinaldi', email: 'federico.rinaldi@email.com', sources: ['IG'], created_at: '2025-11-10', updated_at: '2026-01-20T16:45:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-161'],
+    service_link: 'starter_pack',
     quotes: [
       { id: 'Q-028', number: '148/2025', status: 'accepted', sent_at: '2025-11-15', expires_at: '2025-12-15' }
     ]
   },
   { 
     id: 'PIP-029', student_id: 'STU-467', student_name: 'Alessandro Brun', first_name: 'Alessandro', last_name: 'Brun', email: 'alessandro.brun@email.com', phone: '+39 320 1112233', sources: ['Form Coaching Plus'], created_at: '2026-02-01', updated_at: '2026-02-06T12:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-163'],
+    service_link: 'coaching_plus',
     linked_existing_student: true,
     quotes: [
       { id: 'Q-029', number: '013/2026', status: 'accepted', sent_at: '2026-02-05', expires_at: '2026-03-05' }
@@ -478,6 +497,7 @@ const INITIAL_PIPELINES: Pipeline[] = [
   // ─── Lead senza lavorazioni (casistiche varie) ──────────────
   { 
     id: 'PIP-030', student_id: 'STU-590', student_name: 'Beatrice Vitale', first_name: 'Beatrice', last_name: 'Vitale', email: 'beatrice.vitale@email.com', phone: '+39 346 7778800', sources: ['Form Coaching'], created_at: '2026-02-15', updated_at: '2026-03-02T09:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-157'],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-030', number: '025/2026', status: 'sent', sent_at: '2026-03-01', expires_at: '2026-03-25' }
     ],
@@ -490,24 +510,48 @@ const INITIAL_PIPELINES: Pipeline[] = [
     ]
   },
   { 
-    id: 'PIP-032', student_id: 'STU-602', student_name: 'Anna Greco', first_name: 'Anna', last_name: 'Greco', email: 'anna.greco@email.com', phone: '+39 330 2223300', sources: ['Sottotelefono BO'], created_at: '2026-02-20', updated_at: '2026-02-26T14:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
+    id: 'PIP-032', student_id: 'STU-615', student_name: 'Irene Bassi', first_name: 'Irene', last_name: 'Bassi', email: 'irene.bassi@gmail.com', sources: ['Gmail'], created_at: '2026-02-20', updated_at: '2026-02-26T14:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
+    service_link: 'coaching',
     quotes: [
       { id: 'Q-032', number: '020/2026', status: 'rejected', sent_at: '2026-02-25', notes: 'Prezzo troppo alto per il budget dello studente' }
     ],
     assigned_to: 'Francesca'
   },
   { 
-    id: 'PIP-033', student_id: 'STU-608', student_name: 'Federico Rinaldi', first_name: 'Federico', last_name: 'Rinaldi', email: 'federico.rinaldi@email.com', phone: '+39 337 8889911', sources: ['IG'], created_at: '2026-01-15', updated_at: '2026-02-21T15:30:00', updated_by: 'Claudia', lavorazioni_ids: [],
+    id: 'PIP-033', student_id: 'STU-622', student_name: 'Riccardo Tosi', first_name: 'Riccardo', last_name: 'Tosi', email: 'riccardo.tosi@student.unibo.it', phone: '+39 333 4441122', sources: ['IG'], created_at: '2026-01-15', updated_at: '2026-02-21T15:30:00', updated_by: 'Claudia', lavorazioni_ids: [],
+    service_link: 'starter_pack',
     quotes: [
       { id: 'Q-033', number: '006/2026', status: 'expired', sent_at: '2026-01-20', expires_at: '2026-02-20' }
     ]
   },
   { 
-    id: 'PIP-034', student_id: 'STU-602', student_name: 'Anna Greco', first_name: 'Anna', last_name: 'Greco', email: 'anna.greco@email.com', phone: '+39 330 2223300', sources: ['Gmail'], created_at: '2026-03-14', updated_at: '2026-03-14T16:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
+    id: 'PIP-034', student_id: 'STU-629', student_name: 'Camilla Ferretti', first_name: 'Camilla', last_name: 'Ferretti', email: 'camilla.ferretti@email.com', sources: ['Sottotelefono BO'], created_at: '2026-03-14', updated_at: '2026-03-14T16:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
+    service_link: 'coaching_plus',
     quotes: [
       { id: 'Q-034', number: '030/2026', status: 'expiring_soon', sent_at: '2026-03-14', expires_at: '2026-03-18' }
     ],
     assigned_to: 'Margherita'
+  },
+  {
+    id: 'PIP-035', student_id: 'STU-636', student_name: 'Nicola Ferri', first_name: 'Nicola', last_name: 'Ferri', email: 'nicola.ferri@libero.it', phone: '+39 349 7770033', sources: ['Modulo meta ads', 'IG'], created_at: '2026-03-10', updated_at: '2026-03-10T11:30:00', updated_by: 'Giada', lavorazioni_ids: [],
+    quotes: [
+      { id: 'Q-035', number: '029/2026', status: 'draft' }
+    ]
+  },
+  {
+    id: 'PIP-036', student_id: 'STU-643', student_name: 'Giorgia Amato', first_name: 'Giorgia', last_name: 'Amato', email: 'giorgia.amato@email.com', sources: ['Form Coaching'], created_at: '2026-03-12', updated_at: '2026-03-13T09:00:00', updated_by: 'Claudia', lavorazioni_ids: [],
+    service_link: 'coaching',
+  },
+  {
+    id: 'PIP-037', student_id: 'STU-650', student_name: 'Tommaso Levi', first_name: 'Tommaso', last_name: 'Levi', email: 'tommaso.levi@hotmail.com', phone: '+39 320 9988776', sources: ['Sottotelefono BO'], created_at: '2026-03-16', updated_at: '2026-03-16T17:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
+    assigned_to: 'Francesca'
+  },
+  {
+    id: 'PIP-038', student_id: 'STU-657', student_name: 'Alice Montanari', first_name: 'Alice', last_name: 'Montanari', email: 'alice.montanari@student.unipd.it', sources: ['IG'], created_at: '2026-03-17', updated_at: '2026-03-17T10:15:00', updated_by: 'Giada', lavorazioni_ids: [],
+    service_link: 'starter_pack',
+    quotes: [
+      { id: 'Q-038', number: '031/2026', status: 'draft' }
+    ]
   },
 ];
 
