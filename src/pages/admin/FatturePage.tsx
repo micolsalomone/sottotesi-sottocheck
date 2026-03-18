@@ -1,9 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { MoreVertical, X, ChevronUp, ChevronDown, ChevronsUpDown, FileText, AlertTriangle, CheckCircle, Download, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { X, FileText, AlertTriangle, CheckCircle, Download, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { Checkbox } from '../../app/components/ui/checkbox';
+import {
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 
 interface Payment {
   id: string;
@@ -62,15 +80,6 @@ export function FatturePage() {
     }
   };
 
-  const getSortIcon = (column: SortKey) => {
-    if (sortColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc'
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
-  };
-
   const filteredData = useMemo(() => {
     let data = [...mockPayments];
 
@@ -127,25 +136,6 @@ export function FatturePage() {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
-
-  const resizeHandle = (key: string) => (
-    <div
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: '6px',
-        cursor: 'col-resize',
-        borderRight: '2px solid var(--border)',
-        transition: 'border-color 0.15s ease',
-      }}
-      onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(key, e); }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderRightColor = 'var(--primary)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderRightColor = 'var(--border)'; }}
-    />
-  );
 
   const totalCompletati = mockPayments.filter(p => p.stato === 'completato').length;
   const totalErrori = mockPayments.filter(p => p.stato === 'errore_pagamento' || p.stato === 'errore_verifica').length;
@@ -425,150 +415,70 @@ export function FatturePage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1200px' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1200px">
             <thead>
               <tr>
-                <th style={{ width: '50px' }} onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </th>
-                <th style={{ width: `${columnWidths.id}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('id')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>ID Pagamento</span>{getSortIcon('id')}</div>
-                  {resizeHandle('id')}
-                </th>
-                <th style={{ width: `${columnWidths.lavorazione}px`, position: 'relative' }}>
-                  <span>id servizio</span>
-                  {resizeHandle('lavorazione')}
-                </th>
-                <th style={{ width: `${columnWidths.studente}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('studente')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Studente</span>{getSortIcon('studente')}</div>
-                  {resizeHandle('studente')}
-                </th>
-                <th style={{ width: `${columnWidths.importo}px`, position: 'relative' }}>
-                  <span>Importo</span>
-                  {resizeHandle('importo')}
-                </th>
-                <th style={{ width: `${columnWidths.dataTransazione}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('dataTransazione')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Data</span>{getSortIcon('dataTransazione')}</div>
-                  {resizeHandle('dataTransazione')}
-                </th>
-                <th style={{ width: `${columnWidths.gateway}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('gateway')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Metodo</span>{getSortIcon('gateway')}</div>
-                  {resizeHandle('gateway')}
-                </th>
-                <th style={{ width: `${columnWidths.stato}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('stato')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Stato</span>{getSortIcon('stato')}</div>
-                  {resizeHandle('stato')}
-                </th>
-                <th style={{ width: `${columnWidths.fattura}px`, position: 'relative' }}>
-                  <span>Fattura</span>
-                  {resizeHandle('fattura')}
-                </th>
-                <th style={{
-                  width: `${columnWidths.actions}px`,
-                  position: 'sticky',
-                  right: 0,
-                  backgroundColor: 'var(--muted)',
-                  zIndex: 11,
-                  boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                }}><span>Azioni</span></th>
+                <TableSelectionHeaderCell width={50} checked={filteredData.length > 0 && selectedIds.length === filteredData.length} onCheckedChange={handleSelectAll} />
+                <TableHeaderCell id="id" label="ID Pagamento" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="lavorazione" label="id servizio" width={columnWidths.lavorazione} onResize={handleMouseDown} />
+                <TableHeaderCell id="studente" label="Studente" width={columnWidths.studente} sortable sortDirection={sortColumn === 'studente' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="importo" label="Importo" width={columnWidths.importo} onResize={handleMouseDown} />
+                <TableHeaderCell id="dataTransazione" label="Data" width={columnWidths.dataTransazione} sortable sortDirection={sortColumn === 'dataTransazione' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="gateway" label="Metodo" width={columnWidths.gateway} sortable sortDirection={sortColumn === 'gateway' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="stato" label="Stato" width={columnWidths.stato} sortable sortDirection={sortColumn === 'stato' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="fattura" label="Fattura" width={columnWidths.fattura} onResize={handleMouseDown} />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
               {filteredData.flatMap((payment) => {
                 const rows = [
-                  <tr key={payment.id}>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedIds.includes(payment.id)}
-                        onCheckedChange={() => handleSelectRow(payment.id)}
-                      />
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{payment.id}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{payment.lavorazione}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{payment.studente}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{payment.importo}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{payment.dataTransazione}</td>
-                    <td>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.125rem 0.5rem',
-                        borderRadius: 'var(--radius)',
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: 'var(--font-weight-medium)',
-                        backgroundColor: payment.gateway === 'T-Pay' ? 'rgba(11, 182, 63, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                        color: payment.gateway === 'T-Pay' ? 'var(--primary)' : 'rgb(59, 130, 246)',
-                      }}>
+                  <TableRow key={payment.id} selected={selectedIds.includes(payment.id)} selectedBackgroundColor="var(--selected-row-bg)">
+                    <TableSelectionCell checked={selectedIds.includes(payment.id)} onCheckedChange={() => handleSelectRow(payment.id)} onClick={(e) => e.stopPropagation()} />
+                    <TableCell><CellTextSecondary>{payment.id}</CellTextSecondary></TableCell>
+                    <TableCell><CellTextPrimary>{payment.lavorazione}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{payment.studente}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{payment.importo}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{payment.dataTransazione}</CellTextPrimary></TableCell>
+                    <TableCell>
+                      <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: payment.gateway === 'T-Pay' ? 'rgba(11, 182, 63, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: payment.gateway === 'T-Pay' ? 'var(--primary)' : 'rgb(59, 130, 246)' }}>
                         {payment.gateway}
                       </span>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {payment.stato === 'completato' ? (
                         <span className="status-badge active">Completato</span>
                       ) : (
                         <button
                           onClick={() => setExpandedError(expandedError === payment.id ? null : payment.id)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            padding: '0.125rem 0.5rem',
-                            borderRadius: 'var(--radius)',
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            color: 'var(--destructive-foreground)',
-                            border: 'none',
-                            cursor: 'pointer',
-                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)', border: 'none', cursor: 'pointer' }}
                         >
                           <AlertTriangle size={12} />
                           Errore {payment.erroreOrigine}
                         </button>
                       )}
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {payment.fattura ? (
                         <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-label)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                           <FileText size={14} />{payment.fattura}
                         </button>
                       ) : (
-                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>—</span>
+                        <CellTextSecondary>—</CellTextSecondary>
                       )}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()} style={{
-                      position: 'sticky',
-                      right: 0,
-                      backgroundColor: 'var(--card)',
-                      zIndex: 10,
-                      boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)',
-                    }}>
+                    </TableCell>
+                    <TableActionCell width={columnWidths.actions} backgroundColor="var(--card)">
                       <TableActions actions={getRowActions(payment)} />
-                    </td>
-                  </tr>
+                    </TableActionCell>
+                  </TableRow>
                 ];
                 if (expandedError === payment.id && payment.stato !== 'completato') {
                   rows.push(
                     <tr key={`${payment.id}-error`}>
                       <td colSpan={10} style={{ padding: 0 }}>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                          borderLeft: '3px solid var(--destructive)',
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 'var(--text-label)',
-                          color: 'var(--foreground)',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.5rem',
-                        }}>
+                        <div style={{ padding: '0.75rem 1rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                           <AlertTriangle size={14} style={{ color: 'var(--destructive-foreground)', flexShrink: 0, marginTop: '1px' }} />
                           <div>
                             <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Origine: {payment.erroreOrigine}</span>
@@ -583,70 +493,53 @@ export function FatturePage() {
                 return rows;
               })}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.map((payment) => (
+              <ResponsiveMobileCard key={payment.id}>
+                <ResponsiveMobileCardHeader>
+                  <div>
+                    <CellTextSecondary>{payment.id}</CellTextSecondary>
+                    <CellTextPrimary>{payment.studente}</CellTextPrimary>
+                  </div>
+                  {payment.stato === 'completato' ? (
+                    <span className="status-badge active">Completato</span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)' }}>
+                      <AlertTriangle size={12} />Errore
+                    </span>
+                  )}
+                </ResponsiveMobileCardHeader>
 
-      {/* Mobile cards */}
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {filteredData.map((payment) => (
-          <div key={payment.id} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.125rem' }}>{payment.id}</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{payment.studente}</div>
-              </div>
-              {payment.stato === 'completato' ? (
-                <span className="status-badge active">Completato</span>
-              ) : (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                  padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)',
-                }}>
-                  <AlertTriangle size={12} />Errore
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>Lavorazione</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{payment.lavorazione}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>Importo</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{payment.importo}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>Data</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{payment.dataTransazione}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>Metodo</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{payment.gateway}</div>
-              </div>
-            </div>
-            {payment.stato !== 'completato' && (
-              <div style={{
-                padding: '0.5rem 0.75rem', marginBottom: '0.75rem',
-                backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive-foreground)',
-                borderRadius: '0 var(--radius) var(--radius) 0',
-                fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)',
-              }}>
-                <span style={{ fontWeight: 'var(--font-weight-medium)' }}>{payment.erroreOrigine}:</span> {payment.erroreDettaglio}
-              </div>
-            )}
-            {payment.fattura && (
-              <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: 'var(--text-label)' }}>
-                <FileText size={14} />{payment.fattura}
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+                <ResponsiveMobileCardSection>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div><ResponsiveMobileFieldLabel>Lavorazione</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.lavorazione}</CellTextPrimary></div>
+                    <div><ResponsiveMobileFieldLabel>Importo</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.importo}</CellTextPrimary></div>
+                    <div><ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.dataTransazione}</CellTextPrimary></div>
+                    <div><ResponsiveMobileFieldLabel>Metodo</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.gateway}</CellTextPrimary></div>
+                  </div>
+                </ResponsiveMobileCardSection>
 
-      <style>{`@media (max-width: 768px) { .data-table { display: none !important; } .mobile-cards { display: block !important; } }`}</style>
+                {payment.stato !== 'completato' && (
+                  <ResponsiveMobileCardSection>
+                    <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive-foreground)', borderRadius: '0 var(--radius) var(--radius) 0', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
+                      <span style={{ fontWeight: 'var(--font-weight-medium)' }}>{payment.erroreOrigine}:</span> {payment.erroreDettaglio}
+                    </div>
+                  </ResponsiveMobileCardSection>
+                )}
+
+                {payment.fattura && (
+                  <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: 'var(--text-label)' }}>
+                    <FileText size={14} />{payment.fattura}
+                  </button>
+                )}
+              </ResponsiveMobileCard>
+            ))}
+          </ResponsiveMobileCards>
+        )}
+      />
     </div>
   );
 }

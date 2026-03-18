@@ -6,18 +6,34 @@ import {
   Eye, 
   EyeOff, 
   Trash2, 
-  ChevronUp, 
-  ChevronDown, 
-  ChevronsUpDown,
   User,
   ExternalLink,
   Plus
 } from 'lucide-react';
-import { TableHeader } from '../../app/components/ui/TableHeader';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
 import { Checkbox } from '../../app/components/ui/checkbox';
+import {
+  CellContentStack,
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 import { toast } from 'sonner';
 
 interface Document {
@@ -193,87 +209,125 @@ export function DocumentiPage() {
         onClearSelection={() => setSelectedIds([])} 
       />
 
-      <div className="data-table">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1100px' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1100px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.checkbox}px`, padding: '0 1rem', background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                  <Checkbox 
-                    checked={selectedIds.length === filteredData.length && filteredData.length > 0} 
-                    onCheckedChange={handleSelectAll} 
-                  />
-                </th>
-                <TableHeader label="ID" columnKey="id" width={columnWidths.id} sortColumn={sortColumn} sortDirection={sortDirection} onSort={() => handleSort('id')} onResize={handleMouseDown} />
-                <TableHeader label="Nome File" columnKey="name" width={columnWidths.name} sortColumn={sortColumn} sortDirection={sortDirection} onSort={() => handleSort('name')} onResize={handleMouseDown} />
-                <TableHeader label="Tipo" columnKey="type" width={columnWidths.type} sortColumn={sortColumn} sortDirection={sortDirection} onSort={() => handleSort('type')} onResize={handleMouseDown} />
-                <TableHeader label="Autore" columnKey="author" width={columnWidths.author} sortColumn={sortColumn} sortDirection={sortDirection} onSort={() => handleSort('author')} onResize={handleMouseDown} />
-                <TableHeader label="Percorso" columnKey="service" width={columnWidths.service} onResize={handleMouseDown} />
-                <TableHeader label="Caricato" columnKey="uploadedAt" width={columnWidths.uploadedAt} sortColumn={sortColumn} sortDirection={sortDirection} onSort={() => handleSort('uploadedAt')} onResize={handleMouseDown} />
-                <TableHeader label="Stato" columnKey="status" width={columnWidths.status} onResize={handleMouseDown} />
-                <th style={{ width: `${columnWidths.actions}px`, textAlign: 'center', position: 'sticky', right: 0, background: 'var(--muted)', zIndex: 10 }}>Azioni</th>
+                <TableSelectionHeaderCell
+                  width={columnWidths.checkbox}
+                  checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="name" label="Nome File" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="type" label="Tipo" width={columnWidths.type} sortable sortDirection={sortColumn === 'type' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="author" label="Autore" width={columnWidths.author} sortable sortDirection={sortColumn === 'author' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="service" label="Percorso" width={columnWidths.service} onResize={handleMouseDown} />
+                <TableHeaderCell id="uploadedAt" label="Caricato" width={columnWidths.uploadedAt} sortable sortDirection={sortColumn === 'uploadedAt' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} onResize={handleMouseDown} />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((doc) => (
-                <tr key={doc.id} style={{ backgroundColor: selectedIds.includes(doc.id) ? 'var(--selected-row-bg)' : undefined }}>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={selectedIds.includes(doc.id)} onCheckedChange={() => handleSelectRow(doc.id)} />
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{doc.id}</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <FileText size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{doc.name}</div>
-                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>{doc.size}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ 
-                      padding: '0.125rem 0.5rem', 
-                      borderRadius: 'var(--radius-badge)', 
-                      background: 'var(--muted)', 
-                      fontFamily: 'var(--font-inter)', 
-                      fontSize: 'var(--text-xs)', 
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--foreground)'
-                    }}>
-                      {doc.type}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                      <User size={14} style={{ color: 'var(--muted-foreground)' }} />
-                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
-                        {doc.author}
-                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '0.25rem', textTransform: 'uppercase' }}>({doc.authorType})</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{doc.service}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>{doc.uploadedAt}</td>
-                  <td>
-                    {doc.status === 'visible' ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
-                        <Eye size={14} /> Visibile
-                      </span>
-                    ) : (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--muted-foreground)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
-                        <EyeOff size={14} /> Nascosto
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ position: 'sticky', right: 0, background: 'var(--background)' }}>
-                    <TableActions actions={getTableActions(doc)} />
-                  </td>
-                </tr>
-              ))}
+              {filteredData.length === 0 ? (
+                <TableEmptyState message="Nessun documento trovato" colSpan={9} />
+              ) : (
+                filteredData.map((doc) => {
+                  const isSelected = selectedIds.includes(doc.id);
+                  return (
+                    <TableRow key={doc.id} selected={isSelected} selectedBackgroundColor="var(--selected-row-bg)">
+                      <TableSelectionCell checked={isSelected} onCheckedChange={() => handleSelectRow(doc.id)} onClick={(e) => e.stopPropagation()} />
+                      <TableCell><CellTextSecondary>{doc.id}</CellTextSecondary></TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <FileText size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                          <CellContentStack>
+                            <CellTextPrimary>{doc.name}</CellTextPrimary>
+                            <CellTextSecondary>{doc.size}</CellTextSecondary>
+                          </CellContentStack>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span style={{ padding: '0.125rem 0.5rem', borderRadius: 'var(--radius-badge)', background: 'var(--muted)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
+                          {doc.type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <User size={14} style={{ color: 'var(--muted-foreground)' }} />
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
+                            {doc.author}
+                            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '0.25rem', textTransform: 'uppercase' }}>({doc.authorType})</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell><CellTextSecondary>{doc.service}</CellTextSecondary></TableCell>
+                      <TableCell><CellTextPrimary>{doc.uploadedAt}</CellTextPrimary></TableCell>
+                      <TableCell>
+                        {doc.status === 'visible' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><Eye size={14} /> Visibile</span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--muted-foreground)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><EyeOff size={14} /> Nascosto</span>
+                        )}
+                      </TableCell>
+                      <TableActionCell width={columnWidths.actions} backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--background)'}>
+                        <TableActions actions={getTableActions(doc)} />
+                      </TableActionCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.map((doc) => (
+              <ResponsiveMobileCard key={doc.id} backgroundColor={selectedIds.includes(doc.id) ? 'var(--selected-row-bg)' : 'var(--card)'}>
+                <ResponsiveMobileCardHeader>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <Checkbox checked={selectedIds.includes(doc.id)} onCheckedChange={() => handleSelectRow(doc.id)} />
+                    <CellContentStack>
+                      <CellTextSecondary>{doc.id}</CellTextSecondary>
+                      <CellTextPrimary>{doc.name}</CellTextPrimary>
+                      <CellTextSecondary>{doc.size}</CellTextSecondary>
+                    </CellContentStack>
+                  </div>
+                  <TableActions actions={getTableActions(doc)} />
+                </ResponsiveMobileCardHeader>
+
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Tipo</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{doc.type}</CellTextPrimary>
+                </ResponsiveMobileCardSection>
+
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Autore</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{doc.author}</CellTextPrimary>
+                  <CellTextSecondary>{doc.authorType}</CellTextSecondary>
+                </ResponsiveMobileCardSection>
+
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Percorso</ResponsiveMobileFieldLabel>
+                  <CellTextSecondary>{doc.service}</CellTextSecondary>
+                </ResponsiveMobileCardSection>
+
+                <ResponsiveMobileCardSection marginBottom="0">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <CellTextSecondary>{doc.uploadedAt}</CellTextSecondary>
+                    {doc.status === 'visible' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><Eye size={14} /> Visibile</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--muted-foreground)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><EyeOff size={14} /> Nascosto</span>
+                    )}
+                  </div>
+                </ResponsiveMobileCardSection>
+              </ResponsiveMobileCard>
+            ))}
+          </ResponsiveMobileCards>
+        )}
+      />
     </div>
   );
 }

@@ -1,5 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { MoreVertical, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Activity } from 'lucide-react';
+import {
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+} from '../../app/components/TablePrimitives';
 
 interface SystemEvent {
   id: string;
@@ -65,15 +79,6 @@ export function EventiSistemaPage() {
     }
   };
 
-  const getSortIcon = (column: SortKey) => {
-    if (sortColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc' 
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
-  };
-
   const sortedData = useMemo(() => {
     let data = [...mockEvents];
     if (sortColumn) {
@@ -108,25 +113,6 @@ export function EventiSistemaPage() {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
-
-  const resizeHandle = (key: string) => (
-    <div
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: '6px',
-        cursor: 'col-resize',
-        borderRight: '2px solid var(--border)',
-        transition: 'border-color 0.15s ease',
-      }}
-      onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(key, e); }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderRightColor = 'var(--primary)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderRightColor = 'var(--border)'; }}
-    />
-  );
 
   const activeFilters: Array<{ label: string; value: string; onRemove: () => void }> = [];
   if (filterType !== 'all') {
@@ -211,48 +197,27 @@ export function EventiSistemaPage() {
         </div>
       )}
 
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1250px' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1250px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.id}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('id')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>ID</span>{getSortIcon('id')}</div>
-                  {resizeHandle('id')}
-                </th>
-                <th style={{ width: `${columnWidths.timestamp}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('timestamp')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Timestamp</span>{getSortIcon('timestamp')}</div>
-                  {resizeHandle('timestamp')}
-                </th>
-                <th style={{ width: `${columnWidths.type}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('type')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Tipo</span>{getSortIcon('type')}</div>
-                  {resizeHandle('type')}
-                </th>
-                <th style={{ width: `${columnWidths.actor}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('actor')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Attore</span>{getSortIcon('actor')}</div>
-                  {resizeHandle('actor')}
-                </th>
-                <th style={{ width: `${columnWidths.action}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('action')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Azione</span>{getSortIcon('action')}</div>
-                  {resizeHandle('action')}
-                </th>
-                <th style={{ width: `${columnWidths.reference}px`, position: 'relative' }}>
-                  <span>Riferimento</span>
-                  {resizeHandle('reference')}
-                </th>
-                <th style={{ width: `${columnWidths.outcome}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('outcome')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}><span>Esito</span>{getSortIcon('outcome')}</div>
-                  {resizeHandle('outcome')}
-                </th>
-                <th style={{ width: `${columnWidths.actions}px` }}><span>Azioni</span></th>
+                <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="timestamp" label="Timestamp" width={columnWidths.timestamp} sortable sortDirection={sortColumn === 'timestamp' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="type" label="Tipo" width={columnWidths.type} sortable sortDirection={sortColumn === 'type' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="actor" label="Attore" width={columnWidths.actor} sortable sortDirection={sortColumn === 'actor' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="action" label="Azione" width={columnWidths.action} sortable sortDirection={sortColumn === 'action' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="reference" label="Riferimento" width={columnWidths.reference} onResize={handleMouseDown} />
+                <TableHeaderCell id="outcome" label="Esito" width={columnWidths.outcome} sortable sortDirection={sortColumn === 'outcome' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="actions" label="Azioni" width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
               {sortedData.map((event) => (
-                <tr key={event.id}>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{event.id}</td>
-                  <td style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>{event.timestamp}</td>
-                  <td>
+                <TableRow key={event.id}>
+                  <TableCell><CellTextSecondary>{event.id}</CellTextSecondary></TableCell>
+                  <TableCell><span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>{event.timestamp}</span></TableCell>
+                  <TableCell>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -261,7 +226,7 @@ export function EventiSistemaPage() {
                       fontSize: 'var(--text-label)',
                       fontFamily: 'var(--font-inter)',
                       fontWeight: 'var(--font-weight-medium)',
-                      backgroundColor: 
+                      backgroundColor:
                         event.type === 'Documento' ? 'hsl(210, 40%, 96%)' :
                         event.type === 'Step' ? 'hsl(160, 40%, 96%)' :
                         event.type === 'Servizio' ? 'hsl(270, 40%, 96%)' :
@@ -278,80 +243,74 @@ export function EventiSistemaPage() {
                     }}>
                       {event.type}
                     </span>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{event.actor}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{event.action}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{event.reference}</td>
-                  <td>
+                  </TableCell>
+                  <TableCell><CellTextPrimary>{event.actor}</CellTextPrimary></TableCell>
+                  <TableCell><CellTextPrimary>{event.action}</CellTextPrimary></TableCell>
+                  <TableCell><CellTextPrimary>{event.reference}</CellTextPrimary></TableCell>
+                  <TableCell>
                     <span className={`status-badge ${event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'pending' : 'inactive'}`}>
                       {event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
                     </span>
-                  </td>
-                  <td><button className="actions-button"><MoreVertical size={18} /></button></td>
-                </tr>
+                  </TableCell>
+                  <TableCell><button className="actions-button"><MoreVertical size={18} /></button></TableCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {sortedData.map((event) => (
+              <ResponsiveMobileCard key={event.id}>
+                <ResponsiveMobileCardHeader>
+                  <div>
+                    <CellTextSecondary>{event.id}</CellTextSecondary>
+                    <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-label)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>{event.timestamp}</div>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)',
+                      fontSize: 'var(--text-label)', fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)',
+                      backgroundColor:
+                        event.type === 'Documento' ? 'hsl(210, 40%, 96%)' :
+                        event.type === 'Step' ? 'hsl(160, 40%, 96%)' :
+                        event.type === 'Servizio' ? 'hsl(270, 40%, 96%)' :
+                        event.type === 'Pagamento' ? 'hsl(25, 40%, 96%)' :
+                        event.type === 'Check' ? 'hsl(200, 40%, 96%)' :
+                        'hsl(0, 0%, 96%)',
+                      color:
+                        event.type === 'Documento' ? 'hsl(210, 60%, 40%)' :
+                        event.type === 'Step' ? 'hsl(160, 60%, 35%)' :
+                        event.type === 'Servizio' ? 'hsl(270, 60%, 40%)' :
+                        event.type === 'Pagamento' ? 'hsl(25, 60%, 40%)' :
+                        event.type === 'Check' ? 'hsl(200, 60%, 40%)' :
+                        'hsl(0, 0%, 40%)'
+                    }}>
+                      {event.type}
+                    </span>
+                  </div>
+                  <span className={`status-badge ${event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'pending' : 'inactive'}`}>
+                    {event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
+                  </span>
+                </ResponsiveMobileCardHeader>
 
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {sortedData.map((event) => (
-          <div key={event.id} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>{event.id}</div>
-                <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-label)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>{event.timestamp}</div>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: 'var(--radius)',
-                  fontSize: 'var(--text-label)',
-                  fontFamily: 'var(--font-inter)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  backgroundColor: 
-                    event.type === 'Documento' ? 'hsl(210, 40%, 96%)' :
-                    event.type === 'Step' ? 'hsl(160, 40%, 96%)' :
-                    event.type === 'Servizio' ? 'hsl(270, 40%, 96%)' :
-                    event.type === 'Pagamento' ? 'hsl(25, 40%, 96%)' :
-                    event.type === 'Check' ? 'hsl(200, 40%, 96%)' :
-                    'hsl(0, 0%, 96%)',
-                  color:
-                    event.type === 'Documento' ? 'hsl(210, 60%, 40%)' :
-                    event.type === 'Step' ? 'hsl(160, 60%, 35%)' :
-                    event.type === 'Servizio' ? 'hsl(270, 60%, 40%)' :
-                    event.type === 'Pagamento' ? 'hsl(25, 60%, 40%)' :
-                    event.type === 'Check' ? 'hsl(200, 60%, 40%)' :
-                    'hsl(0, 0%, 40%)'
-                }}>
-                  {event.type}
-                </span>
-              </div>
-              <span className={`status-badge ${event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'pending' : 'inactive'}`}>
-                {event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Attore</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{event.actor}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Azione</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{event.action}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Riferimento</div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--foreground)' }}>{event.reference}</div>
-              </div>
-            </div>
-            <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}><ExternalLink size={14} />Apri Dettagli</button>
-          </div>
-        ))}
-      </div>
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Attore</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{event.actor}</CellTextPrimary>
+                </ResponsiveMobileCardSection>
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Azione</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{event.action}</CellTextPrimary>
+                </ResponsiveMobileCardSection>
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Riferimento</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{event.reference}</CellTextPrimary>
+                </ResponsiveMobileCardSection>
 
-      <style>{`@media (max-width: 768px) { .data-table { display: none !important; } .mobile-cards { display: block !important; } }`}</style>
+                <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}><ExternalLink size={14} />Apri Dettagli</button>
+              </ResponsiveMobileCard>
+            ))}
+          </ResponsiveMobileCards>
+        )}
+      />
     </div>
   );
 }

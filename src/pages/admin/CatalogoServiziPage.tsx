@@ -1,6 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, MoreVertical, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Edit2, Pause, Copy, Archive, Check } from 'lucide-react';
+import { Plus, MoreVertical, X, ExternalLink, Edit2, Pause, Copy, Archive, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveTableLayout,
+  TableCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+} from '../../app/components/TablePrimitives';
 
 type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
 type TargetUser = 'student' | 'graduating' | 'phd';
@@ -154,15 +167,6 @@ export function CatalogoServiziPage() {
       setSortColumn(column);
       setSortDirection('asc');
     }
-  };
-
-  const getSortIcon = (column: SortKey) => {
-    if (sortColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return sortDirection === 'asc' 
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
   };
 
   const filteredAndSortedData = useMemo(() => {
@@ -449,189 +453,87 @@ export function CatalogoServiziPage() {
         </div>
       )}
 
-      {/* Table - Desktop */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1300px' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1300px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.name}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Nome servizio</span>
-                    {getSortIcon('name')}
-                  </div>
-                  {resizeHandle('name')}
-                </th>
-                <th style={{ width: `${columnWidths.category}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('category')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Categoria</span>
-                    {getSortIcon('category')}
-                  </div>
-                  {resizeHandle('category')}
-                </th>
-                <th style={{ width: `${columnWidths.target}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('targetUser')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Target</span>
-                    {getSortIcon('targetUser')}
-                  </div>
-                  {resizeHandle('target')}
-                </th>
-                <th style={{ width: `${columnWidths.status}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('status')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Stato</span>
-                    {getSortIcon('status')}
-                  </div>
-                  {resizeHandle('status')}
-                </th>
-                <th style={{ width: `${columnWidths.duration}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('durationMinutes')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Durata</span>
-                    {getSortIcon('durationMinutes')}
-                  </div>
-                  {resizeHandle('duration')}
-                </th>
-                <th style={{ width: `${columnWidths.price}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('priceAmount')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Prezzo</span>
-                    {getSortIcon('priceAmount')}
-                  </div>
-                  {resizeHandle('price')}
-                </th>
-                <th style={{ width: `${columnWidths.updated}px`, position: 'relative', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('updatedAt')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Ultima modifica</span>
-                    {getSortIcon('updatedAt')}
-                  </div>
-                  {resizeHandle('updated')}
-                </th>
-                <th style={{ width: `${columnWidths.actions}px` }}>
-                  <span>Azioni</span>
-                </th>
+                <TableHeaderCell id="name" label="Nome servizio" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="category" label="Categoria" width={columnWidths.category} sortable sortDirection={sortColumn === 'category' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="target" label="Target" width={columnWidths.target} sortable sortDirection={sortColumn === 'targetUser' ? sortDirection : null} onSort={() => handleSort('targetUser')} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="duration" label="Durata" width={columnWidths.duration} sortable sortDirection={sortColumn === 'durationMinutes' ? sortDirection : null} onSort={() => handleSort('durationMinutes')} onResize={handleMouseDown} />
+                <TableHeaderCell id="price" label="Prezzo" width={columnWidths.price} sortable sortDirection={sortColumn === 'priceAmount' ? sortDirection : null} onSort={() => handleSort('priceAmount')} onResize={handleMouseDown} />
+                <TableHeaderCell id="updated" label="Ultima modifica" width={columnWidths.updated} sortable sortDirection={sortColumn === 'updatedAt' ? sortDirection : null} onSort={() => handleSort('updatedAt')} onResize={handleMouseDown} />
+                <TableHeaderCell id="actions" label="Azioni" width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
               {filteredAndSortedData.map((service) => (
-                <tr key={service.id} style={{ cursor: 'pointer' }} onClick={() => handleOpenDetail(service)}>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.name}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.category}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{getTargetLabel(service.targetUser)}</td>
-                  <td>{getStatusBadge(service.status)}</td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</td>
-                  <td>
+                <TableRow key={service.id} onClick={() => handleOpenDetail(service)}>
+                  <TableCell><CellTextPrimary>{service.name}</CellTextPrimary></TableCell>
+                  <TableCell><CellTextPrimary>{service.category}</CellTextPrimary></TableCell>
+                  <TableCell><CellTextPrimary>{getTargetLabel(service.targetUser)}</CellTextPrimary></TableCell>
+                  <TableCell>{getStatusBadge(service.status)}</TableCell>
+                  <TableCell><CellTextPrimary>{service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary></TableCell>
+                  <TableCell>
                     {editingPriceId === service.id ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="number"
-                          className="search-input"
-                          style={{ width: '60px' }}
-                          value={editingPriceValue}
-                          onChange={(e) => setEditingPriceValue(e.target.value)}
-                        />
-                        <button
-                          className="btn btn-primary"
-                          style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)' }}
-                          onClick={() => handleSavePrice(service.id)}
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          className="btn btn-secondary"
-                          style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)' }}
-                          onClick={handleCancelEditPrice}
-                        >
-                          <X size={14} />
-                        </button>
+                        <input type="number" className="search-input" style={{ width: '60px' }} value={editingPriceValue} onChange={(e) => setEditingPriceValue(e.target.value)} />
+                        <button className="btn btn-primary" style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)' }} onClick={() => handleSavePrice(service.id)}><Check size={14} /></button>
+                        <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)' }} onClick={handleCancelEditPrice}><X size={14} /></button>
                       </div>
                     ) : (
-                      <button
-                        className="btn btn-secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: 'var(--text-label)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.375rem'
-                        }}
-                        onClick={(e) => handleStartEditPrice(service, e)}
-                      >
+                      <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }} onClick={(e) => handleStartEditPrice(service, e)}>
                         {formatPrice(service)}
                       </button>
                     )}
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{service.updatedAt}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
+                  </TableCell>
+                  <TableCell><CellTextSecondary>{service.updatedAt}</CellTextSecondary></TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <button 
-                        className="btn btn-secondary"
-                        style={{ 
-                          padding: '0.375rem 0.75rem',
-                          fontSize: 'var(--text-label)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.375rem'
-                        }}
-                        onClick={() => handleOpenDetail(service)}
-                      >
+                      <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }} onClick={() => handleOpenDetail(service)}>
                         <ExternalLink size={14} />
                         Apri
                       </button>
-                      <button className="actions-button">
-                        <MoreVertical size={18} />
-                      </button>
+                      <button className="actions-button"><MoreVertical size={18} /></button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredAndSortedData.map((service) => (
+              <ResponsiveMobileCard key={service.id}>
+                <ResponsiveMobileCardHeader>
+                  <div>
+                    <CellTextPrimary>{service.name}</CellTextPrimary>
+                    <CellTextSecondary>{service.category}</CellTextSecondary>
+                  </div>
+                  {getStatusBadge(service.status)}
+                </ResponsiveMobileCardHeader>
 
-      {/* Mobile Card View */}
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {filteredAndSortedData.map((service) => (
-          <div 
-            key={service.id} 
-            style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.25rem' }}>
-                  {service.name}
-                </div>
-                <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
-                  {service.category}
-                </div>
-              </div>
-              {getStatusBadge(service.status)}
-            </div>
+                <ResponsiveMobileCardSection>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <CellTextSecondary>{getTargetLabel(service.targetUser)}</CellTextSecondary>
+                    <span style={{ color: 'var(--muted-foreground)' }}>•</span>
+                    <CellTextPrimary>{service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary>
+                  </div>
+                  <div style={{ marginTop: '0.5rem' }}><CellTextPrimary>{formatPrice(service)}</CellTextPrimary></div>
+                </ResponsiveMobileCardSection>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
-                  {getTargetLabel(service.targetUser)}
-                </span>
-                <span style={{ color: 'var(--muted-foreground)' }}>•</span>
-                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
-                  {service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}
-                </span>
-              </div>
-              <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                {formatPrice(service)}
-              </div>
-            </div>
-
-            <button 
-              className="btn btn-secondary" 
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => handleOpenDetail(service)}
-            >
-              <ExternalLink size={14} />
-              Apri Dettagli
-            </button>
-          </div>
-        ))}
-      </div>
+                <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleOpenDetail(service)}>
+                  <ExternalLink size={14} />
+                  Apri Dettagli
+                </button>
+              </ResponsiveMobileCard>
+            ))}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {/* Drawer dettaglio servizio */}
       {detailDrawerOpen && selectedService && (

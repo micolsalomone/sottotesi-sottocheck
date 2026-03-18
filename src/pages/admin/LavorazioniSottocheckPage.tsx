@@ -1,6 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Download, RefreshCw, Trash2, StickyNote } from 'lucide-react';
-import { TableHeader } from '../../app/components/ui/TableHeader';
+import { Plus, X, ExternalLink, Download, RefreshCw, Trash2, StickyNote } from 'lucide-react';
+import {
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
+} from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
 import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
@@ -546,84 +564,59 @@ export function LavorazioniSottocheckPage() {
         onClearSelection={() => setSelectedIds([])}
       />
 
-      {/* Data Table */}
-      <div className="data-table" style={{ display: 'block' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1150px' }}>
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="1150px">
             <thead>
               <tr>
-                <th style={{ width: `${columnWidths.checkbox}px`, position: 'relative', background: 'var(--muted)', borderBottom: '1px solid var(--border)', padding: '0 1rem' }}>
-                  <Checkbox
-                    checked={selectedIds.length === filteredData.length && filteredData.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px', background: 'var(--border)' }} />
-                </th>
-                <TableHeader label="ID" columnKey="id" width={columnWidths.id} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Studente" columnKey="student" width={columnWidths.student} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Caratteri" columnKey="characters" width={columnWidths.characters} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} align="right" />
-                <TableHeader label="Pagine" columnKey="pages" width={columnWidths.pages} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} align="right" />
-                <TableHeader label="Crediti" columnKey="copyleaks_credits" width={columnWidths.credits} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} align="right" />
-                <TableHeader label="Stato" columnKey="status" width={columnWidths.status} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Avviato" columnKey="startedAt" width={columnWidths.startedAt} sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} onResize={handleMouseDown} />
-                <TableHeader label="Completato" columnKey="completedAt" width={columnWidths.completedAt} onResize={handleMouseDown} />
-                <TableHeader label="Note" columnKey="notes" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
-                <th style={{ width: `${columnWidths.actions}px`, position: 'sticky', right: 0, backgroundColor: 'var(--muted)', borderBottom: '1px solid var(--border)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)', textAlign: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Azioni</span>
-                </th>
+                <TableSelectionHeaderCell
+                  width={columnWidths.checkbox}
+                  checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="characters" label="Caratteri" width={columnWidths.characters} sortable align="right" sortDirection={sortColumn === 'characters' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="pages" label="Pagine" width={columnWidths.pages} sortable align="right" sortDirection={sortColumn === 'pages' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="copyleaks_credits" label="Crediti" width={columnWidths.credits} sortable align="right" sortDirection={sortColumn === 'copyleaks_credits' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="startedAt" label="Avviato" width={columnWidths.startedAt} sortable sortDirection={sortColumn === 'startedAt' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="completedAt" label="Completato" width={columnWidths.completedAt} onResize={handleMouseDown} />
+                <TableHeaderCell id="notes" label="Note" width={columnWidths.notes} align="center" onResize={handleMouseDown} />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
               {filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                      Nessuna lavorazione trovata
-                    </span>
-                  </td>
-                </tr>
+                <TableEmptyState message="Nessuna lavorazione trovata" colSpan={11} />
               ) : (
                 filteredData.map((job) => {
                   const noteCount = (job.notes || []).length;
                   const isSelected = selectedIds.includes(job.id);
 
                   return (
-                    <tr
+                    <TableRow
                       key={job.id}
                       onClick={() => handleViewDetails(job)}
-                      style={{ cursor: 'pointer', backgroundColor: isSelected ? 'var(--selected-row-bg)' : undefined }}
+                      selected={isSelected}
+                      selectedBackgroundColor="var(--selected-row-bg)"
                     >
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleSelectRow(job.id)}
-                        />
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        {job.id}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                        {job.student}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5', textAlign: 'right' }}>
-                        {formatNumber(job.characters)}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5', textAlign: 'right' }}>
-                        {job.pages}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5', textAlign: 'right' }}>
-                        {job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}
-                      </td>
-                      <td>
+                      <TableSelectionCell
+                        checked={isSelected}
+                        onCheckedChange={() => handleSelectRow(job.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <TableCell><CellTextSecondary>{job.id}</CellTextSecondary></TableCell>
+                      <TableCell><CellTextPrimary>{job.student}</CellTextPrimary></TableCell>
+                      <TableCell align="right"><CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary></TableCell>
+                      <TableCell align="right"><CellTextPrimary>{job.pages}</CellTextPrimary></TableCell>
+                      <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
+                      <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                        {job.startedAt}
-                      </td>
-                      <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                        {job.completedAt || '-'}
-                      </td>
-                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      </TableCell>
+                      <TableCell><CellTextPrimary>{job.startedAt}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextPrimary>{job.completedAt || '-'}</CellTextPrimary></TableCell>
+                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenNotes(job.id)}
                           style={{
@@ -647,93 +640,97 @@ export function LavorazioniSottocheckPage() {
                             </span>
                           )}
                         </button>
-                      </td>
-                      <td
+                      </TableCell>
+                      <TableActionCell
+                        width={columnWidths.actions}
+                        backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--background)'}
                         onClick={(e) => e.stopPropagation()}
-                        style={{ position: 'sticky', right: 0, backgroundColor: 'var(--background)', zIndex: 10, boxShadow: '-2px 0 4px rgba(0, 0, 0, 0.05)' }}
                       >
                         <TableActions actions={getTableActions(job)} />
-                      </td>
-                    </tr>
+                      </TableActionCell>
+                    </TableRow>
                   );
                 })
               )}
             </tbody>
-          </table>
-        </div>
-      </div>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredData.map((job) => {
+              const isSelected = selectedIds.includes(job.id);
+              const noteCount = (job.notes || []).length;
 
-      {/* Mobile Card View */}
-      <div style={{ display: 'none' }} className="mobile-cards">
-        {filteredData.map((job) => {
-          const isSelected = selectedIds.includes(job.id);
-          return (
-            <div
-              key={job.id}
-              style={{
-                backgroundColor: isSelected ? 'var(--selected-row-bg)' : 'var(--card)',
-                border: `1px solid var(--border)`,
-                borderRadius: 'var(--radius)',
-                padding: '1rem',
-                marginBottom: '1rem'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1 }}>
-                  <div onClick={(e) => e.stopPropagation()} style={{ paddingTop: '0.125rem' }}>
-                    <Checkbox checked={isSelected} onCheckedChange={() => handleSelectRow(job.id)} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
-                      {job.id}
+              return (
+                <ResponsiveMobileCard key={job.id} backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--card)'}>
+                  <ResponsiveMobileCardHeader>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1 }}>
+                      <div style={{ paddingTop: '0.125rem' }}>
+                        <Checkbox checked={isSelected} onCheckedChange={() => handleSelectRow(job.id)} />
+                      </div>
+                      <div>
+                        <CellTextSecondary>{job.id}</CellTextSecondary>
+                        <CellTextPrimary>{job.student}</CellTextPrimary>
+                      </div>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                      {job.student}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                      <TableActions actions={getTableActions(job)} />
                     </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
-                  <TableActions actions={getTableActions(job)} />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <div>
-                  <div style={labelStyle}>Caratteri</div>
-                  <div style={valueStyle}>{formatNumber(job.characters)}</div>
-                </div>
-                <div>
-                  <div style={labelStyle}>Pagine</div>
-                  <div style={valueStyle}>{job.pages}</div>
-                </div>
-                <div>
-                  <div style={labelStyle}>Crediti</div>
-                  <div style={valueStyle}>{job.copyleaks_credits > 0 ? job.copyleaks_credits : '-'}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div>
-                  <div style={labelStyle}>Avviato</div>
-                  <div style={valueStyle}>{job.startedAt}</div>
-                </div>
-                {job.completedAt && (
-                  <div>
-                    <div style={labelStyle}>Completato</div>
-                    <div style={valueStyle}>{job.completedAt}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  </ResponsiveMobileCardHeader>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .data-table { display: none !important; }
-          .mobile-cards { display: block !important; }
-        }
-      `}</style>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div>
+                      <ResponsiveMobileFieldLabel>Caratteri</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary>
+                    </div>
+                    <div>
+                      <ResponsiveMobileFieldLabel>Pagine</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{job.pages}</CellTextPrimary>
+                    </div>
+                    <div>
+                      <ResponsiveMobileFieldLabel>Crediti</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{job.copyleaks_credits > 0 ? job.copyleaks_credits : '-'}</CellTextPrimary>
+                    </div>
+                  </div>
+
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{job.startedAt}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                  {job.completedAt && (
+                    <ResponsiveMobileCardSection marginBottom="0.75rem">
+                      <ResponsiveMobileFieldLabel>Completato</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{job.completedAt}</CellTextPrimary>
+                    </ResponsiveMobileCardSection>
+                  )}
+                  <ResponsiveMobileCardSection marginBottom="0">
+                    <ResponsiveMobileFieldLabel>Note interne</ResponsiveMobileFieldLabel>
+                    <button
+                      onClick={() => handleOpenNotes(job.id)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        padding: 0,
+                        color: noteCount > 0 ? 'var(--primary)' : 'var(--muted-foreground)',
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-label)',
+                      }}
+                    >
+                      <StickyNote size={16} />
+                      {noteCount > 0 ? `${noteCount} note` : 'Nessuna nota'}
+                    </button>
+                  </ResponsiveMobileCardSection>
+                </ResponsiveMobileCard>
+              );
+            })}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {/* Detail Drawer */}
       {selectedJob && (

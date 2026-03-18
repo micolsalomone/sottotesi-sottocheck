@@ -1,5 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { MoreVertical, AlertCircle, Clock, FileCheck, Pause, CheckCircle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { MoreVertical, AlertCircle, Clock, FileCheck, Pause, CheckCircle } from 'lucide-react';
+import { useTableResize } from '../../app/hooks/useTableResize';
+import {
+  CellTextPrimary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableCell,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+} from '../../app/components/TablePrimitives';
 
 interface CriticalService {
   id: string;
@@ -112,14 +127,31 @@ export function KpiMonitoraggioPage() {
     }
   };
 
-  const getSortIcon = (column: any, currentColumn: any, direction: 'asc' | 'desc') => {
-    if (currentColumn !== column) {
-      return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
-    }
-    return direction === 'asc' 
-      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
-  };
+  const { columnWidths: criticalColumnWidths, handleResize: handleCriticalResize } = useTableResize({
+    student: 200,
+    service: 220,
+    coach: 180,
+    status: 140,
+    daysLate: 170,
+    actions: 90,
+  });
+
+  const { columnWidths: workloadColumnWidths, handleResize: handleWorkloadResize } = useTableResize({
+    coach: 220,
+    activeServices: 170,
+    lateServices: 190,
+    utilizationRate: 240,
+    actions: 90,
+  });
+
+  const { columnWidths: checkColumnWidths, handleResize: handleCheckResize } = useTableResize({
+    document: 220,
+    student: 200,
+    checkStatus: 150,
+    date: 140,
+    outcome: 260,
+    actions: 90,
+  });
 
   const sortedCriticalServices = useMemo(() => {
     let data = [...mockCriticalServices];
@@ -285,57 +317,32 @@ export function KpiMonitoraggioPage() {
         <h2 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', marginBottom: 'var(--spacing-4)' }}>
           Servizi Critici
         </h2>
-        <div className="data-table">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ minWidth: '900px' }}>
+        <ResponsiveTableLayout
+          desktop={(
+            <TableRoot minWidth="1000px">
               <thead>
                 <tr>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCriticalSort('student')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Studente</span>
-                      {getSortIcon('student', criticalSortColumn, criticalSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCriticalSort('service')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Servizio</span>
-                      {getSortIcon('service', criticalSortColumn, criticalSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCriticalSort('coach')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Coach</span>
-                      {getSortIcon('coach', criticalSortColumn, criticalSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCriticalSort('status')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Stato</span>
-                      {getSortIcon('status', criticalSortColumn, criticalSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCriticalSort('daysLate')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Giorni di Ritardo</span>
-                      {getSortIcon('daysLate', criticalSortColumn, criticalSortDirection)}
-                    </div>
-                  </th>
-                  <th><span>Azioni</span></th>
+                  <TableHeaderCell id="student" label="Studente" width={criticalColumnWidths.student} sortable sortDirection={criticalSortColumn === 'student' ? criticalSortDirection : null} onSort={(id) => handleCriticalSort(id as CriticalSortKey)} onResize={handleCriticalResize} />
+                  <TableHeaderCell id="service" label="Servizio" width={criticalColumnWidths.service} sortable sortDirection={criticalSortColumn === 'service' ? criticalSortDirection : null} onSort={(id) => handleCriticalSort(id as CriticalSortKey)} onResize={handleCriticalResize} />
+                  <TableHeaderCell id="coach" label="Coach" width={criticalColumnWidths.coach} sortable sortDirection={criticalSortColumn === 'coach' ? criticalSortDirection : null} onSort={(id) => handleCriticalSort(id as CriticalSortKey)} onResize={handleCriticalResize} />
+                  <TableHeaderCell id="status" label="Stato" width={criticalColumnWidths.status} sortable sortDirection={criticalSortColumn === 'status' ? criticalSortDirection : null} onSort={(id) => handleCriticalSort(id as CriticalSortKey)} onResize={handleCriticalResize} />
+                  <TableHeaderCell id="daysLate" label="Giorni di Ritardo" width={criticalColumnWidths.daysLate} sortable sortDirection={criticalSortColumn === 'daysLate' ? criticalSortDirection : null} onSort={(id) => handleCriticalSort(id as CriticalSortKey)} onResize={handleCriticalResize} />
+                  <TableHeaderActionCell width={criticalColumnWidths.actions} />
                 </tr>
               </thead>
               <tbody>
                 {sortedCriticalServices.map((service) => (
-                  <tr key={service.id}>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.student}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.service}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{service.coach}</td>
-                    <td>
+                  <TableRow key={service.id}>
+                    <TableCell><CellTextPrimary>{service.student}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{service.service}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{service.coach}</CellTextPrimary></TableCell>
+                    <TableCell>
                       <span className={`status-badge ${service.status === 'in_ritardo' ? 'pending' : 'inactive'}`}>
                         {service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'}
                       </span>
-                    </td>
-                    <td>
-                      <span style={{ 
+                    </TableCell>
+                    <TableCell>
+                      <span style={{
                         fontFamily: 'var(--font-inter)',
                         fontSize: 'var(--text-label)',
                         fontWeight: 'var(--font-weight-semibold)',
@@ -344,14 +351,41 @@ export function KpiMonitoraggioPage() {
                       }}>
                         {service.daysLate}
                       </span>
-                    </td>
-                    <td><button className="actions-button"><MoreVertical size={18} /></button></td>
-                  </tr>
+                    </TableCell>
+                    <TableCell align="center" sticky="right" width={criticalColumnWidths.actions}>
+                      <button className="actions-button"><MoreVertical size={18} /></button>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </div>
+            </TableRoot>
+          )}
+          mobile={(
+            <ResponsiveMobileCards>
+              {sortedCriticalServices.map((service) => (
+                <ResponsiveMobileCard key={service.id}>
+                  <ResponsiveMobileCardHeader>
+                    <div>
+                      <CellTextPrimary>{service.student}</CellTextPrimary>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{service.service}</div>
+                    </div>
+                    <span className={`status-badge ${service.status === 'in_ritardo' ? 'pending' : 'inactive'}`}>
+                      {service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'}
+                    </span>
+                  </ResponsiveMobileCardHeader>
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Coach</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{service.coach}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                  <ResponsiveMobileCardSection marginBottom="0">
+                    <ResponsiveMobileFieldLabel>Giorni di Ritardo</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{service.daysLate}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                </ResponsiveMobileCard>
+              ))}
+            </ResponsiveMobileCards>
+          )}
+        />
       </div>
 
       {/* Carico Coach Table */}
@@ -359,45 +393,25 @@ export function KpiMonitoraggioPage() {
         <h2 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', marginBottom: 'var(--spacing-4)' }}>
           Carico Coach
         </h2>
-        <div className="data-table">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ minWidth: '800px' }}>
+        <ResponsiveTableLayout
+          desktop={(
+            <TableRoot minWidth="900px">
               <thead>
                 <tr>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleWorkloadSort('coach')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Coach</span>
-                      {getSortIcon('coach', workloadSortColumn, workloadSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleWorkloadSort('activeServices')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Servizi Attivi</span>
-                      {getSortIcon('activeServices', workloadSortColumn, workloadSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleWorkloadSort('lateServices')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Servizi in Ritardo</span>
-                      {getSortIcon('lateServices', workloadSortColumn, workloadSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleWorkloadSort('utilizationRate')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Utilizzo</span>
-                      {getSortIcon('utilizationRate', workloadSortColumn, workloadSortDirection)}
-                    </div>
-                  </th>
-                  <th><span>Azioni</span></th>
+                  <TableHeaderCell id="coach" label="Coach" width={workloadColumnWidths.coach} sortable sortDirection={workloadSortColumn === 'coach' ? workloadSortDirection : null} onSort={(id) => handleWorkloadSort(id as WorkloadSortKey)} onResize={handleWorkloadResize} />
+                  <TableHeaderCell id="activeServices" label="Servizi Attivi" width={workloadColumnWidths.activeServices} sortable sortDirection={workloadSortColumn === 'activeServices' ? workloadSortDirection : null} onSort={(id) => handleWorkloadSort(id as WorkloadSortKey)} onResize={handleWorkloadResize} />
+                  <TableHeaderCell id="lateServices" label="Servizi in Ritardo" width={workloadColumnWidths.lateServices} sortable sortDirection={workloadSortColumn === 'lateServices' ? workloadSortDirection : null} onSort={(id) => handleWorkloadSort(id as WorkloadSortKey)} onResize={handleWorkloadResize} />
+                  <TableHeaderCell id="utilizationRate" label="Utilizzo" width={workloadColumnWidths.utilizationRate} sortable sortDirection={workloadSortColumn === 'utilizationRate' ? workloadSortDirection : null} onSort={(id) => handleWorkloadSort(id as WorkloadSortKey)} onResize={handleWorkloadResize} />
+                  <TableHeaderActionCell width={workloadColumnWidths.actions} />
                 </tr>
               </thead>
               <tbody>
                 {sortedCoachWorkload.map((coach) => (
-                  <tr key={coach.id}>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{coach.coach}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{coach.activeServices}</td>
-                    <td>
-                      <span style={{ 
+                  <TableRow key={coach.id}>
+                    <TableCell><CellTextPrimary>{coach.coach}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{coach.activeServices}</CellTextPrimary></TableCell>
+                    <TableCell>
+                      <span style={{
                         fontFamily: 'var(--font-inter)',
                         fontSize: 'var(--text-label)',
                         fontWeight: 'var(--font-weight-semibold)',
@@ -406,8 +420,8 @@ export function KpiMonitoraggioPage() {
                       }}>
                         {coach.lateServices}
                       </span>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{
                           flex: 1,
@@ -427,14 +441,58 @@ export function KpiMonitoraggioPage() {
                           {coach.utilizationRate}%
                         </span>
                       </div>
-                    </td>
-                    <td><button className="actions-button"><MoreVertical size={18} /></button></td>
-                  </tr>
+                    </TableCell>
+                    <TableCell align="center" sticky="right" width={workloadColumnWidths.actions}>
+                      <button className="actions-button"><MoreVertical size={18} /></button>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </div>
+            </TableRoot>
+          )}
+          mobile={(
+            <ResponsiveMobileCards>
+              {sortedCoachWorkload.map((coach) => (
+                <ResponsiveMobileCard key={coach.id}>
+                  <ResponsiveMobileCardHeader>
+                    <div>
+                      <CellTextPrimary>{coach.coach}</CellTextPrimary>
+                    </div>
+                    <button className="actions-button"><MoreVertical size={18} /></button>
+                  </ResponsiveMobileCardHeader>
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Servizi Attivi</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{coach.activeServices}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Servizi in Ritardo</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{coach.lateServices}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                  <ResponsiveMobileCardSection marginBottom="0">
+                    <ResponsiveMobileFieldLabel>Utilizzo</ResponsiveMobileFieldLabel>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{
+                        flex: 1,
+                        height: '8px',
+                        backgroundColor: 'var(--muted)',
+                        borderRadius: 'var(--radius)',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${coach.utilizationRate}%`,
+                          backgroundColor: coach.utilizationRate > 85 ? 'hsl(25, 95%, 53%)' : coach.utilizationRate > 70 ? 'hsl(45, 95%, 53%)' : 'var(--primary)',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                      <CellTextPrimary>{coach.utilizationRate}%</CellTextPrimary>
+                    </div>
+                  </ResponsiveMobileCardSection>
+                </ResponsiveMobileCard>
+              ))}
+            </ResponsiveMobileCards>
+          )}
+        />
       </div>
 
       {/* Attività Sottocheck Table */}
@@ -442,58 +500,65 @@ export function KpiMonitoraggioPage() {
         <h2 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', marginBottom: 'var(--spacing-4)' }}>
           Attività Sottocheck
         </h2>
-        <div className="data-table">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ minWidth: '1000px' }}>
+        <ResponsiveTableLayout
+          desktop={(
+            <TableRoot minWidth="1060px">
               <thead>
                 <tr>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCheckSort('document')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Documento</span>
-                      {getSortIcon('document', checkSortColumn, checkSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCheckSort('student')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Studente</span>
-                      {getSortIcon('student', checkSortColumn, checkSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCheckSort('checkStatus')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Stato Check</span>
-                      {getSortIcon('checkStatus', checkSortColumn, checkSortDirection)}
-                    </div>
-                  </th>
-                  <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleCheckSort('date')}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Data</span>
-                      {getSortIcon('date', checkSortColumn, checkSortDirection)}
-                    </div>
-                  </th>
-                  <th><span>Esito</span></th>
-                  <th><span>Azioni</span></th>
+                  <TableHeaderCell id="document" label="Documento" width={checkColumnWidths.document} sortable sortDirection={checkSortColumn === 'document' ? checkSortDirection : null} onSort={(id) => handleCheckSort(id as CheckSortKey)} onResize={handleCheckResize} />
+                  <TableHeaderCell id="student" label="Studente" width={checkColumnWidths.student} sortable sortDirection={checkSortColumn === 'student' ? checkSortDirection : null} onSort={(id) => handleCheckSort(id as CheckSortKey)} onResize={handleCheckResize} />
+                  <TableHeaderCell id="checkStatus" label="Stato Check" width={checkColumnWidths.checkStatus} sortable sortDirection={checkSortColumn === 'checkStatus' ? checkSortDirection : null} onSort={(id) => handleCheckSort(id as CheckSortKey)} onResize={handleCheckResize} />
+                  <TableHeaderCell id="date" label="Data" width={checkColumnWidths.date} sortable sortDirection={checkSortColumn === 'date' ? checkSortDirection : null} onSort={(id) => handleCheckSort(id as CheckSortKey)} onResize={handleCheckResize} />
+                  <TableHeaderCell id="outcome" label="Esito" width={checkColumnWidths.outcome} onResize={handleCheckResize} />
+                  <TableHeaderActionCell width={checkColumnWidths.actions} />
                 </tr>
               </thead>
               <tbody>
                 {sortedCheckActivity.map((check) => (
-                  <tr key={check.id}>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>{check.document}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{check.student}</td>
-                    <td>
+                  <TableRow key={check.id}>
+                    <TableCell><CellTextPrimary>{check.document}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{check.student}</CellTextPrimary></TableCell>
+                    <TableCell>
                       <span className={`status-badge ${check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'pending' : 'inactive'}`}>
                         {check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
                       </span>
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{check.date}</td>
-                    <td style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>{check.outcome}</td>
-                    <td><button className="actions-button"><MoreVertical size={18} /></button></td>
-                  </tr>
+                    </TableCell>
+                    <TableCell><CellTextPrimary>{check.date}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{check.outcome}</CellTextPrimary></TableCell>
+                    <TableCell align="center" sticky="right" width={checkColumnWidths.actions}>
+                      <button className="actions-button"><MoreVertical size={18} /></button>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </div>
+            </TableRoot>
+          )}
+          mobile={(
+            <ResponsiveMobileCards>
+              {sortedCheckActivity.map((check) => (
+                <ResponsiveMobileCard key={check.id}>
+                  <ResponsiveMobileCardHeader>
+                    <div>
+                      <CellTextPrimary>{check.document}</CellTextPrimary>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{check.student}</div>
+                    </div>
+                    <span className={`status-badge ${check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'pending' : 'inactive'}`}>
+                      {check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
+                    </span>
+                  </ResponsiveMobileCardHeader>
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{check.date}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                  <ResponsiveMobileCardSection marginBottom="0">
+                    <ResponsiveMobileFieldLabel>Esito</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>{check.outcome}</CellTextPrimary>
+                  </ResponsiveMobileCardSection>
+                </ResponsiveMobileCard>
+              ))}
+            </ResponsiveMobileCards>
+          )}
+        />
       </div>
     </div>
   );
