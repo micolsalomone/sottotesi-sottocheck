@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, GitBranch, Clock } from 'lucide-react';
+import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI } from '../../app/data/LavorazioniContext';
@@ -32,7 +32,6 @@ import {
   TableRow,
   TableSelectionCell,
   TableSelectionHeaderCell,
-  StatusPill,
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 
@@ -134,7 +133,6 @@ export function StudentiPage() {
     name: 200,
     status: 100,
     coaching: 120,
-    timeline: 110,
     referente: 100,
     created_by: 110,
     notes: 60,
@@ -455,8 +453,8 @@ export function StudentiPage() {
     navigate(`/lavorazioni?highlight=${serviceId}`);
   };
 
-  // Total columns count (checkbox, id, name, status, coaching, timeline, referente, created_by, notes, actions)
-  const totalColumns = 10;
+  // Total columns count (checkbox, id, name, status, coaching, referente, created_by, notes, actions)
+  const totalColumns = 9;
 
   // Gli studenti si creano dalle pipeline: il drawer è disponibile solo in edit mode
 
@@ -630,7 +628,6 @@ export function StudentiPage() {
                 <TableHeaderCell id="name" label="Studente" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="coaching" label="Lavorazioni" width={columnWidths.coaching} sortable sortDirection={sortColumn === 'coaching' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="timeline" label="Timeline" width={columnWidths.timeline} onResize={handleMouseDown} icon={<GitBranch size={13} style={{ color: 'var(--muted-foreground)' }} />} />
                 <TableHeaderCell id="referente" label="Referente" width={columnWidths.referente} sortable sortDirection={sortColumn === 'referente' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="created_by" label="Inserito da" width={columnWidths.created_by} sortable sortDirection={sortColumn === 'created_by' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="notes" label="Note" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
@@ -712,16 +709,6 @@ export function StudentiPage() {
                               )}
                             </span>
                           </div>
-                        </TableCell>
-
-                        <TableCell>
-                          {hasTimeline ? (
-                            <StatusPill label="Presente" variant="success" />
-                          ) : needsTimelineMissing ? (
-                            <StatusPill label="Da creare" variant="error" />
-                          ) : (
-                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>—</span>
-                          )}
                         </TableCell>
 
                         <TableCell>
@@ -815,16 +802,6 @@ export function StudentiPage() {
                                 )}
                               </div>
                             )}
-                          </TableCell>
-
-                          <TableCell>
-                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                              {svc.plan_start_date ? (
-                                <>{svc.plan_start_date}{svc.plan_end_date ? ` → ${svc.plan_end_date}` : ' → in corso'}</>
-                              ) : (
-                                <span style={{ fontStyle: 'italic' }}>N/D</span>
-                              )}
-                            </div>
                           </TableCell>
 
                           <TableCell>
