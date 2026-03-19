@@ -1061,32 +1061,41 @@ export function CoachPage() {
                             </CellContentStack>
                           </TableCell>
 
-                          <TableCell />
-
                           <TableCell>
-                            {svc.coach_fee !== undefined && svc.coach_fee !== null && (
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
+                            {svc.area_tematica ? (
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '0.125rem 0.5rem',
+                                backgroundColor: 'var(--muted)',
+                                borderRadius: 'var(--radius-badge)',
                                 fontFamily: 'var(--font-inter)',
-                                fontSize: 'var(--text-label)',
+                                fontSize: '12px',
+                                fontWeight: 'var(--font-weight-medium)',
+                                color: 'var(--foreground)',
                                 lineHeight: '1.5',
                               }}>
-                                <span style={{
-                                  color: 'var(--muted-foreground)',
-                                  fontWeight: 'var(--font-weight-regular)',
-                                }}>
-                                  Compenso:
-                                </span>
-                                <span style={{
-                                  fontWeight: 'var(--font-weight-medium)',
-                                  color: 'var(--foreground)',
-                                }}>
-                                  €{svc.coach_fee.toLocaleString('it-IT')}
-                                </span>
-                              </div>
+                                {svc.area_tematica}
+                              </span>
+                            ) : (
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>—</span>
                             )}
+                          </TableCell>
+
+                          <TableCell>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '0.125rem 0.5rem',
+                              backgroundColor: 'var(--muted)',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-badge)',
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '12px',
+                              fontWeight: 'var(--font-weight-medium)',
+                              color: 'var(--foreground)',
+                              lineHeight: '1.5',
+                            }}>
+                              {svc.service_category || '—'}
+                            </span>
                           </TableCell>
 
                           <TableCell>
