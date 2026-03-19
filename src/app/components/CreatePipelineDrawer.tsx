@@ -499,13 +499,36 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
       return num > max ? num : max;
     }, 0);
 
-    // Dati accademici preliminari (solo modalità 'new', vengono usati alla conversione in lavorazione)
+    const studentName = `${formData.first_name} ${formData.last_name}`.trim() || formData.email.trim() || 'Lead senza nome';
+
     const hasAcademicData = mode === 'new' && (
       academicData.degree_level || academicData.course_name || academicData.university_name ||
-      academicData.thesis_professor || academicData.thesis_subject || academicData.thesis_type
+      academicData.thesis_professor || academicData.thesis_subject || academicData.thesis_type ||
+      academicData.thesis_language
     );
 
-    const studentName = `${formData.first_name} ${formData.last_name}`.trim() || formData.email.trim() || 'Lead senza nome';
+    const hasAtLeastOneField = Boolean(
+      (mode === 'existing' && selectedStudentId) ||
+      formData.first_name.trim() ||
+      formData.last_name.trim() ||
+      formData.email.trim() ||
+      formData.phone.trim() ||
+      formData.sources.length ||
+      formData.communication_channels.length ||
+      formData.assigned_to.trim() ||
+      formData.service_link.trim() ||
+      formData.external_link.trim() ||
+      formData.notes.trim() ||
+      formData.quotes.length ||
+      additionalEmails.length ||
+      additionalPhones.length ||
+      hasAcademicData
+    );
+
+    if (!hasAtLeastOneField) {
+      toast.error('Compila almeno un campo per creare la pipeline');
+      return null;
+    }
 
     const newPipeline: Pipeline = {
       id: `PIP-${String(maxId + 1).padStart(3, '0')}`,

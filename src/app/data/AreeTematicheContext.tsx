@@ -99,9 +99,15 @@ interface AreeTematicheContextType {
   getActiveAree: () => AreaTematica[];
 }
 
-// HMR-safe context: reuse existing context across hot reloads
-const AreeTematicheContext = (globalThis as any).__AreeTematicheContext || createContext<AreeTematicheContextType | null>(null);
-(globalThis as any).__AreeTematicheContext = AreeTematicheContext;
+// HMR-safe context: reuse existing context across hot reloads while preserving typings
+type AreeGlobal = typeof globalThis & {
+  __AreeTematicheContext?: React.Context<AreeTematicheContextType | null>;
+};
+
+const globalWithAree = globalThis as AreeGlobal;
+const AreeTematicheContext: React.Context<AreeTematicheContextType | null> =
+  globalWithAree.__AreeTematicheContext ?? createContext<AreeTematicheContextType | null>(null);
+globalWithAree.__AreeTematicheContext = AreeTematicheContext;
 
 export function AreeTematicheProvider({ children }: { children: React.ReactNode }) {
   const [aree, setAree] = useState(INITIAL_AREE);

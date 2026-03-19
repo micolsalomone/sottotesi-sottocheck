@@ -892,7 +892,7 @@ export function CreateStudentDrawer({
                                 ...pipelinePhones.map(phone => ({
                                   phone,
                                   is_primary: false,
-                                  purposes: ['generic', 'timeline'],
+                                  purposes: ['communications', 'coaching'] as ('communications' | 'coaching')[],
                                   source: 'pipeline',
                                   added_at: new Date().toISOString().split('T')[0],
                                 })),

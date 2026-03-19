@@ -7,7 +7,7 @@ import {
   ListChecks, ShieldCheck, User,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import type { StudentData, AdminNote, CoachingStep, Ticket } from '../pages/TimelinePage';
+import type { StudentData, AdminNote, CoachingStep, Ticket } from '../../pages/admin/TimelinePage';
 import {
   DrawerOverlay,
   DrawerShell,

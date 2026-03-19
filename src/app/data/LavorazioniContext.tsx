@@ -22,15 +22,15 @@ export interface Quote {
 
 export interface Pipeline {
   id: string;
-  student_id: string;
-  student_name: string;
-  first_name: string;
-  last_name: string;
-  email: string;
+  student_id?: string;
+  student_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
   emails?: string[]; // Email aggiuntive
-  phone: string;
+  phone?: string;
   phones?: string[]; // Telefoni aggiuntivi
-  sources: string[]; // IG, Sottotelefono BO, Modulo meta ads, Form Coaching, ecc.
+  sources?: string[]; // IG, Sottotelefono BO, Modulo meta ads, Form Coaching, ecc.
   communication_channel?: string;    // legacy — sostituito da communication_channels
   communication_channels?: string[]; // Dove ci parliamo: WhatsApp Bologna, ecc. (multipli)
   assigned_to?: string; // Admin in carico (es. Margherita, Francesca)
@@ -38,9 +38,9 @@ export interface Pipeline {
   quotes?: Quote[]; // Preventivi multipli
   service_link?: string; // Collegamento a servizio (es. coaching)
   external_link?: string; // Link esterno (es. Google Docs)
-  created_at: string;
+  created_at?: string;
   notes?: string;
-  lavorazioni_ids: string[]; // Array di ID lavorazioni generate da questa pipeline
+  lavorazioni_ids?: string[]; // Array di ID lavorazioni generate da questa pipeline
   marketing_consents?: Record<string, boolean>; // Consensi marketing per ogni singolo contatto (email/telefono)
   // Dati accademici preliminari raccolti in fase di lead (pre-conversione)
   academic_data?: {
@@ -1042,9 +1042,15 @@ const DEFAULT_CONTEXT: LavorazioniContextType = {
   removeService: noop,
 };
 
-// HMR-safe context: reuse existing context across hot reloads
-const LavorazioniContext = (globalThis as any).__LavorazioniContext || createContext<LavorazioniContextType>(DEFAULT_CONTEXT);
-(globalThis as any).__LavorazioniContext = LavorazioniContext;
+// HMR-safe context: reuse existing context across hot reloads while preserving typings
+type LavorazioniGlobal = typeof globalThis & {
+  __LavorazioniContext?: React.Context<LavorazioniContextType>;
+};
+
+const globalWithLavorazioni = globalThis as LavorazioniGlobal;
+const LavorazioniContext: React.Context<LavorazioniContextType> =
+  globalWithLavorazioni.__LavorazioniContext ?? createContext<LavorazioniContextType>(DEFAULT_CONTEXT);
+globalWithLavorazioni.__LavorazioniContext = LavorazioniContext;
 
 export function LavorazioniProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<StudentService[]>(initialData);

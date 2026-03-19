@@ -827,7 +827,7 @@ export function CreateLavorazioneDrawer({
                     >
                       <option value="">Nessuna area</option>
                       {aree.map(area => (
-                        <option key={area.id} value={area.nome}>{area.nome}</option>
+                        <option key={area.id} value={area.name}>{area.name}</option>
                       ))}
                     </select>
                   </DrawerFieldGroup>

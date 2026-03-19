@@ -137,8 +137,7 @@ export function AdminSidebar({ collapsed, onToggleCollapse }: AdminSidebarProps)
           }}>
             {/* Primary links */}
             {primaryLinks.map((link) => {
-              const isActive = location.pathname === link.path || 
-                (link.subItems?.some(sub => location.pathname === sub.path));
+              const isActive = location.pathname === link.path;
               
               return (
                 <div key={link.path}>

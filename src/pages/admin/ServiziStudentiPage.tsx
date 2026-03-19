@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { useState, useMemo, useCallback, useEffect, useRef, MouseEvent, CSSProperties } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent, CSSProperties } from 'react';
 import { Plus, ExternalLink, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Clock, AlertTriangle, Pencil, Check, Settings, ChevronRight, Calendar, UserPlus, StickyNote, Trash2, User, GraduationCap, Download, PauseCircle, Mail } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -696,7 +696,7 @@ export function ServiziStudentiPage() {
     });
   }, [filteredAndSortedData, taxPercent]);
 
-  const handleMouseDown = (columnKey: string, e: MouseEvent) => {
+  const handleMouseDown = (columnKey: string, e: ReactMouseEvent) => {
     e.preventDefault();
     const startX = e.pageX;
     const startWidth = columnWidths[columnKey];
@@ -839,7 +839,10 @@ export function ServiziStudentiPage() {
       onClick: (ids) => {
         const selected = filteredAndSortedData.filter(s => ids.includes(s.id));
         const csv = ['ID,Studente,Servizio,Coach,Stato,Importo,Creato il'].concat(
-          selected.map(s => `${s.id},${s.student_name},${s.service_name},${s.coach_name},${SERVICE_STATUS_LABELS[s.status]},€${s.total_price},${s.created_at}`)
+          selected.map((s) => {
+            const totalPrice = s.installments.reduce((sum, installment) => sum + installment.amount, 0);
+            return `${s.id},${s.student_name},${s.service_name},${s.coach_name || ''},${SERVICE_STATUS_LABELS[s.status]},€${totalPrice},${s.created_at}`;
+          })
         ).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);

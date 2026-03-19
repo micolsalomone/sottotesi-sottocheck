@@ -104,7 +104,7 @@ export interface Ticket {
 
 export interface StudentData {
   id: string;
-  studentId: string; // Real student ID from LavorazioniContext
+  studentId?: string; // Real student ID from LavorazioniContext
   name: string;
   university?: string;
   degree: string;
@@ -1653,7 +1653,8 @@ export function TimelinePage() {
           {selectedIds.size > 0 && (
             <BulkActionsBar
               selectedCount={selectedIds.size}
-              onDeselectAll={() => setSelectedIds(new Set())}
+              selectedIds={Array.from(selectedIds)}
+              onClearSelection={() => setSelectedIds(new Set())}
               actions={[
                 ...(isOpenPathTab ? [{
                   label: 'Segna come completato',
@@ -1910,7 +1911,10 @@ export function TimelinePage() {
       {/* Confirm Modal */}
       {confirmModal && (
         <ConfirmDialog
-          isOpen={true}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setConfirmModal(null);
+          }}
           title={confirmModal.type === 'complete' ? 'Segna come completato?' : 'Rimuovi studente?'}
           description={
             confirmModal.type === 'complete'
@@ -1928,7 +1932,6 @@ export function TimelinePage() {
             }
             setConfirmModal(null);
           }}
-          onCancel={() => setConfirmModal(null)}
         />
       )}
 
@@ -2483,7 +2486,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                   }}>
-                    {note.text}
+                    {note.content}
                   </p>
                   <div style={{
                     display: 'flex',
@@ -2498,7 +2501,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                         color: 'var(--muted-foreground)',
                         lineHeight: '1.5',
                       }}>
-                        {note.author}
+                        {note.admin}
                       </span>
                       <span style={{
                         fontFamily: 'var(--font-inter)',
@@ -2507,7 +2510,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                         color: 'var(--muted-foreground)',
                         lineHeight: '1.5',
                       }}>
-                        · {note.createdAt}
+                        · {note.timestamp}
                       </span>
                     </div>
                     {deleteConfirmId === note.id ? (

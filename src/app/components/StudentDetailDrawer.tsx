@@ -6,7 +6,7 @@ import {
   Upload, Download, ExternalLink, Eye, Pencil, X, Hash,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import type { StudentData, AdminNote, Installment, CoachingStep, Ticket } from '../pages/TimelinePage';
+import type { StudentData, AdminNote, Installment, CoachingStep, Ticket } from '../../pages/admin/TimelinePage';
 import {
   DrawerOverlay,
   DrawerShell,
