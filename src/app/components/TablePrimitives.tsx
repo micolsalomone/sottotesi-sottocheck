@@ -262,6 +262,11 @@ export const TableHeaderBaseCell = ({
       borderBottom: '1px solid var(--border)',
       textAlign: 'left',
       verticalAlign: 'middle',
+      fontFamily: 'var(--font-inter)',
+      fontSize: 'var(--text-label)',
+      fontWeight: 'var(--font-weight-medium)',
+      color: 'var(--foreground)',
+      lineHeight: '1.5',
       ...style,
     }}
   >
@@ -729,7 +734,7 @@ export const TableHeaderActionCell = ({ width = 60 }: { width?: number }) => (
     <span style={{
       fontFamily: 'var(--font-inter)',
       fontSize: 'var(--text-label)',
-      fontWeight: 'var(--font-weight-semibold)',
+      fontWeight: 'var(--font-weight-medium)',
       color: 'var(--foreground)',
       lineHeight: '1.5',
     }}>
