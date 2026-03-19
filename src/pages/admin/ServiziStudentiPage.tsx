@@ -84,6 +84,7 @@ export function ServiziStudentiPage() {
       setSelectedYear('all');
       setFilterStatus('all');
       setFilterCategory('all');
+      setFilterCoach('all');
       setSearchQuery('');
       setQuickFilter(null);
       setActiveHighlightId(highlightId);
@@ -206,6 +207,7 @@ export function ServiziStudentiPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterCoach, setFilterCoach] = useState('all');
   
   type SortKey = 'id' | 'student_name' | 'created_at' | 'status' | 'nextDue' | 'coach_name' | 'compenso' | 'dataNotula' | 'scad40gg' | 'statoPag' | 'plan_start_date' | 'plan_end_date' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
@@ -533,6 +535,7 @@ export function ServiziStudentiPage() {
 
   // Prefiltered base data (exclude Sottocheck)
   const baseData = useMemo(() => localData.filter(s => s.service_category !== 'Check plagio/AI'), [localData]);
+  const uniqueCoaches = Array.from(new Set(baseData.map(s => s.coach_name).filter(Boolean))).sort() as string[];
 
   // Helper: is a lavorazione "incomplete" (needs admin action)?
   const isIncomplete = useCallback((s: StudentService): boolean => {
@@ -612,6 +615,9 @@ export function ServiziStudentiPage() {
     if (filterCategory !== 'all') {
       data = data.filter(item => item.service_category === filterCategory);
     }
+    if (filterCoach !== 'all') {
+      data = data.filter(item => item.coach_name === filterCoach);
+    }
     
     if (sortColumn) {
       data.sort((a, b) => {
@@ -662,7 +668,7 @@ export function ServiziStudentiPage() {
     }
     
     return data;
-  }, [sortColumn, sortDirection, filterStatus, filterCategory, searchQuery, yearFilteredData, quickFilter, getNextDueDate]);
+  }, [sortColumn, sortDirection, filterStatus, filterCategory, filterCoach, searchQuery, yearFilteredData, quickFilter, getNextDueDate]);
 
   // ─── Monthly grouping ─────────────────────────────────────
   const monthGroups = useMemo((): MonthGroup[] => {
@@ -757,6 +763,13 @@ export function ServiziStudentiPage() {
       label: `Categoria: ${filterCategory}`,
       value: filterCategory,
       onRemove: () => setFilterCategory('all')
+    });
+  }
+  if (filterCoach !== 'all') {
+    activeFilters.push({
+      label: `Coach: ${filterCoach}`,
+      value: filterCoach,
+      onRemove: () => setFilterCoach('all')
     });
   }
 
@@ -1242,6 +1255,18 @@ export function ServiziStudentiPage() {
 
         <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+            Coach
+          </label>
+          <select className="select-dropdown" style={{ width: '100%' }} value={filterCoach} onChange={(e) => setFilterCoach(e.target.value)}>
+            <option value="all">Tutti</option>
+            {uniqueCoaches.map(coach => (
+              <option key={coach} value={coach}>{coach}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
+          <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
             Stato Servizio
           </label>
           <select className="select-dropdown" style={{ width: '100%' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
@@ -1266,6 +1291,7 @@ export function ServiziStudentiPage() {
             onClick={() => {
               setFilterStatus('all');
               setFilterCategory('all');
+              setFilterCoach('all');
               setQuickFilter(null);
             }}
             style={{ height: 'fit-content' }}
@@ -1295,6 +1321,7 @@ export function ServiziStudentiPage() {
             onClick={() => { 
               setFilterStatus('all'); 
               setFilterCategory('all');
+              setFilterCoach('all');
               setQuickFilter(null);
             }} 
             className="btn btn-secondary" 
