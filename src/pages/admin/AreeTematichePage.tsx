@@ -1,10 +1,29 @@
-import React, { useState } from 'react';
-import { Plus, X, Check, Pencil, Trash2, UserPlus, UserMinus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Plus, X, Check, Pencil, Trash2, Search, FolderKanban, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAreeTematiche, type AreaTematica } from '@/app/data/AreeTematicheContext';
 import { StatusBadge } from '@/app/components/StatusBadge';
+import { AreaTematicaDetailDrawer } from '@/app/components/AreaTematicaDetailDrawer';
+import { useTableResize } from '@/app/hooks/useTableResize';
+import {
+  CellContentStack,
+  CellTextPrimary,
+  CellTextSecondary,
+  ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCards,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileFieldLabel,
+  ResponsiveTableLayout,
+  TableActionCell,
+  TableCell,
+  TableEmptyState,
+  TableHeaderActionCell,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+} from '@/app/components/TablePrimitives';
 
-// Coach list — coerente con CoachPage e COACH_ID_MAP
 const COACHES_LIST = [
   { id: 'C-07', name: 'Martina Rossi' },
   { id: 'C-08', name: 'Andrea Conti' },
@@ -15,93 +34,36 @@ const COACHES_LIST = [
 
 const CURRENT_ADMIN = 'Francesca';
 
+type SortKey = 'name' | 'status' | 'coachCount' | 'createdAt' | null;
+
 const formatDateIT = (dateStr?: string): string => {
-  if (!dateStr) return '—';
+  if (!dateStr) return '-';
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 export function AreeTematichePage() {
-  const {
-    aree,
-    addArea,
-    updateArea,
-    removeArea,
-    toggleAreaActive,
-    assignCoach,
-    unassignCoach,
-  } = useAreeTematiche();
+  const { aree, addArea, updateArea, removeArea, toggleAreaActive } = useAreeTematiche();
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [assigningAreaId, setAssigningAreaId] = useState<string | null>(null);
-  const [selectedCoachToAdd, setSelectedCoachToAdd] = useState('');
+  const [detailAreaId, setDetailAreaId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterCoachCoverage, setFilterCoachCoverage] = useState<'all' | 'with' | 'without'>('all');
+  const [sortColumn, setSortColumn] = useState<SortKey>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  const handleCreate = () => {
-    if (!newName.trim()) {
-      toast.error('Inserisci un nome per l\'area tematica');
-      return;
-    }
-    const newArea: AreaTematica = {
-      id: `AT-${Date.now().toString().slice(-3)}`,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      coachIds: [],
-      createdAt: new Date().toISOString().split('T')[0],
-      isActive: true,
-      created_by: CURRENT_ADMIN,
-      updated_by: CURRENT_ADMIN,
-      updated_at: new Date().toISOString(),
-    };
-    addArea(newArea);
-    toast.success(`Area "${newArea.name}" creata`);
-    setNewName('');
-    setNewDescription('');
-    setShowNewForm(false);
-  };
-
-  const handleSaveEdit = (id: string) => {
-    if (!editName.trim()) {
-      toast.error('Il nome non può essere vuoto');
-      return;
-    }
-    updateArea(id, a => ({ ...a, name: editName.trim(), description: editDescription.trim(), updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString() }));
-    toast.success('Area aggiornata');
-    setEditingId(null);
-  };
-
-  const startEdit = (area: AreaTematica) => {
-    setEditingId(area.id);
-    setEditName(area.name);
-    setEditDescription(area.description);
-  };
-
-  const handleAssignCoach = (areaId: string) => {
-    if (!selectedCoachToAdd) return;
-    assignCoach(areaId, selectedCoachToAdd);
-    const coach = COACHES_LIST.find(c => c.id === selectedCoachToAdd);
-    toast.success(`${coach?.name} assegnato all'area`);
-    setSelectedCoachToAdd('');
-  };
-
-  const handleUnassignCoach = (areaId: string, coachId: string) => {
-    unassignCoach(areaId, coachId);
-    const coach = COACHES_LIST.find(c => c.id === coachId);
-    toast.success(`${coach?.name} rimosso dall'area`);
-  };
-
-  const handleDelete = (id: string) => {
-    const area = aree.find(a => a.id === id);
-    removeArea(id);
-    toast.success(`Area "${area?.name}" rimossa`);
-    setConfirmDeleteId(null);
-  };
+  const { columnWidths, handleResize: handleMouseDown } = useTableResize({
+    name: 260,
+    status: 120,
+    coaches: 320,
+    createdAt: 140,
+    actions: 120,
+  });
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -111,654 +73,331 @@ export function AreeTematichePage() {
     backgroundColor: 'var(--input-background)',
     fontFamily: 'var(--font-inter)',
     fontSize: 'var(--text-label)',
-    fontWeight: 'var(--font-weight-regular)',
     color: 'var(--foreground)',
     lineHeight: '1.5',
     outline: 'none',
   };
 
+  const stats = useMemo(() => {
+    const total = aree.length;
+    const active = aree.filter(a => a.isActive).length;
+    const withoutCoach = aree.filter(a => a.coachIds.length === 0).length;
+    const totalCoachAssignments = aree.reduce((acc, a) => acc + a.coachIds.length, 0);
+    return { total, active, withoutCoach, totalCoachAssignments };
+  }, [aree]);
+
+  const handleSort = (column: Exclude<SortKey, null>) => {
+    if (sortColumn === column) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const filteredAree = useMemo(() => {
+    let data = [...aree];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      data = data.filter(area => {
+        const coachNames = COACHES_LIST
+          .filter(c => area.coachIds.includes(c.id))
+          .map(c => c.name)
+          .join(' ')
+          .toLowerCase();
+        return (
+          area.name.toLowerCase().includes(q) ||
+          area.description.toLowerCase().includes(q) ||
+          area.id.toLowerCase().includes(q) ||
+          coachNames.includes(q)
+        );
+      });
+    }
+
+    if (filterStatus !== 'all') {
+      data = data.filter(area => (filterStatus === 'active' ? area.isActive : !area.isActive));
+    }
+
+    if (filterCoachCoverage === 'with') data = data.filter(area => area.coachIds.length > 0);
+    if (filterCoachCoverage === 'without') data = data.filter(area => area.coachIds.length === 0);
+
+    if (sortColumn) {
+      data.sort((a, b) => {
+        let aVal = '';
+        let bVal = '';
+        if (sortColumn === 'name') {
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+        } else if (sortColumn === 'status') {
+          aVal = a.isActive ? 'active' : 'inactive';
+          bVal = b.isActive ? 'active' : 'inactive';
+        } else if (sortColumn === 'coachCount') {
+          aVal = String(a.coachIds.length).padStart(3, '0');
+          bVal = String(b.coachIds.length).padStart(3, '0');
+        } else {
+          aVal = a.createdAt;
+          bVal = b.createdAt;
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return data;
+  }, [aree, searchQuery, filterStatus, filterCoachCoverage, sortColumn, sortDirection]);
+
+  const handleCreate = () => {
+    if (!newName.trim()) {
+      toast.error('Inserisci un nome per l\'area tematica');
+      return;
+    }
+    const now = new Date();
+    const newArea: AreaTematica = {
+      id: `AT-${now.getTime().toString().slice(-3)}`,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      coachIds: [],
+      createdAt: now.toISOString().split('T')[0],
+      isActive: true,
+      created_by: CURRENT_ADMIN,
+      updated_by: CURRENT_ADMIN,
+      updated_at: now.toISOString(),
+    };
+    addArea(newArea);
+    toast.success(`Area "${newArea.name}" creata`);
+    setNewName('');
+    setNewDescription('');
+    setShowNewForm(false);
+  };
+
+
+
+  const handleDelete = (id: string) => {
+    const area = aree.find(a => a.id === id);
+    removeArea(id);
+    toast.success(`Area "${area?.name}" rimossa`);
+    setConfirmDeleteId(null);
+  };
+
   return (
     <div>
-      {/* Page header */}
       <div className="page-header">
         <h1 className="page-title">Aree Tematiche</h1>
-        <p className="page-subtitle">Gestione aree tematiche e assegnazione coach</p>
+          <p className="page-subtitle">Gestione aree tematiche e assegnazione coach via drawer di dettaglio</p>
       </div>
 
-      {/* Action toolbar */}
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-header">
+            <span className="stat-label">Totale aree</span>
+            <div className="stat-icon"><FolderKanban size={20} /></div>
+          </div>
+          <div className="stat-value">{stats.total}</div>
+          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>{stats.active} attive</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-header">
+            <span className="stat-label">Senza coach</span>
+            <div className="stat-icon"><Users size={20} /></div>
+          </div>
+          <div className="stat-value">{stats.withoutCoach}</div>
+          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>da assegnare</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-header">
+            <span className="stat-label">Assegnazioni coach</span>
+            <div className="stat-icon"><Users size={20} /></div>
+          </div>
+          <div className="stat-value">{stats.totalCoachAssignments}</div>
+          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>collegamenti area-coach</div>
+        </div>
+      </div>
+
       <div className="action-toolbar">
-        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
+            <input
+              type="text"
+              placeholder="Cerca per nome area, descrizione, ID o coach..."
+              className="search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: '2.5rem', width: '100%' }}
+            />
+          </div>
+        </div>
         <div className="action-toolbar-right">
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowNewForm(!showNewForm)}
-          >
+          <button className="btn btn-primary" onClick={() => setShowNewForm(true)}>
             <Plus size={18} />
             Nuova area
           </button>
         </div>
       </div>
 
-      {/* New area form — Drawer (pattern CreateStudentDrawer) */}
+      <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 160px', minWidth: '160px' }}>
+          <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>Stato</label>
+          <select className="select-dropdown" style={{ width: '100%' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}>
+            <option value="all">Tutti</option>
+            <option value="active">Attive</option>
+            <option value="inactive">Inattive</option>
+          </select>
+        </div>
+        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
+          <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>Assegnazione coach</label>
+          <select className="select-dropdown" style={{ width: '100%' }} value={filterCoachCoverage} onChange={(e) => setFilterCoachCoverage(e.target.value as 'all' | 'with' | 'without')}>
+            <option value="all">Tutte</option>
+            <option value="with">Con coach</option>
+            <option value="without">Senza coach</option>
+          </select>
+        </div>
+        <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterCoachCoverage('all'); setSortColumn('name'); setSortDirection('asc'); }}>Reset filtri</button>
+      </div>
+
       {showNewForm && (
         <>
-          {/* Overlay */}
-          <div
-            onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }}
-            style={{
-              position: 'fixed', inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              zIndex: 999,
-              animation: 'fadeIn 200ms ease-in-out',
-            }}
-          />
-          {/* Drawer */}
-          <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0,
-            width: '500px', maxWidth: '100vw',
-            background: 'var(--card)',
-            borderLeft: '1px solid var(--border)',
-            zIndex: 1000,
-            display: 'flex', flexDirection: 'column',
-            boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
-            animation: 'slideInFromRight 300ms ease-out',
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '1rem 1.5rem',
-              borderBottom: '1px solid var(--border)',
-              flexShrink: 0,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                <Plus size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h2 style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-base)',
-                    fontWeight: 'var(--font-weight-semibold)',
-                    color: 'var(--foreground)',
-                    margin: 0,
-                    lineHeight: '1.5',
-                  }}>
-                    Nuova area tematica
-                  </h2>
-                  <p style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
-                    color: 'var(--muted-foreground)',
-                    margin: 0,
-                    lineHeight: '1.5',
-                  }}>
-                    Crea una nuova area per raggruppare i coach
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '0.5rem', color: 'var(--muted-foreground)',
-                  borderRadius: 'var(--radius)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <X size={18} />
-              </button>
+          <div onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999 }} />
+          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '500px', maxWidth: '100vw', background: 'var(--card)', borderLeft: '1px solid var(--border)', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+              <h2 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', margin: 0 }}>Nuova area tematica</h2>
+              <button onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)' }}><X size={18} /></button>
             </div>
-
-            {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--muted-foreground)',
-                    marginBottom: '0.25rem',
-                    lineHeight: '1.5',
-                  }}>
-                    Nome *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="es. Economia e Management"
-                    value={newName}
-                    onChange={e => setNewName(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--muted-foreground)',
-                    marginBottom: '0.25rem',
-                    lineHeight: '1.5',
-                  }}>
-                    Descrizione
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Breve descrizione dell'area"
-                    value={newDescription}
-                    onChange={e => setNewDescription(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Nome *</label>
+                <input type="text" placeholder="es. Economia e Management" value={newName} onChange={e => setNewName(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Descrizione</label>
+                <input type="text" placeholder="Breve descrizione dell'area" value={newDescription} onChange={e => setNewDescription(e.target.value)} style={inputStyle} />
               </div>
             </div>
-
-            {/* Footer */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-              gap: '0.75rem', padding: '1rem 1.5rem',
-              borderTop: '1px solid var(--border)',
-              flexShrink: 0,
-            }}>
-              <button
-                onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--card)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: 'var(--muted-foreground)',
-                  cursor: 'pointer',
-                  lineHeight: '1.5',
-                }}
-              >
-                Annulla
-              </button>
-              <button
-                onClick={handleCreate}
-                className="btn btn-primary"
-                style={{ padding: '0.5rem 1.25rem', fontSize: 'var(--text-label)' }}
-              >
-                <Check size={14} />
-                Crea area
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-secondary" onClick={() => { setShowNewForm(false); setNewName(''); setNewDescription(''); }}>Annulla</button>
+              <button className="btn btn-primary" onClick={handleCreate}><Check size={14} />Crea area</button>
             </div>
           </div>
         </>
       )}
 
-      {/* Stats */}
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-        flexWrap: 'wrap',
-      }}>
-        <div style={{
-          padding: '1rem 1.5rem',
-          backgroundColor: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          flex: '1 1 150px',
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--muted-foreground)',
-            marginBottom: '0.25rem',
-            lineHeight: '1.5',
-          }}>
-            Totale aree
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-h4)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--foreground)',
-            lineHeight: '1.5',
-          }}>
-            {aree.length}
-          </div>
-        </div>
-        <div style={{
-          padding: '1rem 1.5rem',
-          backgroundColor: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          flex: '1 1 150px',
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--muted-foreground)',
-            marginBottom: '0.25rem',
-            lineHeight: '1.5',
-          }}>
-            Attive
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-h4)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--primary)',
-            lineHeight: '1.5',
-          }}>
-            {aree.filter(a => a.isActive).length}
-          </div>
-        </div>
-        <div style={{
-          padding: '1rem 1.5rem',
-          backgroundColor: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          flex: '1 1 150px',
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--muted-foreground)',
-            marginBottom: '0.25rem',
-            lineHeight: '1.5',
-          }}>
-            Senza coach
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-h4)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--chart-3)',
-            lineHeight: '1.5',
-          }}>
-            {aree.filter(a => a.coachIds.length === 0).length}
-          </div>
-        </div>
-      </div>
-
-      {/* Areas list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {aree.map(area => {
-          const isEditing = editingId === area.id;
-          const isAssigning = assigningAreaId === area.id;
-          const assignedCoaches = COACHES_LIST.filter(c => area.coachIds.includes(c.id));
-          const availableCoaches = COACHES_LIST.filter(c => !area.coachIds.includes(c.id));
-
-          return (
-            <div
-              key={area.id}
-              style={{
-                padding: '1.25rem',
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                opacity: area.isActive ? 1 : 0.6,
-              }}
-            >
-              {/* Header row */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '0.75rem',
-                gap: '1rem',
-                flexWrap: 'wrap',
-              }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  {isEditing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        style={{ ...inputStyle, fontWeight: 'var(--font-weight-medium)' }}
-                      />
-                      <input
-                        type="text"
-                        value={editDescription}
-                        onChange={e => setEditDescription(e.target.value)}
-                        placeholder="Descrizione"
-                        style={inputStyle}
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-base)',
-                        fontWeight: 'var(--font-weight-medium)',
-                        color: 'var(--foreground)',
-                        lineHeight: '1.5',
-                        marginBottom: '0.25rem',
-                      }}>
-                        {area.name}
-                      </div>
-                      {area.description && (
-                        <div style={{
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 'var(--text-label)',
-                          fontWeight: 'var(--font-weight-regular)',
-                          color: 'var(--muted-foreground)',
-                          lineHeight: '1.5',
-                        }}>
-                          {area.description}
+      <ResponsiveTableLayout
+        desktop={(
+          <TableRoot minWidth="980px">
+            <thead>
+              <tr>
+                <TableHeaderCell id="name" label="Area" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as Exclude<SortKey, null>)} onResize={handleMouseDown} />
+                <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as Exclude<SortKey, null>)} onResize={handleMouseDown} />
+                <TableHeaderCell id="coachCount" label="Coach Assegnati" width={columnWidths.coaches} sortable sortDirection={sortColumn === 'coachCount' ? sortDirection : null} onSort={(id) => handleSort(id as Exclude<SortKey, null>)} onResize={handleMouseDown} />
+                <TableHeaderCell id="createdAt" label="Creata il" width={columnWidths.createdAt} sortable sortDirection={sortColumn === 'createdAt' ? sortDirection : null} onSort={(id) => handleSort(id as Exclude<SortKey, null>)} onResize={handleMouseDown} />
+                <TableHeaderActionCell width={columnWidths.actions} />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAree.length === 0 ? (
+                <TableEmptyState message="Nessuna area trovata" colSpan={5} />
+              ) : (
+                filteredAree.map(area => {
+                  const assignedCoaches = COACHES_LIST.filter(c => area.coachIds.includes(c.id));
+                  return (
+                    <TableRow key={area.id}>
+                      <TableCell>
+                        <CellContentStack>
+                          <CellTextPrimary>{area.name}</CellTextPrimary>
+                          <CellTextSecondary>{area.description || '-'}</CellTextSecondary>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{area.id}</div>
+                        </CellContentStack>
+                      </TableCell>
+                      <TableCell>
+                        <span style={{ cursor: 'pointer' }} onClick={() => { toggleAreaActive(area.id); toast.success(area.isActive ? `Area "${area.name}" disattivata` : `Area "${area.name}" attivata`); }}>
+                          <StatusBadge status={area.isActive ? 'active' : 'inactive'} label={area.isActive ? 'Attiva' : 'Inattiva'} />
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {assignedCoaches.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {assignedCoaches.map(coach => (
+                                <span key={coach.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius-badge)', fontFamily: 'var(--font-inter)', fontSize: '12px' }}>
+                                  {coach.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <CellTextSecondary>Nessun coach assegnato</CellTextSecondary>
+                          )}
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                  <span
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      toggleAreaActive(area.id);
-                      toast.success(area.isActive ? `Area "${area.name}" disattivata` : `Area "${area.name}" attivata`);
-                    }}
-                  >
-                    <StatusBadge status={area.isActive ? 'active' : 'inactive'} label={area.isActive ? 'Attiva' : 'Inattiva'} />
-                  </span>
-
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={() => handleSaveEdit(area.id)}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          borderRadius: 'var(--radius)',
-                          border: '1px solid var(--primary)',
-                          backgroundColor: 'var(--primary)',
-                          color: 'var(--primary-foreground)',
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 'var(--text-label)',
-                          fontWeight: 'var(--font-weight-medium)',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          lineHeight: '1.5',
-                        }}
-                      >
-                        <Check size={14} />
-                        Salva
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          borderRadius: 'var(--radius)',
-                          border: '1px solid var(--border)',
-                          backgroundColor: 'var(--card)',
-                          color: 'var(--muted-foreground)',
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 'var(--text-label)',
-                          fontWeight: 'var(--font-weight-medium)',
-                          cursor: 'pointer',
-                          lineHeight: '1.5',
-                        }}
-                      >
-                        Annulla
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => startEdit(area)}
-                        style={{
-                          padding: '0.375rem',
-                          borderRadius: 'var(--radius)',
-                          border: '1px solid var(--border)',
-                          backgroundColor: 'var(--card)',
-                          color: 'var(--muted-foreground)',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                        }}
-                        title="Modifica"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      {confirmDeleteId === area.id ? (
-                        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                          <span style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: '12px',
-                            color: 'var(--destructive-foreground)',
-                            lineHeight: '1.5',
-                          }}>
-                            Conferma?
-                          </span>
-                          <button
-                            onClick={() => handleDelete(area.id)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: 'var(--radius)',
-                              border: '1px solid var(--destructive-foreground)',
-                              backgroundColor: 'var(--destructive)',
-                              color: 'var(--destructive-foreground)',
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
-                              fontWeight: 'var(--font-weight-medium)',
-                              cursor: 'pointer',
-                              lineHeight: '1.5',
-                            }}
-                          >
-                            Rimuovi
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: 'var(--radius)',
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'var(--card)',
-                              color: 'var(--muted-foreground)',
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              lineHeight: '1.5',
-                            }}
-                          >
-                            No
-                          </button>
+                      </TableCell>
+                      <TableCell><CellTextPrimary>{formatDateIT(area.createdAt)}</CellTextPrimary></TableCell>
+                      <TableActionCell width={columnWidths.actions}>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', justifyContent: 'center' }}>
+                          {confirmDeleteId === area.id ? (
+                            <>
+                              <button onClick={() => handleDelete(area.id)} className="btn btn-primary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset' }}><Check size={14} /></button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset' }}><X size={14} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => setDetailAreaId(area.id)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset' }}><Pencil size={14} /></button>
+                              <button onClick={() => setConfirmDeleteId(area.id)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset', color: 'var(--destructive-foreground)' }}><Trash2 size={14} /></button>
+                            </>
+                          )}
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDeleteId(area.id)}
-                          style={{
-                            padding: '0.375rem',
-                            borderRadius: 'var(--radius)',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--card)',
-                            color: 'var(--destructive-foreground)',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                          title="Rimuovi"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Coach section */}
-              <div style={{
-                borderTop: '1px solid var(--border)',
-                paddingTop: '0.75rem',
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.5rem',
-                }}>
-                  <span style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--muted-foreground)',
-                    lineHeight: '1.5',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}>
-                    Coach assegnati ({assignedCoaches.length})
-                  </span>
-                  <button
-                    onClick={() => setAssigningAreaId(isAssigning ? null : area.id)}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: 'var(--radius)',
-                      border: '1px solid var(--border)',
-                      backgroundColor: isAssigning ? 'var(--primary)' : 'var(--card)',
-                      color: isAssigning ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
-                      fontWeight: 'var(--font-weight-medium)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      lineHeight: '1.5',
-                    }}
-                  >
-                    <UserPlus size={12} />
-                    Assegna
-                  </button>
-                </div>
-
-                {/* Assigned coaches list */}
-                {assignedCoaches.length > 0 ? (
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: isAssigning ? '0.75rem' : 0 }}>
-                    {assignedCoaches.map(coach => (
-                      <span
-                        key={coach.id}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.375rem',
-                          padding: '0.25rem 0.625rem',
-                          backgroundColor: 'var(--muted)',
-                          borderRadius: 'var(--radius-badge)',
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: '12px',
-                          fontWeight: 'var(--font-weight-medium)',
-                          color: 'var(--foreground)',
-                          lineHeight: '1.5',
-                        }}
-                      >
-                        {coach.name}
-                        <button
-                          onClick={() => handleUnassignCoach(area.id, coach.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                            color: 'var(--muted-foreground)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                          title={`Rimuovi ${coach.name}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)',
-                    color: 'var(--muted-foreground)',
-                    fontStyle: 'italic',
-                    marginBottom: isAssigning ? '0.75rem' : 0,
-                    lineHeight: '1.5',
-                  }}>
-                    Nessun coach assegnato
-                  </div>
-                )}
-
-                {/* Assign coach dropdown */}
-                {isAssigning && availableCoaches.length > 0 && (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <select
-                      value={selectedCoachToAdd}
-                      onChange={e => setSelectedCoachToAdd(e.target.value)}
-                      style={{ ...inputStyle, flex: 1, maxWidth: '300px' }}
-                    >
-                      <option value="">Seleziona coach...</option>
-                      {availableCoaches.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleAssignCoach(area.id)}
-                      disabled={!selectedCoachToAdd}
-                      className="btn btn-primary"
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        fontSize: 'var(--text-label)',
-                        opacity: selectedCoachToAdd ? 1 : 0.5,
-                      }}
-                    >
-                      <Check size={14} />
-                      Aggiungi
-                    </button>
-                  </div>
-                )}
-                {isAssigning && availableCoaches.length === 0 && (
-                  <div style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)',
-                    color: 'var(--muted-foreground)',
-                    fontStyle: 'italic',
-                    lineHeight: '1.5',
-                  }}>
-                    Tutti i coach sono già assegnati a quest'area
-                  </div>
-                )}
-              </div>
-
-              {/* Meta info */}
-              <div style={{
-                marginTop: '0.75rem',
-                fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
-                fontWeight: 'var(--font-weight-regular)',
-                color: 'var(--muted-foreground)',
-                lineHeight: '1.5',
-              }}>
-                ID: {area.id} · Creata il {formatDateIT(area.createdAt)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                      </TableActionCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </tbody>
+          </TableRoot>
+        )}
+        mobile={(
+          <ResponsiveMobileCards>
+            {filteredAree.map(area => (
+              <ResponsiveMobileCard key={area.id}>
+                <ResponsiveMobileCardHeader>
+                  <CellContentStack>
+                    <CellTextPrimary>{area.name}</CellTextPrimary>
+                    <CellTextSecondary>{area.description || '-'}</CellTextSecondary>
+                  </CellContentStack>
+                  <StatusBadge status={area.isActive ? 'active' : 'inactive'} label={area.isActive ? 'Attiva' : 'Inattiva'} />
+                </ResponsiveMobileCardHeader>
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Coach assegnati</ResponsiveMobileFieldLabel>
+                  <CellTextSecondary>{area.coachIds.length}</CellTextSecondary>
+                </ResponsiveMobileCardSection>
+                <ResponsiveMobileCardSection>
+                  <ResponsiveMobileFieldLabel>Creata il</ResponsiveMobileFieldLabel>
+                  <CellTextSecondary>{formatDateIT(area.createdAt)}</CellTextSecondary>
+                </ResponsiveMobileCardSection>
+              </ResponsiveMobileCard>
+            ))}
+          </ResponsiveMobileCards>
+        )}
+      />
 
       {aree.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          fontFamily: 'var(--font-inter)',
-          fontSize: 'var(--text-base)',
-          fontWeight: 'var(--font-weight-regular)',
-          color: 'var(--muted-foreground)',
-          lineHeight: '1.5',
-        }}>
+        <div style={{ textAlign: 'center', padding: '3rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', color: 'var(--muted-foreground)' }}>
           Nessuna area tematica. Clicca "Nuova area" per crearne una.
         </div>
       )}
+
+      <AreaTematicaDetailDrawer
+        isOpen={detailAreaId !== null}
+        areaId={detailAreaId}
+        onClose={() => setDetailAreaId(null)}
+        onDelete={(areaId) => {
+          removeArea(areaId);
+          toast.success('Area eliminata');
+        }}
+      />
     </div>
   );
 }
