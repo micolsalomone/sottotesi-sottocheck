@@ -57,6 +57,7 @@ export function PipelinesPage() {
   // ─── Search & Filters ─────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [quoteStatusFilter, setQuoteStatusFilter] = useState<string>('all');
   const [groupingPeriod, setGroupingPeriod] = useState<GroupingPeriod>('daily');
   
@@ -138,6 +139,22 @@ export function PipelinesPage() {
     return Array.from(sourcesSet).sort();
   }, [pipelines]);
 
+  const availableServices = useMemo(() => {
+    const servicesSet = new Set<string>();
+    pipelines.forEach((p) => {
+      if (p.service_link) {
+        servicesSet.add(p.service_link);
+      }
+    });
+
+    return Array.from(servicesSet)
+      .map((service) => ({
+        value: service,
+        label: SERVICE_LINK_LABELS[service] ?? service,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'it-IT'));
+  }, [pipelines]);
+
   // ─── Sort handler (3-state cycle) ─────────────────────────
   const handleSort = (column: SortKey) => {
     if (sortColumn === column) {
@@ -169,6 +186,10 @@ export function PipelinesPage() {
 
     if (sourceFilter !== 'all') {
       data = data.filter(p => p.sources.includes(sourceFilter));
+    }
+
+    if (serviceFilter !== 'all') {
+      data = data.filter((p) => p.service_link === serviceFilter);
     }
 
     if (quoteStatusFilter !== 'all') {
@@ -208,7 +229,7 @@ export function PipelinesPage() {
     }
 
     return data;
-  }, [pipelines, searchQuery, sourceFilter, sortColumn, sortDirection, quoteStatusFilter]);
+  }, [pipelines, searchQuery, sourceFilter, serviceFilter, sortColumn, sortDirection, quoteStatusFilter]);
 
   // ─── Stats ────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -279,6 +300,7 @@ export function PipelinesPage() {
   const resetFilters = () => {
     setSearchQuery('');
     setSourceFilter('all');
+    setServiceFilter('all');
     setQuoteStatusFilter('all');
     setSortColumn('created_at');
     setSortDirection('desc');
@@ -505,6 +527,16 @@ export function PipelinesPage() {
             <option value="rejected">Rifiutato</option>
             <option value="expired">Scaduto</option>
             <option value="expiring_soon">In scadenza</option>
+          </select>
+        </div>
+
+        <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+          <label className="block mb-2 font-medium text-sm">Servizio</label>
+          <select className="select-dropdown w-full" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)}>
+            <option value="all">Tutti i servizi</option>
+            {availableServices.map((service) => (
+              <option key={service.value} value={service.value}>{service.label}</option>
+            ))}
           </select>
         </div>
 
