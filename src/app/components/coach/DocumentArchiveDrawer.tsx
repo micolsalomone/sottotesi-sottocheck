@@ -1,6 +1,7 @@
 import { X, FileText, Download, Trash2, ShieldCheck, MessageSquare, ChevronDown, Eye, FolderInput, Upload } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 import { getFileTypeFromName } from '../../utils/fileTypeUtils';
+import { AssignStepModal } from './AssignStepModal';
 
 export interface Document {
   id: string;
@@ -35,7 +36,7 @@ interface DocumentArchiveDrawerProps {
   onRunPlagiarismCheck?: (docId: string) => void;
   onAddNote?: (docId: string, note: string) => void;
   onAssignToStep?: (docId: string, stepId: string) => void;
-  onUploadDocuments?: (files: File[], note?: string) => void;
+  onUploadDocuments?: (files: File[], note?: string, fileStepAssignments?: Record<number, string | null>) => void;
 }
 
 const getPlagiarismLabel = (status?: string) => {
@@ -70,6 +71,11 @@ export function DocumentArchiveDrawer({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadNote, setUploadNote] = useState('');
   const [showNoteField, setShowNoteField] = useState(false);
+  const [assignStepModalOpen, setAssignStepModalOpen] = useState(false);
+  const [currentFileToAssign, setCurrentFileToAssign] = useState<{ index: number; name: string } | null>(null);
+  const [fileStepAssignments, setFileStepAssignments] = useState<Record<number, string | null>>({});
+  const [uploadedFilesByStep, setUploadedFilesByStep] = useState<Record<string, File[]>>({});
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Upload handlers
@@ -97,20 +103,87 @@ export function DocumentArchiveDrawer({
 
   const handleRemovePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
+    setFileStepAssignments(prev => {
+      const newAssignments = { ...prev };
+      delete newAssignments[index];
+      return newAssignments;
+    });
+  };
+
+  const handleAssignFileToStep = (fileIndex: number, fileName: string) => {
+    setCurrentFileToAssign({ index: fileIndex, name: fileName });
+    setAssignStepModalOpen(true);
+  };
+
+  const handleStepAssignmentConfirm = (stepId: string | null) => {
+    if (currentFileToAssign !== null && stepId) {
+      // Get the file from pendingFiles at currentFileToAssign.index
+      const fileToAssign = pendingFiles[currentFileToAssign.index];
+      if (fileToAssign) {
+        // Remove from pendingFiles
+        setPendingFiles(prev => prev.filter((_, i) => i !== currentFileToAssign.index));
+        
+        // Add to uploadedFilesByStep
+        setUploadedFilesByStep(prev => ({
+          ...prev,
+          [stepId]: [...(prev[stepId] || []), fileToAssign]
+        }));
+        
+        // Remove from fileStepAssignments since we're moving the file
+        setFileStepAssignments(prev => {
+          const newAssignments = { ...prev };
+          delete newAssignments[currentFileToAssign.index];
+          return newAssignments;
+        });
+        
+        // Open the section for this step
+        setExpandedSections(prev => new Set([...prev, stepId]));
+      }
+    }
+    setAssignStepModalOpen(false);
+    setCurrentFileToAssign(null);
   };
 
   const handleConfirmUpload = () => {
-    if (pendingFiles.length === 0) return;
-    onUploadDocuments?.(pendingFiles, uploadNote.trim() || undefined);
-    setPendingFiles([]);
-    setUploadNote('');
-    setShowNoteField(false);
+    const filesInStepSections = Object.values(uploadedFilesByStep).flat();
+    const allFiles = [...pendingFiles, ...filesInStepSections];
+    if (allFiles.length === 0 || isUploading) return;
+
+    const allFileStepAssignments: Record<number, string | null> = {};
+    let assignmentIndex = 0;
+    pendingFiles.forEach((_, index) => {
+      allFileStepAssignments[assignmentIndex] = fileStepAssignments[index] ?? null;
+      assignmentIndex += 1;
+    });
+    Object.entries(uploadedFilesByStep).forEach(([stepId, files]) => {
+      files.forEach(() => {
+        allFileStepAssignments[assignmentIndex] = stepId;
+        assignmentIndex += 1;
+      });
+    });
+
+    setIsUploading(true);
+
+    // Simulated upload for prototype UX
+    setTimeout(() => {
+      onUploadDocuments?.(allFiles, uploadNote.trim() || undefined, allFileStepAssignments);
+      setPendingFiles([]);
+      setUploadNote('');
+      setShowNoteField(false);
+      setFileStepAssignments({});
+      setUploadedFilesByStep({});
+      setIsUploading(false);
+    }, 1200);
   };
 
   const handleCancelUpload = () => {
+    if (isUploading) return;
     setPendingFiles([]);
     setUploadNote('');
     setShowNoteField(false);
+    setFileStepAssignments({});
+    setCurrentFileToAssign(null);
+    setUploadedFilesByStep({});
   };
 
   if (!isOpen) return null;
@@ -600,45 +673,97 @@ export function DocumentArchiveDrawer({
                 {pendingFiles.map((file, idx) => {
                   const fileInfo = getFileTypeFromName(file.name);
                   const FileIcon = fileInfo.icon;
+                  const assignedStep = fileStepAssignments[idx];
                   return (
                     <div
                       key={`${file.name}-${idx}`}
-                      className="flex items-center gap-3 px-3 py-2"
                       style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        padding: '12px',
                         backgroundColor: 'var(--background)',
                         border: '1px solid var(--border)',
                         borderRadius: 'calc(var(--radius) - 2px)',
                       }}
                     >
-                      <FileIcon className={`w-4 h-4 flex-shrink-0 ${fileInfo.color}`} />
-                      <span
-                        className="flex-1 min-w-0 truncate"
-                        style={{
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 'var(--text-label)',
-                          fontWeight: 'var(--font-weight-regular)',
-                          color: 'var(--foreground)',
-                        }}
-                      >
-                        {file.name}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: '12px',
-                          fontWeight: 'var(--font-weight-regular)',
-                          color: 'var(--muted-foreground)',
-                        }}
-                      >
-                        {(file.size / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRemovePendingFile(idx); }}
-                        className="p-1 hover:bg-[var(--muted)] transition-colors"
-                        style={{ borderRadius: 'calc(var(--radius) - 4px)', border: 'none', background: 'none', cursor: 'pointer' }}
-                      >
-                        <X className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <FileIcon className={fileInfo.color} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: 'var(--text-label)',
+                              fontWeight: 'var(--font-weight-regular)',
+                              color: 'var(--foreground)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {file.name}
+                          </span>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '12px',
+                              fontWeight: 'var(--font-weight-regular)',
+                              color: 'var(--muted-foreground)',
+                            }}
+                          >
+                            {(file.size / 1024 / 1024).toFixed(1)} MB
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemovePendingFile(idx); }}
+                          className="p-1 hover:bg-[var(--muted)] transition-colors"
+                          style={{ borderRadius: 'calc(var(--radius) - 4px)', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          <X className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                        <button
+                          onClick={() => handleAssignFileToStep(idx, file.name)}
+                          style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: '12px',
+                            fontWeight: 'var(--font-weight-medium)',
+                            color: assignedStep ? 'var(--muted-foreground)' : 'var(--primary)',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            padding: 0,
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          {assignedStep ? `Step assegnato` : `Assegna a uno step`}
+                        </button>
+                        {assignedStep && (
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '12px',
+                              fontWeight: 'var(--font-weight-regular)',
+                              color: 'var(--primary)',
+                            }}
+                          >
+                            {assignedStep}
+                          </span>
+                        )}
+                        {!assignedStep && (
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '12px',
+                              fontWeight: 'var(--font-weight-regular)',
+                              color: 'var(--muted-foreground)',
+                            }}
+                          >
+                            (senza categoria)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -695,6 +820,7 @@ export function DocumentArchiveDrawer({
                   <button
                     onClick={handleConfirmUpload}
                     className="flex items-center gap-2 px-4 py-2 transition-opacity hover:opacity-90"
+                    disabled={isUploading}
                     style={{
                       fontFamily: 'var(--font-inter)',
                       fontSize: 'var(--text-label)',
@@ -703,15 +829,19 @@ export function DocumentArchiveDrawer({
                       color: 'var(--primary-foreground)',
                       borderRadius: 'var(--radius)',
                       border: 'none',
-                      cursor: 'pointer',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.8 : 1,
                     }}
                   >
                     <Upload className="w-4 h-4" />
-                    Carica {pendingFiles.length > 1 ? `${pendingFiles.length} file` : 'file'}
+                    {isUploading
+                      ? 'Caricamento...'
+                      : `Carica ${pendingFiles.length + Object.values(uploadedFilesByStep).flat().length > 1 ? `${pendingFiles.length + Object.values(uploadedFilesByStep).flat().length} file` : 'file'}`}
                   </button>
                   <button
                     onClick={handleCancelUpload}
                     className="px-4 py-2 transition-colors hover:bg-[var(--muted)]"
+                    disabled={isUploading}
                     style={{
                       fontFamily: 'var(--font-inter)',
                       fontSize: 'var(--text-label)',
@@ -720,11 +850,24 @@ export function DocumentArchiveDrawer({
                       border: '1px solid var(--border)',
                       borderRadius: 'var(--radius)',
                       backgroundColor: 'transparent',
-                      cursor: 'pointer',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.6 : 1,
                     }}
                   >
                     Annulla
                   </button>
+                  {isUploading && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: '12px',
+                        fontWeight: 'var(--font-weight-regular)',
+                        color: 'var(--muted-foreground)',
+                      }}
+                    >
+                      Upload in corso...
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -833,7 +976,7 @@ export function DocumentArchiveDrawer({
                       borderRadius: 'var(--radius)',
                     }}
                   >
-                    {renderSectionHeader(stepId, group.title, group.documents.length)}
+                    {renderSectionHeader(stepId, group.title, (group.documents.length) + (uploadedFilesByStep[stepId]?.length || 0))}
                     {expandedSections.has(stepId) && (
                       <div
                         className="p-4"
@@ -844,6 +987,62 @@ export function DocumentArchiveDrawer({
                           backgroundColor: 'var(--muted)',
                         }}
                       >
+                        {/* Uploaded files pending confirmation */}
+                        {uploadedFilesByStep[stepId]?.map((file, idx) => {
+                          const fileInfo = getFileTypeFromName(file.name);
+                          const FileIcon = fileInfo.icon;
+                          return (
+                            <div
+                              key={`uploaded-${stepId}-${idx}`}
+                              className="p-4"
+                              style={{
+                                backgroundColor: 'var(--background)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius)',
+                                opacity: 0.7,
+                              }}
+                            >
+                              <div className="flex items-start gap-3">
+                                <FileIcon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${fileInfo.color}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    style={{
+                                      fontFamily: 'var(--font-inter)',
+                                      fontSize: 'var(--text-label)',
+                                      fontWeight: 'var(--font-weight-medium)',
+                                      color: 'var(--foreground)',
+                                      marginBottom: '4px'
+                                    }}
+                                  >
+                                    {file.name}
+                                  </p>
+                                  <p
+                                    style={{
+                                      fontFamily: 'var(--font-inter)',
+                                      fontSize: '12px',
+                                      color: 'var(--muted-foreground)',
+                                      marginBottom: '8px'
+                                    }}
+                                  >
+                                    {(file.size / 1024 / 1024).toFixed(1)} MB • In caricamento...
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setUploadedFilesByStep(prev => ({
+                                      ...prev,
+                                      [stepId]: prev[stepId].filter((_, i) => i !== idx)
+                                    }));
+                                  }}
+                                  className="p-1 hover:bg-[var(--border)] transition-colors"
+                                  style={{ borderRadius: 'calc(var(--radius) - 4px)', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                >
+                                  <X className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                         {group.documents.map(renderDocumentItem)}
                       </div>
                     )}
@@ -854,6 +1053,17 @@ export function DocumentArchiveDrawer({
           </div>
         </div>
       </div>
+
+      {/* Assign Step Modal for pending files */}
+      {assignStepModalOpen && (
+        <AssignStepModal
+          isOpen={assignStepModalOpen}
+          fileName={currentFileToAssign?.name || ''}
+          steps={availableSteps || []}
+          onAssign={(stepId) => handleStepAssignmentConfirm(stepId)}
+          onClose={() => setAssignStepModalOpen(false)}
+        />
+      )}
     </>
   );
 }
