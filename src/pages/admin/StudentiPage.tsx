@@ -32,6 +32,7 @@ import {
   TableRow,
   TableSelectionCell,
   TableSelectionHeaderCell,
+  StatusPill,
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 
@@ -715,15 +716,9 @@ export function StudentiPage() {
 
                         <TableCell>
                           {hasTimeline ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--primary)', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
-                              <GitBranch size={11} />
-                              Presente
-                            </span>
+                            <StatusPill label="Presente" variant="success" />
                           ) : needsTimelineMissing ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--destructive-foreground)', padding: '0.125rem 0.5rem', backgroundColor: 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)', borderRadius: 'var(--radius-badge)', lineHeight: '1.5' }}>
-                              <Clock size={11} />
-                              Da creare
-                            </span>
+                            <StatusPill label="Da creare" variant="error" />
                           ) : (
                             <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>—</span>
                           )}

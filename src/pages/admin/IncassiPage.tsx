@@ -2,11 +2,11 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download, ExternalLink, Check, AlertTriangle, Clock, Pencil, Trash2, FileText, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useLavorazioni, type InstallmentStatus } from '../../app/data/LavorazioniContext';
-import { TableActions, type TableAction } from '../../app/components/TableActions';
-import { ConfirmDialog } from '../../app/components/ConfirmDialog';
-import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
-import { Checkbox } from '../../app/components/ui/checkbox';
+import { useLavorazioni, type InstallmentStatus } from '@/app/data/LavorazioniContext';
+import { TableActions, type TableAction } from '@/app/components/TableActions';
+import { ConfirmDialog } from '@/app/components/ConfirmDialog';
+import { BulkActionsBar, type BulkAction } from '@/app/components/BulkActionsBar';
+import { Checkbox } from '@/app/components/ui/checkbox';
 
 const STATUS_LABELS: Record<InstallmentStatus, string> = {
   paid: 'Pagata',
@@ -702,8 +702,14 @@ export function IncassiPage() {
                         e.stopPropagation();
                         handleTogglePaid(row);
                       }}
-                      className="status-badge"
                       style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: 'var(--radius-badge)',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 'var(--font-weight-medium)',
                         backgroundColor: STATUS_COLORS[row.status].bg,
                         color: STATUS_COLORS[row.status].fg,
                         border: 'none',
@@ -812,8 +818,14 @@ export function IncassiPage() {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <button
                     onClick={() => handleTogglePaid(row)}
-                    className="status-badge"
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.125rem 0.5rem',
+                      borderRadius: 'var(--radius-badge)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 'var(--font-weight-medium)',
                       backgroundColor: STATUS_COLORS[row.status].bg,
                       color: STATUS_COLORS[row.status].fg,
                       border: 'none',

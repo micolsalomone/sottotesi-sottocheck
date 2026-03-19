@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MoreVertical, AlertCircle, Clock, FileCheck, Pause, CheckCircle } from 'lucide-react';
-import { useTableResize } from '../../app/hooks/useTableResize';
+import { useTableResize } from '@/app/hooks/useTableResize';
+import { StatusBadge } from '@/app/components/StatusBadge';
 import {
   CellTextPrimary,
   ResponsiveMobileCard,
@@ -14,7 +15,7 @@ import {
   TableHeaderCell,
   TableRoot,
   TableRow,
-} from '../../app/components/TablePrimitives';
+} from '@/app/components/TablePrimitives';
 
 interface CriticalService {
   id: string;
@@ -337,9 +338,7 @@ export function KpiMonitoraggioPage() {
                     <TableCell><CellTextPrimary>{service.service}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{service.coach}</CellTextPrimary></TableCell>
                     <TableCell>
-                      <span className={`status-badge ${service.status === 'in_ritardo' ? 'pending' : 'inactive'}`}>
-                        {service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'}
-                      </span>
+                      <StatusBadge status={service.status === 'in_ritardo' ? 'overdue' : 'blocked'} label={service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'} />
                     </TableCell>
                     <TableCell>
                       <span style={{
@@ -369,9 +368,7 @@ export function KpiMonitoraggioPage() {
                       <CellTextPrimary>{service.student}</CellTextPrimary>
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{service.service}</div>
                     </div>
-                    <span className={`status-badge ${service.status === 'in_ritardo' ? 'pending' : 'inactive'}`}>
-                      {service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'}
-                    </span>
+                    <StatusBadge status={service.status === 'in_ritardo' ? 'overdue' : 'blocked'} label={service.status === 'in_ritardo' ? 'In Ritardo' : 'Bloccato'} />
                   </ResponsiveMobileCardHeader>
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Coach</ResponsiveMobileFieldLabel>
@@ -519,9 +516,10 @@ export function KpiMonitoraggioPage() {
                     <TableCell><CellTextPrimary>{check.document}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{check.student}</CellTextPrimary></TableCell>
                     <TableCell>
-                      <span className={`status-badge ${check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'pending' : 'inactive'}`}>
-                        {check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
-                      </span>
+                      <StatusBadge
+                        status={check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'in-progress' : 'inactive'}
+                        label={check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
+                      />
                     </TableCell>
                     <TableCell><CellTextPrimary>{check.date}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{check.outcome}</CellTextPrimary></TableCell>
@@ -542,9 +540,10 @@ export function KpiMonitoraggioPage() {
                       <CellTextPrimary>{check.document}</CellTextPrimary>
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>{check.student}</div>
                     </div>
-                    <span className={`status-badge ${check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'pending' : 'inactive'}`}>
-                      {check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
-                    </span>
+                    <StatusBadge
+                      status={check.checkStatus === 'completato' ? 'active' : check.checkStatus === 'in_corso' ? 'in-progress' : 'inactive'}
+                      label={check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
+                    />
                   </ResponsiveMobileCardHeader>
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel>

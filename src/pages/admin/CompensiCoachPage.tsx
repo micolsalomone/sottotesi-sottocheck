@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Check, Clock, AlertTriangle, Pencil, FileText, X, Send, CreditCard, AlertCircle, StickyNote, Download, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useLavorazioni, PayoutStatus, CoachPayout } from '../../app/data/LavorazioniContext';
-import { TableActions } from '../../app/components/TableActions';
-import { BulkActionsBar } from '../../app/components/BulkActionsBar';
-import { ConfirmDialog } from '../../app/components/ConfirmDialog';
-import { NotesDrawer } from '../../app/components/NotesDrawer';
-import { Checkbox } from '../../app/components/ui/checkbox';
+import { useLavorazioni, PayoutStatus, CoachPayout } from '@/app/data/LavorazioniContext';
+import { TableActions } from '@/app/components/TableActions';
+import { BulkActionsBar } from '@/app/components/BulkActionsBar';
+import { ConfirmDialog } from '@/app/components/ConfirmDialog';
+import { NotesDrawer } from '@/app/components/NotesDrawer';
+import { Checkbox } from '@/app/components/ui/checkbox';
 
 // ─── Status configuration ─────────────────────────────────────
 const PAYOUT_STATUS_CONFIG: Record<PayoutStatus, { label: string; bg: string; fg: string; icon: React.ReactNode }> = {
@@ -1501,8 +1501,14 @@ export function CompensiCoachPage() {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <button
                     onClick={() => initiateStatusChange(row, PAYOUT_STATUS_ORDER[(PAYOUT_STATUS_ORDER.indexOf(row.effectiveStatus) + 1) % PAYOUT_STATUS_ORDER.length])}
-                    className="status-badge"
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.125rem 0.5rem',
+                      borderRadius: 'var(--radius-badge)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 'var(--font-weight-medium)',
                       backgroundColor: statusConfig.bg,
                       color: statusConfig.fg,
                       border: 'none',

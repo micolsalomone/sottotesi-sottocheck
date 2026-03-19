@@ -13,7 +13,8 @@ import {
   TableHeaderCell,
   TableRoot,
   TableRow,
-} from '../../app/components/TablePrimitives';
+} from '@/app/components/TablePrimitives';
+import { StatusBadge } from '@/app/components/StatusBadge';
 
 type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
 type TargetUser = 'student' | 'graduating' | 'phd';
@@ -288,15 +289,15 @@ export function CatalogoServiziPage() {
   }
 
   // Helper badges
+  const STATUS_BADGE_MAP: Record<ServiceStatus, { status: string; label: string }> = {
+    draft: { status: 'inactive', label: 'Bozza' },
+    active: { status: 'active', label: 'Attivo' },
+    paused: { status: 'pending', label: 'In pausa' },
+    archived: { status: 'inactive', label: 'Archiviato' },
+  };
   const getStatusBadge = (status: ServiceStatus) => {
-    const config: Record<ServiceStatus, { label: string; className: string }> = {
-      draft: { label: 'Bozza', className: 'inactive' },
-      active: { label: 'Attivo', className: 'active' },
-      paused: { label: 'In pausa', className: 'pending' },
-      archived: { label: 'Archiviato', className: 'inactive' }
-    };
-    const { label, className } = config[status];
-    return <span className={`status-badge ${className}`}>{label}</span>;
+    const { status: s, label } = STATUS_BADGE_MAP[status];
+    return <StatusBadge status={s as any} label={label} />;
   };
 
   const getTargetLabel = (target: TargetUser) => {

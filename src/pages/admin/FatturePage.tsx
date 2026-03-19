@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { X, FileText, AlertTriangle, CheckCircle, Download, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
-import { TableActions, type TableAction } from '../../app/components/TableActions';
-import { Checkbox } from '../../app/components/ui/checkbox';
+import { BulkActionsBar, type BulkAction } from '@/app/components/BulkActionsBar';
+import { TableActions, type TableAction } from '@/app/components/TableActions';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { StatusBadge } from '@/app/components/StatusBadge';
 import {
   CellTextPrimary,
   CellTextSecondary,
@@ -21,7 +22,7 @@ import {
   TableRow,
   TableSelectionCell,
   TableSelectionHeaderCell,
-} from '../../app/components/TablePrimitives';
+} from '@/app/components/TablePrimitives';
 
 interface Payment {
   id: string;
@@ -449,7 +450,7 @@ export function FatturePage() {
                     </TableCell>
                     <TableCell>
                       {payment.stato === 'completato' ? (
-                        <span className="status-badge active">Completato</span>
+                        <StatusBadge status="active" label="Completato" />
                       ) : (
                         <button
                           onClick={() => setExpandedError(expandedError === payment.id ? null : payment.id)}
@@ -505,7 +506,7 @@ export function FatturePage() {
                     <CellTextPrimary>{payment.studente}</CellTextPrimary>
                   </div>
                   {payment.stato === 'completato' ? (
-                    <span className="status-badge active">Completato</span>
+                    <StatusBadge status="active" label="Completato" />
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)' }}>
                       <AlertTriangle size={12} />Errore

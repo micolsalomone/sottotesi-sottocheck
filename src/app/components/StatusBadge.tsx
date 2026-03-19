@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge } from './ui/badge';
+import { getAdminBadgeStyle, type AdminBadgeTone } from '@/app/utils/adminBadgeStyles';
 
 export type StatusType = 
   | 'active' 
@@ -23,86 +23,72 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-const statusConfig: Record<StatusType, { label: string; variant: string; className: string }> = {
-  'active': {
+const statusConfig: Record<StatusType, { label: string; tone: AdminBadgeTone }> = {
+  active: {
     label: 'Attivo',
-    variant: 'default',
-    className: 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+    tone: 'success',
   },
-  'completed': {
+  completed: {
     label: 'Completato',
-    variant: 'secondary',
-    className: 'bg-[var(--muted)] text-[var(--muted-foreground)]'
+    tone: 'info',
   },
   'in-progress': {
     label: 'In corso',
-    variant: 'default',
-    className: 'bg-[var(--chart-2)] text-white'
+    tone: 'info',
   },
-  'assigned': {
+  assigned: {
     label: 'Assegnato',
-    variant: 'default',
-    className: 'bg-[var(--chart-2)] text-white'
+    tone: 'info',
   },
-  'pending': {
+  pending: {
     label: 'In attesa',
-    variant: 'default',
-    className: 'bg-[var(--chart-3)] text-white'
+    tone: 'warning',
   },
-  'invited': {
+  invited: {
     label: 'Invitato',
-    variant: 'default',
-    className: 'bg-[var(--chart-3)] text-white'
+    tone: 'warning',
   },
-  'blocked': {
+  blocked: {
     label: 'Bloccato',
-    variant: 'destructive',
-    className: 'bg-[var(--destructive-foreground)] text-white'
+    tone: 'danger',
   },
-  'error': {
+  error: {
     label: 'Errore',
-    variant: 'destructive',
-    className: 'bg-[var(--destructive-foreground)] text-white'
+    tone: 'danger',
   },
   'payment-error': {
     label: 'Errore pagamento',
-    variant: 'destructive',
-    className: 'bg-[var(--destructive-foreground)] text-white'
+    tone: 'danger',
   },
   'verification-error': {
     label: 'Errore verifica',
-    variant: 'destructive',
-    className: 'bg-[var(--destructive-foreground)] text-white'
+    tone: 'danger',
   },
-  'archived': {
+  archived: {
     label: 'Archiviato',
-    variant: 'secondary',
-    className: 'bg-[var(--muted)] text-[var(--muted-foreground)]'
+    tone: 'neutral',
   },
-  'inactive': {
+  inactive: {
     label: 'Inattivo',
-    variant: 'secondary',
-    className: 'bg-[var(--muted)] text-[var(--muted-foreground)]'
+    tone: 'neutral',
   },
-  'overdue': {
+  overdue: {
     label: 'In ritardo',
-    variant: 'default',
-    className: 'bg-[var(--chart-3)] text-white'
+    tone: 'warning',
   },
-  'warning': {
+  warning: {
     label: 'Attenzione',
-    variant: 'default',
-    className: 'bg-[var(--chart-3)] text-white'
-  }
+    tone: 'warning',
+  },
 };
 
 export function StatusBadge({ status, label, className = '' }: StatusBadgeProps) {
-  const config = statusConfig[status] || statusConfig['inactive'];
+  const config = statusConfig[status] || statusConfig.inactive;
   const displayLabel = label || config.label;
 
   return (
-    <Badge className={`${config.className} ${className}`}>
+    <span className={className} style={getAdminBadgeStyle(config.tone)}>
       {displayLabel}
-    </Badge>
+    </span>
   );
 }

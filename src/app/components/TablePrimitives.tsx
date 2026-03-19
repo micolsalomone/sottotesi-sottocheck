@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { CSSProperties, MouseEvent, ReactNode, Ref } from 'react';
 import { ChevronsUpDown, ChevronUp, ChevronDown, ChevronRight, Pencil, StickyNote } from 'lucide-react';
+import { getAdminBadgeStyle } from '@/app/utils/adminBadgeStyles';
 import { Checkbox } from './ui/checkbox';
 
 /**
@@ -417,16 +418,15 @@ export const TableEmptyState = ({ message, colSpan }: { message: string; colSpan
 export const StudentTypeBadge = ({ isStudent }: { isStudent: boolean }) => (
   <span style={{
     fontFamily: 'var(--font-inter)',
-    fontSize: '10px',
+    fontSize: 'var(--text-xs)',
     fontWeight: 'var(--font-weight-medium)',
     color: isStudent ? 'var(--primary)' : 'var(--muted-foreground)',
     border: `1px solid ${isStudent ? 'var(--primary)' : 'var(--border)'}`,
     borderRadius: 'var(--radius-badge)',
-    padding: '0 0.375rem',
-    lineHeight: '1.6',
+    padding: '0.125rem 0.5rem',
+    lineHeight: '1.5',
     whiteSpace: 'nowrap',
     flexShrink: 0,
-    textTransform: 'uppercase',
   }}>
     {isStudent ? 'Studente' : 'Lead'}
   </span>
@@ -486,40 +486,18 @@ export const StatusPill = ({
   label: string; 
   variant?: 'default' | 'success' | 'warning' | 'error' | 'neutral' | 'info' | 'purple'
 }) => {
-  const getStyles = () => {
-    switch (variant) {
-      case 'success':
-        return { backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' };
-      case 'warning':
-        return { backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' };
-      case 'error':
-        return { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
-      case 'info':
-        return { backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' };
-      case 'purple':
-        return { backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.2)' };
-      case 'neutral':
-        return { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)' };
-      default:
-        return { backgroundColor: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', border: '1px solid rgba(var(--primary-rgb), 0.2)' };
-    }
-  };
-
-  const styles = getStyles();
+  const toneByVariant = {
+    default: 'primary',
+    success: 'success',
+    warning: 'warning',
+    error: 'danger',
+    neutral: 'neutral',
+    info: 'info',
+    purple: 'purple',
+  } as const;
 
   return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '2px 8px',
-      borderRadius: 'var(--radius-badge)',
-      fontFamily: 'var(--font-inter)',
-      fontSize: '11px',
-      fontWeight: 'var(--font-weight-medium)',
-      lineHeight: '1.4',
-      whiteSpace: 'nowrap',
-      ...styles
-    }}>
+    <span style={getAdminBadgeStyle(toneByVariant[variant])}>
       {label}
     </span>
   );

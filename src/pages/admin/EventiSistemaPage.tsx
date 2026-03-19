@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { MoreVertical, X, ChevronUp, ChevronDown, ChevronsUpDown, ExternalLink, Activity } from 'lucide-react';
+import { StatusBadge } from '@/app/components/StatusBadge';
 import {
   CellTextPrimary,
   CellTextSecondary,
@@ -13,7 +14,7 @@ import {
   TableHeaderCell,
   TableRoot,
   TableRow,
-} from '../../app/components/TablePrimitives';
+} from '@/app/components/TablePrimitives';
 
 interface SystemEvent {
   id: string;
@@ -248,9 +249,10 @@ export function EventiSistemaPage() {
                   <TableCell><CellTextPrimary>{event.action}</CellTextPrimary></TableCell>
                   <TableCell><CellTextPrimary>{event.reference}</CellTextPrimary></TableCell>
                   <TableCell>
-                    <span className={`status-badge ${event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'pending' : 'inactive'}`}>
-                      {event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
-                    </span>
+                    <StatusBadge
+                      status={event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'warning' : 'error'}
+                      label={event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
+                    />
                   </TableCell>
                   <TableCell><button className="actions-button"><MoreVertical size={18} /></button></TableCell>
                 </TableRow>
@@ -287,9 +289,10 @@ export function EventiSistemaPage() {
                       {event.type}
                     </span>
                   </div>
-                  <span className={`status-badge ${event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'pending' : 'inactive'}`}>
-                    {event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
-                  </span>
+                  <StatusBadge
+                    status={event.outcome === 'success' ? 'active' : event.outcome === 'warning' ? 'warning' : 'error'}
+                    label={event.outcome === 'success' ? 'Successo' : event.outcome === 'warning' ? 'Warning' : 'Errore'}
+                  />
                 </ResponsiveMobileCardHeader>
 
                 <ResponsiveMobileCardSection>

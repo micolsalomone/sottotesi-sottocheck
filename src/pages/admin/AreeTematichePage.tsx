@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, X, Check, Pencil, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAreeTematiche, type AreaTematica } from '../../app/data/AreeTematicheContext';
+import { useAreeTematiche, type AreaTematica } from '@/app/data/AreeTematicheContext';
+import { StatusBadge } from '@/app/components/StatusBadge';
 
 // Coach list — coerente con CoachPage e COACH_ID_MAP
 const COACHES_LIST = [
@@ -447,14 +448,13 @@ export function AreeTematichePage() {
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
                   <span
-                    className={`status-badge ${area.isActive ? 'active' : 'inactive'}`}
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
                       toggleAreaActive(area.id);
                       toast.success(area.isActive ? `Area "${area.name}" disattivata` : `Area "${area.name}" attivata`);
                     }}
                   >
-                    {area.isActive ? 'Attiva' : 'Inattiva'}
+                    <StatusBadge status={area.isActive ? 'active' : 'inactive'} label={area.isActive ? 'Attiva' : 'Inattiva'} />
                   </span>
 
                   {isEditing ? (
