@@ -53,6 +53,29 @@ interface AcademicRecordFormData {
   updated_at: string;
 }
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatDateTimeIT = (dateTime?: string): string => {
+  if (!dateTime) return '—';
+  const normalized = dateTime.includes(' ') && !dateTime.includes('T')
+    ? dateTime.replace(' ', 'T')
+    : dateTime;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return dateTime;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 function AcademicRecordPanel({
   record,
   index,
@@ -661,8 +684,8 @@ export function CreateStudentDrawer({
           <DrawerMetaRow>
             Ultimo aggiornamento: {editStudent!.updated_by || '—'} —{' '}
             {editStudent!.updated_at
-              ? new Date(editStudent!.updated_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-              : new Date(editStudent!.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
+              ? formatDateTimeIT(editStudent!.updated_at)
+              : formatDateIT(editStudent!.created_at)}
           </DrawerMetaRow>
         )}
 
@@ -1017,9 +1040,7 @@ export function CreateStudentDrawer({
                   <div>
                     <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.2rem' }}>Creato il</div>
                     <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                      {editStudent.created_at
-                        ? new Date(editStudent.created_at).toLocaleDateString('it-IT')
-                        : '—'}
+                      {formatDateIT(editStudent.created_at)}
                     </span>
                   </div>
                 </div>

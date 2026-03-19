@@ -46,6 +46,29 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   sottocheck: 'SottoCheck',
 };
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatDateTimeIT = (dateTime?: string): string => {
+  if (!dateTime) return '—';
+  const normalized = dateTime.includes(' ') && !dateTime.includes('T')
+    ? dateTime.replace(' ', 'T')
+    : dateTime;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return dateTime;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 interface Props {
   student: StudentData;
   notes: AdminNote[];
@@ -204,7 +227,7 @@ export function TimelineDrawer({
           </span>
           {student.planStartDate && (
             <span style={{ marginLeft: '0.75rem' }}>
-              {student.planStartDate} → {student.planEndDate || '—'}
+              {formatDateIT(student.planStartDate)} → {formatDateIT(student.planEndDate)}
             </span>
           )}
         </DrawerMetaRow>
@@ -212,9 +235,9 @@ export function TimelineDrawer({
         <DrawerMetaRow>
           Ultimo aggiornamento: {student.updated_by || '—'} —{' '}
           {student.updated_at
-            ? new Date(student.updated_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            ? formatDateTimeIT(student.updated_at)
             : student.created_at
-              ? new Date(student.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })
+              ? formatDateIT(student.created_at)
               : '—'}
         </DrawerMetaRow>
 
@@ -223,8 +246,8 @@ export function TimelineDrawer({
           {/* ─── Audit card (full-bleed) ──────────────────── */}
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
             <DrawerInfoGrid>
-              <DrawerInfoGridItem label="Attivato il" value={student.activatedAt || '—'} />
-              <DrawerInfoGridItem label="Scadenza piano" value={student.planEndDate || '—'} />
+              <DrawerInfoGridItem label="Attivato il" value={formatDateIT(student.activatedAt)} />
+              <DrawerInfoGridItem label="Scadenza piano" value={formatDateIT(student.planEndDate)} />
               <DrawerInfoGridItem
                 label="Progresso"
                 value={student.stepsTotal ? `${student.stepsCompleted ?? 0}/${student.stepsTotal} step (${pct}%)` : '—'}
@@ -813,7 +836,7 @@ export function TimelineDrawer({
                 <div>
                   <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.2rem' }}>Attivato il</div>
                   <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                    {student.activatedAt || '—'}
+                    {formatDateIT(student.activatedAt)}
                   </span>
                 </div>
               </div>
@@ -843,7 +866,7 @@ export function TimelineDrawer({
                     <div>
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.2rem' }}>Creato il</div>
                       <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                        {new Date(student.created_at).toLocaleDateString('it-IT')}
+                        {formatDateIT(student.created_at)}
                         {student.created_by && <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>da {student.created_by}</div>}
                       </span>
                     </div>
@@ -852,7 +875,7 @@ export function TimelineDrawer({
                     <div>
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.2rem' }}>Ultimo aggiornamento</div>
                       <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                        {new Date(student.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {formatDateTimeIT(student.updated_at)}
                         {student.updated_by && <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>da {student.updated_by}</div>}
                       </span>
                     </div>
@@ -977,7 +1000,7 @@ function StepRow({ step }: { step: CoachingStep }) {
           lineHeight: '1.5',
           flexShrink: 0,
         }}>
-          {step.completedAt}
+          {formatDateIT(step.completedAt)}
         </span>
       )}
     </div>
@@ -1018,7 +1041,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
             color: 'var(--muted-foreground)',
             lineHeight: '1.5',
           }}>
-            {ticket.createdAt} · {ticket.messageCount} messaggi
+            {formatDateIT(ticket.createdAt)} · {ticket.messageCount} messaggi
           </div>
         </div>
       </div>

@@ -36,10 +36,18 @@ import {
 } from '../../app/components/TablePrimitives';
 import { toast } from 'sonner';
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 interface Document {
   id: string;
   name: string;
-  type: 'Contratto' | 'Doc Identità' | 'Bozza Tesi' | 'Revisione' | 'Altro';
+  step?: number;
+  totalSteps?: number;
   author: string;
   authorType: 'studente' | 'coach' | 'admin';
   service: string;
@@ -49,13 +57,13 @@ interface Document {
 }
 
 const mockDocuments: Document[] = [
-  { id: 'DOC-001', name: 'Contratto_Verdi_v1.pdf', type: 'Contratto', author: 'Giulia Verdi', authorType: 'studente', service: 'SS-101 (Coaching)', uploadedAt: '2026-03-10', status: 'visible', size: '1.2 MB' },
-  { id: 'DOC-002', name: 'Capitolo_1_Rossi.docx', type: 'Bozza Tesi', author: 'Marco Rossi', authorType: 'studente', service: 'SS-102 (Coaching)', uploadedAt: '2026-03-09', status: 'visible', size: '450 KB' },
-  { id: 'DOC-003', name: 'Correzioni_Cap1.pdf', type: 'Revisione', author: 'Martina Rossi', authorType: 'coach', service: 'SS-102 (Coaching)', uploadedAt: '2026-03-10', status: 'visible', size: '2.1 MB' },
-  { id: 'DOC-004', name: 'CI_Neri_Fronte.jpg', type: 'Doc Identità', author: 'Luca Neri', authorType: 'studente', service: 'SS-103 (Catalogo)', uploadedAt: '2026-03-05', status: 'hidden', size: '890 KB' },
-  { id: 'DOC-005', name: 'Piano_Studi_Bianchi.pdf', type: 'Altro', author: 'Elena Bianchi', authorType: 'studente', service: 'SS-104 (Coaching)', uploadedAt: '2026-03-01', status: 'visible', size: '5.4 MB' },
-  { id: 'DOC-006', name: 'Report_Finale.pdf', type: 'Revisione', author: 'Martina Rossi', authorType: 'coach', service: 'SS-101 (Coaching)', uploadedAt: '2026-03-12', status: 'visible', size: '1.8 MB' },
-  { id: 'DOC-007', name: 'Contratto_Firma.pdf', type: 'Contratto', author: 'Paolo Russo', authorType: 'studente', service: 'SS-105 (Coaching)', uploadedAt: '2026-02-28', status: 'visible', size: '1.5 MB' },
+  { id: 'DOC-001', name: 'Contratto_Verdi_v1.pdf', step: 1, totalSteps: 6, author: 'Giulia Verdi', authorType: 'studente', service: 'SS-101 (Coaching)', uploadedAt: '2026-03-10', status: 'visible', size: '1.2 MB' },
+  { id: 'DOC-002', name: 'Capitolo_1_Rossi.docx', step: 3, totalSteps: 6, author: 'Marco Rossi', authorType: 'studente', service: 'SS-102 (Coaching)', uploadedAt: '2026-03-09', status: 'visible', size: '450 KB' },
+  { id: 'DOC-003', name: 'Correzioni_Cap1.pdf', step: 3, totalSteps: 6, author: 'Martina Rossi', authorType: 'coach', service: 'SS-102 (Coaching)', uploadedAt: '2026-03-10', status: 'visible', size: '2.1 MB' },
+  { id: 'DOC-004', name: 'CI_Neri_Fronte.jpg', step: 1, totalSteps: 4, author: 'Luca Neri', authorType: 'studente', service: 'SS-103 (Catalogo)', uploadedAt: '2026-03-05', status: 'hidden', size: '890 KB' },
+  { id: 'DOC-005', name: 'Piano_Studi_Bianchi.pdf', step: 2, totalSteps: 5, author: 'Elena Bianchi', authorType: 'studente', service: 'SS-104 (Coaching)', uploadedAt: '2026-03-01', status: 'visible', size: '5.4 MB' },
+  { id: 'DOC-006', name: 'Report_Finale.pdf', step: 5, totalSteps: 6, author: 'Martina Rossi', authorType: 'coach', service: 'SS-101 (Coaching)', uploadedAt: '2026-03-12', status: 'visible', size: '1.8 MB' },
+  { id: 'DOC-007', name: 'Contratto_Firma.pdf', step: 1, totalSteps: 5, author: 'Paolo Russo', authorType: 'studente', service: 'SS-105 (Coaching)', uploadedAt: '2026-02-28', status: 'visible', size: '1.5 MB' },
 ];
 
 export function DocumentiPage() {
@@ -71,7 +79,7 @@ export function DocumentiPage() {
     checkbox: 50,
     id: 100,
     name: 240,
-    type: 130,
+    step: 110,
     author: 160,
     service: 180,
     uploadedAt: 130,
@@ -104,7 +112,6 @@ export function DocumentiPage() {
         d.id.toLowerCase().includes(q)
       );
     }
-    if (filterType !== 'all') data = data.filter(d => d.type === filterType);
     if (filterStatus !== 'all') data = data.filter(d => d.status === filterStatus);
 
     if (sortColumn) {
@@ -181,17 +188,6 @@ export function DocumentiPage() {
 
       <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
-          <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>Tipo Documento</label>
-          <select className="select-dropdown" style={{ width: '100%' }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">Tutti i tipi</option>
-            <option value="Contratto">Contratto</option>
-            <option value="Doc Identità">Documento Identità</option>
-            <option value="Bozza Tesi">Bozza Tesi</option>
-            <option value="Revisione">Revisione</option>
-            <option value="Altro">Altro</option>
-          </select>
-        </div>
-        <div style={{ flex: '1 1 180px', minWidth: '180px' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem' }}>Visibilità</label>
           <select className="select-dropdown" style={{ width: '100%' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">Tutti</option>
@@ -199,7 +195,7 @@ export function DocumentiPage() {
             <option value="hidden">Nascosto</option>
           </select>
         </div>
-        <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); setFilterType('all'); setFilterStatus('all'); }}>Reset</button>
+        <button className="btn btn-secondary" onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}>Reset</button>
       </div>
 
       <BulkActionsBar 
@@ -221,7 +217,7 @@ export function DocumentiPage() {
                 />
                 <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
                 <TableHeaderCell id="name" label="Nome File" width={columnWidths.name} sortable sortDirection={sortColumn === 'name' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
-                <TableHeaderCell id="type" label="Tipo" width={columnWidths.type} sortable sortDirection={sortColumn === 'type' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
+                <TableHeaderCell id="step" label="Step Timeline" width={columnWidths.step} onResize={handleMouseDown} />
                 <TableHeaderCell id="author" label="Autore" width={columnWidths.author} sortable sortDirection={sortColumn === 'author' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
                 <TableHeaderCell id="service" label="Percorso" width={columnWidths.service} onResize={handleMouseDown} />
                 <TableHeaderCell id="uploadedAt" label="Caricato" width={columnWidths.uploadedAt} sortable sortDirection={sortColumn === 'uploadedAt' ? sortDirection : null} onSort={(id) => handleSort(id as keyof Document)} onResize={handleMouseDown} />
@@ -249,9 +245,13 @@ export function DocumentiPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span style={{ padding: '0.125rem 0.5rem', borderRadius: 'var(--radius-badge)', background: 'var(--muted)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                          {doc.type}
-                        </span>
+                        {doc.step !== undefined ? (
+                          <span style={{ padding: '0.125rem 0.5rem', borderRadius: 'var(--radius-badge)', background: 'var(--muted)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
+                            Step {doc.step}{doc.totalSteps !== undefined ? ` di ${doc.totalSteps}` : ''}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--muted-foreground)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)' }}>—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -263,7 +263,7 @@ export function DocumentiPage() {
                         </div>
                       </TableCell>
                       <TableCell><CellTextSecondary>{doc.service}</CellTextSecondary></TableCell>
-                      <TableCell><CellTextPrimary>{doc.uploadedAt}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextPrimary>{formatDateIT(doc.uploadedAt)}</CellTextPrimary></TableCell>
                       <TableCell>
                         {doc.status === 'visible' ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><Eye size={14} /> Visibile</span>
@@ -298,8 +298,8 @@ export function DocumentiPage() {
                 </ResponsiveMobileCardHeader>
 
                 <ResponsiveMobileCardSection>
-                  <ResponsiveMobileFieldLabel>Tipo</ResponsiveMobileFieldLabel>
-                  <CellTextPrimary>{doc.type}</CellTextPrimary>
+                  <ResponsiveMobileFieldLabel>Step Timeline</ResponsiveMobileFieldLabel>
+                  <CellTextPrimary>{doc.step !== undefined ? `Step ${doc.step}${doc.totalSteps !== undefined ? ` di ${doc.totalSteps}` : ''}` : '—'}</CellTextPrimary>
                 </ResponsiveMobileCardSection>
 
                 <ResponsiveMobileCardSection>
@@ -315,7 +315,7 @@ export function DocumentiPage() {
 
                 <ResponsiveMobileCardSection marginBottom="0">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <CellTextSecondary>{doc.uploadedAt}</CellTextSecondary>
+                    <CellTextSecondary>{formatDateIT(doc.uploadedAt)}</CellTextSecondary>
                     {doc.status === 'visible' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}><Eye size={14} /> Visibile</span>
                     ) : (

@@ -1062,6 +1062,9 @@ export const NextDueDateDisplay = ({
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
   due.setHours(0, 0, 0, 0);
+  const dueDateLabel = Number.isNaN(due.getTime())
+    ? dueDate
+    : due.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   let color: string;
@@ -1083,7 +1086,7 @@ export const NextDueDateDisplay = ({
 
   return (
     <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>
-      <div style={{ fontWeight: 'var(--font-weight-medium)', color }}>{dueDate}</div>
+      <div style={{ fontWeight: 'var(--font-weight-medium)', color }}>{dueDateLabel}</div>
       <div style={{ fontSize: 'var(--text-xs)', color }}>{label}</div>
     </div>
   );

@@ -71,7 +71,7 @@ const DEFAULT_AVAILABILITY_OPTIONS: string[] = [
 ];
 
 const fmtDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
 const fmtDateTime = (iso?: string) =>
   iso

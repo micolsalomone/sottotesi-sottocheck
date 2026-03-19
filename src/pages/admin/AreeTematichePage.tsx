@@ -15,6 +15,13 @@ const COACHES_LIST = [
 
 const CURRENT_ADMIN = 'Francesca';
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export function AreeTematichePage() {
   const {
     aree,
@@ -732,7 +739,7 @@ export function AreeTematichePage() {
                 color: 'var(--muted-foreground)',
                 lineHeight: '1.5',
               }}>
-                ID: {area.id} · Creata il {area.createdAt}
+                ID: {area.id} · Creata il {formatDateIT(area.createdAt)}
               </div>
             </div>
           );

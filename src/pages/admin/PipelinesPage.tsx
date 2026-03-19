@@ -352,8 +352,8 @@ export function PipelinesPage() {
       return `${weekStart.getDate()}–${weekEnd.getDate()} ${monthYear}`;
     }
 
-    const startLabel = weekStart.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
-    const endLabel = weekEnd.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+    const startLabel = weekStart.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const endLabel = weekEnd.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     return `${startLabel} – ${endLabel}`;
   };
 

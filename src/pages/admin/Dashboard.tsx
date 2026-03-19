@@ -518,7 +518,7 @@ export function Dashboard() {
                   color: 'var(--muted-foreground)', lineHeight: '1.5',
                   flexShrink: 0, whiteSpace: 'nowrap',
                 }}>
-                  {new Date(ticket.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                  {new Date(ticket.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </span>
 
                 <ChevronRight size={16} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />

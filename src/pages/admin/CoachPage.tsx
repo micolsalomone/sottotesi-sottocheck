@@ -192,6 +192,13 @@ const SERVICE_STATUS_LABELS: Record<string, string> = {
   expired: 'Scaduto',
 };
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export function CoachPage() {
   const { getAreasForCoach, aree } = useAreeTematiche();
   const { data: lavorazioni } = useLavorazioni();
@@ -899,6 +906,7 @@ export function CoachPage() {
                 filteredData.map((coach) => {
                   const lavorazioniCount = getLavorazioniCount(coach);
                   const coachLavorazioni = getCoachLavorazioni(coach);
+                  const coachAreas = getAreasForCoach(coach.id);
                   const hasLavorazioni = coachLavorazioni.length > 0;
                   const isExpanded = expandedRows.has(coach.id);
                   const noteCount = coach.notes?.length || 0;
@@ -925,35 +933,30 @@ export function CoachPage() {
                         </TableCell>
 
                         <TableCell>
-                          {(() => {
-                            const areas = getAreasForCoach(coach.id);
-                            if (areas.length === 0) {
-                              return (
-                                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>
-                                  Nessuna
+                          {coachAreas.length === 0 ? (
+                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                              Nessuna
+                            </span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                              {coachAreas.map(area => (
+                                <span key={area.id} style={{
+                                  display: 'inline-block',
+                                  padding: '0.125rem 0.5rem',
+                                  backgroundColor: 'var(--muted)',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 'var(--radius-badge)',
+                                  fontFamily: 'var(--font-inter)',
+                                  fontSize: '12px',
+                                  fontWeight: 'var(--font-weight-medium)',
+                                  color: 'var(--foreground)',
+                                  lineHeight: '1.5',
+                                }}>
+                                  {area.name}
                                 </span>
-                              );
-                            }
-                            return (
-                              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                {areas.map(area => (
-                                  <span key={area.id} style={{
-                                    display: 'inline-block',
-                                    padding: '0.125rem 0.5rem',
-                                    backgroundColor: 'var(--muted)',
-                                    borderRadius: 'var(--radius-badge)',
-                                    fontFamily: 'var(--font-inter)',
-                                    fontSize: '12px',
-                                    fontWeight: 'var(--font-weight-medium)',
-                                    color: 'var(--foreground)',
-                                    lineHeight: '1.5',
-                                  }}>
-                                    {area.name}
-                                  </span>
-                                ))}
-                              </div>
-                            );
-                          })()}
+                              ))}
+                            </div>
+                          )}
                         </TableCell>
 
                         <TableCell onClick={(e) => { e.stopPropagation(); if (hasLavorazioni) toggleRowExpand(coach.id); }}>
@@ -1015,7 +1018,7 @@ export function CoachPage() {
                         </TableCell>
 
                         <TableCell>
-                          <CellTextPrimary>{coach.activationDate}</CellTextPrimary>
+                          <CellTextPrimary>{formatDateIT(coach.activationDate)}</CellTextPrimary>
                         </TableCell>
 
                         <TableCell align="center" onClick={(e) => e.stopPropagation()}>
@@ -1067,6 +1070,7 @@ export function CoachPage() {
                                 display: 'inline-block',
                                 padding: '0.125rem 0.5rem',
                                 backgroundColor: 'var(--muted)',
+                                border: '1px solid var(--border)',
                                 borderRadius: 'var(--radius-badge)',
                                 fontFamily: 'var(--font-inter)',
                                 fontSize: '12px',
@@ -1117,7 +1121,7 @@ export function CoachPage() {
 
                                 return (
                                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                    <span>{startDate}</span>
+                                    <span>{formatDateIT(startDate)}</span>
                                     <span>→</span>
                                     {endDate ? (
                                       <span style={{
@@ -1126,7 +1130,7 @@ export function CoachPage() {
                                         fontWeight: 'var(--font-weight-medium)',
                                         color: 'var(--foreground)',
                                       }}>
-                                        {endDate}
+                                        {formatDateIT(endDate)}
                                       </span>
                                     ) : (
                                       <span style={{
@@ -1210,6 +1214,7 @@ export function CoachPage() {
                             display: 'inline-block',
                             padding: '0.125rem 0.5rem',
                             backgroundColor: 'var(--muted)',
+                            border: '1px solid var(--border)',
                             borderRadius: 'var(--radius-badge)',
                             fontFamily: 'var(--font-inter)',
                             fontSize: '12px',
@@ -1308,7 +1313,7 @@ export function CoachPage() {
                   )}
 
                   <ResponsiveMobileCardFooter>
-                    Attivazione: {coach.activationDate}
+                    Attivazione: {formatDateIT(coach.activationDate)}
                   </ResponsiveMobileCardFooter>
                 </ResponsiveMobileCard>
               );

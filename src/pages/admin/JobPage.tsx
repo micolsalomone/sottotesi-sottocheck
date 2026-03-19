@@ -200,6 +200,29 @@ const mockJobs: CoachingCheckJob[] = [
 
 const CURRENT_ADMIN = 'Francesca';
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatDateTimeIT = (dateTime?: string): string => {
+  if (!dateTime) return '—';
+  const normalized = dateTime.includes(' ') && !dateTime.includes('T')
+    ? dateTime.replace(' ', 'T')
+    : dateTime;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return dateTime;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const labelStyle: React.CSSProperties = {
   fontFamily: 'var(--font-inter)',
   fontSize: 'var(--text-label)',
@@ -668,7 +691,7 @@ export function JobPage() {
                       <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
                       </TableCell>
-                      <TableCell><CellTextPrimary>{job.startedAt}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary></TableCell>
                       <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenNotes(job.id)}
@@ -754,7 +777,7 @@ export function JobPage() {
                     </div>
                     <div>
                       <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
-                      <CellTextPrimary>{job.startedAt.split(' ')[0]}</CellTextPrimary>
+                      <CellTextPrimary>{formatDateIT(job.startedAt)}</CellTextPrimary>
                     </div>
                   </div>
                 </ResponsiveMobileCard>
@@ -818,12 +841,12 @@ export function JobPage() {
                   )}
                   <div>
                     <div style={labelStyle}>Data avvio</div>
-                    <div style={valueStyle}>{selectedJob.startedAt}</div>
+                    <div style={valueStyle}>{formatDateTimeIT(selectedJob.startedAt)}</div>
                   </div>
                   {selectedJob.completedAt && (
                     <div>
                       <div style={labelStyle}>Data completamento</div>
-                      <div style={valueStyle}>{selectedJob.completedAt}</div>
+                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.completedAt)}</div>
                     </div>
                   )}
                 </div>
@@ -919,7 +942,7 @@ export function JobPage() {
                     </div>
                     <div>
                       <div style={labelStyle}>Creato il</div>
-                      <div style={valueStyle}>{selectedJob.created_at}</div>
+                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.created_at)}</div>
                     </div>
                     <div>
                       <div style={labelStyle}>Aggiornato da</div>
@@ -927,7 +950,7 @@ export function JobPage() {
                     </div>
                     <div>
                       <div style={labelStyle}>Aggiornato il</div>
-                      <div style={valueStyle}>{selectedJob.updated_at}</div>
+                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.updated_at)}</div>
                     </div>
                   </div>
                 </div>

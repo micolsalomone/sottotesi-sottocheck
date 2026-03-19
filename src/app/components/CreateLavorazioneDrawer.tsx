@@ -167,8 +167,12 @@ const QUOTE_STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; b
 };
 
 function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
-  const fmt = (iso?: string) =>
-    iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
+  const fmt = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
 
   const statusBg = quote.status === 'accepted'
     ? 'color-mix(in srgb, var(--primary) 10%, transparent)'

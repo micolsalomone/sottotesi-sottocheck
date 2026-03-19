@@ -164,6 +164,29 @@ export interface AdminNote {
   timestamp: string;
 }
 
+const formatDateTimeIT = (dateLike?: string): string => {
+  if (!dateLike) return '—';
+  const normalized = dateLike.includes(' ') && !dateLike.includes('T')
+    ? dateLike.replace(' ', 'T')
+    : dateLike;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return dateLike;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 const initialMockNotes: AdminNote[] = [
   { id: 'N-001', studentId: 'STU-001', content: 'Verificare pagamento seconda rata, scadenza prossima settimana.', admin: 'Francesca', timestamp: '3 mar 2026 09:15' },
   { id: 'N-002', studentId: 'STU-001', content: 'Coach ha segnalato ritardo nella consegna del capitolo 2.', admin: 'Claudia', timestamp: '28 feb 2026 14:30' },
@@ -1018,7 +1041,7 @@ export function TimelinePage() {
       studentId,
       content,
       admin: CURRENT_ADMIN,
-      timestamp: new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatDateTimeIT(new Date().toISOString()),
     };
     setAdminNotes(prev => [newNote, ...prev]);
   };
@@ -1978,6 +2001,7 @@ function PillBadge({ label }: { label: string }) {
       padding: '0.125rem 0.5rem',
       borderRadius: 'var(--radius-badge)',
       background: 'var(--muted)',
+      border: '1px solid var(--border)',
       fontFamily: 'var(--font-inter)',
       fontSize: '12px',
       fontWeight: 'var(--font-weight-medium)',
@@ -1990,10 +2014,9 @@ function PillBadge({ label }: { label: string }) {
   );
 }
 
-function DateCell({ date }: { date: string }) {
+function DateCell({ date }: { date?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <Calendar size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
       <span style={{
         fontFamily: 'var(--font-inter)',
         fontSize: 'var(--text-label)',
@@ -2002,7 +2025,7 @@ function DateCell({ date }: { date: string }) {
         lineHeight: '1.5',
         whiteSpace: 'nowrap',
       }}>
-        {date}
+        {formatDateIT(date)}
       </span>
     </div>
   );

@@ -68,6 +68,13 @@ const mockCheckActivity: CheckActivity[] = [
   { id: 'CHK-506', document: 'tesi_finale.pdf', student: 'Alessandro Brun', checkStatus: 'completato', date: '2026-02-07', outcome: 'Nessun plagio rilevato' },
 ];
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export function KpiMonitoraggioPage() {
   // KPI data
   const kpiData = {
@@ -521,7 +528,7 @@ export function KpiMonitoraggioPage() {
                         label={check.checkStatus === 'completato' ? 'Completato' : check.checkStatus === 'in_corso' ? 'In Corso' : 'Fallito'}
                       />
                     </TableCell>
-                    <TableCell><CellTextPrimary>{check.date}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{formatDateIT(check.date)}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{check.outcome}</CellTextPrimary></TableCell>
                     <TableCell align="center" sticky="right" width={checkColumnWidths.actions}>
                       <button className="actions-button"><MoreVertical size={18} /></button>
@@ -547,7 +554,7 @@ export function KpiMonitoraggioPage() {
                   </ResponsiveMobileCardHeader>
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel>
-                    <CellTextPrimary>{check.date}</CellTextPrimary>
+                    <CellTextPrimary>{formatDateIT(check.date)}</CellTextPrimary>
                   </ResponsiveMobileCardSection>
                   <ResponsiveMobileCardSection marginBottom="0">
                     <ResponsiveMobileFieldLabel>Esito</ResponsiveMobileFieldLabel>

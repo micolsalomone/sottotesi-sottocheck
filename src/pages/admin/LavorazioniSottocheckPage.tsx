@@ -71,6 +71,22 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'In attesa',
 };
 
+const formatDateTimeIT = (dateTime?: string): string => {
+  if (!dateTime) return '—';
+  const normalized = dateTime.includes(' ') && !dateTime.includes('T')
+    ? dateTime.replace(' ', 'T')
+    : dateTime;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return dateTime;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const mockJobs: Job[] = [
   {
     id: 'SC-101',
@@ -614,8 +630,8 @@ export function LavorazioniSottocheckPage() {
                       <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
                       </TableCell>
-                      <TableCell><CellTextPrimary>{job.startedAt}</CellTextPrimary></TableCell>
-                      <TableCell><CellTextPrimary>{job.completedAt || '-'}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextPrimary>{job.completedAt ? formatDateTimeIT(job.completedAt) : '-'}</CellTextPrimary></TableCell>
                       <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenNotes(job.id)}
@@ -696,12 +712,12 @@ export function LavorazioniSottocheckPage() {
 
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
-                    <CellTextPrimary>{job.startedAt}</CellTextPrimary>
+                    <CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary>
                   </ResponsiveMobileCardSection>
                   {job.completedAt && (
                     <ResponsiveMobileCardSection marginBottom="0.75rem">
                       <ResponsiveMobileFieldLabel>Completato</ResponsiveMobileFieldLabel>
-                      <CellTextPrimary>{job.completedAt}</CellTextPrimary>
+                      <CellTextPrimary>{formatDateTimeIT(job.completedAt)}</CellTextPrimary>
                     </ResponsiveMobileCardSection>
                   )}
                   <ResponsiveMobileCardSection marginBottom="0">
@@ -888,7 +904,7 @@ export function LavorazioniSottocheckPage() {
                     </div>
                     <div>
                       <div style={labelStyle}>Creato il</div>
-                      <div style={valueStyle}>{selectedJob.created_at}</div>
+                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.created_at)}</div>
                     </div>
                     <div>
                       <div style={labelStyle}>Aggiornato da</div>
@@ -896,7 +912,7 @@ export function LavorazioniSottocheckPage() {
                     </div>
                     <div>
                       <div style={labelStyle}>Aggiornato il</div>
-                      <div style={valueStyle}>{selectedJob.updated_at}</div>
+                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.updated_at)}</div>
                     </div>
                   </div>
                 </div>

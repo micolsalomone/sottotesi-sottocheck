@@ -37,7 +37,9 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────
 const fmtTimestamp = (iso?: string): string => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 // ─── Service link label map ────────────────────────────────────

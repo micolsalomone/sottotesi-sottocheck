@@ -102,7 +102,15 @@ const formatDateIT = (dateStr?: string): string => {
 
 const formatDateTimestamp = (dateStr?: string): string => {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const computeScad40gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
@@ -680,8 +688,8 @@ export function LavorazioneDetailDrawer({
                       </span>
                     </div>
                     <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '0.25rem', lineHeight: '1.5' }}>
-                      {q.sent_at ? `Inviato il ${new Date(q.sent_at).toLocaleDateString()}` : 'Non ancora inviato'}
-                      {q.expires_at && ` · Scad. ${new Date(q.expires_at).toLocaleDateString()}`}
+                      {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
+                      {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
                     </div>
                   </div>
                 ))}
@@ -721,7 +729,7 @@ export function LavorazioneDetailDrawer({
                         {pipeline.student_name}
                       </div>
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        {pipeline.id} · {new Date(pipeline.created_at).toLocaleDateString()}
+                        {pipeline.id} · {formatDateIT(pipeline.created_at)}
                       </div>
                     </div>
                     <button

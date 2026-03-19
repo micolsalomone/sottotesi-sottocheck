@@ -186,7 +186,7 @@ export function ServiziStudentiPage() {
       serviceId: selectedServiceForNotes.id,
       content,
       admin: CURRENT_ADMIN,
-      timestamp: new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatDateTimeIT(new Date().toISOString()),
     };
     setAdminNotes(prev => [newNote, ...prev]);
     toast.success('Nota aggiunta');
@@ -945,6 +945,21 @@ export function ServiziStudentiPage() {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
     return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const formatDateTimeIT = (dateTime?: string): string => {
+    if (!dateTime) return '—';
+    const normalized = dateTime.includes(' ') && !dateTime.includes('T')
+      ? dateTime.replace(' ', 'T')
+      : dateTime;
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) return dateTime;
+    return d.toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
   const updatePayoutField = (serviceId: string, field: Partial<CoachPayout>) => {
     updateService(serviceId, s => ({
@@ -1871,7 +1886,7 @@ export function ServiziStudentiPage() {
                             onClick={() => { setEditingPlanStart(service.id); setPlanStartInput(service.plan_start_date || ''); }}
                             title="Clicca per modificare inizio piano"
                           >
-                            <span>{service.plan_start_date || 'N/D'}</span>
+                            <span>{service.plan_start_date ? formatDateIT(service.plan_start_date) : 'N/D'}</span>
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
                           </div>
                         )}
@@ -1901,7 +1916,7 @@ export function ServiziStudentiPage() {
                             onClick={() => { setEditingExpiresAt(service.id); setExpiresAtInput(service.plan_end_date || ''); }}
                             title="Clicca per modificare scadenza piano"
                           >
-                            <span>{service.plan_end_date || 'N/D'}</span>
+                            <span>{service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}</span>
                             <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
                           </div>
                         )}
@@ -2261,7 +2276,7 @@ export function ServiziStudentiPage() {
                               title="Clicca per modificare scadenza rata"
                             >
                               <Calendar size={10} />
-                              Scad. {inst.dueDate}
+                              Scad. {formatDateIT(inst.dueDate)}
                               <Pencil size={9} style={{ opacity: 0.4 }} />
                             </span>
                           )}
@@ -2287,7 +2302,7 @@ export function ServiziStudentiPage() {
                                   onClick={() => { setEditingPaymentDate(inst.id); setPaymentDateInput(inst.payment!.paidAt); }}
                                   title="Clicca per modificare data pagamento"
                                 >
-                                  <Calendar size={10} />{inst.payment.paidAt}<Pencil size={9} style={{ opacity: 0.4 }} />
+                                  <Calendar size={10} />{formatDateIT(inst.payment.paidAt)}<Pencil size={9} style={{ opacity: 0.4 }} />
                                 </span>
                               )
                             ) : null}
@@ -2453,7 +2468,7 @@ export function ServiziStudentiPage() {
                 )}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
-                <span>Creato: {service.created_at}</span>
+                <span>Creato: {formatDateIT(service.created_at)}</span>
                 {service.service_category !== 'Check plagio/AI' && (
                   <span>
                     Contratto: {service.contract?.status === 'signed'

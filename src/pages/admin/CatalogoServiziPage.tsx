@@ -126,6 +126,13 @@ const mockServices: Service[] = [
   },
 ];
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export function CatalogoServiziPage() {
   const [services, setServices] = useState<Service[]>(mockServices);
   const [searchQuery, setSearchQuery] = useState('');
@@ -490,7 +497,7 @@ export function CatalogoServiziPage() {
                       </button>
                     )}
                   </TableCell>
-                  <TableCell><CellTextSecondary>{service.updatedAt}</CellTextSecondary></TableCell>
+                  <TableCell><CellTextSecondary>{formatDateIT(service.updatedAt)}</CellTextSecondary></TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--text-label)', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }} onClick={() => handleOpenDetail(service)}>

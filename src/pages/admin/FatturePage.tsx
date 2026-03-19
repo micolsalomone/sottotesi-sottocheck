@@ -48,6 +48,13 @@ const mockPayments: Payment[] = [
   { id: 'PAG-2026-008', lavorazione: 'SC-2026-0022', studente: 'Elena Barbieri', importo: '€49', dataTransazione: '2026-02-08', gateway: 'T-Pay', stato: 'errore_pagamento', erroreOrigine: 'T-Pay', erroreDettaglio: 'Carta rifiutata — fondi insufficienti', fattura: '' },
 ];
 
+const formatDateIT = (dateStr?: string): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export function FatturePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStato, setFilterStato] = useState('all');
@@ -442,7 +449,7 @@ export function FatturePage() {
                     <TableCell><CellTextPrimary>{payment.lavorazione}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{payment.studente}</CellTextPrimary></TableCell>
                     <TableCell><CellTextPrimary>{payment.importo}</CellTextPrimary></TableCell>
-                    <TableCell><CellTextPrimary>{payment.dataTransazione}</CellTextPrimary></TableCell>
+                    <TableCell><CellTextPrimary>{formatDateIT(payment.dataTransazione)}</CellTextPrimary></TableCell>
                     <TableCell>
                       <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: payment.gateway === 'T-Pay' ? 'rgba(11, 182, 63, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: payment.gateway === 'T-Pay' ? 'var(--primary)' : 'rgb(59, 130, 246)' }}>
                         {payment.gateway}
@@ -518,7 +525,7 @@ export function FatturePage() {
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <div><ResponsiveMobileFieldLabel>Lavorazione</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.lavorazione}</CellTextPrimary></div>
                     <div><ResponsiveMobileFieldLabel>Importo</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.importo}</CellTextPrimary></div>
-                    <div><ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.dataTransazione}</CellTextPrimary></div>
+                    <div><ResponsiveMobileFieldLabel>Data</ResponsiveMobileFieldLabel><CellTextPrimary>{formatDateIT(payment.dataTransazione)}</CellTextPrimary></div>
                     <div><ResponsiveMobileFieldLabel>Metodo</ResponsiveMobileFieldLabel><CellTextPrimary>{payment.gateway}</CellTextPrimary></div>
                   </div>
                 </ResponsiveMobileCardSection>
