@@ -13,7 +13,6 @@
  *
  * Drawer di dettaglio:
  *   - LavorazioneDetailDrawer
- *   - StudentDetailDrawer
  *   - PipelineDetailDrawer
  *
  * Tutti i valori di stile usano variabili CSS del design system.

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinus, X, StickyNote, Trash2, Send, TicketIcon, CreditCard, FileText, MessageSquare, ArrowUpRight, Download } from 'lucide-react';
 import { TimelineDrawer } from '../../app/components/TimelineDrawer';
-import { StudentDetailDrawer } from '../../app/components/StudentDetailDrawer';
+import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
 import { StatusBadge } from '../../app/components/StatusBadge';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
@@ -875,7 +875,7 @@ const COACHES = ['Martina Rossi', 'Marco Bianchi', 'Andrea Conti', 'Elena Ferret
 const CURRENT_ADMIN = 'Francesca';
 
 export function TimelinePage() {
-  const { data: services, students: realStudents } = useLavorazioni();
+  const { data: services, students: realStudents, updateStudent } = useLavorazioni();
 
   // Map StudentService to StudentData for services that need timeline
   const students = useMemo(() => {
@@ -1023,27 +1023,6 @@ export function TimelinePage() {
     setAdminNotes(prev => [newNote, ...prev]);
   };
 
-  const handleDeleteNote = (noteId: string) => {
-    setAdminNotes(prev => prev.filter(n => n.id !== noteId));
-  };
-
-  // Mark installment as paid — admin manually confirms bank transfer
-  const handleMarkInstallmentPaid = (studentId: string, installmentId: string, paidDate: string) => {
-    // TODO: Implement with LavorazioniContext
-    console.log('handleMarkInstallmentPaid:', studentId, installmentId, paidDate);
-  };
-
-  // Update installment amount
-  const handleUpdateInstallmentAmount = (studentId: string, installmentId: string, newAmount: number) => {
-    // TODO: Implement with LavorazioniContext
-    console.log('handleUpdateInstallmentAmount:', studentId, installmentId, newAmount);
-  };
-
-  // Revert installment to pending
-  const handleRevertInstallment = (studentId: string, installmentId: string) => {
-    // TODO: Implement with LavorazioniContext
-    console.log('handleRevertInstallment:', studentId, installmentId);
-  };
 
   const activeCount = students.filter(s => ACTIVE_STATUSES.includes(s.status)).length;
   const activationCount = students.filter(s => ACTIVATION_STATUSES.includes(s.status)).length;
@@ -1975,24 +1954,16 @@ export function TimelinePage() {
         />
       )}
 
-      {studentDetailDrawer && (
-        <StudentDetailDrawer
-          student={studentDetailDrawer}
-          notes={adminNotes.filter(n => n.studentId === studentDetailDrawer.id)}
-          onAddNote={(text) => handleAddNote(studentDetailDrawer.id, text)}
-          onDeleteNote={handleDeleteNote}
-          onClose={() => setStudentDetailDrawer(null)}
-          onOpenNotes={() => setNotesModal(studentDetailDrawer)}
-          onReassignCoach={() => { setReassignModal(studentDetailDrawer); setSelectedCoach(studentDetailDrawer.assignedCoachName || ''); }}
-          onMarkComplete={() => setConfirmModal({ type: 'complete', student: studentDetailDrawer })}
-          onRemove={() => setConfirmModal({ type: 'remove', student: studentDetailDrawer })}
-          onMarkInstallmentPaid={(id, date) => handleMarkInstallmentPaid(studentDetailDrawer.id, id, date)}
-          onRevertInstallment={(id) => handleRevertInstallment(studentDetailDrawer.id, id)}
-          onUpdateInstallmentAmount={(id, amount) => handleUpdateInstallmentAmount(studentDetailDrawer.id, id, amount)}
-          onUploadContract={() => alert('Upload contratto — in sviluppo')}
-          onDownloadContract={() => alert('Download contratto — in sviluppo')}
-        />
-      )}
+      <CreateStudentDrawer
+        open={!!studentDetailDrawer}
+        editStudent={studentDetailDrawer ? (realStudents.find(s => s.id === studentDetailDrawer.studentId) ?? null) : null}
+        onClose={() => setStudentDetailDrawer(null)}
+        onStudentCreated={() => {}}
+        onStudentUpdated={(s) => {
+          updateStudent(s.id, () => s);
+          setStudentDetailDrawer(null);
+        }}
+      />
     </div>
   );
 }
