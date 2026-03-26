@@ -6,6 +6,7 @@ import { AssignStepModal, StepOption } from './coach/AssignStepModal';
 
 interface InfoCoachingCardProps {
   thesisSubject: string;
+  thesisMatter?: string;
   degree: string;
   thesisLevel: string;
   thesisType: string;
@@ -21,6 +22,7 @@ interface InfoCoachingCardProps {
 
 export function InfoCoachingCard({
   thesisSubject,
+  thesisMatter,
   degree,
   thesisLevel,
   thesisType,
@@ -185,6 +187,7 @@ export function InfoCoachingCard({
         style={{ gap: '24px' }}
       >
         <InfoField label="Corso di laurea" value={degree} />
+        <InfoField label="Materia di tesi" value={thesisMatter || '(mancante)'} isMissing={!thesisMatter} />
         <InfoField label="Livello tesi" value={thesisLevel} />
         <InfoField label="Tipologia tesi" value={thesisType} />
         <InfoField

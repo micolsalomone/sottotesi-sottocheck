@@ -44,6 +44,7 @@ interface AcademicRecordFormData {
   course_name: string;
   university_name: string;
   thesis_professor: string;
+  thesis_topic: string;
   thesis_subject: string;
   foreign_language: boolean;
   thesis_language: string;
@@ -251,6 +252,17 @@ function AcademicRecordPanel({
                 placeholder="es. Prof. Rossi"
                 value={record.thesis_professor}
                 onChange={e => onChange({ ...record, thesis_professor: e.target.value })}
+                style={drawerInputStyle}
+              />
+            </div>
+
+            <div style={drawerFieldGroupStyle}>
+              <label style={drawerLabelStyle}>Oggetto tesi</label>
+              <input
+                type="text"
+                placeholder="es. L'impatto dell'AI nel marketing digitale"
+                value={record.thesis_topic}
+                onChange={e => onChange({ ...record, thesis_topic: e.target.value })}
                 style={drawerInputStyle}
               />
             </div>
@@ -499,6 +511,7 @@ export function CreateStudentDrawer({
         course_name: ar.course_name || '',
         university_name: ar.university_name || '',
         thesis_professor: ar.thesis_professor || '',
+        thesis_topic: ar.thesis_topic || '',
         thesis_subject: ar.thesis_subject || '',
         foreign_language: ar.foreign_language ?? false,
         thesis_language: ar.thesis_language || '',
@@ -527,6 +540,7 @@ export function CreateStudentDrawer({
         course_name: '',
         university_name: '',
         thesis_professor: '',
+        thesis_topic: '',
         thesis_subject: '',
         foreign_language: false,
         thesis_language: '',
@@ -572,6 +586,7 @@ export function CreateStudentDrawer({
       course_name: '',
       university_name: '',
       thesis_professor: '',
+      thesis_topic: '',
       thesis_subject: '',
       foreign_language: false,
       thesis_language: '',
@@ -608,7 +623,7 @@ export function CreateStudentDrawer({
     const studentId = isEditMode ? editStudent!.id : `STU-${Date.now().toString().slice(-3)}`;
 
     const finalRecords: StudentAcademicRecord[] = academicRecords
-      .filter(r => r.degree_level || r.course_name || r.university_name || r.thesis_professor || r.thesis_subject || r.thesis_type)
+      .filter(r => r.degree_level || r.course_name || r.university_name || r.thesis_professor || r.thesis_topic || r.thesis_subject || r.thesis_type)
       .map(r => ({
         id: r.id,
         student_id: studentId,
@@ -616,6 +631,7 @@ export function CreateStudentDrawer({
         course_name: r.course_name.trim(),
         university_name: r.university_name.trim(),
         thesis_professor: r.thesis_professor.trim(),
+        thesis_topic: r.thesis_topic.trim(),
         thesis_subject: r.thesis_subject.trim(),
         foreign_language: r.foreign_language,
         thesis_language: r.foreign_language ? r.thesis_language.trim() : '',

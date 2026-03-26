@@ -102,6 +102,9 @@ export function TimelineDrawer({
 
   // Real student data from context
   const realStudent = students.find(s => s.id === student.studentId);
+  const currentAcademicRecord = realStudent?.academic_records?.find(r => r.is_current)
+    || realStudent?.academic_records?.[0];
+  const thesisHeadline = currentAcademicRecord?.thesis_topic || currentAcademicRecord?.thesis_subject;
   const emails = realStudent?.contacts?.emails || [];
   const phones = realStudent?.contacts?.phones || [];
   const serviceAccessEmail = emails.find(e => e.purposes.includes('service_access'));
@@ -197,6 +200,7 @@ export function TimelineDrawer({
   // ── Subtitle: service type + university + degree ───────────
   const subtitleParts = [
     SERVICE_TYPE_LABELS[student.serviceType],
+    thesisHeadline,
     student.university,
     student.degree,
   ].filter(Boolean);
