@@ -27,7 +27,6 @@ import {
 interface CreatePipelineDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateAndConvert?: (pipeline: Pipeline) => void;
 }
 
 const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
@@ -358,7 +357,7 @@ function PipelineAcademicCard({
 }
 
 // ─── Main component ───────────────────────────────────────────
-export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }: CreatePipelineDrawerProps) {
+export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawerProps) {
   const { addPipeline, students, sources, communicationChannels, pipelines, addSource, addCommunicationChannel } = useLavorazioni();
 
   // Stato espansione card accademica
@@ -576,18 +575,6 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
     toast.success('Lead aggiunto alla pipeline');
     onOpenChange(false);
     resetForm();
-  };
-
-  const handleCreateLavorazione = (e: React.FormEvent) => {
-    e.preventDefault();
-    const pipeline = buildPipeline();
-    if (!pipeline) return;
-
-    addPipeline(pipeline);
-    toast.success('Pipeline creata — procedi con la conversione in lavorazione');
-    resetForm();
-    onOpenChange(false);
-    if (onCreateAndConvert) onCreateAndConvert(pipeline);
   };
 
   const toggleSource = (source: string) => {
@@ -1180,14 +1167,6 @@ export function CreatePipelineDrawer({ open, onOpenChange, onCreateAndConvert }:
             style={{ width: '100%', justifyContent: 'center', height: '2.75rem' }}
           >
             Aggiungi alla Pipeline
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleCreateLavorazione}
-            style={{ width: '100%', justifyContent: 'center', height: '2.75rem' }}
-          >
-            Crea subito Lavorazione
           </button>
         </DrawerFooter>
       </DrawerShell>
