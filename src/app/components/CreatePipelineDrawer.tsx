@@ -370,7 +370,7 @@ function PipelineAcademicCard({
 
 // ─── Main component ───────────────────────────────────────────
 export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawerProps) {
-  const { addPipeline, students, sources, communicationChannels, pipelines, addSource, addCommunicationChannel } = useLavorazioni();
+  const { addPipeline, students, sources, communicationChannels, pipelines, addCommunicationChannel } = useLavorazioni();
 
   // Stato espansione card accademica
   const [academicExpanded, setAcademicExpanded] = useState(true);
@@ -556,7 +556,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
       marketing_consents: Object.keys(marketingConsents).length > 0 ? marketingConsents : undefined,
       sources: formData.sources,
       communication_channels: formData.communication_channels.length > 0 ? formData.communication_channels : undefined,
-      assigned_to: formData.assigned_to || undefined,
+      assigned_to: formData.assigned_to?.length ? formData.assigned_to : undefined,
       quote_sent: formData.quote_sent,
       service_link: formData.service_link || undefined,
       external_link: formData.external_link || undefined,

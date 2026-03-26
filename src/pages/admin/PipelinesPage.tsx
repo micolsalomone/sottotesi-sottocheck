@@ -102,6 +102,7 @@ export function PipelinesPage() {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [quoteStatusFilter, setQuoteStatusFilter] = useState<string>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<string>('all');
   const [groupingPeriod, setGroupingPeriod] = useState<GroupingPeriod>('daily');
   
   // ─── Sort ─────────────────────────────────────────────────
@@ -128,6 +129,7 @@ export function PipelinesPage() {
     if (highlightId) {
       setSearchQuery('');
       setSourceFilter('all');
+      setAssignmentFilter('all');
       const found = pipelines.find(p => p.id === highlightId);
       if (found) {
         setSelectedPipeline(found);
@@ -143,10 +145,11 @@ export function PipelinesPage() {
     name: 230,
     email: 200,
     phone: 140,
+    quote_status: 150,
     sources: 200,
     service: 150,
+    assigned_to: 180,
     created_at: 120,
-    quote_status: 150,
     lavorazioni: 100,
     actions: 80,
   });
@@ -196,6 +199,14 @@ export function PipelinesPage() {
       .sort((a, b) => a.label.localeCompare(b.label, 'it-IT'));
   }, [pipelines]);
 
+  const availableAssignments = useMemo(() => {
+    const assignmentsSet = new Set<string>();
+    pipelines.forEach((p) => {
+      p.assigned_to?.forEach((assignment) => assignmentsSet.add(assignment));
+    });
+    return Array.from(assignmentsSet).sort((a, b) => a.localeCompare(b, 'it-IT'));
+  }, [pipelines]);
+
   // ─── Sort handler (3-state cycle) ─────────────────────────
   const handleSort = (column: SortKey) => {
     if (sortColumn === column) {
@@ -231,6 +242,10 @@ export function PipelinesPage() {
 
     if (serviceFilter !== 'all') {
       data = data.filter((p) => p.service_link === serviceFilter);
+    }
+
+    if (assignmentFilter !== 'all') {
+      data = data.filter((p) => p.assigned_to?.includes(assignmentFilter));
     }
 
     if (quoteStatusFilter !== 'all') {
@@ -270,7 +285,7 @@ export function PipelinesPage() {
     }
 
     return data;
-  }, [pipelines, searchQuery, sourceFilter, serviceFilter, sortColumn, sortDirection, quoteStatusFilter]);
+  }, [pipelines, searchQuery, sourceFilter, serviceFilter, assignmentFilter, sortColumn, sortDirection, quoteStatusFilter]);
 
   // ─── Stats ────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -361,7 +376,7 @@ export function PipelinesPage() {
       status: 'active',
       created_at: today,
       created_by: CURRENT_ADMIN,
-      referente: pipelineCurrent.assigned_to || CURRENT_ADMIN,
+      referente: pipelineCurrent.assigned_to?.[0] || CURRENT_ADMIN,
       installments: [{
         id: `INS-${Date.now()}`,
         amount: selectedQuote.amount_gross,
@@ -506,6 +521,7 @@ export function PipelinesPage() {
     setSourceFilter('all');
     setServiceFilter('all');
     setQuoteStatusFilter('all');
+    setAssignmentFilter('all');
     setSortColumn('created_at');
     setSortDirection('desc');
   };
@@ -744,6 +760,16 @@ export function PipelinesPage() {
           </select>
         </div>
 
+        <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+          <label className="block mb-2 font-medium text-sm">Presa in carico</label>
+          <select className="select-dropdown w-full" value={assignmentFilter} onChange={(e) => setAssignmentFilter(e.target.value)}>
+            <option value="all">Tutte le assegnazioni</option>
+            {availableAssignments.map((assignment) => (
+              <option key={assignment} value={assignment}>{assignment}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-end">
           <button className="btn btn-secondary h-fit" onClick={resetFilters}>Reset filtri</button>
         </div>
@@ -838,8 +864,10 @@ export function PipelinesPage() {
             />
 
             <TableHeaderCell id="phone" label="Telefono" width={columnWidths.phone} onResize={handleMouseDown} />
+            <TableHeaderCell id="quote_status" label="Stato Prev." width={columnWidths.quote_status} onResize={handleMouseDown} />
             <TableHeaderCell id="sources" label="Fonti" width={columnWidths.sources} onResize={handleMouseDown} />
             <TableHeaderCell id="service" label="Servizio" width={columnWidths.service} onResize={handleMouseDown} />
+            <TableHeaderCell id="assigned_to" label="In carico a" width={columnWidths.assigned_to} onResize={handleMouseDown} />
 
             <TableHeaderCell
               id="created_at"
@@ -850,8 +878,6 @@ export function PipelinesPage() {
               onSort={() => handleSort('created_at')}
               onResize={handleMouseDown}
             />
-
-            <TableHeaderCell id="quote_status" label="Stato Prev." width={columnWidths.quote_status} onResize={handleMouseDown} />
 
             <TableHeaderCell
               id="lavorazioni_count"
@@ -868,11 +894,11 @@ export function PipelinesPage() {
         </thead>
         <tbody>
           {filteredData.length === 0 ? (
-            <TableEmptyState message="Nessuna pipeline trovata" colSpan={10} />
+            <TableEmptyState message="Nessuna pipeline trovata" colSpan={11} />
           ) : (
             groupedPipelines.flatMap(group => [
               <TableRow key={`group-${group.key}`} style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)' }}>
-                <TableCell colSpan={10} style={{ padding: '0.5rem 1rem' }}>
+                <TableCell colSpan={11} style={{ padding: '0.5rem 1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span style={{
                       fontFamily: 'var(--font-inter)',
@@ -928,6 +954,21 @@ export function PipelinesPage() {
                       <CellTextSecondary>{pipeline.phone}</CellTextSecondary>
                     </TableCell>
 
+                    <TableCell width={columnWidths.quote_status}>
+                      {quote ? (
+                        <CellContentStack>
+                          <StatusPill label={getQuoteLabel(quote)} variant={getQuoteVariant(quote)} />
+                          <CellTextSecondary>
+                            {typeof quote.amount_gross === 'number' && quote.amount_gross > 0
+                              ? `€${quote.amount_gross.toLocaleString('it-IT')}`
+                              : 'Importo non definito'}
+                          </CellTextSecondary>
+                        </CellContentStack>
+                      ) : (
+                        <CellTextSecondary>—</CellTextSecondary>
+                      )}
+                    </TableCell>
+
                     <TableCell width={columnWidths.sources}>
                       <div className="flex flex-wrap gap-1">
                         {pipeline.sources.map(source => (
@@ -944,23 +985,20 @@ export function PipelinesPage() {
                       )}
                     </TableCell>
 
-                    <TableCell width={columnWidths.created_at}>
-                      <CellTextSecondary>{formatDate(pipeline.created_at)}</CellTextSecondary>
-                    </TableCell>
-
-                    <TableCell width={columnWidths.quote_status}>
-                      {quote ? (
-                        <CellContentStack>
-                          <StatusPill label={getQuoteLabel(quote)} variant={getQuoteVariant(quote)} />
-                          <CellTextSecondary>
-                            {typeof quote.amount_gross === 'number' && quote.amount_gross > 0
-                              ? `€${quote.amount_gross.toLocaleString('it-IT')}`
-                              : 'Importo non definito'}
-                          </CellTextSecondary>
-                        </CellContentStack>
+                    <TableCell width={columnWidths.assigned_to}>
+                      {pipeline.assigned_to && pipeline.assigned_to.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {pipeline.assigned_to.map((assignee) => (
+                            <StatusPill key={assignee} label={assignee} variant="neutral" />
+                          ))}
+                        </div>
                       ) : (
                         <CellTextSecondary>—</CellTextSecondary>
                       )}
+                    </TableCell>
+
+                    <TableCell width={columnWidths.created_at}>
+                      <CellTextSecondary>{formatDate(pipeline.created_at)}</CellTextSecondary>
                     </TableCell>
 
                     <TableCell width={columnWidths.lavorazioni} align="center">
@@ -1093,6 +1131,17 @@ export function PipelinesPage() {
 
                         {pipeline.service_link && (
                           <StatusPill label={SERVICE_LINK_LABELS[pipeline.service_link] ?? pipeline.service_link} variant="neutral" />
+                        )}
+
+                        {pipeline.assigned_to && pipeline.assigned_to.length > 0 && (
+                          <div style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 'var(--text-label)',
+                            color: 'var(--muted-foreground)',
+                            lineHeight: '1.5',
+                          }}>
+                            In carico a: {pipeline.assigned_to.join(', ')}
+                          </div>
                         )}
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>

@@ -75,7 +75,6 @@ const settingsSection: NavSection = {
   label: 'Impostazioni',
   icon: <Settings size={18} />,
   items: [
-    { label: 'Fonti acquisizione', path: '/impostazioni/fonti' },
     { label: 'Profili Admin', path: '/impostazioni/profili' },
     { label: 'Info account', path: '/impostazioni/account' },
   ],
