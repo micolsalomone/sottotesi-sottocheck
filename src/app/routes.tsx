@@ -1,4 +1,4 @@
-import { createBrowserRouter, redirect } from 'react-router';
+import { createHashRouter, redirect } from 'react-router';
 
 // Admin
 import { AdminLayout } from './components/AdminLayout';
@@ -35,8 +35,7 @@ import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 
-export const router = createBrowserRouter([
-  // Vista Admin
+export const router = createHashRouter([  // Vista Admin
   {
     path: '/',
     Component: AdminLayout,

@@ -10,6 +10,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  base: '/sottotesi-sottocheck/',
   resolve: {
     alias: {
       // Alias @ to the src directory
