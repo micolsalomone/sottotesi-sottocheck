@@ -261,6 +261,13 @@ export function CoachPage() {
     });
   };
 
+  // Tab lavorazioni per ogni coach espanso: 'active' | 'completed' | 'cancelled'
+  const [lavorazioniTab, setLavorazioniTab] = useState<Record<string, 'active' | 'completed' | 'cancelled'>>({});
+  const getLavorazioniTab = (coachId: string): 'active' | 'completed' | 'cancelled' =>
+    lavorazioniTab[coachId] ?? 'active';
+  const setLavorazioniTabForCoach = (coachId: string, tab: 'active' | 'completed' | 'cancelled') =>
+    setLavorazioniTab(prev => ({ ...prev, [coachId]: tab }));
+
   // Sort
   type SortKey = 'id' | 'fullName' | 'lavorazioniCount' | 'status' | 'activationDate' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
@@ -1034,7 +1041,63 @@ export function CoachPage() {
                         </TableActionCell>
                       </TableRow>
 
-                      {isExpanded && coachLavorazioni.map((svc) => (
+                      {isExpanded && (() => {
+                        const activeTab = getLavorazioniTab(coach.id);
+                        const activeLavorazioni = coachLavorazioni.filter(l => l.status !== 'completed' && l.status !== 'cancelled');
+                        const completedLavorazioni = coachLavorazioni.filter(l => l.status === 'completed');
+                        const cancelledLavorazioni = coachLavorazioni.filter(l => l.status === 'cancelled');
+                        const visibleLavorazioni = activeTab === 'completed'
+                          ? completedLavorazioni
+                          : activeTab === 'cancelled'
+                            ? cancelledLavorazioni
+                            : activeLavorazioni;
+                        return (
+                          <>
+                            <TableRow selected selectedBackgroundColor="var(--muted)">
+                              <TableCell colSpan={11} style={{ padding: '0.5rem 1rem', borderBottom: 'none' }}>
+                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                  {(['active', 'completed', 'cancelled'] as const).map(tab => {
+                                    const count = tab === 'active'
+                                      ? activeLavorazioni.length
+                                      : tab === 'completed'
+                                        ? completedLavorazioni.length
+                                        : cancelledLavorazioni.length;
+                                    const isActive = activeTab === tab;
+                                    return (
+                                      <button
+                                        key={tab}
+                                        onClick={(e) => { e.stopPropagation(); setLavorazioniTabForCoach(coach.id, tab); }}
+                                        style={{
+                                          padding: '0.25rem 0.75rem',
+                                          borderRadius: 'var(--radius-badge)',
+                                          border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                          background: isActive ? 'var(--primary)' : 'transparent',
+                                          color: isActive ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                                          fontFamily: 'var(--font-inter)',
+                                          fontSize: '12px',
+                                          fontWeight: isActive ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+                                          cursor: 'pointer',
+                                          lineHeight: '1.5',
+                                        }}
+                                      >
+                                        {tab === 'active' ? 'In corso' : tab === 'completed' ? 'Completate' : 'Annullate'}{count > 0 ? ` (${count})` : ''}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {visibleLavorazioni.length === 0 ? (
+                              <TableRow selected selectedBackgroundColor="var(--muted)">
+                                <TableCell colSpan={11} style={{ padding: '0.75rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                                  {activeTab === 'completed'
+                                    ? 'Nessuna lavorazione completata'
+                                    : activeTab === 'cancelled'
+                                      ? 'Nessuna lavorazione annullata'
+                                      : 'Nessuna lavorazione in corso'}
+                                </TableCell>
+                              </TableRow>
+                            ) : visibleLavorazioni.map((svc) => (
                         <TableRow key={svc.id} selected selectedBackgroundColor="var(--muted)">
                           <TableCell />
 
@@ -1164,7 +1227,10 @@ export function CoachPage() {
                           <TableCell />
                           <TableActionPlaceholderCell width={columnWidths.actions} backgroundColor="var(--muted)" />
                         </TableRow>
-                      ))}
+                            ))}
+                          </>
+                        );
+                      })()}
                     </React.Fragment>
                   );
                 })
@@ -1280,14 +1346,62 @@ export function CoachPage() {
                     </div>
                   </ResponsiveMobileCardSection>
 
-                  {isExpandedMobile && coachLavorazioniMobile.length > 0 && (
+                  {isExpandedMobile && coachLavorazioniMobile.length > 0 && (() => {
+                    const mobileTab = getLavorazioniTab(coach.id);
+                    const mobileActiveLav = coachLavorazioniMobile.filter(l => l.status !== 'completed' && l.status !== 'cancelled');
+                    const mobileCompletedLav = coachLavorazioniMobile.filter(l => l.status === 'completed');
+                    const mobileCancelledLav = coachLavorazioniMobile.filter(l => l.status === 'cancelled');
+                    const mobileVisible = mobileTab === 'completed'
+                      ? mobileCompletedLav
+                      : mobileTab === 'cancelled'
+                        ? mobileCancelledLav
+                        : mobileActiveLav;
+                    return (
                     <ResponsiveMobileCardSection marginBottom="0.75rem">
+                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
+                        {(['active', 'completed', 'cancelled'] as const).map(tab => {
+                          const count = tab === 'active'
+                            ? mobileActiveLav.length
+                            : tab === 'completed'
+                              ? mobileCompletedLav.length
+                              : mobileCancelledLav.length;
+                          const isActive = mobileTab === tab;
+                          return (
+                            <button
+                              key={tab}
+                              onClick={() => setLavorazioniTabForCoach(coach.id, tab)}
+                              style={{
+                                padding: '0.2rem 0.625rem',
+                                borderRadius: 'var(--radius-badge)',
+                                border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                background: isActive ? 'var(--primary)' : 'transparent',
+                                color: isActive ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: '12px',
+                                fontWeight: isActive ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+                                cursor: 'pointer',
+                                lineHeight: '1.5',
+                              }}
+                            >
+                              {tab === 'active' ? 'In corso' : tab === 'completed' ? 'Completate' : 'Annullate'}{count > 0 ? ` (${count})` : ''}
+                            </button>
+                          );
+                        })}
+                      </div>
                       <div style={{
                         display: 'flex', flexDirection: 'column', gap: '0.5rem',
                         padding: '0.75rem', backgroundColor: 'var(--muted)',
                         borderRadius: 'var(--radius)',
                       }}>
-                        {coachLavorazioniMobile.map((svc) => (
+                        {mobileVisible.length === 0 ? (
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                            {mobileTab === 'completed'
+                              ? 'Nessuna lavorazione completata'
+                              : mobileTab === 'cancelled'
+                                ? 'Nessuna lavorazione annullata'
+                                : 'Nessuna lavorazione in corso'}
+                          </div>
+                        ) : mobileVisible.map((svc) => (
                           <div
                             key={svc.id}
                             onClick={() => navigateToLavorazione(svc.id)}
@@ -1310,7 +1424,8 @@ export function CoachPage() {
                         ))}
                       </div>
                     </ResponsiveMobileCardSection>
-                  )}
+                    );
+                  })()}
 
                   <ResponsiveMobileCardFooter>
                     Attivazione: {formatDateIT(coach.activationDate)}
