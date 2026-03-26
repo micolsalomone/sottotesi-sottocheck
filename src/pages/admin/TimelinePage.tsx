@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinus, X, StickyNote, Trash2, Send, TicketIcon, CreditCard, FileText, MessageSquare, ArrowUpRight, Download } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { TimelineDrawer } from '../../app/components/TimelineDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
 import { StatusBadge } from '../../app/components/StatusBadge';
@@ -899,6 +900,7 @@ const CURRENT_ADMIN = 'Francesca';
 
 export function TimelinePage() {
   const { data: services, students: realStudents, updateStudent } = useLavorazioni();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Map StudentService to StudentData for services that need timeline
   const students = useMemo(() => {
@@ -1032,6 +1034,27 @@ export function TimelinePage() {
       }
     }
   }, [students]);
+
+  // Deep-link from Coach page: open timeline drawer for a specific student/lavorazione.
+  useEffect(() => {
+    const studentIdParam = searchParams.get('studentId');
+    const lavorazioneIdParam = searchParams.get('lavorazioneId');
+    if (!studentIdParam && !lavorazioneIdParam) return;
+
+    const target = students.find(s => {
+      if (lavorazioneIdParam) return s.id === lavorazioneIdParam;
+      return s.studentId === studentIdParam;
+    });
+
+    if (target) {
+      if (ACTIVE_STATUSES.includes(target.status)) setActiveTab('active');
+      else if (ACTIVATION_STATUSES.includes(target.status)) setActiveTab('activation');
+      else if (PAST_STATUSES.includes(target.status)) setActiveTab('past');
+      setDrawerStudent(target);
+    }
+
+    setSearchParams({}, { replace: true });
+  }, [students, searchParams, setSearchParams]);
 
   const getNotesCount = (studentId: string) => adminNotes.filter(n => n.studentId === studentId).length;
 

@@ -323,6 +323,17 @@ export function CoachPage() {
     navigate(`/lavorazioni?highlight=${svcId}`);
   };
 
+  const hasTimelineForService = (svc: { needs_timeline?: boolean; coaching_timeline?: unknown[] }): boolean => {
+    return svc.needs_timeline === true && Array.isArray(svc.coaching_timeline) && svc.coaching_timeline.length > 0;
+  };
+
+  const navigateToTimeline = (svc: { student_id?: string; id: string }) => {
+    if (!svc.student_id) return;
+    const studentId = encodeURIComponent(svc.student_id);
+    const lavorazioneId = encodeURIComponent(svc.id);
+    navigate(`/coaching/timeline?studentId=${studentId}&lavorazioneId=${lavorazioneId}`);
+  };
+
   // ─── Stats ────────────────────────────────────────────────
   const stats = useMemo(() => {
     const active = coaches.filter(c => c.status === 'active').length;
@@ -1223,7 +1234,46 @@ export function CoachPage() {
                             </div>
                           </TableCell>
 
-                          <TableCell />
+                          <TableCell>
+                            {hasTimelineForService(svc) ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateToTimeline(svc);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  margin: 0,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  fontFamily: 'var(--font-inter)',
+                                  fontSize: 'var(--text-label)',
+                                  fontWeight: 'var(--font-weight-medium)',
+                                  color: 'var(--primary)',
+                                  textDecoration: 'underline',
+                                  textUnderlineOffset: '2px',
+                                }}
+                                title="Apri timeline"
+                              >
+                                Apri timeline
+                                <ExternalLink size={11} style={{ opacity: 0.6 }} />
+                              </button>
+                            ) : (
+                              <span style={{
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: 'var(--text-label)',
+                                color: 'var(--muted-foreground)',
+                                fontStyle: 'italic',
+                                lineHeight: '1.5',
+                              }}>
+                                Timeline non presente
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell />
                           <TableActionPlaceholderCell width={columnWidths.actions} backgroundColor="var(--muted)" />
                         </TableRow>
@@ -1417,6 +1467,46 @@ export function CoachPage() {
                               </div>
                               <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                                 {svc.student_name} · {svc.service_name}
+                              </div>
+                              <div style={{ marginTop: '0.25rem' }}>
+                                {hasTimelineForService(svc) ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigateToTimeline(svc);
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      margin: 0,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      fontFamily: 'var(--font-inter)',
+                                      fontSize: '11px',
+                                      fontWeight: 'var(--font-weight-medium)',
+                                      color: 'var(--primary)',
+                                      textDecoration: 'underline',
+                                      textUnderlineOffset: '2px',
+                                      lineHeight: '1.5',
+                                    }}
+                                  >
+                                    Apri timeline
+                                    <ExternalLink size={10} style={{ opacity: 0.6 }} />
+                                  </button>
+                                ) : (
+                                  <span style={{
+                                    fontFamily: 'var(--font-inter)',
+                                    fontSize: '11px',
+                                    color: 'var(--muted-foreground)',
+                                    fontStyle: 'italic',
+                                    lineHeight: '1.5',
+                                  }}>
+                                    Timeline non presente
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <StatusBadge status={SERVICE_STATUS_MAP[svc.status] || 'inactive'} label={SERVICE_STATUS_LABELS[svc.status] || svc.status} />
