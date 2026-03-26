@@ -57,7 +57,6 @@ interface LavorazioneDetailDrawerProps {
 
 // ─── Helpers ─────────────────────────────────────────────────
 const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
-  pending_payment: 'In attesa pagamento',
   active: 'Attivo',
   paused: 'In pausa',
   completed: 'Completato',
@@ -93,6 +92,23 @@ const getPayoutStatusLabel = (status?: PayoutStatus): string => {
     case 'disputed': return 'Contestato';
     default: return 'N/D';
   }
+};
+
+const getQuoteLifecycleLabel = (quote: { status: 'draft' | 'sent' | 'accepted' | 'paid'; expires_at?: string }): 'Bozza' | 'Inviato' | 'Accettato' | 'Pagato' | 'In scadenza' | 'Scaduto' => {
+  if (quote.status === 'paid') return 'Pagato';
+  if (quote.status === 'accepted') return 'Accettato';
+  if (quote.status === 'draft') return 'Bozza';
+  if (!quote.expires_at) return 'Inviato';
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fiveDaysFromNow = new Date(today);
+  fiveDaysFromNow.setDate(today.getDate() + 5);
+  const expiryDate = new Date(quote.expires_at);
+
+  if (!Number.isNaN(expiryDate.getTime()) && today >= expiryDate) return 'Scaduto';
+  if (!Number.isNaN(expiryDate.getTime()) && expiryDate <= fiveDaysFromNow) return 'In scadenza';
+  return 'Inviato';
 };
 
 const formatDateIT = (dateStr?: string): string => {
@@ -184,7 +200,9 @@ export function LavorazioneDetailDrawer({
   };
 
   const totalLordo = service.installments.reduce((sum, i) => sum + i.amount, 0);
-  const totalNetto = totalLordo * (1 - taxPercent / 100);
+  const quotedGrossFallback = service.quoted_gross_amount || 0;
+  const displayedLordo = totalLordo > 0 ? totalLordo : quotedGrossFallback;
+  const totalNetto = displayedLordo * (1 - taxPercent / 100);
   const paidTotal = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
   const overdueCount = service.installments.filter(i => i.status === 'overdue').length;
   const paidCount = service.installments.filter(i => i.status === 'paid').length;
@@ -502,10 +520,26 @@ export function LavorazioneDetailDrawer({
           >
             {/* Summary */}
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-              <MiniInfo label="Lordo" value={`€${totalLordo.toLocaleString('it-IT')}`} />
+              <MiniInfo label="Lordo" value={`€${displayedLordo.toLocaleString('it-IT')}`} />
               <MiniInfo label="Netto" value={`€${Math.round(totalNetto).toLocaleString('it-IT')}`} />
               <MiniInfo label="Incassato" value={`€${paidTotal.toLocaleString('it-IT')}`} color={paidTotal > 0 ? 'var(--primary)' : undefined} />
             </div>
+
+            {service.installments.length === 0 && quotedGrossFallback > 0 && (
+              <div style={{
+                marginBottom: '0.75rem',
+                padding: '0.5rem 0.625rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--muted)',
+                fontFamily: 'var(--font-inter)',
+                fontSize: '11px',
+                color: 'var(--muted-foreground)',
+                lineHeight: '1.5',
+              }}>
+                Importo origine preventivo: €{quotedGrossFallback.toLocaleString('it-IT')}. Rate non ancora definite.
+              </div>
+            )}
 
             {service.installments.length === 0 ? (
               <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>Nessuna rata configurata</span>
@@ -638,7 +672,9 @@ export function LavorazioneDetailDrawer({
           >
             {pipeline && pipeline.quotes && pipeline.quotes.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {pipeline.quotes.map(q => (
+                {pipeline.quotes.map(q => {
+                  const lifecycleLabel = getQuoteLifecycleLabel(q);
+                  return (
                   <div key={q.id} style={{ 
                     padding: '0.625rem', 
                     borderRadius: 'var(--radius)', 
@@ -670,29 +706,37 @@ export function LavorazioneDetailDrawer({
                         padding: '2px 6px', 
                         borderRadius: 'var(--radius-badge)', 
                         border: '1px solid var(--border)',
-                        backgroundColor: q.status === 'accepted'
+                        backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
                           ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
-                          : (q.status === 'expired' || q.status === 'rejected')
+                          : lifecycleLabel === 'Scaduto'
                             ? 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)'
+                            : lifecycleLabel === 'In scadenza'
+                              ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
                             : 'var(--muted)',
-                        color: q.status === 'accepted'
+                        color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
                           ? 'var(--primary)'
-                          : (q.status === 'expired' || q.status === 'rejected')
+                          : lifecycleLabel === 'Scaduto'
                             ? 'var(--destructive-foreground)'
+                            : lifecycleLabel === 'In scadenza'
+                              ? 'var(--chart-3)'
                             : 'var(--muted-foreground)',
                         fontWeight: 'var(--font-weight-semibold)',
                         textTransform: 'uppercase',
                         lineHeight: '1.6',
                       }}>
-                        {q.status === 'expiring_soon' ? 'IN SCADENZA' : q.status}
+                        {lifecycleLabel.toUpperCase()}
                       </span>
                     </div>
                     <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '0.25rem', lineHeight: '1.5' }}>
+                      {typeof q.amount_gross === 'number' && q.amount_gross > 0
+                        ? `Lordo €${q.amount_gross.toLocaleString('it-IT')} · `
+                        : ''}
                       {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
                       {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>

@@ -78,7 +78,7 @@ interface PipelineDetailDrawerProps {
   pipeline: Pipeline;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConvertToLavorazione: (pipeline: Pipeline) => void;
+  onConvertToLavorazione: (pipeline: Pipeline, quoteId?: string) => void;
   onOpenStudentProfile?: (studentId: string) => void;
 }
 
@@ -163,6 +163,7 @@ export function PipelineDetailDrawer({
   const [notes, setNotes] = useState(pipeline.notes || '');
   const [createdAt, setCreatedAt] = useState(pipeline.created_at);
   const [quotes, setQuotes] = useState<Quote[]>(pipeline.quotes || []);
+  const [selectedQuoteForConversion, setSelectedQuoteForConversion] = useState<string | null>(null);
   const [marketingConsents, setMarketingConsents] = useState<Record<string, boolean>>(
     pipeline.marketing_consents || {}
   );
@@ -239,6 +240,8 @@ export function PipelineDetailDrawer({
       setNotes(pipeline.notes || '');
       setCreatedAt(pipeline.created_at);
       setQuotes(pipeline.quotes || []);
+      const eligible = (pipeline.quotes || []).filter(q => q.status === 'paid');
+      setSelectedQuoteForConversion(eligible[0]?.id || (pipeline.quotes || [])[0]?.id || null);
       setMarketingConsents(pipeline.marketing_consents || {});
       setEditingField(null);
 
@@ -248,6 +251,26 @@ export function PipelineDetailDrawer({
       setIsEditingOperativo(false);
     }
   }, [open, pipeline]);
+
+  const eligibleQuotes = quotes.filter(q => q.status === 'paid');
+  const alreadyConvertedQuoteIds = new Set(
+    data
+      .filter((service) => service.pipeline_id === pipeline.id && service.quote_id)
+      .map((service) => service.quote_id as string)
+  );
+  const convertibleQuotes = eligibleQuotes.filter((quote) => !alreadyConvertedQuoteIds.has(quote.id));
+  const canConvertSelected = convertibleQuotes.length === 1
+    ? true
+    : (!!selectedQuoteForConversion && convertibleQuotes.some((q) => q.id === selectedQuoteForConversion));
+
+  useEffect(() => {
+    if (convertibleQuotes.length === 0) {
+      return;
+    }
+    if (!selectedQuoteForConversion || !convertibleQuotes.some(q => q.id === selectedQuoteForConversion)) {
+      setSelectedQuoteForConversion(convertibleQuotes[0].id);
+    }
+  }, [convertibleQuotes, selectedQuoteForConversion]);
 
   // ─── Handlers ─────────────────────────────────────────────
   const handleSave = (field: string) => {
@@ -263,7 +286,7 @@ export function PipelineDetailDrawer({
       sources: pipelineSources,
       communication_channels: pipelineChannels.length > 0 ? pipelineChannels : undefined,
       assigned_to: assignedTo,
-      quote_sent: quotes.some(q => q.status === 'sent' || q.status === 'accepted'),
+      quote_sent: quotes.some(q => q.status === 'sent' || q.status === 'accepted' || q.status === 'paid'),
       service_link: serviceLink,
       external_link: externalLink,
       created_at: createdAt,
@@ -1201,6 +1224,17 @@ export function PipelineDetailDrawer({
                 <DrawerEmptyState>Nessun preventivo inserito</DrawerEmptyState>
               ) : (
                 quotes.map((quote, idx) => (
+                  (() => {
+                    const isPaid = quote.status === 'paid';
+                    const isAlreadyConverted = alreadyConvertedQuoteIds.has(quote.id);
+                    const isConvertible = isPaid && !isAlreadyConverted;
+                    const conversionBadgeLabel = isAlreadyConverted
+                      ? 'Gia convertito'
+                      : isConvertible
+                        ? 'Pronto per conversione'
+                        : 'Non convertibile';
+
+                    return (
                   <div
                     key={quote.id}
                     style={{
@@ -1266,7 +1300,22 @@ export function PipelineDetailDrawer({
                           value={quote.status}
                           onChange={e => {
                             const updated = [...quotes];
-                            updated[idx].status = e.target.value as QuoteStatus;
+                            const nextStatus = e.target.value as QuoteStatus;
+                            const todayIso = new Date().toISOString().split('T')[0];
+                            if (nextStatus === 'paid' && (!updated[idx].amount_gross || updated[idx].amount_gross <= 0)) {
+                              toast.error('Per impostare Pagato inserisci prima un importo lordo valido');
+                              return;
+                            }
+                            updated[idx].status = nextStatus;
+                            if (nextStatus === 'sent' && !updated[idx].sent_at) {
+                              updated[idx].sent_at = todayIso;
+                            }
+                            if (nextStatus === 'accepted') {
+                              if (!updated[idx].sent_at) updated[idx].sent_at = todayIso;
+                              if (!updated[idx].accepted_at) updated[idx].accepted_at = todayIso;
+                            } else if (nextStatus === 'draft' || nextStatus === 'sent') {
+                              updated[idx].accepted_at = undefined;
+                            }
                             setQuotes(updated);
                             updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
                             toast.success('Stato preventivo aggiornato');
@@ -1275,12 +1324,123 @@ export function PipelineDetailDrawer({
                           <option value="draft">Bozza</option>
                           <option value="sent">Inviato</option>
                           <option value="accepted">Accettato</option>
-                          <option value="rejected">Rifiutato</option>
-                          <option value="expired">Scaduto</option>
-                          <option value="expiring_soon">In scadenza</option>
+                          <option value="paid">Pagato</option>
                         </select>
                       </div>
                     </div>
+
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={microLabelStyle}>Importo lordo preventivo</div>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        style={drawerInputStyle}
+                        value={quote.amount_gross ?? ''}
+                        placeholder="es. 1200"
+                        onChange={(e) => {
+                          const updated = [...quotes];
+                          const nextRaw = e.target.value;
+                          updated[idx].amount_gross = nextRaw === '' ? undefined : Number(nextRaw);
+                          if (updated[idx].status === 'paid' && (!updated[idx].amount_gross || updated[idx].amount_gross <= 0)) {
+                            updated[idx].status = 'accepted';
+                            toast.error('Importo non valido: stato riportato ad Accettato');
+                          }
+                          setQuotes(updated);
+                          updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={microLabelStyle}>Servizio preventivo</div>
+                      <select
+                        style={drawerSelectStyle}
+                        value={quote.service_link || ''}
+                        onChange={e => {
+                          const updated = [...quotes];
+                          updated[idx].service_link = e.target.value || undefined;
+                          setQuotes(updated);
+                          updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+                          toast.success('Servizio preventivo aggiornato');
+                        }}
+                      >
+                        <option value="">Seleziona servizio...</option>
+                        {SERVICE_LINK_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{
+                      padding: '0.5rem 0.625rem',
+                      backgroundColor: 'var(--background)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      marginBottom: '0.75rem',
+                    }}>
+                      <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                        Conversione disponibile quando lo stato è Pagato
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: '10px',
+                        fontWeight: 'var(--font-weight-medium)',
+                        borderRadius: 'var(--radius-badge)',
+                        padding: '0.125rem 0.5rem',
+                        border: isAlreadyConverted
+                          ? '1px solid var(--chart-3)'
+                          : isConvertible
+                            ? '1px solid var(--primary)'
+                            : '1px solid var(--border)',
+                        color: isAlreadyConverted
+                          ? 'var(--chart-3)'
+                          : isConvertible
+                            ? 'var(--primary)'
+                            : 'var(--muted-foreground)',
+                        backgroundColor: isAlreadyConverted
+                          ? 'color-mix(in srgb, var(--chart-3) 12%, transparent)'
+                          : isConvertible
+                            ? 'color-mix(in srgb, var(--primary) 8%, transparent)'
+                            : 'var(--muted)',
+                        lineHeight: '1.5',
+                      }}>
+                        {conversionBadgeLabel}
+                      </span>
+                    </div>
+
+                    {convertibleQuotes.length > 1 && (
+                      <div style={{
+                        padding: '0.5rem 0.625rem',
+                        backgroundColor: selectedQuoteForConversion === quote.id
+                          ? 'color-mix(in srgb, var(--primary) 8%, transparent)'
+                          : 'var(--background)',
+                        borderRadius: 'var(--radius)',
+                        border: selectedQuoteForConversion === quote.id
+                          ? '1px solid var(--primary)'
+                          : '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                      }}>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                          Usa questo preventivo per la prossima lavorazione
+                        </span>
+                        <input
+                          type="radio"
+                          name="quote-for-conversion"
+                          checked={selectedQuoteForConversion === quote.id}
+                          onChange={() => setSelectedQuoteForConversion(quote.id)}
+                          disabled={!isConvertible}
+                          style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+                        />
+                      </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       <div>
@@ -1307,17 +1467,6 @@ export function PipelineDetailDrawer({
                           onChange={e => {
                             const updated = [...quotes];
                             updated[idx].expires_at = e.target.value;
-                            if (e.target.value) {
-                              const today = new Date(); today.setHours(0, 0, 0, 0);
-                              const expiryDate = new Date(e.target.value);
-                              const fiveDaysFromNow = new Date(today);
-                              fiveDaysFromNow.setDate(today.getDate() + 5);
-                              if (updated[idx].status !== 'accepted' && updated[idx].status !== 'rejected') {
-                                if (today >= expiryDate) updated[idx].status = 'expired';
-                                else if (expiryDate <= fiveDaysFromNow) updated[idx].status = 'expiring_soon';
-                                else if (updated[idx].status === 'expired' || updated[idx].status === 'expiring_soon') updated[idx].status = 'sent';
-                              }
-                            }
                             setQuotes(updated);
                             updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
                           }}
@@ -1325,6 +1474,8 @@ export function PipelineDetailDrawer({
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ))
               )}
 
@@ -1335,6 +1486,8 @@ export function PipelineDetailDrawer({
                   id: `Q-${Math.random().toString(36).substr(2, 9)}`,
                   number: `${nextNum}/${currentYear}`,
                   status: 'draft',
+                  created_at: new Date().toISOString().split('T')[0],
+                  service_link: serviceLink || pipeline.service_link || undefined,
                 };
                 const updated = [...quotes, newQuote];
                 setQuotes(updated);
@@ -1547,14 +1700,40 @@ export function PipelineDetailDrawer({
 
         {/* ─── Footer CTA ──────────────────────────────── */}
         <DrawerFooter>
-          <button
-            className="btn btn-primary"
-            onClick={() => { onConvertToLavorazione(pipeline); onOpenChange(false); }}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
-            <Plus size={16} />
-            Crea Lavorazione da questa Pipeline
-          </button>
+          {convertibleQuotes.length === 0 ? (
+            <div style={{
+              width: '100%',
+              padding: '0.5rem 0.625rem',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--muted)',
+              fontFamily: 'var(--font-inter)',
+              fontSize: '11px',
+              color: 'var(--muted-foreground)',
+              lineHeight: '1.5',
+            }}>
+              {eligibleQuotes.length === 0
+                ? "Nessun preventivo pagato per la conversione. Per procedere imposta stato Pagato e inserisci l'importo lordo."
+                : 'Tutti i preventivi pagati risultano gia convertiti. Per una nuova lavorazione crea un nuovo preventivo.'}
+            </div>
+          ) : (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                if (!canConvertSelected || !selectedQuoteForConversion) {
+                  toast.error('Seleziona un preventivo pagato per creare la lavorazione');
+                  return;
+                }
+                onConvertToLavorazione({ ...pipeline, quotes }, selectedQuoteForConversion);
+                onOpenChange(false);
+              }}
+              style={{ flex: 1, justifyContent: 'center' }}
+              disabled={!canConvertSelected}
+            >
+              <Plus size={16} />
+              Crea Lavorazione dal preventivo selezionato
+            </button>
+          )}
         </DrawerFooter>
       </DrawerShell>
     </>
