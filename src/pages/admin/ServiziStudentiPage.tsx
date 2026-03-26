@@ -745,7 +745,6 @@ export function ServiziStudentiPage() {
   const activeFilters: Array<{ label: string; value: string; onRemove: () => void }> = [];
   if (filterStatus !== 'all') {
     const statusLabels: Record<string, string> = {
-      'pending_payment': 'In attesa pagamento',
       'active': 'Attivo',
       'paused': 'In pausa',
       'completed': 'Completato',
@@ -775,7 +774,6 @@ export function ServiziStudentiPage() {
 
   // ─── Status mapping normalizzato ──────────────────────────
   const SERVICE_STATUS_MAP: Record<ServiceStatus, StatusType> = {
-    pending_payment: 'pending',
     active: 'active',
     paused: 'warning',
     completed: 'completed',
@@ -784,7 +782,6 @@ export function ServiziStudentiPage() {
   };
 
   const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
-    pending_payment: 'In attesa pagamento',
     active: 'Attivo',
     paused: 'In pausa',
     completed: 'Completato',
@@ -1286,7 +1283,6 @@ export function ServiziStudentiPage() {
           </label>
           <select className="select-dropdown" style={{ width: '100%' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">Tutti</option>
-            <option value="pending_payment">In attesa pagamento</option>
             <option value="active">Attivo</option>
             <option value="paused">In pausa</option>
             <option value="completed">Completato</option>

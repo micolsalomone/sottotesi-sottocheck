@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI, SERVICE_CATALOG } from '../data/LavorazioniContext';
-import type { StudentService, Pipeline, Student, StudentAcademicRecord, Quote, QuoteStatus } from '../data/LavorazioniContext';
+import type { StudentService, Pipeline, Student, StudentAcademicRecord, Quote } from '../data/LavorazioniContext';
 import { useAreeTematiche } from '../data/AreeTematicheContext';
 import {
   DrawerOverlay,
@@ -156,14 +156,21 @@ function ContactBlock({ pipeline }: { pipeline: Pipeline }) {
 // ─── Read-only academic record block ─────────────────────────
 // RIMOSSO: sostituito da DrawerAcademicSnippet (DrawerPrimitives)
 
-// ─── Quote status config ───────────────────────────────────────
-const QUOTE_STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: string; border: string }> = {
-  draft:          { label: 'Bozza',        color: 'var(--muted-foreground)', bg: 'var(--muted)',                                                       border: 'var(--border)' },
-  sent:           { label: 'Inviato',      color: 'var(--chart-2)',          bg: 'color-mix(in srgb, var(--chart-2) 8%, transparent)',                 border: 'color-mix(in srgb, var(--chart-2) 30%, transparent)' },
-  accepted:       { label: 'Accettato',    color: 'var(--primary)',          bg: 'color-mix(in srgb, var(--primary) 8%, transparent)',                 border: 'color-mix(in srgb, var(--primary) 30%, transparent)' },
-  rejected:       { label: 'Rifiutato',    color: 'var(--destructive-foreground)', bg: 'color-mix(in srgb, var(--destructive-foreground) 8%, transparent)', border: 'color-mix(in srgb, var(--destructive-foreground) 25%, transparent)' },
-  expired:        { label: 'Scaduto',      color: 'var(--muted-foreground)', bg: 'var(--muted)',                                                       border: 'var(--border)' },
-  expiring_soon:  { label: 'In scadenza',  color: 'var(--chart-3)',          bg: 'color-mix(in srgb, var(--chart-3) 8%, transparent)',                 border: 'color-mix(in srgb, var(--chart-3) 30%, transparent)' },
+const getQuoteLifecycleLabel = (quote: Quote): 'Bozza' | 'Inviato' | 'Accettato' | 'Pagato' | 'In scadenza' | 'Scaduto' => {
+  if (quote.status === 'paid') return 'Pagato';
+  if (quote.status === 'accepted') return 'Accettato';
+  if (quote.status === 'draft') return 'Bozza';
+  if (!quote.expires_at) return 'Inviato';
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fiveDaysFromNow = new Date(today);
+  fiveDaysFromNow.setDate(today.getDate() + 5);
+  const expiryDate = new Date(quote.expires_at);
+
+  if (!Number.isNaN(expiryDate.getTime()) && today >= expiryDate) return 'Scaduto';
+  if (!Number.isNaN(expiryDate.getTime()) && expiryDate <= fiveDaysFromNow) return 'In scadenza';
+  return 'Inviato';
 };
 
 function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
@@ -174,21 +181,24 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
     return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const statusBg = quote.status === 'accepted'
+  const lifecycleLabel = getQuoteLifecycleLabel(quote);
+  const statusBg = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
-    : (quote.status === 'expired' || quote.status === 'rejected')
+    : lifecycleLabel === 'Scaduto'
       ? 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)'
-      : 'var(--muted)';
+      : lifecycleLabel === 'In scadenza'
+        ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
+        : 'var(--muted)';
 
-  const statusColor = quote.status === 'accepted'
+  const statusColor = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'var(--primary)'
-    : (quote.status === 'expired' || quote.status === 'rejected')
+    : lifecycleLabel === 'Scaduto'
       ? 'var(--destructive-foreground)'
-      : 'var(--muted-foreground)';
+      : lifecycleLabel === 'In scadenza'
+        ? 'var(--chart-3)'
+        : 'var(--muted-foreground)';
 
-  const statusLabel = quote.status === 'expiring_soon'
-    ? 'IN SCADENZA'
-    : (QUOTE_STATUS_CONFIG[quote.status]?.label ?? quote.status).toUpperCase();
+  const statusLabel = lifecycleLabel.toUpperCase();
 
   return (
     <div style={{
@@ -246,6 +256,9 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
         marginTop: '0.25rem',
         lineHeight: '1.5',
       }}>
+        {typeof quote.amount_gross === 'number' && quote.amount_gross > 0
+          ? `Lordo €${quote.amount_gross.toLocaleString('it-IT')} · `
+          : ''}
         {quote.sent_at ? `Inviato il ${fmt(quote.sent_at)}` : 'Non ancora inviato'}
         {quote.expires_at && ` · Scad. ${fmt(quote.expires_at)}`}
       </div>

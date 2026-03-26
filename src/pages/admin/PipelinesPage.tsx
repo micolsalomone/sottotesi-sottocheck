@@ -3,11 +3,10 @@ import { useState, useEffect, useMemo, useRef, MouseEvent, CSSProperties } from 
 import { useNavigate, useSearchParams } from 'react-router';
 import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, Users, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLavorazioni } from '../../app/data/LavorazioniContext';
-import type { Pipeline } from '../../app/data/LavorazioniContext';
+import { useLavorazioni, SERVICE_CATALOG } from '../../app/data/LavorazioniContext';
+import type { Pipeline, Quote, StudentService, Student, StudentAcademicRecord } from '../../app/data/LavorazioniContext';
 import { PipelineDetailDrawer } from '../../app/components/PipelineDetailDrawer';
 import { CreatePipelineDrawer } from '../../app/components/CreatePipelineDrawer';
-import { CreateLavorazioneDrawer } from '../../app/components/CreateLavorazioneDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { ConfirmDialog } from '../../app/components/ConfirmDialog';
@@ -49,8 +48,52 @@ const SERVICE_LINK_LABELS: Record<string, string> = {
   'SRV-003': 'Coaching Plus',
 };
 
+const CURRENT_ADMIN = 'Francesca';
+
+const PIPELINE_SERVICE_TO_SERVICE_ID: Record<string, string> = {
+  starter_pack: 'SRV-001',
+  coaching: 'SRV-002',
+  coaching_plus: 'SRV-003',
+  check_plagio: 'SRV-004',
+};
+
+const resolveServiceIdFromQuote = (quote?: Quote, pipeline?: Pipeline): string => {
+  const raw = quote?.service_link || pipeline?.service_link || '';
+  if (!raw) return '';
+  const direct = SERVICE_CATALOG.find(s => s.id === raw);
+  if (direct) return direct.id;
+  return PIPELINE_SERVICE_TO_SERVICE_ID[raw] || '';
+};
+
+const isQuoteEligibleForConversion = (quote: Quote): boolean => {
+  return quote.status === 'paid' && typeof quote.amount_gross === 'number' && quote.amount_gross > 0;
+};
+
+type QuoteDisplayStatus = 'draft' | 'sent' | 'accepted' | 'paid' | 'expiring_soon' | 'expired';
+
+const getQuoteDisplayStatus = (quote?: Quote): QuoteDisplayStatus | undefined => {
+  if (!quote) return undefined;
+  if (quote.status === 'paid') return 'paid';
+  if (quote.status === 'accepted') return 'accepted';
+  if (quote.status === 'draft') return 'draft';
+  if (!quote.expires_at) return 'sent';
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fiveDaysFromNow = new Date(today);
+  fiveDaysFromNow.setDate(today.getDate() + 5);
+
+  const expiryDate = new Date(quote.expires_at);
+  if (Number.isNaN(expiryDate.getTime())) return 'sent';
+
+  if (today >= expiryDate) return 'expired';
+  if (expiryDate <= fiveDaysFromNow) return 'expiring_soon';
+  return 'sent';
+};
+
 export function PipelinesPage() {
-  const { pipelines, removePipeline, students, updateStudent } = useLavorazioni();
+  const { pipelines, removePipeline, students, updateStudent, addService, data, updatePipeline, addStudent } = useLavorazioni();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
   
@@ -72,8 +115,6 @@ export function PipelinesPage() {
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
-  const [createLavorazioneDrawerOpen, setCreateLavorazioneDrawerOpen] = useState(false);
-  const [pipelineToConvert, setPipelineToConvert] = useState<Pipeline | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pipelineToDelete, setPipelineToDelete] = useState<Pipeline | null>(null);
 
@@ -236,8 +277,8 @@ export function PipelinesPage() {
     const total = pipelines.length;
     const withLavorazioni = pipelines.filter(p => p.lavorazioni_ids.length > 0).length;
     const converted = pipelines.filter(p => p.lavorazioni_ids.length > 0).length;
-    const expiringSoon = pipelines.filter(p => p.quotes?.some(q => q.status === 'expiring_soon')).length;
-    const expired = pipelines.filter(p => p.quotes?.some(q => q.status === 'expired')).length;
+    const expiringSoon = pipelines.filter(p => p.quotes?.some(q => getQuoteDisplayStatus(q) === 'expiring_soon')).length;
+    const expired = pipelines.filter(p => p.quotes?.some(q => getQuoteDisplayStatus(q) === 'expired')).length;
     return { total, withLavorazioni, converted, expiringSoon, expired };
   }, [pipelines]);
 
@@ -247,9 +288,171 @@ export function PipelinesPage() {
     setDetailDrawerOpen(true);
   };
 
-  const handleConvertToLavorazione = (pipeline: Pipeline) => {
-    setPipelineToConvert(pipeline);
-    setCreateLavorazioneDrawerOpen(true);
+  const handleConvertToLavorazione = (pipeline: Pipeline, quoteId?: string) => {
+    const pipelineCurrent = pipelines.find(p => p.id === pipeline.id) || pipeline;
+    const quotes = pipelineCurrent.quotes || [];
+    const eligibleQuotes = quotes.filter(isQuoteEligibleForConversion);
+
+    if (eligibleQuotes.length === 0) {
+      toast.error('Serve almeno un preventivo pagato con importo per creare la lavorazione');
+      return;
+    }
+
+    let selectedQuote: Quote | undefined;
+    if (quoteId) {
+      selectedQuote = eligibleQuotes.find(q => q.id === quoteId);
+      if (!selectedQuote) {
+        toast.error('Il preventivo selezionato non è convertibile');
+        return;
+      }
+    } else if (eligibleQuotes.length === 1) {
+      selectedQuote = eligibleQuotes[0];
+    } else {
+      setSelectedPipeline(pipeline);
+      setDetailDrawerOpen(true);
+      toast.info('Seleziona dal drawer quale preventivo convertire');
+      return;
+    }
+
+    const alreadyConverted = data.some(s => s.pipeline_id === pipelineCurrent.id && s.quote_id === selectedQuote.id);
+    if (alreadyConverted) {
+      toast.error('Esiste gia una lavorazione creata da questo preventivo');
+      return;
+    }
+
+    const serviceId = resolveServiceIdFromQuote(selectedQuote, pipelineCurrent);
+    const selectedService = SERVICE_CATALOG.find(s => s.id === serviceId);
+    if (!selectedService) {
+      toast.error('Definisci il servizio del preventivo prima della conversione');
+      setSelectedPipeline(pipelineCurrent);
+      setDetailDrawerOpen(true);
+      return;
+    }
+
+    if (!selectedQuote.amount_gross || selectedQuote.amount_gross <= 0) {
+      toast.error('Il preventivo selezionato non ha un importo lordo valido');
+      setSelectedPipeline(pipelineCurrent);
+      setDetailDrawerOpen(true);
+      return;
+    }
+
+    const maxLavId = data.reduce((max, s) => {
+      const num = parseInt(s.id.replace('SS-', ''), 10);
+      return Number.isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    const newLavId = `SS-${maxLavId + 1}`;
+
+    const existingStudent = students.find(s => s.id === pipelineCurrent.student_id);
+    const today = new Date().toISOString().split('T')[0];
+    const newAcademicRecordId = !existingStudent ? `AR-${Math.floor(Math.random() * 9000) + 1000}` : undefined;
+    const existingAcademicRecordId = existingStudent
+      ? (existingStudent.academic_records?.find(r => r.is_current)?.id || existingStudent.academic_records?.[0]?.id)
+      : undefined;
+    const linkedAcademicRecordId = newAcademicRecordId ?? existingAcademicRecordId;
+
+    const newLavorazione: StudentService = {
+      id: newLavId,
+      student_id: pipelineCurrent.student_id || `STU-${Math.floor(Math.random() * 9000) + 1000}`,
+      student_name: pipelineCurrent.student_name || `${pipelineCurrent.first_name || ''} ${pipelineCurrent.last_name || ''}`.trim() || 'Studente senza nome',
+      service_id: selectedService.id,
+      service_name: selectedService.name,
+      service_category: selectedService.category,
+      quote_id: selectedQuote.id,
+      status: 'active',
+      created_at: today,
+      created_by: CURRENT_ADMIN,
+      referente: pipelineCurrent.assigned_to || CURRENT_ADMIN,
+      installments: [{
+        id: `INS-${Date.now()}`,
+        amount: selectedQuote.amount_gross,
+        dueDate: today,
+        status: 'pending',
+      }],
+      pipeline_id: pipelineCurrent.id,
+      academic_record_id: linkedAcademicRecordId,
+      needs_timeline: selectedService.category === 'Coaching',
+      quoted_gross_amount: selectedQuote.amount_gross,
+    };
+
+    addService(newLavorazione);
+
+    if (!existingStudent) {
+      const ad = pipelineCurrent.academic_data;
+      const newAcademicRecord: StudentAcademicRecord | null = newAcademicRecordId ? {
+        id: newAcademicRecordId,
+        student_id: newLavorazione.student_id,
+        degree_level: ad?.degree_level || '',
+        course_name: ad?.course_name || '',
+        university_name: ad?.university_name || '',
+        thesis_professor: ad?.thesis_professor || '',
+        thesis_subject: ad?.thesis_subject || '',
+        foreign_language: ad?.foreign_language || false,
+        thesis_language: ad?.thesis_language || '',
+        thesis_type: ad?.thesis_type || '',
+        is_current: true,
+        created_at: today,
+        updated_at: today,
+      } : null;
+
+      const pipelineSource = `pipeline:${pipelineCurrent.id}`;
+      const contactEmails = pipelineCurrent.email ? [{
+        email: pipelineCurrent.email,
+        is_primary: true,
+        purposes: ['generic', 'service_access'] as ('generic' | 'service_access')[],
+        source: pipelineSource,
+        added_at: today,
+      }] : [];
+      const additionalEmails = (pipelineCurrent.emails || []).map(email => ({
+        email,
+        is_primary: false,
+        purposes: ['generic'] as ('generic' | 'service_access')[],
+        source: pipelineSource,
+        added_at: today,
+      }));
+      const contactPhones = pipelineCurrent.phone ? [{
+        phone: pipelineCurrent.phone,
+        is_primary: true,
+        purposes: ['communications'] as ('communications' | 'coaching')[],
+        source: pipelineSource,
+        added_at: today,
+      }] : [];
+      const additionalPhones = (pipelineCurrent.phones || []).map(phone => ({
+        phone,
+        is_primary: false,
+        purposes: ['communications'] as ('communications' | 'coaching')[],
+        source: pipelineSource,
+        added_at: today,
+      }));
+
+      const newStudent: Student = {
+        id: newLavorazione.student_id,
+        name: newLavorazione.student_name,
+        first_name: pipelineCurrent.first_name || newLavorazione.student_name.split(' ').slice(0, -1).join(' ') || newLavorazione.student_name,
+        last_name: pipelineCurrent.last_name || newLavorazione.student_name.split(' ').slice(-1).join('') || '',
+        email: pipelineCurrent.email || '',
+        phone: pipelineCurrent.phone || '',
+        contacts: {
+          emails: [...contactEmails, ...additionalEmails],
+          phones: [...contactPhones, ...additionalPhones],
+        },
+        status: 'active',
+        marketing_consent: !!(pipelineCurrent.marketing_consents && pipelineCurrent.email && pipelineCurrent.marketing_consents[pipelineCurrent.email]),
+        academic_records: newAcademicRecord ? [newAcademicRecord] : [],
+        created_at: today,
+      };
+
+      addStudent(newStudent);
+    }
+
+    updatePipeline(pipelineCurrent.id, p => ({
+      ...p,
+      lavorazioni_ids: [...p.lavorazioni_ids, newLavId],
+      updated_at: new Date().toISOString(),
+      updated_by: CURRENT_ADMIN,
+    }));
+
+    toast.success(`Lavorazione ${newLavId} creata dal preventivo ${selectedQuote.number}`);
+    navigate(`/lavorazioni?highlight=${newLavId}`);
   };
 
   const handleDeletePipeline = (pipeline: Pipeline) => {
@@ -410,10 +613,11 @@ export function PipelinesPage() {
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const getQuoteVariant = (status?: string): any => {
+  const getQuoteVariant = (quote?: Quote): any => {
+    const status = getQuoteDisplayStatus(quote);
     switch (status) {
+      case 'paid': return 'success';
       case 'accepted': return 'success';
-      case 'rejected': return 'error';
       case 'sent': return 'info';
       case 'expired': return 'error';
       case 'expiring_soon': return 'warning';
@@ -422,10 +626,11 @@ export function PipelinesPage() {
     }
   };
 
-  const getQuoteLabel = (status?: string) => {
+  const getQuoteLabel = (quote?: Quote) => {
+    const status = getQuoteDisplayStatus(quote);
     switch (status) {
+      case 'paid': return 'Pagato';
       case 'accepted': return 'Accettato';
-      case 'rejected': return 'Rifiutato';
       case 'sent': return 'Inviato';
       case 'expired': return 'Scaduto';
       case 'expiring_soon': return 'In scadenza';
@@ -524,9 +729,7 @@ export function PipelinesPage() {
             <option value="draft">Bozza</option>
             <option value="sent">Inviato</option>
             <option value="accepted">Accettato</option>
-            <option value="rejected">Rifiutato</option>
-            <option value="expired">Scaduto</option>
-            <option value="expiring_soon">In scadenza</option>
+            <option value="paid">Pagato</option>
           </select>
         </div>
 
@@ -746,7 +949,14 @@ export function PipelinesPage() {
 
                     <TableCell width={columnWidths.quote_status}>
                       {quote ? (
-                        <StatusPill label={getQuoteLabel(quote.status)} variant={getQuoteVariant(quote.status)} />
+                        <CellContentStack>
+                          <StatusPill label={getQuoteLabel(quote)} variant={getQuoteVariant(quote)} />
+                          <CellTextSecondary>
+                            {typeof quote.amount_gross === 'number' && quote.amount_gross > 0
+                              ? `€${quote.amount_gross.toLocaleString('it-IT')}`
+                              : 'Importo non definito'}
+                          </CellTextSecondary>
+                        </CellContentStack>
                       ) : (
                         <CellTextSecondary>—</CellTextSecondary>
                       )}
@@ -885,10 +1095,24 @@ export function PipelinesPage() {
                         )}
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <StatusPill
-                            label={quote ? getQuoteLabel(quote.status) : '—'}
-                            variant={quote ? getQuoteVariant(quote.status) : 'neutral'}
-                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <StatusPill
+                              label={quote ? getQuoteLabel(quote) : '—'}
+                              variant={quote ? getQuoteVariant(quote) : 'neutral'}
+                            />
+                            {quote && (
+                              <div style={{
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: '11px',
+                                color: 'var(--muted-foreground)',
+                                lineHeight: '1.5',
+                              }}>
+                                {typeof quote.amount_gross === 'number' && quote.amount_gross > 0
+                                  ? `Lordo prev. €${quote.amount_gross.toLocaleString('it-IT')}`
+                                  : 'Importo non definito'}
+                              </div>
+                            )}
+                          </div>
 
                           <div style={{
                             fontFamily: 'var(--font-inter)',
@@ -941,18 +1165,9 @@ export function PipelinesPage() {
         open={createDrawerOpen}
         onOpenChange={setCreateDrawerOpen}
         onCreateAndConvert={(pipeline) => {
-          setPipelineToConvert(pipeline);
-          setCreateLavorazioneDrawerOpen(true);
+          handleConvertToLavorazione(pipeline);
         }}
       />
-
-      {pipelineToConvert && (
-        <CreateLavorazioneDrawer
-          open={createLavorazioneDrawerOpen}
-          onOpenChange={setCreateLavorazioneDrawerOpen}
-          prefilledPipeline={pipelineToConvert}
-        />
-      )}
 
       {/* CONFIRM DIALOG */}
       <ConfirmDialog
