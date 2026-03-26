@@ -1164,9 +1164,6 @@ export function PipelinesPage() {
       <CreatePipelineDrawer
         open={createDrawerOpen}
         onOpenChange={setCreateDrawerOpen}
-        onCreateAndConvert={(pipeline) => {
-          handleConvertToLavorazione(pipeline);
-        }}
       />
 
       {/* CONFIRM DIALOG */}
