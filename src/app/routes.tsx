@@ -20,7 +20,6 @@ import { LavorazioniSottocheckPage } from '../pages/admin/LavorazioniSottocheckP
 import { ImpostazioniSottocheckPage } from '../pages/admin/ImpostazioniSottocheckPage';
 import { ProfiliAdminPage } from '../pages/admin/ProfiliAdminPage';
 import { InfoAccountPage } from '../pages/admin/InfoAccountPage';
-import { ImpostazioniFontiPage } from '../pages/admin/ImpostazioniFontiPage';
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
@@ -59,7 +58,6 @@ export const router = createBrowserRouter([
       { path: 'servizi/catalogo', Component: CatalogoServiziPage },
       { path: 'sistema/kpi', Component: KpiMonitoraggioPage },
       { path: 'sistema/eventi', Component: EventiSistemaPage },
-      { path: 'impostazioni/fonti', Component: ImpostazioniFontiPage },
       { path: 'impostazioni/profili', Component: ProfiliAdminPage },
       { path: 'impostazioni/account', Component: InfoAccountPage },
       { path: '*', Component: Dashboard },

@@ -37,7 +37,7 @@ export interface Pipeline {
   sources?: string[]; // IG, Sottotelefono BO, Modulo meta ads, Form Coaching, ecc.
   communication_channel?: string;    // legacy — sostituito da communication_channels
   communication_channels?: string[]; // Dove ci parliamo: WhatsApp Bologna, ecc. (multipli)
-  assigned_to?: string; // Admin in carico (es. Margherita, Francesca)
+  assigned_to?: string[]; // Persone/fornitori in carico (es. ['Margherita', 'Fornitore A'])
   quote_sent?: boolean; // Preventivo inviato (legacy/status veloce)
   quotes?: Quote[]; // Preventivi multipli
   service_link?: string; // Collegamento a servizio (es. coaching)
@@ -483,14 +483,15 @@ const INITIAL_PIPELINES: Pipeline[] = [
     quotes: [
       { id: 'Q-027', number: '110/2025', status: 'accepted', sent_at: '2025-09-15', expires_at: '2025-10-15' }
     ],
-    assigned_to: 'Margherita'
+    assigned_to: ['Team Bologna']
   },
   { 
     id: 'PIP-028', student_id: 'STU-608', student_name: 'Federico Rinaldi', first_name: 'Federico', last_name: 'Rinaldi', email: 'federico.rinaldi@email.com', sources: ['IG'], created_at: '2025-11-10', updated_at: '2026-01-20T16:45:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-161'],
     service_link: 'starter_pack',
     quotes: [
       { id: 'Q-028', number: '148/2025', status: 'accepted', sent_at: '2025-11-15', expires_at: '2025-12-15' }
-    ]
+    ],
+    assigned_to: ['Fornitore Nord']
   },
   { 
     id: 'PIP-029', student_id: 'STU-467', student_name: 'Alessandro Brun', first_name: 'Alessandro', last_name: 'Brun', email: 'alessandro.brun@email.com', phone: '+39 320 1112233', sources: ['Form Coaching Plus'], created_at: '2026-02-01', updated_at: '2026-02-06T12:00:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-163'],
@@ -499,7 +500,7 @@ const INITIAL_PIPELINES: Pipeline[] = [
     quotes: [
       { id: 'Q-029', number: '013/2026', status: 'accepted', sent_at: '2026-02-05', expires_at: '2026-03-05' }
     ],
-    assigned_to: 'Margherita'
+    assigned_to: ['Team Torino', 'Fornitore Esterno']
   },
   // ─── Lead senza lavorazioni (casistiche varie) ──────────────
   { 
@@ -508,13 +509,14 @@ const INITIAL_PIPELINES: Pipeline[] = [
     quotes: [
       { id: 'Q-030', number: '025/2026', status: 'sent', sent_at: '2026-03-01', expires_at: '2026-03-25' }
     ],
-    assigned_to: 'Margherita'
+    assigned_to: ['Team Bologna']
   },
   { 
     id: 'PIP-031', student_id: 'STU-596', student_name: 'Simone Caruso', first_name: 'Simone', last_name: 'Caruso', email: 'simone.caruso@email.com', phone: '+39 341 4445500', sources: ['Modulo meta ads'], created_at: '2026-03-05', updated_at: '2026-03-06T10:15:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-167'],
     quotes: [
       { id: 'Q-031', number: '028/2026', status: 'draft' }
-    ]
+    ],
+    assigned_to: ['Operazioni Interne']
   },
   { 
     id: 'PIP-032', student_id: 'STU-615', student_name: 'Irene Bassi', first_name: 'Irene', last_name: 'Bassi', email: 'irene.bassi@gmail.com', sources: ['Gmail'], created_at: '2026-02-20', updated_at: '2026-02-26T14:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
@@ -522,14 +524,15 @@ const INITIAL_PIPELINES: Pipeline[] = [
     quotes: [
       { id: 'Q-032', number: '020/2026', status: 'sent', sent_at: '2026-02-25', notes: 'Prezzo troppo alto per il budget dello studente' }
     ],
-    assigned_to: 'Francesca'
+    assigned_to: ['Team Torino']
   },
   { 
     id: 'PIP-033', student_id: 'STU-622', student_name: 'Riccardo Tosi', first_name: 'Riccardo', last_name: 'Tosi', email: 'riccardo.tosi@student.unibo.it', phone: '+39 333 4441122', sources: ['IG'], created_at: '2026-01-15', updated_at: '2026-02-21T15:30:00', updated_by: 'Claudia', lavorazioni_ids: [],
     service_link: 'starter_pack',
     quotes: [
       { id: 'Q-033', number: '006/2026', status: 'sent', sent_at: '2026-01-20', expires_at: '2026-02-20' }
-    ]
+    ],
+    assigned_to: ['Fornitore Esterno']
   },
   { 
     id: 'PIP-034', student_id: 'STU-629', student_name: 'Camilla Ferretti', first_name: 'Camilla', last_name: 'Ferretti', email: 'camilla.ferretti@email.com', sources: ['Sottotelefono BO'], created_at: '2026-03-14', updated_at: '2026-03-14T16:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
@@ -537,28 +540,31 @@ const INITIAL_PIPELINES: Pipeline[] = [
     quotes: [
       { id: 'Q-034', number: '030/2026', status: 'sent', sent_at: '2026-03-14', expires_at: '2026-03-18' }
     ],
-    assigned_to: 'Margherita'
+    assigned_to: ['Team Bologna', 'Fornitore Nord']
   },
   {
     id: 'PIP-035', student_id: 'STU-636', student_name: 'Nicola Ferri', first_name: 'Nicola', last_name: 'Ferri', email: 'nicola.ferri@libero.it', phone: '+39 349 7770033', sources: ['Modulo meta ads', 'IG'], created_at: '2026-03-10', updated_at: '2026-03-10T11:30:00', updated_by: 'Giada', lavorazioni_ids: [],
     quotes: [
       { id: 'Q-035', number: '029/2026', status: 'draft' }
-    ]
+    ],
+    assigned_to: ['Team Torino']
   },
   {
     id: 'PIP-036', student_id: 'STU-643', student_name: 'Giorgia Amato', first_name: 'Giorgia', last_name: 'Amato', email: 'giorgia.amato@email.com', sources: ['Form Coaching'], created_at: '2026-03-12', updated_at: '2026-03-13T09:00:00', updated_by: 'Claudia', lavorazioni_ids: [],
     service_link: 'coaching',
+    assigned_to: ['Operazioni Interne'],
   },
   {
     id: 'PIP-037', student_id: 'STU-650', student_name: 'Tommaso Levi', first_name: 'Tommaso', last_name: 'Levi', email: 'tommaso.levi@hotmail.com', phone: '+39 320 9988776', sources: ['Sottotelefono BO'], created_at: '2026-03-16', updated_at: '2026-03-16T17:00:00', updated_by: 'Francesca', lavorazioni_ids: [],
-    assigned_to: 'Francesca'
+    assigned_to: ['Team Torino']
   },
   {
     id: 'PIP-038', student_id: 'STU-657', student_name: 'Alice Montanari', first_name: 'Alice', last_name: 'Montanari', email: 'alice.montanari@student.unipd.it', sources: ['IG'], created_at: '2026-03-17', updated_at: '2026-03-17T10:15:00', updated_by: 'Giada', lavorazioni_ids: [],
     service_link: 'starter_pack',
     quotes: [
       { id: 'Q-038', number: '031/2026', status: 'draft' }
-    ]
+    ],
+    assigned_to: ['Fornitore Nord']
   },
 ];
 
@@ -1025,8 +1031,6 @@ interface LavorazioniContextType {
   addPipeline: (pipeline: Pipeline) => void;
   updatePipeline: (id: string, updater: (p: Pipeline) => Pipeline) => void;
   removePipeline: (id: string) => void;
-  addSource: (source: string) => void;
-  removeSource: (source: string) => void;
   addCommunicationChannel: (channel: string) => void;
   removeCommunicationChannel: (channel: string) => void;
   taxPercent: number;
@@ -1049,8 +1053,6 @@ const DEFAULT_CONTEXT: LavorazioniContextType = {
   addPipeline: noop,
   updatePipeline: noop,
   removePipeline: noop,
-  addSource: noop,
-  removeSource: noop,
   addCommunicationChannel: noop,
   removeCommunicationChannel: noop,
   taxPercent: 22,
@@ -1138,8 +1140,6 @@ export function LavorazioniProvider({ children }: { children: React.ReactNode })
       addPipeline, 
       updatePipeline, 
       removePipeline, 
-      addSource, 
-      removeSource, 
       addCommunicationChannel,
       removeCommunicationChannel,
       taxPercent, 

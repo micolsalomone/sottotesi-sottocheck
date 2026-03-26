@@ -112,7 +112,7 @@ export function PipelineDetailDrawer({
   pipeline, open, onOpenChange, onConvertToLavorazione, onOpenStudentProfile,
 }: PipelineDetailDrawerProps) {
   const navigate = useNavigate();
-  const { data, updatePipeline, sources, communicationChannels, students, addCommunicationChannel, addSource } = useLavorazioni();
+  const { data, updatePipeline, sources, communicationChannels, students, addCommunicationChannel } = useLavorazioni();
 
   const lavorazioniCollegate = data.filter(l => pipeline.lavorazioni_ids.includes(l.id));
 
@@ -136,6 +136,7 @@ export function PipelineDetailDrawer({
     telefoni: false,
     fonti: true,
     doveciparliamo: true,
+    incarichi: true,
     operativo: true,
     preventivi: true,
     note: true,
@@ -157,7 +158,7 @@ export function PipelineDetailDrawer({
   const [pipelineChannels, setPipelineChannels] = useState<string[]>(
     pipeline.communication_channels || (pipeline.communication_channel ? [pipeline.communication_channel] : [])
   );
-  const [assignedTo, setAssignedTo] = useState(pipeline.assigned_to || '');
+  const [assignedTo, setAssignedTo] = useState<string[]>(pipeline.assigned_to || []);
   const [serviceLink, setServiceLink] = useState(pipeline.service_link || '');
   const [externalLink, setExternalLink] = useState(pipeline.external_link || '');
   const [notes, setNotes] = useState(pipeline.notes || '');
@@ -216,7 +217,21 @@ export function PipelineDetailDrawer({
     toast.success('Canale rimosso');
   };
 
+  const handleAddAssignee = (assignee: string) => {
+    if (!assignedTo.includes(assignee)) {
+      const updated = [...assignedTo, assignee];
+      setAssignedTo(updated);
+      updatePipeline(pipeline.id, (p) => ({ ...p, assigned_to: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+      toast.success('Incarico aggiunto');
+    }
+  };
 
+  const handleRemoveAssignee = (assignee: string) => {
+    const updated = assignedTo.filter(a => a !== assignee);
+    setAssignedTo(updated);
+    updatePipeline(pipeline.id, (p) => ({ ...p, assigned_to: updated.length > 0 ? updated : undefined, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+    toast.success('Incarico rimosso');
+  };
 
   const handleSaveAcademicData = () => {
     updatePipeline(pipeline.id, (p) => ({ ...p, academic_data: academicData, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
@@ -234,7 +249,7 @@ export function PipelineDetailDrawer({
       setAdditionalPhones(pipeline.phones || []);
       setPipelineSources(pipeline.sources);
       setPipelineChannels(pipeline.communication_channels || (pipeline.communication_channel ? [pipeline.communication_channel] : []));
-      setAssignedTo(pipeline.assigned_to || '');
+      setAssignedTo(pipeline.assigned_to || []);
       setServiceLink(pipeline.service_link || '');
       setExternalLink(pipeline.external_link || '');
       setNotes(pipeline.notes || '');
@@ -285,7 +300,7 @@ export function PipelineDetailDrawer({
       phones: additionalPhones.length > 0 ? additionalPhones : undefined,
       sources: pipelineSources,
       communication_channels: pipelineChannels.length > 0 ? pipelineChannels : undefined,
-      assigned_to: assignedTo,
+      assigned_to: assignedTo.length > 0 ? assignedTo : undefined,
       quote_sent: quotes.some(q => q.status === 'sent' || q.status === 'accepted' || q.status === 'paid'),
       service_link: serviceLink,
       external_link: externalLink,
@@ -1021,7 +1036,6 @@ export function PipelineDetailDrawer({
               options={sources}
               selected={pipelineSources}
               onSelect={(val) => {
-                if (!sources.includes(val)) addSource(val);
                 handleAddSource(val);
               }}
               onRemove={handleRemoveSource}
@@ -1049,6 +1063,23 @@ export function PipelineDetailDrawer({
             />
           </DrawerCollapsibleSection>
 
+          {/* ─── In carico a ──────────────────────────────── */}
+          <DrawerCollapsibleSection
+            icon={User}
+            title="In carico a"
+            badge={assignedTo.length > 0 ? String(assignedTo.length) : undefined}
+            isOpen={sections.incarichi}
+            onToggle={() => toggleSection('incarichi')}
+          >
+            <DrawerSearchSelect
+              options={[]}
+              selected={assignedTo}
+              onSelect={handleAddAssignee}
+              onRemove={handleRemoveAssignee}
+              placeholder="Cerca o aggiungi incarico..."
+            />
+          </DrawerCollapsibleSection>
+
           {/* ─── Info operative ──────────────────────────── */}
           <DrawerCollapsibleSection
             icon={Settings2}
@@ -1067,20 +1098,6 @@ export function PipelineDetailDrawer({
                 flexDirection: 'column',
                 gap: '0.75rem',
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <label style={microLabelStyle}>In carico a</label>
-                    <select
-                      value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
-                      style={drawerSelectStyle}
-                    >
-                      <option value="">Non assegnato</option>
-                      {ADMIN_USERS.filter(u => u !== 'Non assegnato').map(user => (
-                        <option key={user} value={user}>{user}</option>
-                      ))}
-                    </select>
-                  </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Collegamento a servizio</label>
                   <select
@@ -1120,7 +1137,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
                   <button
                     onClick={() => {
-                      setAssignedTo(pipeline.assigned_to || '');
+                      setAssignedTo(pipeline.assigned_to || []);
                       setServiceLink(pipeline.service_link || '');
                       setExternalLink(pipeline.external_link || '');
                       setCreatedAt(pipeline.created_at);
@@ -1147,16 +1164,6 @@ export function PipelineDetailDrawer({
                   flexDirection: 'column',
                   gap: '0.5rem',
                 }}>
-                  {/* In carico a */}
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontWeight: 'var(--font-weight-medium)', lineHeight: '1.5', flexShrink: 0, minWidth: '155px' }}>
-                      In carico a
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: assignedTo ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', fontStyle: assignedTo ? 'normal' : 'italic' }}>
-                      {assignedTo || '—'}
-                    </span>
-                  </div>
-
                   {/* Collegamento a servizio */}
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
                     <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontWeight: 'var(--font-weight-medium)', lineHeight: '1.5', flexShrink: 0, minWidth: '155px' }}>
