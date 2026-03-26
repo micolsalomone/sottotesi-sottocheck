@@ -457,9 +457,6 @@ export function ServiziStudentiPage() {
     toast.success('N. Fattura rata aggiornato');
   };
 
-  // Exclude Check plagio/AI — Sottocheck managed in dedicated page
-  const uniqueCategories = Array.from(new Set(localData.map(s => s.service_category))).filter(c => c !== 'Check plagio/AI');
-
   const handleSort = (column: SortKey) => {
     if (sortColumn === column) {
       if (sortDirection === 'asc') {
@@ -613,7 +610,7 @@ export function ServiziStudentiPage() {
       data = data.filter(item => item.status === filterStatus);
     }
     if (filterCategory !== 'all') {
-      data = data.filter(item => item.service_category === filterCategory);
+      data = data.filter(item => item.service_name === filterCategory);
     }
     if (filterCoach !== 'all') {
       data = data.filter(item => item.coach_name === filterCoach);
@@ -759,7 +756,7 @@ export function ServiziStudentiPage() {
   }
   if (filterCategory !== 'all') {
     activeFilters.push({
-      label: `Categoria: ${filterCategory}`,
+      label: `Tipo Servizio: ${filterCategory}`,
       value: filterCategory,
       onRemove: () => setFilterCategory('all')
     });
@@ -1255,12 +1252,12 @@ export function ServiziStudentiPage() {
       <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap' }} className="filter-container">
         <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
-            Categoria Servizio
+            Tipo Servizio
           </label>
           <select className="select-dropdown" style={{ width: '100%' }} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
             <option value="all">Tutte</option>
-            {uniqueCategories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+            {SERVICE_CATALOG.map(service => (
+              <option key={service.id} value={service.name}>{service.name}</option>
             ))}
           </select>
         </div>

@@ -356,6 +356,7 @@ export const SERVICE_CATALOG = [
   { id: 'SRV-001', name: 'Starter Pack', category: 'Starter Pack' as ServiceCategory, defaultPrice: 99 },
   { id: 'SRV-002', name: 'Coaching', category: 'Coaching' as ServiceCategory, defaultPrice: 1200 },
   { id: 'SRV-003', name: 'Coaching Plus', category: 'Coaching' as ServiceCategory, defaultPrice: 1800 },
+  { id: 'SRV-004', name: 'Check plagio/AI', category: 'Check plagio/AI' as ServiceCategory, defaultPrice: 0 },
 ];
 
 // ─── Pipelines Mock Data ────────────────────────────────────
@@ -364,7 +365,7 @@ const INITIAL_PIPELINES: Pipeline[] = [
     id: 'PIP-001', student_id: 'STU-445', student_name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', sources: ['Form Coaching'], created_at: '2025-10-10', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-101'],
     service_link: 'coaching',
     quotes: [
-      { id: 'Q-001', number: '124/2025', status: 'accepted', sent_at: '2025-10-15', expires_at: '2025-11-15' }
+      { id: 'Q-001', number: '124/2025', status: 'accepted', sent_at: '2025-10-15', expires_at: '2025-11-15', service_link: 'coaching', amount_gross: 1200 }
     ]
   },
   { 
