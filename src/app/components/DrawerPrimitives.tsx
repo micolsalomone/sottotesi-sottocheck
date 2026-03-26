@@ -1153,6 +1153,7 @@ export function DrawerAlertBanner({
  * Usa solo tipi primitivi per evitare dipendenze da LavorazioniContext.
  */
 export interface AcademicSnippetData {
+  thesis_topic?: string | null;
   thesis_subject?: string | null;
   degree_level?: string | null;
   course_name?: string | null;
@@ -1178,7 +1179,7 @@ export function DrawerAcademicSnippet({
   emptyMessage?: string;
 }) {
   const hasData = record && (
-    record.thesis_subject || record.course_name || record.university_name ||
+    record.thesis_topic || record.thesis_subject || record.course_name || record.university_name ||
     record.degree_level || record.thesis_professor || record.thesis_type
   );
 
@@ -1208,8 +1209,8 @@ export function DrawerAcademicSnippet({
         </span>
       ) : (
         <>
-          {/* Materia di tesi */}
-          {record!.thesis_subject && (
+          {/* Oggetto tesi (primario) */}
+          {(record!.thesis_topic || record!.thesis_subject) && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
               <BookOpen size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0, marginTop: '2px' }} />
               <span
@@ -1221,7 +1222,24 @@ export function DrawerAcademicSnippet({
                   fontWeight: 'var(--font-weight-medium)',
                 }}
               >
-                {record!.thesis_subject}
+                {record!.thesis_topic || record!.thesis_subject}
+              </span>
+            </div>
+          )}
+
+          {/* Materia di tesi (secondaria) */}
+          {record!.thesis_topic && record!.thesis_subject && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
+              <span style={{ width: '12px', flexShrink: 0 }} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--muted-foreground)',
+                  lineHeight: '1.5',
+                }}
+              >
+                Materia: {record!.thesis_subject}
               </span>
             </div>
           )}

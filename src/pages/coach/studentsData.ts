@@ -79,6 +79,8 @@ export interface StudentData {
   service: string;
   serviceType: ServiceType;
   thesisSubject: string;
+  thesis_topic?: string;
+  thesisMatter?: string;
   thesisType?: ThesisType;
   nextDeadline: string;
   nextDeadlineDate: string;
@@ -104,6 +106,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching',
     serviceType: 'coaching',
     thesisSubject: 'L\'impatto della mindfulness sulla gestione dell\'ansia nei giovani adulti: uno studio longitudinale su campione universitario',
+    thesisMatter: 'Psicologia clinica',
+    thesis_topic: 'Mindfulness e gestione dell\'ansia nei giovani adulti',
     thesisType: 'sperimentale',
     nextDeadline: 'tra 3 giorni',
     nextDeadlineDate: '2 marzo 2026',
@@ -127,6 +131,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Starter Pack',
     serviceType: 'starter_pack',
     thesisSubject: 'Ottimizzazione di reti neurali convoluzionali per il riconoscimento automatico di immagini mediche in ambito radiologico',
+    thesisMatter: 'Intelligenza artificiale applicata',
+    thesis_topic: 'Reti neurali convoluzionali per il riconoscimento di immagini mediche',
     thesisType: 'sperimentale',
     nextDeadline: 'in pausa',
     nextDeadlineDate: '-',
@@ -149,6 +155,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Starter Pack',
     serviceType: 'starter_pack',
     thesisSubject: 'Analisi e ottimizzazione dei processi logistici nella supply chain del settore farmaceutico: il caso di una multinazionale italiana',
+    thesisMatter: 'Supply chain management',
+    thesis_topic: 'Ottimizzazione della logistica nel settore farmaceutico',
     thesisType: 'sperimentale',
     nextDeadline: 'tra 8 giorni',
     nextDeadlineDate: '7 marzo 2026',
@@ -172,6 +180,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching',
     serviceType: 'coaching',
     thesisSubject: 'La tutela dei dati personali nel contesto dell\'intelligenza artificiale: profili giuridici e comparatistici tra normativa UE e modello statunitense',
+    thesisMatter: 'Diritto della privacy',
+    thesis_topic: 'Privacy e intelligenza artificiale',
     thesisType: 'compilativa',
     nextDeadline: 'completato',
     nextDeadlineDate: '-',
@@ -195,6 +205,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching Plus',
     serviceType: 'coaching_plus',
     thesisSubject: 'Il doppio nella narrativa di Dostoevskij e Pirandello: una lettura comparata tra identità frammentata e coscienza moderna',
+    thesisMatter: 'Letteratura comparata',
+    thesis_topic: 'Il doppio nella narrativa moderna',
     thesisType: 'compilativa',
     nextDeadline: 'tra 7 giorni',
     nextDeadlineDate: '5 marzo 2026',
@@ -217,6 +229,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching',
     serviceType: 'coaching',
     thesisSubject: 'Le politiche migratorie europee dopo il Patto su migrazione e asilo: un\'analisi critica del burden sharing',
+    thesisMatter: 'Scienze politiche europee',
+    thesis_topic: 'Politiche migratorie nel nuovo patto europeo',
     thesisType: 'compilativa',
     nextDeadline: 'in attesa',
     nextDeadlineDate: '-',
@@ -238,6 +252,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching Plus',
     serviceType: 'coaching_plus',
     thesisSubject: 'Analisi degli effetti delle politiche fiscali espansive sulle PMI del Mezzogiorno nel periodo post-pandemico',
+    thesisMatter: 'Economia politica',
+    thesis_topic: 'Politiche fiscali e PMI nel Mezzogiorno',
     thesisType: 'sperimentale',
     nextDeadline: 'annullato',
     nextDeadlineDate: '-',
@@ -261,6 +277,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Coaching',
     serviceType: 'coaching',
     thesisSubject: 'Strategie di comunicazione digitale per il terzo settore italiano: analisi di campagne social e civic engagement',
+    thesisMatter: 'Comunicazione digitale',
+    thesis_topic: 'Comunicazione digitale del terzo settore',
     thesisType: 'compilativa',
     nextDeadline: '-',
     nextDeadlineDate: '-',
@@ -281,6 +299,8 @@ export const STUDENTS_DATA: StudentData[] = [
     service: 'Starter Pack',
     serviceType: 'starter_pack',
     thesisSubject: 'Modelli di business sostenibili nel settore agroalimentare campano: uno studio multi-caso sulle certificazioni biologiche',
+    thesisMatter: 'Economia aziendale',
+    thesis_topic: 'Modelli sostenibili nel settore agroalimentare',
     thesisType: 'sperimentale',
     nextDeadline: '-',
     nextDeadlineDate: '-',

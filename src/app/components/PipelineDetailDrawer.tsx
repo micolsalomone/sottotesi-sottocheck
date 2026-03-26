@@ -737,6 +737,18 @@ export function PipelineDetailDrawer({
                       />
                     </div>
 
+                    {/* Oggetto */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={microLabelStyle}>Oggetto tesi</label>
+                      <input
+                        type="text"
+                        placeholder="es. L'impatto dell'AI nel marketing digitale"
+                        value={academicData.thesis_topic ?? ''}
+                        onChange={e => handleAcademicChange('thesis_topic', e.target.value)}
+                        style={drawerInputStyle}
+                      />
+                    </div>
+
                     {/* Materia */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Materia di tesi</label>

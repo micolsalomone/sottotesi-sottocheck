@@ -760,6 +760,7 @@ export function StudentTimelinePage() {
         <div className="flex flex-col gap-6">
           <InfoCoachingCard
             thesisSubject={thesisSubject}
+            thesisMatter={student?.thesisMatter || ''}
             degree={student?.degree || 'Letteratura Comparata'}
             thesisLevel="Magistrale"
             thesisType={student?.thesisType ? THESIS_TYPE_LABELS[student.thesisType] : 'Non specificata'}

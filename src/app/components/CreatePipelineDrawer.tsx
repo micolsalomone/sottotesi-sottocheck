@@ -159,6 +159,7 @@ function PipelineAcademicCard({
     course_name: string;
     university_name: string;
     thesis_professor: string;
+    thesis_topic: string;
     thesis_subject: string;
     thesis_type: ThesisType | '';
     foreign_language: boolean;
@@ -170,7 +171,7 @@ function PipelineAcademicCard({
 }) {
   const hasData = !!(
     data.degree_level || data.course_name || data.university_name ||
-    data.thesis_subject || data.thesis_professor || data.thesis_type
+    data.thesis_topic || data.thesis_subject || data.thesis_professor || data.thesis_type
   );
 
   // ── Collapsed: snippet preview or "compila" button ──────────
@@ -286,6 +287,17 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
+        <label style={drawerLabelStyle}>Oggetto tesi</label>
+        <input
+          type="text"
+          placeholder="es. L'impatto dell'AI nel marketing digitale"
+          value={data.thesis_topic}
+          onChange={e => onChange('thesis_topic', e.target.value)}
+          style={drawerInputStyle}
+        />
+      </div>
+
+      <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Materia di tesi</label>
         <input
           type="text"
@@ -392,6 +404,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
     course_name: '',
     university_name: '',
     thesis_professor: '',
+    thesis_topic: '',
     thesis_subject: '',
     thesis_type: '' as ThesisType | '',
     foreign_language: false,
@@ -469,6 +482,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
       course_name: '',
       university_name: '',
       thesis_professor: '',
+      thesis_topic: '',
       thesis_subject: '',
       thesis_type: '',
       foreign_language: false,
@@ -502,7 +516,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
 
     const hasAcademicData = mode === 'new' && (
       academicData.degree_level || academicData.course_name || academicData.university_name ||
-      academicData.thesis_professor || academicData.thesis_subject || academicData.thesis_type ||
+      academicData.thesis_professor || academicData.thesis_topic || academicData.thesis_subject || academicData.thesis_type ||
       academicData.thesis_language
     );
 
@@ -555,6 +569,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
         course_name: academicData.course_name || undefined,
         university_name: academicData.university_name || undefined,
         thesis_professor: academicData.thesis_professor || undefined,
+        thesis_topic: academicData.thesis_topic || undefined,
         thesis_subject: academicData.thesis_subject || undefined,
         thesis_type: academicData.thesis_type || undefined,
         foreign_language: academicData.foreign_language || undefined,

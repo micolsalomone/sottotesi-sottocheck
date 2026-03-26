@@ -406,6 +406,7 @@ export function CreateLavorazioneDrawer({
         course_name: ad?.course_name || '',
         university_name: ad?.university_name || '',
         thesis_professor: ad?.thesis_professor || '',
+        thesis_topic: ad?.thesis_topic || '',
         thesis_subject: ad?.thesis_subject || '',
         foreign_language: ad?.foreign_language || false,
         thesis_language: ad?.thesis_language || '',
