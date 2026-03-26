@@ -789,6 +789,21 @@ export function LavorazioneDetailDrawer({
                 )}
               </div>
 
+              {service.needs_timeline !== false && (
+                <div style={drawerFieldGroupStyle}>
+                  <label style={drawerLabelStyle}>Timeline lavorazione</label>
+                  <button
+                    onClick={() => {
+                      navigate(`/coaching/timeline?lavorazioneId=${service.id}&studentId=${service.student_id}`);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '11px', width: 'fit-content' }}
+                  >
+                    Apri timeline <ExternalLink size={11} style={{ marginLeft: '3px' }} />
+                  </button>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Servizio</label>

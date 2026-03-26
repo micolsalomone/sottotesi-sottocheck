@@ -907,7 +907,7 @@ export function TimelinePage() {
     if (!services || !realStudents) return [];
     
     return services
-      .filter(svc => svc.needs_timeline === true) // Only timeline services
+      .filter(svc => svc.needs_timeline !== false) // Include services with timeline enabled or not explicitly disabled
       .map(svc => {
         const student = realStudents.find(s => s.id === svc.student_id);
         const academicRecord = student?.academic_records?.find(r => r.id === svc.academic_record_id)
@@ -1041,10 +1041,14 @@ export function TimelinePage() {
     const lavorazioneIdParam = searchParams.get('lavorazioneId');
     if (!studentIdParam && !lavorazioneIdParam) return;
 
-    const target = students.find(s => {
-      if (lavorazioneIdParam) return s.id === lavorazioneIdParam;
-      return s.studentId === studentIdParam;
+    let target = students.find(s => {
+      if (lavorazioneIdParam) return s.lavorazioneId === lavorazioneIdParam || s.id === lavorazioneIdParam;
+      return false;
     });
+
+    if (!target && studentIdParam) {
+      target = students.find(s => s.studentId === studentIdParam || s.id === studentIdParam);
+    }
 
     if (target) {
       if (ACTIVE_STATUSES.includes(target.status)) setActiveTab('active');

@@ -423,6 +423,29 @@ export function CreateStudentDrawer({
   // ─── Academic records (multiple) ───────────────────────────
   const [academicRecords, setAcademicRecords] = useState<AcademicRecordFormData[]>([]);
   const [expandedRecordIdx, setExpandedRecordIdx] = useState<number | null>(null);
+  const [selectedTimelineServiceId, setSelectedTimelineServiceId] = useState('');
+
+  const openTimelineByServiceId = (serviceId: string) => {
+    onClose();
+    setTimeout(() => navigate(`/coaching/timeline?lavorazioneId=${serviceId}`), 100);
+  };
+
+  useEffect(() => {
+    if (!isEditMode || !editStudent) {
+      setSelectedTimelineServiceId('');
+      return;
+    }
+    const candidates = lavorazioni.filter(
+      (l) => l.student_id === editStudent.id && l.needs_timeline !== false
+    );
+    if (candidates.length === 0) {
+      setSelectedTimelineServiceId('');
+      return;
+    }
+    setSelectedTimelineServiceId((prev) => (
+      candidates.some((c) => c.id === prev) ? prev : candidates[0].id
+    ));
+  }, [isEditMode, editStudent, lavorazioni]);
 
   // ─── Populate fields when editStudent changes ─────────────
   useEffect(() => {
@@ -992,8 +1015,50 @@ export function CreateStudentDrawer({
                 {/* Lavorazioni collegate */}
                 {(() => {
                   const studentLav = lavorazioni.filter(l => l.student_id === editStudent.id);
+                  const timelineLav = studentLav.filter(l => l.needs_timeline !== false);
                   return studentLav.length > 0 ? (
                     <div>
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.375rem' }}>
+                          Timeline lavorazione
+                        </div>
+                        {timelineLav.length === 0 ? (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                            Nessuna timeline disponibile per le lavorazioni collegate
+                          </span>
+                        ) : timelineLav.length === 1 ? (
+                          <button
+                            onClick={() => openTimelineByServiceId(timelineLav[0].id)}
+                            className="btn btn-secondary"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '11px' }}
+                          >
+                            Apri timeline {timelineLav[0].id} <ExternalLink size={11} style={{ marginLeft: '3px' }} />
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <select
+                              value={selectedTimelineServiceId}
+                              onChange={(e) => setSelectedTimelineServiceId(e.target.value)}
+                              style={{ ...drawerSelectStyle, flex: 1 }}
+                            >
+                              {timelineLav.map((lav) => (
+                                <option key={lav.id} value={lav.id}>
+                                  {lav.id} · {lav.service_name} · {lav.status}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => selectedTimelineServiceId && openTimelineByServiceId(selectedTimelineServiceId)}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '11px', flexShrink: 0 }}
+                              disabled={!selectedTimelineServiceId}
+                            >
+                              Apri <ExternalLink size={11} style={{ marginLeft: '3px' }} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5', marginBottom: '0.375rem' }}>
                         Lavorazioni ({studentLav.length})
                       </div>
@@ -1009,7 +1074,10 @@ export function CreateStudentDrawer({
                               </span>
                             </div>
                             <button
-                              onClick={() => { onClose(); navigate(`/lavorazioni?highlight=${lav.id}`); }}
+                              onClick={() => {
+                                onClose();
+                                setTimeout(() => navigate(`/lavorazioni?highlight=${lav.id}`), 100);
+                              }}
                               className="btn btn-secondary"
                               style={{ padding: '0.25rem 0.5rem', fontSize: '11px', flexShrink: 0 }}
                             >
