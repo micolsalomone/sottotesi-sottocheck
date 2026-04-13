@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   FileText, User, Briefcase, CreditCard,
   Calendar, AlertTriangle, Check, Pencil, ExternalLink,
-  Plus, Trash2, Settings, Hash, GraduationCap,
+  Plus, Save, Trash2, Settings, Hash, GraduationCap,
   Phone, Mail, Copy, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -199,13 +199,30 @@ export function LavorazioneDetailDrawer({
     toast.success(msg);
   };
 
-  const totalLordo = service.installments.reduce((sum, i) => sum + i.amount, 0);
+  // ─── Rate: stato locale + dirty tracking ─────────────────
+  const [localInstallments, setLocalInstallments] = useState([...service.installments]);
+  const [dirtyInstallmentIds, setDirtyInstallmentIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setLocalInstallments([...service.installments]);
+    setDirtyInstallmentIds(new Set());
+  }, [service.id, service.installments]);
+
+  const markInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.add(id); return n; });
+  const clearInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+
+  const handleSaveInstallment = (instId: string) => {
+    doUpdate(s => ({ ...s, installments: localInstallments }), 'Rata salvata');
+    clearInstDirty(instId);
+  };
+
+  const totalLordo = localInstallments.reduce((sum, i) => sum + i.amount, 0);
   const quotedGrossFallback = service.quoted_gross_amount || 0;
   const displayedLordo = totalLordo > 0 ? totalLordo : quotedGrossFallback;
   const totalNetto = displayedLordo * (1 - taxPercent / 100);
-  const paidTotal = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
-  const overdueCount = service.installments.filter(i => i.status === 'overdue').length;
-  const paidCount = service.installments.filter(i => i.status === 'paid').length;
+  const paidTotal = localInstallments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
+  const overdueCount = localInstallments.filter(i => i.status === 'overdue').length;
+  const paidCount = localInstallments.filter(i => i.status === 'paid').length;
   const scad40gg = computeScad40gg(service.coach_payout?.notula_issue_date);
 
   const student = (students || []).find(s => s.id === service.student_id);
@@ -541,80 +558,178 @@ export function LavorazioneDetailDrawer({
               </div>
             )}
 
-            {service.installments.length === 0 ? (
+            {localInstallments.length === 0 ? (
               <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>Nessuna rata configurata</span>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                {service.installments.map((inst, idx) => (
-                  <div key={inst.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', background: inst.status === 'overdue' ? 'color-mix(in srgb, var(--destructive-foreground) 4%, transparent)' : 'var(--muted)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        Rata {idx + 1}/{service.installments.length}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        {inst.status !== 'paid' && (
-                          confirmDeleteId === inst.id ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <button onClick={() => { doUpdate(s => ({ ...s, installments: s.installments.filter(i => i.id !== inst.id) }), `Rata ${idx + 1} rimossa`); setConfirmDeleteId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--destructive-foreground)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--destructive)', color: 'var(--destructive-foreground)', cursor: 'pointer' }}>Conferma</button>
-                              <button onClick={() => setConfirmDeleteId(null)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}><X size={10} /></button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDeleteId(inst.id)} title="Rimuovi rata" style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.25rem', borderRadius: 'var(--radius)', border: 'none', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
-                          )
-                        )}
-                        <button onClick={() => {
-                          doUpdate(s => ({ ...s, installments: s.installments.map(i => {
-                            if (i.id !== inst.id) return i;
-                            if (i.status === 'paid') return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
-                            const today = new Date().toISOString().split('T')[0];
-                            return { ...i, status: 'paid' as InstallmentStatus, payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Bonifico' } };
-                          }) }), inst.status === 'paid' ? 'Rata riportata a pending' : 'Rata segnata come pagata');
-                        }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--foreground)', cursor: 'pointer' }}>
-                          {inst.status === 'paid' ? <><Check size={10} /> Pagata</> : inst.status === 'overdue' ? <><AlertTriangle size={10} /> Scaduta</> : <><Calendar size={10} /> Pending</>}
-                        </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                {localInstallments.map((inst, idx) => {
+                  const isDirty = dirtyInstallmentIds.has(inst.id);
+                  return (
+                    <div
+                      key={inst.id}
+                      style={{
+                        padding: '1rem',
+                        backgroundColor: inst.status === 'overdue'
+                          ? 'color-mix(in srgb, var(--destructive-foreground) 4%, var(--muted))'
+                          : 'var(--muted)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        position: 'relative',
+                      }}
+                    >
+                      {/* Riga titolo + azioni */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                          Rata {idx + 1}/{localInstallments.length}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {inst.status !== 'paid' && (
+                            confirmDeleteId === inst.id ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <button
+                                  onClick={() => {
+                                    const updated = localInstallments.filter(i => i.id !== inst.id);
+                                    setLocalInstallments(updated);
+                                    clearInstDirty(inst.id);
+                                    doUpdate(s => ({ ...s, installments: updated }), `Rata ${idx + 1} rimossa`);
+                                    setConfirmDeleteId(null);
+                                  }}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--destructive-foreground)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--destructive)', color: 'var(--destructive-foreground)', cursor: 'pointer' }}
+                                >Conferma</button>
+                                <button onClick={() => setConfirmDeleteId(null)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}><X size={10} /></button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setConfirmDeleteId(inst.id)} title="Rimuovi rata" style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.25rem', borderRadius: 'var(--radius)', border: 'none', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
+                            )
+                          )}
+                          <button
+                            onClick={() => {
+                              const today = new Date().toISOString().split('T')[0];
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                if (i.status === 'paid') return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
+                                return { ...i, status: 'paid' as InstallmentStatus, payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Bonifico' } };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--foreground)', cursor: 'pointer' }}
+                          >
+                            {inst.status === 'paid' ? <><Check size={10} /> Pagata</> : inst.status === 'overdue' ? <><AlertTriangle size={10} /> Scaduta</> : <><Calendar size={10} /> Pending</>}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Importo</span>
-                        {inst.status === 'paid' ? (
-                          <span style={{ ...drawerReadonlyValueStyle, fontSize: '12px' }}>€{inst.amount.toLocaleString('it-IT')}</span>
-                        ) : (
-                          <EditableField value={String(inst.amount)} displayPrefix="€" type="number" onSave={(val) => { const num = Number(val); if (!isNaN(num) && num > 0) doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id ? { ...i, amount: num } : i) }), 'Importo rata aggiornato'); }} />
-                        )}
-                      </div>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Scadenza</span>
-                        {inst.status === 'paid' ? (
-                          <span style={{ ...drawerReadonlyValueStyle, fontSize: '12px' }}>{formatDateIT(inst.dueDate)}</span>
-                        ) : (
-                          <input type="date" value={inst.dueDate} onChange={(e) => doUpdate(s => ({ ...s, installments: s.installments.map(i => { if (i.id !== inst.id) return i; const newDate = e.target.value; const today = new Date(); today.setHours(0,0,0,0); const due = new Date(newDate); const isOvr = due < today && i.status !== 'paid'; return { ...i, dueDate: newDate, status: isOvr ? 'overdue' as InstallmentStatus : i.status === 'overdue' ? 'pending' as InstallmentStatus : i.status }; }) }), 'Scadenza rata aggiornata')} style={{ ...drawerInputStyle, fontSize: '12px', padding: '0.25rem 0.5rem' }} />
-                        )}
-                      </div>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>N. Fattura</span>
-                        <EditableField value={inst.invoice_number || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id ? { ...i, invoice_number: val || undefined } : i) }), val ? 'N. fattura aggiornato' : 'N. fattura rimosso')} />
-                      </div>
-                      {inst.status === 'paid' && inst.payment && (
+
+                      {/* Campi */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                         <div>
-                          <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Pagato il</span>
-                          <input type="date" value={inst.payment.paidAt || ''} onChange={(e) => doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id && i.payment ? { ...i, payment: { ...i.payment, paidAt: e.target.value } } : i) }), 'Data pagamento aggiornata')} style={{ ...drawerInputStyle, fontSize: '12px', padding: '0.25rem 0.5rem', color: 'var(--primary)' }} />
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Importo</div>
+                          <input
+                            type="number" min="0" step="0.01"
+                            style={drawerInputStyle}
+                            value={inst.amount || ''}
+                            placeholder="es. 1200"
+                            onChange={(e) => {
+                              const num = Number(e.target.value);
+                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, amount: isNaN(num) ? 0 : num } : i);
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Scadenza</div>
+                          <input
+                            type="date"
+                            style={drawerInputStyle}
+                            value={inst.dueDate}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              const today = new Date(); today.setHours(0, 0, 0, 0);
+                              const due = new Date(newDate);
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                const isOvr = due < today && i.status !== 'paid';
+                                return { ...i, dueDate: newDate, status: isOvr ? 'overdue' as InstallmentStatus : i.status === 'overdue' ? 'pending' as InstallmentStatus : i.status };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>N. Fattura</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input
+                              type="text"
+                              style={{ ...drawerInputStyle, flex: 1 }}
+                              value={(inst.invoice_number || '').split('/')[0] || ''}
+                              placeholder="es. 001"
+                              onChange={(e) => {
+                                const parts = (inst.invoice_number || '').split('/');
+                                const year = parts[1] || new Date().getFullYear().toString();
+                                const updated = localInstallments.map(i => i.id === inst.id ? { ...i, invoice_number: `${e.target.value}/${year}` } : i);
+                                setLocalInstallments(updated);
+                                markInstDirty(inst.id);
+                              }}
+                            />
+                            <input
+                              type="text"
+                              style={{ ...drawerInputStyle, width: '65px' }}
+                              value={(inst.invoice_number || '').split('/')[1] || new Date().getFullYear().toString()}
+                              placeholder={new Date().getFullYear().toString()}
+                              onChange={(e) => {
+                                const parts = (inst.invoice_number || '').split('/');
+                                const num = parts[0] || '';
+                                const updated = localInstallments.map(i => i.id === inst.id ? { ...i, invoice_number: `${num}/${e.target.value}` } : i);
+                                setLocalInstallments(updated);
+                                markInstDirty(inst.id);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Pagato il</div>
+                          <input
+                            type="date"
+                            style={{ ...drawerInputStyle, color: inst.status === 'paid' ? 'var(--primary)' : undefined }}
+                            value={inst.payment?.paidAt || ''}
+                            onChange={(e) => {
+                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, payment: i.payment ? { ...i.payment, paidAt: e.target.value } : { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: e.target.value, method: 'Bonifico' } } : i);
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Salva rata — visibile solo se dirty */}
+                      {isDirty && (
+                        <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                          <button
+                            onClick={() => handleSaveInstallment(inst.id)}
+                            className="btn btn-primary"
+                            style={{ width: '100%', justifyContent: 'center', gap: '0.375rem' }}
+                          >
+                            <Save size={14} /> Salva rata
+                          </button>
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
-            {(paidCount < service.installments.length || service.installments.length === 0) && (
-              <DrawerAddButton onClick={() => {
+            <DrawerAddButton onClick={() => {
                 const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1);
-                doUpdate(s => ({ ...s, installments: [...s.installments, { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus }] }), 'Rata aggiunta');
+                const newInst = { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus };
+                setLocalInstallments(prev => [...prev, newInst]);
+                markInstDirty(newInst.id);
+                toast.success('Rata aggiunta. Premi Salva per registrarla');
               }}>
                 <Plus size={14} /> Aggiungi rata
               </DrawerAddButton>
-            )}
           </DrawerCollapsibleSection>
 
           {/* ═══ 4. COMPENSO COACH (PAYOUT) ════════════════════ */}
