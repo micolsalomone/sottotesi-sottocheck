@@ -141,6 +141,9 @@ const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number 
   return { date: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }), daysLeft };
 };
 
+const normalizeTaxRate = (value?: number): 4 | 22 => (value === 4 ? 4 : 22);
+const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+
 // ─── Component ───────────────────────────────────────────────
 export function LavorazioneDetailDrawer({
   service,
@@ -202,12 +205,14 @@ export function LavorazioneDetailDrawer({
 
   // ─── Rate: stato locale + dirty tracking ─────────────────
   const [localInstallments, setLocalInstallments] = useState([...service.installments]);
+  const [localServiceTaxRate, setLocalServiceTaxRate] = useState<4 | 22>(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
   const [dirtyInstallmentIds, setDirtyInstallmentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLocalInstallments([...service.installments]);
+    setLocalServiceTaxRate(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
     setDirtyInstallmentIds(new Set());
-  }, [service.id, service.installments]);
+  }, [service.id, service.installments, service.total_tax_rate, taxPercent]);
 
   const markInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.add(id); return n; });
   const clearInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.delete(id); return n; });
@@ -217,10 +222,21 @@ export function LavorazioneDetailDrawer({
     clearInstDirty(instId);
   };
 
+  const getInstallmentTaxRate = (inst: { net_tax_rate?: 4 | 22 }): 4 | 22 => {
+    return normalizeTaxRate(inst.net_tax_rate ?? localServiceTaxRate);
+  };
+
+  const getInstallmentNet = (inst: { amount: number; net_tax_rate?: 4 | 22 }): number => {
+    const rate = getInstallmentTaxRate(inst);
+    return roundToCents(inst.amount * (1 - rate / 100));
+  };
+
   const totalLordo = localInstallments.reduce((sum, i) => sum + i.amount, 0);
   const quotedGrossFallback = service.quoted_gross_amount || 0;
   const displayedLordo = totalLordo > 0 ? totalLordo : quotedGrossFallback;
-  const totalNetto = displayedLordo * (1 - taxPercent / 100);
+  const totalNetto = localInstallments.length > 0
+    ? localInstallments.reduce((sum, i) => sum + getInstallmentNet(i), 0)
+    : displayedLordo * (1 - localServiceTaxRate / 100);
   const paidTotal = localInstallments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
   const overdueCount = localInstallments.filter(i => i.status === 'overdue').length;
   const paidCount = localInstallments.filter(i => i.status === 'paid').length;
@@ -543,6 +559,40 @@ export function LavorazioneDetailDrawer({
               <MiniInfo label="Incassato" value={`€${paidTotal.toLocaleString('it-IT')}`} color={paidTotal > 0 ? 'var(--primary)' : undefined} />
             </div>
 
+            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{
+                fontFamily: 'var(--font-inter)',
+                fontSize: '11px',
+                fontWeight: 'var(--font-weight-medium)',
+                color: 'var(--muted-foreground)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                lineHeight: '1.5',
+              }}>
+                Aliquota default lavorazione
+              </span>
+              <select
+                value={localServiceTaxRate}
+                onChange={(e) => {
+                  const nextRate = normalizeTaxRate(Number(e.target.value));
+                  setLocalServiceTaxRate(nextRate);
+                  doUpdate(s => ({ ...s, total_tax_rate: nextRate }), `Aliquota lavorazione → ${nextRate}%`);
+                }}
+                style={{
+                  ...drawerInputStyle,
+                  width: 'auto',
+                  minWidth: '90px',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                <option value={4}>4%</option>
+                <option value={22}>22%</option>
+              </select>
+              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                Le rate senza override ereditano questa aliquota.
+              </span>
+            </div>
+
             {service.installments.length === 0 && quotedGrossFallback > 0 && (
               <div style={{
                 marginBottom: '0.75rem',
@@ -657,6 +707,36 @@ export function LavorazioneDetailDrawer({
                               markInstDirty(inst.id);
                             }}
                           />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Aliquota</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={inst.net_tax_rate ? String(inst.net_tax_rate) : 'default'}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                if (next === 'default') {
+                                  const { net_tax_rate, ...rest } = i;
+                                  return rest;
+                                }
+                                return { ...i, net_tax_rate: normalizeTaxRate(Number(next)) };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          >
+                            <option value="default">Default ({localServiceTaxRate}%)</option>
+                            <option value="4">Override 4%</option>
+                            <option value="22">Override 22%</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Netto (preview)</div>
+                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center' }}>
+                            €{getInstallmentNet(inst).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>N. Fattura</div>

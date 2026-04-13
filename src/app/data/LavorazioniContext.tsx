@@ -188,6 +188,7 @@ export interface Installment {
   amount: number;
   dueDate: string;
   status: InstallmentStatus;
+  net_tax_rate?: 4 | 22;
   invoice_number?: string;
   invoice?: Invoice;
   payment?: Payment;
@@ -228,6 +229,7 @@ export interface StudentService {
   service_category: ServiceCategory;
   quote_id: string;
   quoted_gross_amount?: number;
+  total_tax_rate?: 4 | 22;
   invoice_number?: string;
   contract_id?: string;
   academic_record_id?: string;
