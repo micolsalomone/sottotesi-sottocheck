@@ -164,6 +164,7 @@ export function PipelineDetailDrawer({
   const [notes, setNotes] = useState(pipeline.notes || '');
   const [createdAt, setCreatedAt] = useState(pipeline.created_at);
   const [quotes, setQuotes] = useState<Quote[]>(pipeline.quotes || []);
+  const [dirtyQuoteIds, setDirtyQuoteIds] = useState<Set<string>>(new Set());
   const [selectedQuoteForConversion, setSelectedQuoteForConversion] = useState<string | null>(null);
   const [marketingConsents, setMarketingConsents] = useState<Record<string, boolean>>(
     pipeline.marketing_consents || {}
@@ -199,7 +200,34 @@ export function PipelineDetailDrawer({
     setIsEditingOperativo(false);
   };
 
+  // ─── Quote dirty tracking ──────────────────────────────────
+  const markQuoteDirty = (quoteId: string) => {
+    setDirtyQuoteIds((prev) => {
+      const next = new Set(prev);
+      next.add(quoteId);
+      return next;
+    });
+  };
 
+  const clearQuoteDirty = (quoteId: string) => {
+    setDirtyQuoteIds((prev) => {
+      const next = new Set(prev);
+      next.delete(quoteId);
+      return next;
+    });
+  };
+
+  const handleSaveQuote = (quoteId: string) => {
+    updatePipeline(pipeline.id, (p) => ({
+      ...p,
+      quotes: quotes.length > 0 ? quotes : undefined,
+      quote_sent: quotes.some(q => q.status === 'sent' || q.status === 'accepted' || q.status === 'paid'),
+      updated_at: new Date().toISOString(),
+      updated_by: CURRENT_ADMIN,
+    }));
+    clearQuoteDirty(quoteId);
+    toast.success('Preventivo salvato');
+  };
 
   const handleAddChannel = (ch: string) => {
     if (!pipelineChannels.includes(ch)) {
@@ -255,6 +283,7 @@ export function PipelineDetailDrawer({
       setNotes(pipeline.notes || '');
       setCreatedAt(pipeline.created_at);
       setQuotes(pipeline.quotes || []);
+      setDirtyQuoteIds(new Set());
       const eligible = (pipeline.quotes || []).filter(q => q.status === 'paid');
       setSelectedQuoteForConversion(eligible[0]?.id || (pipeline.quotes || [])[0]?.id || null);
       setMarketingConsents(pipeline.marketing_consents || {});
@@ -1247,6 +1276,7 @@ export function PipelineDetailDrawer({
                     const isPaid = quote.status === 'paid';
                     const isAlreadyConverted = alreadyConvertedQuoteIds.has(quote.id);
                     const isConvertible = isPaid && !isAlreadyConverted;
+                    const isDirty = dirtyQuoteIds.has(quote.id);
                     const conversionBadgeLabel = isAlreadyConverted
                       ? 'Gia convertito'
                       : isConvertible
@@ -1264,18 +1294,26 @@ export function PipelineDetailDrawer({
                       position: 'relative',
                     }}
                   >
-                    <button
-                      onClick={() => {
-                        const updated = quotes.filter(q => q.id !== quote.id);
-                        setQuotes(updated);
-                        updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated.length > 0 ? updated : undefined, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
-                        toast.success('Preventivo rimosso');
-                      }}
-                      style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: 'var(--destructive-foreground)', cursor: 'pointer', padding: '0.25rem' }}
-                      title="Rimuovi preventivo"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', display: 'flex', gap: '0.375rem' }}>
+                      <button
+                        onClick={() => {
+                          const updated = quotes.filter(q => q.id !== quote.id);
+                          setQuotes(updated);
+                          updatePipeline(pipeline.id, (p) => ({
+                            ...p,
+                            quotes: updated.length > 0 ? updated : undefined,
+                            updated_at: new Date().toISOString(),
+                            updated_by: CURRENT_ADMIN
+                          }));
+                          clearQuoteDirty(quote.id);
+                          toast.success('Preventivo rimosso');
+                        }}
+                        style={{ background: 'none', border: 'none', color: 'var(--destructive-foreground)', cursor: 'pointer', padding: '0.25rem' }}
+                        title="Rimuovi preventivo"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                       <div>
@@ -1291,11 +1329,11 @@ export function PipelineDetailDrawer({
                               const updated = [...quotes];
                               updated[idx].number = `${e.target.value}/${year}`;
                               setQuotes(updated);
+                              markQuoteDirty(quote.id);
                             }}
-                            onBlur={() => updatePipeline(pipeline.id, (p) => ({ ...p, quotes, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }))}
                             placeholder="es. 001"
                           />
-                          <span style={{ color: 'var(--muted-foreground)', fontFamily: 'var(--font-inter)', fontSize: '12px' }}>/</span>
+
                           <input
                             type="text"
                             style={{ ...drawerInputStyle, width: '65px' }}
@@ -1306,8 +1344,8 @@ export function PipelineDetailDrawer({
                               const updated = [...quotes];
                               updated[idx].number = `${num}/${e.target.value}`;
                               setQuotes(updated);
+                              markQuoteDirty(quote.id);
                             }}
-                            onBlur={() => updatePipeline(pipeline.id, (p) => ({ ...p, quotes, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }))}
                             placeholder={new Date().getFullYear().toString()}
                           />
                         </div>
@@ -1336,8 +1374,7 @@ export function PipelineDetailDrawer({
                               updated[idx].accepted_at = undefined;
                             }
                             setQuotes(updated);
-                            updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
-                            toast.success('Stato preventivo aggiornato');
+                            markQuoteDirty(quote.id);
                           }}
                         >
                           <option value="draft">Bozza</option>
@@ -1366,7 +1403,7 @@ export function PipelineDetailDrawer({
                             toast.error('Importo non valido: stato riportato ad Accettato');
                           }
                           setQuotes(updated);
-                          updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+                          markQuoteDirty(quote.id);
                         }}
                       />
                     </div>
@@ -1380,8 +1417,7 @@ export function PipelineDetailDrawer({
                           const updated = [...quotes];
                           updated[idx].service_link = e.target.value || undefined;
                           setQuotes(updated);
-                          updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
-                          toast.success('Servizio preventivo aggiornato');
+                          markQuoteDirty(quote.id);
                         }}
                       >
                         <option value="">Seleziona servizio...</option>
@@ -1473,7 +1509,7 @@ export function PipelineDetailDrawer({
                             updated[idx].sent_at = e.target.value;
                             if (e.target.value && updated[idx].status === 'draft') updated[idx].status = 'sent';
                             setQuotes(updated);
-                            updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+                            markQuoteDirty(quote.id);
                           }}
                         />
                       </div>
@@ -1487,11 +1523,22 @@ export function PipelineDetailDrawer({
                             const updated = [...quotes];
                             updated[idx].expires_at = e.target.value;
                             setQuotes(updated);
-                            updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
+                            markQuoteDirty(quote.id);
                           }}
                         />
                       </div>
                     </div>
+                    {isDirty && (
+                      <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                        <button
+                          onClick={() => handleSaveQuote(quote.id)}
+                          className="btn btn-primary"
+                          style={{ width: '100%', justifyContent: 'center', gap: '0.375rem' }}
+                        >
+                          <Save size={14} /> Salva preventivo
+                        </button>
+                      </div>
+                    )}
                   </div>
                     );
                   })()
@@ -1510,8 +1557,8 @@ export function PipelineDetailDrawer({
                 };
                 const updated = [...quotes, newQuote];
                 setQuotes(updated);
-                updatePipeline(pipeline.id, (p) => ({ ...p, quotes: updated, updated_at: new Date().toISOString(), updated_by: CURRENT_ADMIN }));
-                toast.success('Preventivo aggiunto');
+                markQuoteDirty(newQuote.id);
+                toast.success('Preventivo aggiunto. Premi Salva per registrarlo');
               }}>
                 <Plus size={14} /> Nuovo preventivo
               </DrawerAddButton>
