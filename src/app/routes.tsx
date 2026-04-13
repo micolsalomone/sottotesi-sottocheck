@@ -72,6 +72,7 @@ export const router = createBrowserRouter([
       { path: 'studenti', Component: CoachStudentiPage },
       { path: 'studenti/:studentId', Component: StudentTimelinePage },
       { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: '*', Component: NotFoundPage },
     ],
