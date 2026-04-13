@@ -15,7 +15,6 @@ import {
   type ServiceStatus,
   type ContractStatus,
   type InstallmentStatus,
-  type PayoutStatus,
   type CoachPayout,
   REFERENTI_SOTTOTESI,
   ADMIN_PROFILES,
@@ -64,32 +63,35 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
   expired: 'Scaduto',
 };
 
-const PAYOUT_STATUS_OPTIONS: { value: PayoutStatus; label: string }[] = [
-  { value: 'pending_invoice', label: 'Attesa notula' },
-  { value: 'waiting_due_date', label: 'In scadenza' },
-  { value: 'ready_to_pay', label: 'Da pagare' },
-  { value: 'paid', label: 'Pagato' },
-  { value: 'disputed', label: 'Contestato' },
+const NOTULA_STATUS_OPTIONS: { value: NonNullable<CoachPayout['notula_status']>; label: string }[] = [
+  { value: 'da_programmare', label: 'Da programmare' },
+  { value: 'programmata', label: 'Programmata' },
+  { value: 'inviata', label: 'Inviata' },
+  { value: 'pagata', label: 'Pagata' },
 ];
 
-const getPayoutStatusColor = (status?: PayoutStatus): string => {
+const INVOICE_STATUS_OPTIONS: { value: NonNullable<CoachPayout['invoice_status']>; label: string }[] = [
+  { value: 'da_ricevere', label: 'Da ricevere' },
+  { value: 'ricevuta', label: 'Ricevuta' },
+  { value: 'pagata', label: 'Pagata' },
+];
+
+const getNotulaStatusColor = (status?: CoachPayout['notula_status']): string => {
   switch (status) {
-    case 'paid': return 'var(--primary)';
-    case 'ready_to_pay': return 'var(--chart-3)';
-    case 'waiting_due_date': return 'var(--chart-2)';
-    case 'pending_invoice': return 'var(--muted-foreground)';
-    case 'disputed': return 'var(--destructive-foreground)';
+    case 'pagata': return 'var(--primary)';
+    case 'inviata': return 'var(--chart-3)';
+    case 'programmata': return 'var(--chart-2)';
+    case 'da_programmare': return 'var(--muted-foreground)';
     default: return 'var(--muted-foreground)';
   }
 };
 
-const getPayoutStatusLabel = (status?: PayoutStatus): string => {
+const getNotulaStatusLabel = (status?: CoachPayout['notula_status']): string => {
   switch (status) {
-    case 'paid': return 'Pagato';
-    case 'ready_to_pay': return 'Da pagare';
-    case 'waiting_due_date': return 'In scadenza';
-    case 'pending_invoice': return 'Attesa notula';
-    case 'disputed': return 'Contestato';
+    case 'pagata': return 'Pagata';
+    case 'inviata': return 'Inviata';
+    case 'programmata': return 'Programmata';
+    case 'da_programmare': return 'Da programmare';
     default: return 'N/D';
   }
 };
@@ -129,10 +131,10 @@ const formatDateTimestamp = (dateStr?: string): string => {
   });
 };
 
-const computeScad40gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
+const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
   if (!notulaDate) return null;
   const d = new Date(notulaDate);
-  d.setDate(d.getDate() + 40);
+  d.setDate(d.getDate() + 45);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -160,8 +162,7 @@ export function LavorazioneDetailDrawer({
   const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
   const lastKnownUpdate = useRef(service.updated_at || '');
 
-  const payoutNeedsAttention = service.coach_payout?.status === 'disputed'
-    || service.coach_payout?.status === 'ready_to_pay';
+  const payoutNeedsAttention = service.coach_payout?.notula_status === 'inviata';
 
   const [sections, setSections] = useState({
     operativi: true,
@@ -223,7 +224,7 @@ export function LavorazioneDetailDrawer({
   const paidTotal = localInstallments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
   const overdueCount = localInstallments.filter(i => i.status === 'overdue').length;
   const paidCount = localInstallments.filter(i => i.status === 'paid').length;
-  const scad40gg = computeScad40gg(service.coach_payout?.notula_issue_date);
+  const scad45gg = computeScad45gg(service.coach_payout?.notula_issue_date);
 
   const student = (students || []).find(s => s.id === service.student_id);
   const academicRecord = student?.academic_records?.find(r => r.id === service.academic_record_id)
@@ -736,44 +737,82 @@ export function LavorazioneDetailDrawer({
           <DrawerCollapsibleSection
             icon={Briefcase}
             title="Compenso Coach (Payout)"
-            badge={getPayoutStatusLabel(service.coach_payout?.status)}
-            alertBadge={service.coach_payout?.status === 'disputed' ? 'Contestato' : undefined}
+            badge={getNotulaStatusLabel(service.coach_payout?.notula_status)}
+            alertBadge={service.coach_payout?.notula_status === 'inviata' && scad45gg && scad45gg.daysLeft <= 0 ? 'Scaduta' : undefined}
             isOpen={sections.payout}
             onToggle={() => toggleSection('payout')}
           >
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>N. Notula</label>
-                <EditableField value={service.coach_payout?.notula_number || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), notula_number: val || undefined } }), val ? 'N. notula aggiornato' : 'N. notula rimosso')} />
+                <label style={drawerLabelStyle}>Status notula</label>
+                <select
+                  value={service.coach_payout?.notula_status || 'da_programmare'}
+                  onChange={(e) => {
+                    const next = e.target.value as NonNullable<CoachPayout['notula_status']>;
+                    doUpdate(
+                      s => ({
+                        ...s,
+                        coach_payout: {
+                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
+                          notula_status: next,
+                        },
+                      }),
+                      `Status notula → ${NOTULA_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
+                    );
+                  }}
+                  style={drawerInputStyle}
+                >
+                  {NOTULA_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={drawerFieldGroupStyle}>
+                <label style={drawerLabelStyle}>Fattura</label>
+                <select
+                  value={service.coach_payout?.invoice_status || 'da_ricevere'}
+                  onChange={(e) => {
+                    const next = e.target.value as NonNullable<CoachPayout['invoice_status']>;
+                    doUpdate(
+                      s => ({
+                        ...s,
+                        coach_payout: {
+                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
+                          invoice_status: next,
+                        },
+                      }),
+                      `Fattura → ${INVOICE_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
+                    );
+                  }}
+                  style={drawerInputStyle}
+                >
+                  {INVOICE_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Data notula</label>
-                <input type="date" value={service.coach_payout?.notula_issue_date || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), notula_issue_date: e.target.value || undefined } }), 'Data notula aggiornata')} style={drawerInputStyle} />
+                <input type="date" value={service.coach_payout?.notula_issue_date || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), notula_issue_date: e.target.value || undefined } }), 'Data notula aggiornata')} style={drawerInputStyle} />
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Scadenza 40gg</label>
-                {scad40gg ? (
-                  <span style={{ ...drawerReadonlyValueStyle, fontWeight: scad40gg.daysLeft <= 0 && service.coach_payout?.status !== 'paid' ? 'var(--font-weight-bold)' : undefined, color: service.coach_payout?.status === 'paid' ? 'var(--foreground)' : scad40gg.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad40gg.daysLeft <= 7 ? 'var(--chart-3)' : 'var(--foreground)' }}>
-                    {scad40gg.date}
-                    {service.coach_payout?.status !== 'paid' && scad40gg.daysLeft <= 14 && (
-                      <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad40gg.daysLeft > 0 ? `-${scad40gg.daysLeft}gg` : `+${Math.abs(scad40gg.daysLeft)}gg`})</span>
+                <label style={drawerLabelStyle}>Scadenza 45gg</label>
+                {scad45gg ? (
+                  <span style={{ ...drawerReadonlyValueStyle, fontWeight: scad45gg.daysLeft <= 0 && service.coach_payout?.notula_status !== 'pagata' ? 'var(--font-weight-bold)' : undefined, color: service.coach_payout?.notula_status === 'pagata' ? 'var(--foreground)' : scad45gg.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad45gg.daysLeft <= 7 ? getNotulaStatusColor(service.coach_payout?.notula_status) : 'var(--foreground)' }}>
+                    {scad45gg.date}
+                    {service.coach_payout?.notula_status !== 'pagata' && scad45gg.daysLeft <= 14 && (
+                      <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad45gg.daysLeft > 0 ? `-${scad45gg.daysLeft}gg` : `+${Math.abs(scad45gg.daysLeft)}gg`})</span>
                     )}
                   </span>
                 ) : <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>—</span>}
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Stato pagamento</label>
-                <select value={service.coach_payout?.status || 'pending_invoice'} onChange={(e) => { const newStatus = e.target.value as PayoutStatus; doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), status: newStatus } }), `Stato pagamento → ${getPayoutStatusLabel(newStatus)}`); }} style={{ ...drawerInputStyle, color: '#fff', backgroundColor: getPayoutStatusColor(service.coach_payout?.status), fontWeight: 'var(--font-weight-medium)', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none', borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer' }}>
-                  {PAYOUT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Pagato il</label>
-                <input type="date" value={service.coach_payout?.paid_at || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), paid_at: e.target.value || undefined } }), 'Data pagamento aggiornata')} style={drawerInputStyle} />
+                <input type="date" value={service.coach_payout?.paid_at || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), paid_at: e.target.value || undefined } }), 'Data pagamento aggiornata')} style={drawerInputStyle} />
               </div>
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Rif. pagamento</label>
-                <EditableField value={service.coach_payout?.payment_reference || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), payment_reference: val || undefined } }), val ? 'Rif. pagamento aggiornato' : 'Rif. pagamento rimosso')} />
+                <EditableField value={service.coach_payout?.payment_reference || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), payment_reference: val || undefined } }), val ? 'Rif. pagamento aggiornato' : 'Rif. pagamento rimosso')} />
               </div>
             </div>
           </DrawerCollapsibleSection>

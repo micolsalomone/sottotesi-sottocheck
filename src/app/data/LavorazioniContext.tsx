@@ -94,6 +94,8 @@ export type PayoutStatus = 'pending_invoice' | 'waiting_due_date' | 'ready_to_pa
 export interface CoachPayout {
   id: string;
   notula_number?: string;
+  notula_status?: 'da_programmare' | 'programmata' | 'inviata' | 'pagata';
+  invoice_status?: 'da_ricevere' | 'ricevuta' | 'pagata';
   notula_issue_date?: string;
   notula_amount?: number;
   payment_due_date?: string;
