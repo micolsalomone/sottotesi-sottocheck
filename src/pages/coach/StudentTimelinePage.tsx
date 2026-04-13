@@ -3,8 +3,7 @@ import {
   STUDENTS_DATA,
   STATUS_LABELS,
   STATUS_STYLES,
-  THESIS_TYPE_LABELS,
-  ADMIN_REFERENTI
+  THESIS_TYPE_LABELS
 } from './studentsData';
 import { useLocation, useParams, useNavigate } from 'react-router';
 import { InfoCoachingCard, ShareWithStudentCard } from '../../app/components/StudentProfile';
@@ -20,22 +19,82 @@ import { getStudentTimeline } from './studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
 import { getViewBasePath } from './viewBasePath';
 import { getStudentViewStudent, getStudentViewTimelinePath, isStudentViewPath } from '@/app/utils/studentView';
+import { useLavorazioni } from '@/app/data/LavorazioniContext';
 
 export function StudentTimelinePage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const {
+    data: services,
+    students: realStudents,
+    updateService,
+    updateStudent,
+    getServiceTimelineSteps,
+    getServiceArchiveDocuments,
+  } = useLavorazioni();
   const viewBasePath = getViewBasePath(location.pathname);
   const isStudentView = isStudentViewPath(location.pathname);
   const currentStudent = isStudentView ? getStudentViewStudent() : null;
   const effectiveStudentId = isStudentView ? currentStudent?.id : studentId;
+  const legacyStudent = useMemo(
+    () => (effectiveStudentId ? STUDENTS_DATA.find(entry => entry.id === effectiveStudentId) || null : null),
+    [effectiveStudentId]
+  );
 
-  const student = isStudentView
-    ? currentStudent
-    : STUDENTS_DATA.find(s => s.id === effectiveStudentId);
-  const studentName = student?.name || 'Studente';
+  const matchedService = useMemo(() => {
+    const candidates = services.filter(service => {
+      if (effectiveStudentId && (service.id === effectiveStudentId || service.student_id === effectiveStudentId)) {
+        return true;
+      }
+      if (currentStudent?.id && service.student_id === currentStudent.id) {
+        return true;
+      }
+      if (currentStudent?.name && service.student_name === currentStudent.name) {
+        return true;
+      }
+      if (legacyStudent?.name && service.student_name === legacyStudent.name) {
+        return true;
+      }
+      return false;
+    });
+    if (candidates.length === 0) return null;
+    return [...candidates].sort((left, right) => {
+      const leftIsOpen = left.status === 'active' || left.status === 'paused';
+      const rightIsOpen = right.status === 'active' || right.status === 'paused';
+      if (leftIsOpen !== rightIsOpen) return leftIsOpen ? -1 : 1;
+      return (right.updated_at || right.created_at).localeCompare(left.updated_at || left.created_at);
+    })[0];
+  }, [services, effectiveStudentId, currentStudent?.id, currentStudent?.name, legacyStudent?.name]);
 
-  const [thesisSubject, setThesisSubject] = useState(student?.thesisSubject || '');
+  const realStudent = useMemo(() => {
+    if (matchedService?.student_id) {
+      return realStudents.find(entry => entry.id === matchedService.student_id) || null;
+    }
+    if (currentStudent?.id) {
+      return realStudents.find(entry => entry.id === currentStudent.id) || null;
+    }
+    if (effectiveStudentId) {
+      return realStudents.find(entry => entry.id === effectiveStudentId) || null;
+    }
+    if (legacyStudent?.name) {
+      return realStudents.find(entry => entry.name === legacyStudent.name) || null;
+    }
+    return null;
+  }, [matchedService?.student_id, currentStudent?.id, effectiveStudentId, legacyStudent?.name, realStudents]);
+
+  const currentAcademicRecord = useMemo(() => {
+    if (!realStudent) return null;
+    return realStudent.academic_records.find(record => record.id === matchedService?.academic_record_id)
+      || realStudent.academic_records.find(record => record.is_current)
+      || realStudent.academic_records[0]
+      || null;
+  }, [realStudent, matchedService?.academic_record_id]);
+
+  const studentName = matchedService?.student_name || realStudent?.name || legacyStudent?.name || currentStudent?.name || 'Studente';
+  const initialThesisSubject = currentAcademicRecord?.thesis_topic || currentAcademicRecord?.thesis_subject || '';
+
+  const [thesisSubject, setThesisSubject] = useState(initialThesisSubject);
 
   const [filterMode, setFilterMode] = useState<'open' | 'upcoming' | 'completed' | 'all'>('all');
 
@@ -45,14 +104,67 @@ export function StudentTimelinePage() {
   const [stepArchiveId, setStepArchiveId] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   
-  const initialTimeline = useMemo(
-    () => getStudentTimeline(effectiveStudentId || '', studentName),
-    [effectiveStudentId, studentName]
-  );
+  const initialTimeline = useMemo(() => {
+    const legacyTimeline = effectiveStudentId
+      ? getStudentTimeline(effectiveStudentId, studentName)
+      : { steps: [], documents: [] as Document[] };
+
+    if (!matchedService) {
+      return legacyTimeline;
+    }
+
+    const sharedSteps = getServiceTimelineSteps(matchedService.id);
+    const sharedDocuments = getServiceArchiveDocuments(matchedService.id);
+
+    if (sharedSteps.length > 0 || sharedDocuments.length > 0) {
+      return {
+        steps: sharedSteps as TimelineStepData[],
+        documents: sharedDocuments as Document[],
+      };
+    }
+
+    if (legacyTimeline.steps.length > 0 || legacyTimeline.documents.length > 0) {
+      return {
+        steps: legacyTimeline.steps as TimelineStepData[],
+        documents: legacyTimeline.documents as Document[],
+      };
+    }
+
+    return {
+      steps: [] as TimelineStepData[],
+      documents: [] as Document[],
+    };
+  }, [matchedService, effectiveStudentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments]);
 
   const [timelineSteps, setTimelineSteps] = useState<TimelineStepData[]>(initialTimeline.steps);
 
   const [documents, setDocuments] = useState<Document[]>(initialTimeline.documents);
+
+  const updateSharedTimeline = (updater: (previous: TimelineStepData[]) => TimelineStepData[]) => {
+    setTimelineSteps(previous => {
+      const next = updater(previous);
+      if (matchedService) {
+        updateService(matchedService.id, service => ({
+          ...service,
+          coaching_timeline_full: next,
+        }));
+      }
+      return next;
+    });
+  };
+
+  const updateSharedDocuments = (updater: (previous: Document[]) => Document[]) => {
+    setDocuments(previous => {
+      const next = updater(previous);
+      if (matchedService) {
+        updateService(matchedService.id, service => ({
+          ...service,
+          shared_documents: next,
+        }));
+      }
+      return next;
+    });
+  };
 
   // Reset state when navigating to a different student
   useEffect(() => {
@@ -65,8 +177,25 @@ export function StudentTimelinePage() {
     setDocuments(initialTimeline.documents);
     setFilterMode('all');
     setStepArchiveId(null);
-    setThesisSubject(student?.thesisSubject || '');
-  }, [studentId, currentStudent?.id, initialTimeline, isStudentView, navigate, student?.thesisSubject]);
+    setThesisSubject(initialThesisSubject);
+  }, [studentId, currentStudent?.id, initialTimeline, initialThesisSubject, isStudentView, navigate]);
+
+  useEffect(() => {
+    if (!matchedService || !effectiveStudentId) return;
+
+    const sharedSteps = getServiceTimelineSteps(matchedService.id);
+    const sharedDocuments = getServiceArchiveDocuments(matchedService.id);
+    if (sharedSteps.length > 0 || sharedDocuments.length > 0) return;
+
+    const legacyTimeline = getStudentTimeline(effectiveStudentId, studentName);
+    if (legacyTimeline.steps.length === 0 && legacyTimeline.documents.length === 0) return;
+
+    updateService(matchedService.id, service => ({
+      ...service,
+      coaching_timeline_full: legacyTimeline.steps as any,
+      shared_documents: legacyTimeline.documents as any,
+    }));
+  }, [matchedService, effectiveStudentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments, updateService]);
 
   function handleOpenArchive() { setIsArchiveDrawerOpen(true); }
   function handleOpenStudentProfile() {
@@ -81,12 +210,12 @@ export function StudentTimelinePage() {
 
   function handleAssignFileToStep(fileId: string, fileName: string, stepId: string | null) {
     const step = timelineSteps.find(s => s.id === stepId);
-    setDocuments(prev => prev.map(doc => doc.id === fileId ? { ...doc, stepId, stepTitle: step?.title || null } : doc));
+    updateSharedDocuments(prev => prev.map(doc => doc.id === fileId ? { ...doc, stepId, stepTitle: step?.title || null } : doc));
   }
 
   function handleAssignDocToStep(docId: string, stepId: string) {
     const step = timelineSteps.find(s => s.id === stepId);
-    setDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, stepId, stepTitle: step?.title || null } : doc));
+    updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, stepId, stepTitle: step?.title || null } : doc));
     alert(`Documento assegnato a: ${step?.title}`);
   }
 
@@ -94,21 +223,21 @@ export function StudentTimelinePage() {
   function handleDownloadDocument(docId: string) { const doc = documents.find(d => d.id === docId); alert(`Download documento: ${doc?.name}`); }
   function handleDeleteDocument(docId: string) {
     if (confirm('Sei sicuro di voler eliminare questo documento?')) {
-      setDocuments(prev => prev.filter(d => d.id !== docId));
+      updateSharedDocuments(prev => prev.filter(d => d.id !== docId));
       alert('Documento eliminato');
     }
   }
 
   function handleRunPlagiarismCheck(docId: string) {
-    setDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'pending' as const } : doc));
+    updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'pending' as const } : doc));
     setIsPlagiarismDrawerOpen(true);
     setTimeout(() => {
-      setDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'clear' as const } : doc));
+      updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'clear' as const } : doc));
     }, 2000);
   }
 
   function handleAddNote(docId: string, note: string) {
-    setDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, note } : doc));
+    updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, note } : doc));
     alert('Nota salvata');
   }
 
@@ -129,10 +258,10 @@ export function StudentTimelinePage() {
     
     if (afterStepId === null) {
       // Add at the beginning
-      setTimelineSteps(prev => [newStep, ...prev]);
+      updateSharedTimeline(prev => [newStep, ...prev]);
     } else {
       // Add after specific step
-      setTimelineSteps(prev => {
+      updateSharedTimeline(prev => {
         const index = prev.findIndex(s => s.id === afterStepId);
         const newSteps = [...prev];
         newSteps.splice(index + 1, 0, newStep);
@@ -143,12 +272,12 @@ export function StudentTimelinePage() {
   }
 
   function handleRemoveStep(stepId: string) {
-    setTimelineSteps(prev => prev.filter(s => s.id !== stepId));
+    updateSharedTimeline(prev => prev.filter(s => s.id !== stepId));
     alert('Fase rimossa con successo');
   }
 
   function handleToggleStepStatus(stepId: string, newStatus: 'active' | 'upcoming') {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, status: newStatus } : step
     ));
   }
@@ -159,7 +288,7 @@ export function StudentTimelinePage() {
       const completedDateStr = today.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const completedDisplayStr = `Completato il ${today.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}`;
       
-      setTimelineSteps(prev => prev.map(step => {
+      updateSharedTimeline(prev => prev.map(step => {
         if (step.id === stepId) {
           // Calculate completion status by comparing with original deadline
           let completionStatus: 'on-time' | 'early' | 'late' = 'on-time';
@@ -209,31 +338,31 @@ export function StudentTimelinePage() {
   }
 
   function handleUpdateStepTitle(stepId: string, newTitle: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, title: newTitle } : step
     ));
   }
 
   function handleUpdateStepDescription(stepId: string, newDescription: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, description: newDescription } : step
     ));
   }
 
   function handleUpdateStepStartDate(stepId: string, newStartDate: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, startDate: newStartDate } : step
     ));
   }
 
   function handleUpdateStepDeadline(stepId: string, newDeadline: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, deadline: newDeadline } : step
     ));
   }
 
   function handleMoveStep(stepId: string, direction: 'up' | 'down') {
-    setTimelineSteps(prev => {
+    updateSharedTimeline(prev => {
       const index = prev.findIndex(s => s.id === stepId);
       if (index === -1) return prev;
       
@@ -250,13 +379,13 @@ export function StudentTimelinePage() {
   }
 
   function handleToggleVisibility(stepId: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, isVisibleToStudent: !step.isVisibleToStudent } : step
     ));
   }
 
   function handleConfirmDraft(stepId: string) {
-    setTimelineSteps(prev => prev.map(step => 
+    updateSharedTimeline(prev => prev.map(step => 
       step.id === stepId ? { ...step, isDraft: false, isVisibleToStudent: true } : step
     ));
   }
@@ -272,7 +401,7 @@ export function StudentTimelinePage() {
       content,
       isNew: true,
     };
-    setTimelineSteps(prev => prev.map(step =>
+    updateSharedTimeline(prev => prev.map(step =>
       step.id === stepId
         ? { ...step, activities: [newActivity, ...step.activities] }
         : step
@@ -297,7 +426,7 @@ export function StudentTimelinePage() {
       documents: [],
       activities: [],
     }));
-    setTimelineSteps(prev => [...prev, ...newSteps]);
+    updateSharedTimeline(prev => [...prev, ...newSteps]);
   }
 
   function handleUploadDocumentsToStep(stepId: string, files: File[], note?: string) {
@@ -357,7 +486,7 @@ export function StudentTimelinePage() {
       });
     }
 
-    setTimelineSteps(prev => prev.map(s =>
+    updateSharedTimeline(prev => prev.map(s =>
       s.id === stepId
         ? {
           ...s,
@@ -367,7 +496,7 @@ export function StudentTimelinePage() {
         : s
     ));
 
-    setDocuments(prev => [...newArchiveDocs, ...prev]);
+    updateSharedDocuments(prev => [...newArchiveDocs, ...prev]);
   }
 
   // Compute phaseNumber dynamically based on position
@@ -408,8 +537,8 @@ export function StudentTimelinePage() {
 
   const stepOptions: StepOption[] = visibleTimelineSteps.map(step => ({ id: step.id, phaseNumber: step.phaseNumber, title: step.title }));
 
-  const planStartDate = student?.planStartDate || '';
-  const planEndDate = student?.planEndDate || '';
+  const planStartDate = matchedService?.plan_start_date || '';
+  const planEndDate = matchedService?.plan_end_date || '';
 
   const daysRemaining = useMemo(() => {
     const months: Record<string, number> = {
@@ -430,13 +559,19 @@ export function StudentTimelinePage() {
     return parts.map(p => p[0]?.toUpperCase() || '').join('').slice(0, 2);
   }, [studentName]);
 
-  const effectiveStatus = isStudentView ? 'active' : (student?.status || 'active');
+  const effectiveStatus = isStudentView ? 'active' : (matchedService?.status || 'active');
   const statusStyle = STATUS_STYLES[effectiveStatus];
 
+  const activePhaseLabel = computedTimelineSteps.length > 0
+    ? computedTimelineSteps.find(step => step.status === 'active')?.phaseNumber || computedTimelineSteps[0].phaseNumber
+    : 'Timeline da definire';
+
+  const serviceBadgeLabel = matchedService?.service_name || 'Coaching';
+
   const timelineOverview: TimelineOverview = {
-    planStatus: `In corso · ${student?.currentPhase || 'Fase 3 di 6'}`,
-    startDate: student?.planStartDate || '',
-    expectedEndDate: student?.planEndDate || '',
+    planStatus: `In corso · ${activePhaseLabel}`,
+    startDate: planStartDate,
+    expectedEndDate: planEndDate,
     studentName
   };
 
@@ -528,7 +663,7 @@ export function StudentTimelinePage() {
                   color: 'var(--foreground)',
                 }}
               >
-                {student?.service || 'coaching'}
+                {serviceBadgeLabel}
               </span>
             </div>
 
@@ -760,17 +895,34 @@ export function StudentTimelinePage() {
         <div className="flex flex-col gap-6">
           <InfoCoachingCard
             thesisSubject={thesisSubject}
-            thesisMatter={student?.thesisMatter || ''}
-            degree={student?.degree || 'Letteratura Comparata'}
-            thesisLevel="Magistrale"
-            thesisType={student?.thesisType ? THESIS_TYPE_LABELS[student.thesisType] : 'Non specificata'}
-            supervisor={student?.supervisor || 'Prof. Rossi'}
-            studentPhone={student?.phone || ''}
-            studentEmail={student?.email || ''}
-            startDate={student?.planStartDate || ''}
-            endDate={student?.planEndDate || ''}
-            referent={ADMIN_REFERENTI.find(r => r.id === student?.adminReferenteId)?.name || 'Non assegnato'}
-            onSaveThesisSubject={(newSubject) => setThesisSubject(newSubject)}
+            thesisMatter={currentAcademicRecord?.thesis_subject || ''}
+            degree={currentAcademicRecord?.course_name || 'Non specificato'}
+            thesisLevel={currentAcademicRecord?.degree_level ? `${currentAcademicRecord.degree_level.charAt(0).toUpperCase()}${currentAcademicRecord.degree_level.slice(1)}` : 'Magistrale'}
+            thesisType={currentAcademicRecord?.thesis_type ? THESIS_TYPE_LABELS[currentAcademicRecord.thesis_type] : 'Non specificata'}
+            supervisor={currentAcademicRecord?.thesis_professor || 'Non assegnato'}
+            studentPhone={realStudent?.contacts?.phones.find(phone => phone.is_primary)?.phone || realStudent?.phone || ''}
+            studentEmail={realStudent?.contacts?.emails.find(email => email.is_primary)?.email || realStudent?.email || ''}
+            startDate={planStartDate}
+            endDate={planEndDate}
+            referent={matchedService?.referente || 'Non assegnato'}
+            onSaveThesisSubject={(newSubject) => {
+              setThesisSubject(newSubject);
+              if (realStudent && currentAcademicRecord) {
+                updateStudent(realStudent.id, entry => ({
+                  ...entry,
+                  academic_records: entry.academic_records.map(record =>
+                    record.id === currentAcademicRecord.id
+                      ? {
+                        ...record,
+                        thesis_topic: newSubject,
+                        thesis_subject: newSubject,
+                        updated_at: new Date().toISOString(),
+                      }
+                      : record
+                  ),
+                }));
+              }
+            }}
           />
           <ShareWithStudentCard
             archiveCount={documents.length}
@@ -792,7 +944,7 @@ export function StudentTimelinePage() {
                   uploadedBy: 'Coach',
                   plagiarismStatus: 'none',
                 };
-                setDocuments(prev => [newDoc, ...prev]);
+                updateSharedDocuments(prev => [newDoc, ...prev]);
               });
             }}
           />
@@ -819,7 +971,7 @@ export function StudentTimelinePage() {
               plagiarismStatus: 'none',
               note: note,
             };
-            setDocuments(prev => [newDoc, ...prev]);
+            updateSharedDocuments(prev => [newDoc, ...prev]);
           });
         }}
       />

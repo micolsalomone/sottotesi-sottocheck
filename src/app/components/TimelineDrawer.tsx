@@ -76,12 +76,14 @@ interface Props {
   onMarkComplete: () => void;
   onRemove: () => void;
   onOpenStudentDetail?: () => void;
+  onOpenSharedArchive?: (student: StudentData) => void;
 }
 
 export function TimelineDrawer({
   student, onClose,
   onReassignCoach, onMarkComplete, onRemove,
   onOpenStudentDetail,
+  onOpenSharedArchive,
 }: Props) {
   const navigate = useNavigate();
   const { students, updateStudent, updateService } = useLavorazioni();
@@ -286,7 +288,7 @@ export function TimelineDrawer({
             <QuickActionBtn
               icon={<FolderOpen size={13} />}
               label="Archivio docs"
-              onClick={() => alert('Archivio documenti timeline — pagina in sviluppo')}
+              onClick={() => onOpenSharedArchive?.(student)}
               color="var(--muted-foreground)"
               small
             />

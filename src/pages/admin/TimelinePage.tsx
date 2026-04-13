@@ -3,6 +3,7 @@ import { Search, Calendar, Bell, AlertTriangle, CheckCircle2, UserPlus, UserMinu
 import { useSearchParams } from 'react-router';
 import { TimelineDrawer } from '../../app/components/TimelineDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
+import { DocumentArchiveDrawer, type Document, type StepOption } from '@/app/components/coach/DocumentArchiveDrawer';
 import { StatusBadge } from '../../app/components/StatusBadge';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
@@ -189,705 +190,6 @@ const formatDateIT = (dateStr?: string): string => {
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const initialMockNotes: AdminNote[] = [
-  { id: 'N-001', studentId: 'STU-001', content: 'Verificare pagamento seconda rata, scadenza prossima settimana.', admin: 'Francesca', timestamp: '3 mar 2026 09:15' },
-  { id: 'N-002', studentId: 'STU-001', content: 'Coach ha segnalato ritardo nella consegna del capitolo 2.', admin: 'Claudia', timestamp: '28 feb 2026 14:30' },
-  { id: 'N-003', studentId: 'STU-003', content: 'Studente ha richiesto cambio relatore. Da verificare con segreteria.', admin: 'Francesca', timestamp: '1 mar 2026 11:00' },
-  { id: 'N-004', studentId: 'STU-004', content: 'Pausa richiesta per motivi personali. Ripresa prevista aprile 2026.', admin: 'Claudia', timestamp: '20 feb 2026 16:45' },
-];
-
-// --- Mock Data ---
-const mockStudents: StudentData[] = [
-  {
-    id: 'STU-001',
-    name: 'Alex Johnson',
-    university: 'UniMI',
-    degree: 'Letteratura Comparata',
-    status: 'active',
-    serviceType: 'coaching_plus',
-    thesisType: 'compilativa',
-    planStartDate: '5 gen 2026',
-    planEndDate: '5 apr 2026',
-    hasTimeline: true,
-    newActivityCount: 3,
-    assignedCoachName: 'Marco Rossi',
-    contractStatus: 'signed',
-    installmentStatus: 'pending',
-    installmentOverdueCount: 0,
-    stepsCompleted: 4,
-    stepsTotal: 7,
-    openTicketCount: 1,
-    finalPrice: 1200,
-    discountAmount: 100,
-    activatedAt: '5 gen 2026',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Compilativa',
-    coachFee: 480,
-    contractFileUrl: '/contracts/STU-001.pdf',
-    lavorazioneId: 'SS-155',
-    inviteStatus: 'active',
-    inviteEmail: 'alex.johnson@email.com',
-    inviteSentAt: '2026-01-05T09:00:00Z',
-    installments: [
-      { id: 'INS-001', amount: 400, dueDate: '5 gen 2026', status: 'paid', paidAt: '4 gen 2026' },
-      { id: 'INS-002', amount: 400, dueDate: '5 feb 2026', status: 'paid', paidAt: '5 feb 2026' },
-      { id: 'INS-003', amount: 400, dueDate: '5 mar 2026', status: 'pending' },
-    ],
-    coachingSteps: [
-      { id: 'CS-001', title: 'Analisi tema e struttura', status: 'completed', completedAt: '12 gen 2026' },
-      { id: 'CS-002', title: 'Ricerca bibliografica', status: 'completed', completedAt: '25 gen 2026' },
-      { id: 'CS-003', title: 'Capitolo 1 - Introduzione', status: 'completed', completedAt: '10 feb 2026' },
-      { id: 'CS-004', title: 'Capitolo 2 - Revisione letteratura', status: 'completed', completedAt: '28 feb 2026' },
-      { id: 'CS-005', title: 'Capitolo 3 - Analisi comparata', status: 'in_progress' },
-      { id: 'CS-006', title: 'Capitolo 4 - Conclusioni', status: 'pending' },
-      { id: 'CS-007', title: 'Revisione finale e formattazione', status: 'pending' },
-    ],
-    tickets: [
-      { id: 'TK-001', subject: 'Richiesta proroga scadenza cap. 3', status: 'open', createdAt: '1 mar 2026', messageCount: 3 },
-    ],
-  },
-  {
-    id: 'STU-002',
-    name: 'Elena Ferrara',
-    degree: 'Scienze Politiche',
-    status: 'pending_payment',
-    serviceType: 'coaching',
-    thesisType: 'compilativa',
-    hasTimeline: false,
-    newActivityCount: 0,
-    assignedCoachName: 'Laura Bianchi',
-    contractStatus: 'signed',
-    installmentStatus: 'pending',
-    installmentOverdueCount: 0,
-    stepsCompleted: 0,
-    stepsTotal: 5,
-    openTicketCount: 0,
-    finalPrice: 800,
-    serviceNameSnapshot: 'Coaching - Tesi Compilativa',
-    coachFee: 320,
-    contractFileUrl: '/contracts/STU-002.pdf',
-    lavorazioneId: 'SS-138',
-    inviteStatus: 'sent',
-    inviteEmail: 'elena.ferrara@email.com',
-    inviteSentAt: '2026-02-28T14:00:00Z',
-    installments: [
-      { id: 'INS-004', amount: 400, dueDate: '1 mar 2026', status: 'pending' },
-      { id: 'INS-005', amount: 400, dueDate: '1 apr 2026', status: 'pending' },
-    ],
-    coachingSteps: [],
-    tickets: [],
-  },
-  {
-    id: 'STU-003',
-    name: 'Giulia Verdi',
-    university: 'UniMI',
-    degree: 'Magistrale Psicologia',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'sperimentale',
-    planStartDate: '10 dic 2025',
-    planEndDate: '15 mag 2026',
-    hasTimeline: true,
-    newActivityCount: 2,
-    assignedCoachName: 'Marco Rossi',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    installmentOverdueCount: 0,
-    stepsCompleted: 3,
-    stepsTotal: 8,
-    openTicketCount: 0,
-    finalPrice: 950,
-    activatedAt: '10 dic 2025',
-    serviceNameSnapshot: 'Coaching - Tesi Sperimentale',
-    coachFee: 380,
-    contractFileUrl: '/contracts/STU-003.pdf',
-    lavorazioneId: 'SS-101',
-    inviteStatus: 'active',
-    inviteEmail: 'giulia.verdi@email.com',
-    inviteSentAt: '2025-12-09T10:00:00Z',
-    installments: [
-      { id: 'INS-006', amount: 475, dueDate: '10 dic 2025', status: 'paid', paidAt: '9 dic 2025' },
-      { id: 'INS-007', amount: 475, dueDate: '10 gen 2026', status: 'paid', paidAt: '10 gen 2026' },
-    ],
-    coachingSteps: [
-      { id: 'CS-008', title: 'Definizione ipotesi', status: 'completed', completedAt: '18 dic 2025' },
-      { id: 'CS-009', title: 'Disegno sperimentale', status: 'completed', completedAt: '8 gen 2026' },
-      { id: 'CS-010', title: 'Raccolta dati', status: 'completed', completedAt: '15 feb 2026' },
-      { id: 'CS-011', title: 'Analisi statistica', status: 'in_progress' },
-      { id: 'CS-012', title: 'Cap. Risultati', status: 'pending' },
-      { id: 'CS-013', title: 'Cap. Discussione', status: 'pending' },
-      { id: 'CS-014', title: 'Cap. Conclusioni', status: 'pending' },
-      { id: 'CS-015', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-004',
-    name: 'Luca Neri',
-    university: 'Sapienza',
-    degree: 'Ingegneria Informatica',
-    status: 'paused',
-    serviceType: 'starter_pack',
-    thesisType: 'sperimentale',
-    planStartDate: '15 nov 2025',
-    planEndDate: '30 apr 2026',
-    hasTimeline: true,
-    newActivityCount: 0,
-    assignedCoachName: 'Andrea Romano',
-    contractStatus: 'signed',
-    installmentStatus: 'overdue',
-    installmentOverdueCount: 1,
-    stepsCompleted: 2,
-    stepsTotal: 5,
-    openTicketCount: 0,
-    finalPrice: 500,
-    activatedAt: '15 nov 2025',
-    serviceNameSnapshot: 'Starter Pack - Tesi Sperimentale',
-    coachFee: 200,
-    contractFileUrl: '/contracts/STU-004.pdf',
-    lavorazioneId: 'SS-117',
-    installments: [
-      { id: 'INS-008', amount: 250, dueDate: '15 nov 2025', status: 'paid', paidAt: '14 nov 2025' },
-      { id: 'INS-009', amount: 250, dueDate: '15 feb 2026', status: 'overdue' },
-    ],
-    coachingSteps: [
-      { id: 'CS-016', title: 'Analisi requisiti', status: 'completed', completedAt: '25 nov 2025' },
-      { id: 'CS-017', title: 'Struttura tesi', status: 'completed', completedAt: '10 dic 2025' },
-      { id: 'CS-018', title: 'Implementazione', status: 'in_progress' },
-      { id: 'CS-019', title: 'Testing', status: 'pending' },
-      { id: 'CS-020', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-005',
-    name: 'Sara Martini',
-    degree: 'Ingegneria Gestionale',
-    status: 'active',
-    serviceType: 'starter_pack',
-    thesisType: 'sperimentale',
-    planStartDate: '20 gen 2026',
-    planEndDate: '20 giu 2026',
-    hasTimeline: true,
-    newActivityCount: 1,
-    assignedCoachName: undefined,
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    installmentOverdueCount: 0,
-    stepsCompleted: 1,
-    stepsTotal: 5,
-    openTicketCount: 2,
-    finalPrice: 500,
-    activatedAt: '20 gen 2026',
-    serviceNameSnapshot: 'Starter Pack - Tesi Sperimentale',
-    contractFileUrl: '/contracts/STU-005.pdf',
-    lavorazioneId: 'SS-088',
-    installments: [
-      { id: 'INS-010', amount: 500, dueDate: '20 gen 2026', status: 'paid', paidAt: '19 gen 2026' },
-    ],
-    coachingSteps: [
-      { id: 'CS-021', title: 'Analisi tema', status: 'completed', completedAt: '28 gen 2026' },
-      { id: 'CS-022', title: 'Ricerca bibliografica', status: 'in_progress' },
-      { id: 'CS-023', title: 'Capitolo 1', status: 'pending' },
-      { id: 'CS-024', title: 'Capitolo 2', status: 'pending' },
-      { id: 'CS-025', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [
-      { id: 'TK-002', subject: 'Assegnazione coach mancante', status: 'open', createdAt: '25 gen 2026', messageCount: 5 },
-      { id: 'TK-003', subject: 'Problema accesso piattaforma', status: 'open', createdAt: '2 feb 2026', messageCount: 2 },
-    ],
-  },
-  {
-    id: 'STU-006',
-    name: 'Paolo Russo',
-    university: 'Politecnico MI',
-    degree: 'Architettura',
-    status: 'completed',
-    serviceType: 'coaching_plus',
-    thesisType: 'sperimentale',
-    planStartDate: '1 set 2025',
-    planEndDate: '15 dic 2025',
-    hasTimeline: true,
-    newActivityCount: 0,
-    assignedCoachName: 'Laura Bianchi',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    stepsCompleted: 7,
-    stepsTotal: 7,
-    openTicketCount: 0,
-    finalPrice: 1400,
-    discountAmount: 200,
-    activatedAt: '1 set 2025',
-    closedReason: 'concluso',
-    closedAt: '10 dic 2025',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Sperimentale',
-    coachFee: 560,
-    contractFileUrl: '/contracts/STU-006.pdf',
-    lavorazioneId: 'SS-132',
-    installments: [
-      { id: 'INS-011', amount: 700, dueDate: '1 set 2025', status: 'paid', paidAt: '31 ago 2025' },
-      { id: 'INS-012', amount: 700, dueDate: '1 nov 2025', status: 'paid', paidAt: '1 nov 2025' },
-    ],
-    coachingSteps: [
-      { id: 'CS-026', title: 'Analisi progetto', status: 'completed', completedAt: '8 set 2025' },
-      { id: 'CS-027', title: 'Ricerca', status: 'completed', completedAt: '25 set 2025' },
-      { id: 'CS-028', title: 'Progettazione', status: 'completed', completedAt: '15 ott 2025' },
-      { id: 'CS-029', title: 'Sviluppo tavole', status: 'completed', completedAt: '1 nov 2025' },
-      { id: 'CS-030', title: 'Capitolo teorico', status: 'completed', completedAt: '15 nov 2025' },
-      { id: 'CS-031', title: 'Capitolo progettuale', status: 'completed', completedAt: '28 nov 2025' },
-      { id: 'CS-032', title: 'Revisione finale', status: 'completed', completedAt: '8 dic 2025' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-007',
-    name: 'Marco Bianchi',
-    university: 'UniBo',
-    degree: 'Economia',
-    status: 'cancelled',
-    serviceType: 'coaching',
-    thesisType: 'compilativa',
-    planStartDate: '1 ott 2025',
-    planEndDate: '1 mar 2026',
-    hasTimeline: false,
-    newActivityCount: 0,
-    assignedCoachName: 'Marco Rossi',
-    contractStatus: 'signed',
-    installmentStatus: 'overdue',
-    installmentOverdueCount: 2,
-    stepsCompleted: 1,
-    stepsTotal: 6,
-    openTicketCount: 0,
-    finalPrice: 800,
-    activatedAt: '1 ott 2025',
-    closedReason: 'abbandono',
-    closedAt: '15 gen 2026',
-    serviceNameSnapshot: 'Coaching - Tesi Compilativa',
-    coachFee: 320,
-    contractFileUrl: '/contracts/STU-007.pdf',
-    lavorazioneId: 'SS-150',
-    installments: [
-      { id: 'INS-013', amount: 400, dueDate: '1 ott 2025', status: 'paid', paidAt: '1 ott 2025' },
-      { id: 'INS-014', amount: 400, dueDate: '1 dic 2025', status: 'overdue' },
-    ],
-    coachingSteps: [
-      { id: 'CS-033', title: 'Analisi tema', status: 'completed', completedAt: '10 ott 2025' },
-      { id: 'CS-034', title: 'Ricerca bibliografica', status: 'pending' },
-      { id: 'CS-035', title: 'Capitolo 1', status: 'pending' },
-      { id: 'CS-036', title: 'Capitolo 2', status: 'pending' },
-      { id: 'CS-037', title: 'Capitolo 3', status: 'pending' },
-      { id: 'CS-038', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [
-      { id: 'TK-004', subject: 'Richiesta annullamento', status: 'closed', createdAt: '10 gen 2026', messageCount: 4 },
-    ],
-  },
-  // ─── Students linked to LavorazioniContext services ──────────
-  {
-    id: 'STU-008',
-    name: 'Elena Mancini',
-    university: 'UniPI',
-    degree: 'Biotecnologie Mediche',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'sperimentale',
-    planStartDate: '15 ago 2025',
-    planEndDate: '15 feb 2026',
-    hasTimeline: true,
-    newActivityCount: 1,
-    assignedCoachName: 'Lucia Marchetti',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    stepsCompleted: 5,
-    stepsTotal: 6,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '15 ago 2025',
-    serviceNameSnapshot: 'Coaching - Tesi Sperimentale',
-    coachFee: 480,
-    lavorazioneId: 'SS-135',
-    installments: [
-      { id: 'INS-020', amount: 400, dueDate: '15 ago 2025', status: 'paid', paidAt: '13 ago 2025' },
-      { id: 'INS-021', amount: 400, dueDate: '15 set 2025', status: 'paid', paidAt: '12 set 2025' },
-      { id: 'INS-022', amount: 400, dueDate: '15 ott 2025', status: 'paid', paidAt: '14 ott 2025' },
-    ],
-    coachingSteps: [
-      { id: 'CS-050', title: 'Definizione ipotesi sperimentale', status: 'completed', completedAt: '1 set 2025' },
-      { id: 'CS-051', title: 'Disegno sperimentale', status: 'completed', completedAt: '28 set 2025' },
-      { id: 'CS-052', title: 'Raccolta dati laboratorio', status: 'completed', completedAt: '30 ott 2025' },
-      { id: 'CS-053', title: 'Analisi statistica', status: 'completed', completedAt: '20 nov 2025' },
-      { id: 'CS-054', title: 'Stesura risultati e discussione', status: 'completed', completedAt: '15 dic 2025' },
-      { id: 'CS-055', title: 'Revisione finale', status: 'in_progress' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-009',
-    name: 'Lorenzo Galli',
-    university: 'UniGE',
-    degree: 'Medicina e Chirurgia',
-    status: 'active',
-    serviceType: 'coaching_plus',
-    thesisType: 'sperimentale',
-    planStartDate: '1 ott 2025',
-    planEndDate: '1 apr 2026',
-    hasTimeline: true,
-    newActivityCount: 2,
-    assignedCoachName: 'Marco Bianchi',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    stepsCompleted: 3,
-    stepsTotal: 6,
-    openTicketCount: 0,
-    finalPrice: 1800,
-    activatedAt: '1 ott 2025',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Sperimentale',
-    coachFee: 720,
-    lavorazioneId: 'SS-138',
-    installments: [
-      { id: 'INS-025', amount: 600, dueDate: '1 ott 2025', status: 'paid', paidAt: '28 set 2025' },
-      { id: 'INS-026', amount: 600, dueDate: '1 nov 2025', status: 'paid', paidAt: '30 ott 2025' },
-      { id: 'INS-027', amount: 600, dueDate: '1 dic 2025', status: 'paid', paidAt: '28 nov 2025' },
-    ],
-    coachingSteps: [
-      { id: 'CS-060', title: 'Revisione letteratura medica', status: 'completed', completedAt: '20 ott 2025' },
-      { id: 'CS-061', title: 'Protocollo sperimentale', status: 'completed', completedAt: '15 nov 2025' },
-      { id: 'CS-062', title: 'Raccolta dati clinici', status: 'completed', completedAt: '10 gen 2026' },
-      { id: 'CS-063', title: 'Analisi dati e risultati', status: 'in_progress' },
-      { id: 'CS-064', title: 'Stesura discussione', status: 'pending' },
-      { id: 'CS-065', title: 'Revisione finale e abstract', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-010',
-    name: 'Valentina Costa',
-    university: 'Bocconi',
-    degree: 'Marketing e Comunicazione',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'sperimentale',
-    planStartDate: '20 dic 2025',
-    planEndDate: '20 giu 2026',
-    hasTimeline: true,
-    newActivityCount: 0,
-    assignedCoachName: 'Andrea Conti',
-    contractStatus: 'signed',
-    installmentStatus: 'overdue',
-    installmentOverdueCount: 1,
-    stepsCompleted: 2,
-    stepsTotal: 5,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '20 dic 2025',
-    serviceNameSnapshot: 'Coaching - Tesi Sperimentale',
-    coachFee: 480,
-    lavorazioneId: 'SS-141',
-    installments: [
-      { id: 'INS-030', amount: 400, dueDate: '20 dic 2025', status: 'paid', paidAt: '18 dic 2025' },
-      { id: 'INS-031', amount: 400, dueDate: '20 gen 2026', status: 'paid', paidAt: '18 gen 2026' },
-      { id: 'INS-032', amount: 400, dueDate: '20 feb 2026', status: 'overdue' },
-    ],
-    coachingSteps: [
-      { id: 'CS-070', title: 'Analisi settore luxury', status: 'completed', completedAt: '10 gen 2026' },
-      { id: 'CS-071', title: 'Framework teorico', status: 'completed', completedAt: '5 feb 2026' },
-      { id: 'CS-072', title: 'Indagine empirica', status: 'in_progress' },
-      { id: 'CS-073', title: 'Stesura capitoli', status: 'pending' },
-      { id: 'CS-074', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-011',
-    name: 'Andrea Pellegrini',
-    university: 'UniTO',
-    degree: 'Scienze Ambientali',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'compilativa',
-    planStartDate: '1 dic 2025',
-    planEndDate: '1 giu 2026',
-    hasTimeline: true,
-    newActivityCount: 1,
-    assignedCoachName: 'Elena Ferretti',
-    contractStatus: 'signed',
-    installmentStatus: 'pending',
-    stepsCompleted: 2,
-    stepsTotal: 4,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '1 dic 2025',
-    serviceNameSnapshot: 'Coaching - Tesi Compilativa',
-    coachFee: 480,
-    lavorazioneId: 'SS-145',
-    installments: [
-      { id: 'INS-035', amount: 400, dueDate: '1 dic 2025', status: 'paid', paidAt: '29 nov 2025' },
-      { id: 'INS-036', amount: 400, dueDate: '1 gen 2026', status: 'paid', paidAt: '30 dic 2025' },
-      { id: 'INS-037', amount: 400, dueDate: '1 feb 2026', status: 'pending' },
-    ],
-    coachingSteps: [
-      { id: 'CS-080', title: 'Rassegna letteratura', status: 'completed', completedAt: '20 dic 2025' },
-      { id: 'CS-081', title: 'Stesura introduzione e cap. 1', status: 'completed', completedAt: '25 gen 2026' },
-      { id: 'CS-082', title: 'Capitoli centrali', status: 'in_progress' },
-      { id: 'CS-083', title: 'Conclusioni e revisione', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-012',
-    name: 'Sofia Ricci',
-    university: 'Politecnico MI',
-    degree: 'Design della Comunicazione',
-    status: 'active',
-    serviceType: 'coaching_plus',
-    thesisType: 'sperimentale',
-    planStartDate: '5 ott 2025',
-    planEndDate: '5 apr 2026',
-    hasTimeline: true,
-    newActivityCount: 3,
-    assignedCoachName: 'Andrea Conti',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    stepsCompleted: 4,
-    stepsTotal: 6,
-    openTicketCount: 1,
-    finalPrice: 1800,
-    activatedAt: '5 ott 2025',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Sperimentale',
-    coachFee: 720,
-    lavorazioneId: 'SS-153',
-    installments: [
-      { id: 'INS-040', amount: 600, dueDate: '5 ott 2025', status: 'paid', paidAt: '3 ott 2025' },
-      { id: 'INS-041', amount: 600, dueDate: '5 nov 2025', status: 'paid', paidAt: '4 nov 2025' },
-      { id: 'INS-042', amount: 600, dueDate: '5 dic 2025', status: 'paid', paidAt: '3 dic 2025' },
-    ],
-    coachingSteps: [
-      { id: 'CS-090', title: 'Analisi UX stato dell\'arte', status: 'completed', completedAt: '20 ott 2025' },
-      { id: 'CS-091', title: 'User research e personas', status: 'completed', completedAt: '10 nov 2025' },
-      { id: 'CS-092', title: 'Prototipazione e test', status: 'completed', completedAt: '5 dic 2025' },
-      { id: 'CS-093', title: 'Iterazione design', status: 'completed', completedAt: '20 gen 2026' },
-      { id: 'CS-094', title: 'Stesura risultati', status: 'in_progress' },
-      { id: 'CS-095', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [
-      { id: 'TK-005', subject: 'Richiesta feedback prototipo', status: 'open', createdAt: '1 mar 2026', messageCount: 2 },
-    ],
-  },
-  {
-    id: 'STU-013',
-    name: 'Matteo Fontana',
-    university: 'UniTN',
-    degree: 'Ingegneria Informatica',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'sperimentale',
-    planStartDate: '20 gen 2026',
-    planEndDate: '20 lug 2026',
-    hasTimeline: true,
-    newActivityCount: 0,
-    assignedCoachName: 'Marco Bianchi',
-    contractStatus: 'signed',
-    installmentStatus: 'pending',
-    stepsCompleted: 1,
-    stepsTotal: 5,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '20 gen 2026',
-    serviceNameSnapshot: 'Coaching - Tesi Sperimentale',
-    coachFee: 480,
-    lavorazioneId: 'SS-155',
-    installments: [
-      { id: 'INS-045', amount: 400, dueDate: '20 gen 2026', status: 'paid', paidAt: '18 gen 2026' },
-      { id: 'INS-046', amount: 400, dueDate: '20 feb 2026', status: 'pending' },
-      { id: 'INS-047', amount: 400, dueDate: '20 mar 2026', status: 'pending' },
-    ],
-    coachingSteps: [
-      { id: 'CS-100', title: 'Definizione scope e architettura', status: 'completed', completedAt: '5 feb 2026' },
-      { id: 'CS-101', title: 'Implementazione core', status: 'in_progress' },
-      { id: 'CS-102', title: 'Testing e validazione', status: 'pending' },
-      { id: 'CS-103', title: 'Stesura capitoli tecnici', status: 'pending' },
-      { id: 'CS-104', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-014',
-    name: 'Anna Greco',
-    university: 'UniVR',
-    degree: 'Scienze Infermieristiche',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'compilativa',
-    planStartDate: '15 ott 2025',
-    planEndDate: '15 apr 2026',
-    hasTimeline: true,
-    newActivityCount: 1,
-    assignedCoachName: 'Lucia Marchetti',
-    contractStatus: 'signed',
-    installmentStatus: 'all_paid',
-    stepsCompleted: 3,
-    stepsTotal: 4,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '15 ott 2025',
-    serviceNameSnapshot: 'Coaching - Tesi Compilativa',
-    coachFee: 480,
-    lavorazioneId: 'SS-159',
-    installments: [
-      { id: 'INS-050', amount: 400, dueDate: '15 ott 2025', status: 'paid', paidAt: '13 ott 2025' },
-      { id: 'INS-051', amount: 400, dueDate: '15 nov 2025', status: 'paid', paidAt: '13 nov 2025' },
-      { id: 'INS-052', amount: 400, dueDate: '15 dic 2025', status: 'paid', paidAt: '12 dic 2025' },
-    ],
-    coachingSteps: [
-      { id: 'CS-110', title: 'Review letteratura infermieristica', status: 'completed', completedAt: '5 nov 2025' },
-      { id: 'CS-111', title: 'Stesura protocolli', status: 'completed', completedAt: '10 dic 2025' },
-      { id: 'CS-112', title: 'Capitoli e discussione', status: 'completed', completedAt: '15 feb 2026' },
-      { id: 'CS-113', title: 'Revisione finale', status: 'in_progress' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-015',
-    name: 'Federico Rinaldi',
-    university: 'UniPV',
-    degree: 'Filosofia',
-    status: 'active',
-    serviceType: 'coaching_plus',
-    thesisType: 'compilativa',
-    planStartDate: '5 dic 2025',
-    planEndDate: '5 giu 2026',
-    hasTimeline: true,
-    newActivityCount: 2,
-    assignedCoachName: 'Martina Rossi',
-    contractStatus: 'signed',
-    installmentStatus: 'overdue',
-    installmentOverdueCount: 1,
-    stepsCompleted: 2,
-    stepsTotal: 5,
-    openTicketCount: 0,
-    finalPrice: 1800,
-    activatedAt: '5 dic 2025',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Compilativa',
-    coachFee: 720,
-    lavorazioneId: 'SS-161',
-    installments: [
-      { id: 'INS-055', amount: 600, dueDate: '5 dic 2025', status: 'paid', paidAt: '3 dic 2025' },
-      { id: 'INS-056', amount: 600, dueDate: '5 gen 2026', status: 'paid', paidAt: '3 gen 2026' },
-      { id: 'INS-057', amount: 600, dueDate: '5 feb 2026', status: 'overdue' },
-    ],
-    coachingSteps: [
-      { id: 'CS-120', title: 'Framework filosofico', status: 'completed', completedAt: '20 dic 2025' },
-      { id: 'CS-121', title: 'Analisi testuale', status: 'completed', completedAt: '25 gen 2026' },
-      { id: 'CS-122', title: 'Sviluppo argomentazione', status: 'in_progress' },
-      { id: 'CS-123', title: 'Capitoli conclusivi', status: 'pending' },
-      { id: 'CS-124', title: 'Revisione e apparato critico', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-016',
-    name: 'Martina Colombo',
-    university: 'UniMI',
-    degree: 'Economia e Finanza',
-    status: 'pending_payment',
-    serviceType: 'coaching_plus',
-    thesisType: 'sperimentale',
-    planStartDate: '15 feb 2026',
-    planEndDate: '15 ago 2026',
-    hasTimeline: false,
-    newActivityCount: 0,
-    assignedCoachName: 'Lucia Marchetti',
-    contractStatus: 'pending',
-    installmentStatus: 'pending',
-    stepsCompleted: 0,
-    stepsTotal: 6,
-    openTicketCount: 0,
-    finalPrice: 1800,
-    serviceNameSnapshot: 'Coaching Plus - Tesi Sperimentale',
-    coachFee: 720,
-    lavorazioneId: 'SS-148',
-    installments: [
-      { id: 'INS-060', amount: 600, dueDate: '1 feb 2026', status: 'pending' },
-      { id: 'INS-061', amount: 600, dueDate: '1 mar 2026', status: 'pending' },
-      { id: 'INS-062', amount: 600, dueDate: '1 apr 2026', status: 'pending' },
-    ],
-    coachingSteps: [],
-    tickets: [],
-  },
-  {
-    id: 'STU-017',
-    name: 'Marco De Luca',
-    university: 'UniRM',
-    degree: 'Informatica',
-    status: 'active',
-    serviceType: 'coaching',
-    thesisType: 'sperimentale',
-    planStartDate: '15 feb 2026',
-    planEndDate: '15 ago 2026',
-    hasTimeline: true,
-    newActivityCount: 1,
-    assignedCoachName: 'Andrea Conti',
-    contractStatus: 'signed',
-    installmentStatus: 'pending',
-    stepsCompleted: 1,
-    stepsTotal: 4,
-    openTicketCount: 0,
-    finalPrice: 1200,
-    activatedAt: '15 feb 2026',
-    serviceNameSnapshot: 'Coaching - Tesi Sperimentale',
-    coachFee: 480,
-    lavorazioneId: 'SS-165',
-    installments: [
-      { id: 'INS-065', amount: 400, dueDate: '15 feb 2026', status: 'paid', paidAt: '13 feb 2026' },
-      { id: 'INS-066', amount: 400, dueDate: '15 mar 2026', status: 'pending' },
-      { id: 'INS-067', amount: 400, dueDate: '15 apr 2026', status: 'pending' },
-    ],
-    coachingSteps: [
-      { id: 'CS-130', title: 'Architettura microservizi', status: 'completed', completedAt: '1 mar 2026' },
-      { id: 'CS-131', title: 'Implementazione backend', status: 'in_progress' },
-      { id: 'CS-132', title: 'Stesura e testing', status: 'pending' },
-      { id: 'CS-133', title: 'Revisione finale', status: 'pending' },
-    ],
-    tickets: [],
-  },
-  {
-    id: 'STU-018',
-    name: 'Francesca Moretti',
-    university: 'Politecnico MI',
-    degree: 'Architettura',
-    status: 'active',
-    serviceType: 'coaching_plus',
-    thesisType: 'sperimentale',
-    planStartDate: '20 ott 2025',
-    planEndDate: '20 mar 2026',
-    hasTimeline: true,
-    newActivityCount: 0,
-    assignedCoachName: 'Elena Ferretti',
-    contractStatus: 'signed',
-    installmentStatus: 'overdue',
-    installmentOverdueCount: 1,
-    stepsCompleted: 3,
-    stepsTotal: 4,
-    openTicketCount: 0,
-    finalPrice: 1800,
-    activatedAt: '20 ott 2025',
-    serviceNameSnapshot: 'Coaching Plus - Tesi Sperimentale',
-    coachFee: 720,
-    lavorazioneId: 'SS-110',
-    installments: [
-      { id: 'INS-070', amount: 600, dueDate: '20 ott 2025', status: 'paid', paidAt: '18 ott 2025' },
-      { id: 'INS-071', amount: 600, dueDate: '20 nov 2025', status: 'paid', paidAt: '19 nov 2025' },
-      { id: 'INS-072', amount: 600, dueDate: '20 dic 2025', status: 'overdue' },
-    ],
-    coachingSteps: [
-      { id: 'CS-140', title: 'Definizione struttura progetto', status: 'completed', completedAt: '10 nov 2025' },
-      { id: 'CS-141', title: 'Stesura primi capitoli', status: 'completed', completedAt: '5 dic 2025' },
-      { id: 'CS-142', title: 'Analisi dati e risultati', status: 'completed', completedAt: '20 gen 2026' },
-      { id: 'CS-143', title: 'Revisione e bibliografia', status: 'in_progress' },
-    ],
-    tickets: [],
-  },
-];
-
 const ACTIVE_STATUSES: StudentStatus[] = ['active'];
 const ACTIVATION_STATUSES: StudentStatus[] = ['pending_payment', 'paused'];
 const PAST_STATUSES: StudentStatus[] = ['completed', 'cancelled', 'expired'];
@@ -900,7 +202,15 @@ const COACHES = ['Martina Rossi', 'Marco Bianchi', 'Andrea Conti', 'Elena Ferret
 const CURRENT_ADMIN = 'Francesca';
 
 export function TimelinePage() {
-  const { data: services, students: realStudents, updateStudent } = useLavorazioni();
+  const {
+    data: services,
+    students: realStudents,
+    updateStudent,
+    updateService,
+    getServiceTimelineSteps,
+    getServiceArchiveDocuments,
+    getServiceStepOptions,
+  } = useLavorazioni();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Map StudentService to StudentData for services that need timeline
@@ -929,13 +239,12 @@ export function TimelinePage() {
         const hasPending = (svc.installments || []).some(i => i.status === 'pending');
         const installmentStatus: InstallmentStatus = hasOverdue ? 'overdue' : hasPending ? 'pending' : 'all_paid';
         
-        // Mock coaching steps (timeline data — will be real when implemented)
-        const coachingSteps: CoachingStep[] = svc.coaching_timeline?.map(phase => ({
-          id: phase.id || `CS-${svc.id}-${phase.phase}`,
-          title: phase.description || phase.phase,
-          status: phase.status === 'completed' ? 'completed' : phase.status === 'in_progress' ? 'in_progress' : 'pending',
-          completedAt: phase.completedAt,
-        })) || [];
+        const coachingSteps: CoachingStep[] = getServiceTimelineSteps(svc.id).map(step => ({
+          id: step.id,
+          title: step.title,
+          status: step.status === 'completed' ? 'completed' : step.status === 'active' ? 'in_progress' : 'pending',
+          completedAt: step.completedDate,
+        }));
 
         const stepsCompleted = coachingSteps.filter(s => s.status === 'completed').length;
         const stepsTotal = coachingSteps.length;
@@ -986,7 +295,7 @@ export function TimelinePage() {
         };
         return result;
       });
-  }, [services, realStudents]);
+  }, [services, realStudents, getServiceTimelineSteps]);
   const [activeTab, setActiveTab] = useState<TabKey>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -1000,7 +309,7 @@ export function TimelinePage() {
   const [selectedCoach, setSelectedCoach] = useState('');
 
   // Admin notes state
-  const [adminNotes, setAdminNotes] = useState<AdminNote[]>(initialMockNotes);
+  const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
   const [notesModal, setNotesModal] = useState<StudentData | null>(null);
 
   // Bulk selection state
@@ -1009,6 +318,8 @@ export function TimelinePage() {
   // Detail drawer state
   const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
   const [studentDetailDrawer, setStudentDetailDrawer] = useState<StudentData | null>(null);
+  const [archiveStudent, setArchiveStudent] = useState<StudentData | null>(null);
+  const [isArchiveDrawerOpen, setIsArchiveDrawerOpen] = useState(false);
 
   // Column widths (resize)
   const { columnWidths, handleResize: handleMouseDown } = useTableResize({
@@ -1073,6 +384,74 @@ export function TimelinePage() {
       timestamp: formatDateTimeIT(new Date().toISOString()),
     };
     setAdminNotes(prev => [newNote, ...prev]);
+  };
+
+  const archiveServiceId = archiveStudent?.lavorazioneId || archiveStudent?.id || '';
+
+  const archiveDocuments = useMemo(() => {
+    if (!archiveStudent) return [] as Document[];
+    return getServiceArchiveDocuments(archiveServiceId);
+  }, [archiveStudent, archiveServiceId, getServiceArchiveDocuments]);
+
+  const archiveSteps = useMemo<StepOption[]>(() => {
+    if (!archiveStudent) return [];
+    return getServiceStepOptions(archiveServiceId);
+  }, [archiveStudent, archiveServiceId, getServiceStepOptions]);
+
+  const updateArchiveDocuments = (updater: (prev: Document[]) => Document[]) => {
+    if (!archiveStudent) return;
+    updateService(archiveServiceId, (service) => ({
+      ...service,
+      shared_documents: updater((service.shared_documents as Document[] | undefined) ?? archiveDocuments),
+    }));
+  };
+
+  const handleOpenSharedArchive = (student: StudentData) => {
+    setArchiveStudent(student);
+    setIsArchiveDrawerOpen(true);
+    setDrawerStudent(null);
+  };
+
+  const handleArchiveAssignToStep = (docId: string, stepId: string) => {
+    const selectedStep = archiveSteps.find(step => step.id === stepId);
+    updateArchiveDocuments(prev =>
+      prev.map(doc =>
+        doc.id === docId
+          ? { ...doc, stepId, stepTitle: selectedStep?.title || doc.stepTitle }
+          : doc
+      )
+    );
+  };
+
+  const handleArchiveUpload = (files: File[], note?: string, fileStepAssignments?: Record<number, string | null>) => {
+    const now = new Date();
+    const baseDate = `${now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} h:${now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }).replace(':', '.')}`;
+
+    const newDocs: Document[] = files.map((file, index) => {
+      const assignedStepId = fileStepAssignments?.[index] || null;
+      const assignedStep = archiveSteps.find(step => step.id === assignedStepId);
+      return {
+        id: `admin-archive-${Date.now()}-${index}`,
+        name: file.name,
+        sender: 'coach',
+        stepId: assignedStepId,
+        stepTitle: assignedStep?.title || null,
+        date: baseDate,
+        size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+        uploadedBy: CURRENT_ADMIN,
+        plagiarismStatus: 'none',
+        note,
+      };
+    });
+
+    updateArchiveDocuments(prev => [...newDocs, ...prev]);
+  };
+
+  const handleArchivePlagiarismCheck = (docId: string) => {
+    updateArchiveDocuments(prev => prev.map(doc => (doc.id === docId ? { ...doc, plagiarismStatus: 'pending' } : doc)));
+    setTimeout(() => {
+      updateArchiveDocuments(prev => prev.map(doc => (doc.id === docId ? { ...doc, plagiarismStatus: 'clear' } : doc)));
+    }, 1200);
   };
 
 
@@ -2004,12 +1383,31 @@ export function TimelinePage() {
           onReassignCoach={() => { setReassignModal(drawerStudent); setSelectedCoach(drawerStudent.assignedCoachName || ''); }}
           onMarkComplete={() => { setConfirmModal({ type: 'complete', student: drawerStudent }); }}
           onRemove={() => { setConfirmModal({ type: 'remove', student: drawerStudent }); }}
+          onOpenSharedArchive={handleOpenSharedArchive}
           onOpenStudentDetail={() => { 
             setStudentDetailDrawer(drawerStudent); 
             setDrawerStudent(null); 
           }}
         />
       )}
+
+      <DocumentArchiveDrawer
+        isOpen={isArchiveDrawerOpen}
+        onClose={() => {
+          setIsArchiveDrawerOpen(false);
+          setArchiveStudent(null);
+        }}
+        studentName={archiveStudent?.name || ''}
+        documents={archiveDocuments}
+        availableSteps={archiveSteps}
+        onViewDocument={(docId) => console.log('View document:', docId)}
+        onDownloadDocument={(docId) => console.log('Download document:', docId)}
+        onDeleteDocument={(docId) => updateArchiveDocuments(prev => prev.filter(doc => doc.id !== docId))}
+        onRunPlagiarismCheck={handleArchivePlagiarismCheck}
+        onAddNote={(docId, note) => updateArchiveDocuments(prev => prev.map(doc => (doc.id === docId ? { ...doc, note } : doc)))}
+        onAssignToStep={handleArchiveAssignToStep}
+        onUploadDocuments={handleArchiveUpload}
+      />
 
       <CreateStudentDrawer
         open={!!studentDetailDrawer}
