@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar } from '../../app/components/BulkActionsBar';
 import { Checkbox } from '../../app/components/ui/checkbox';
 import {
+  NotesBadgeButton,
   ResponsiveMobileCard,
   ResponsiveMobileCardHeader,
   ResponsiveMobileCards,
@@ -1022,6 +1023,7 @@ export function TimelinePage() {
     closedReason: 100,
     planStart: 110,
     planEnd: 110,
+    notes: 60,
     actions: 44,
   });
 
@@ -1179,7 +1181,7 @@ export function TimelinePage() {
   if (filterDateTo) activeFilters.push({ label: `A: ${filterDateTo}`, onRemove: () => setFilterDateTo('') });
 
   const isOpenPathTab = activeTab === 'active' || activeTab === 'activation';
-  const tableColCount = 11; // aggiornato per includere checkbox
+  const tableColCount = 12; // include checkbox + colonna note
 
   // Bulk selection handlers
   const handleSelectAll = (checked: boolean | 'indeterminate') => {
@@ -1728,6 +1730,7 @@ export function TimelinePage() {
                     )}
                     <TableHeaderCell id="planStart" label="Inizio" width={columnWidths.planStart} sortable sortDirection={sortColumn === 'planStart' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                     <TableHeaderCell id="planEnd" label={isOpenPathTab ? 'Scadenza' : 'Chiusura'} width={columnWidths.planEnd} sortable sortDirection={sortColumn === 'planEnd' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                    <TableHeaderCell id="notes" label="Note" width={columnWidths.notes} onResize={handleMouseDown} align="center" />
                     <TableHeaderActionCell width={columnWidths.actions} />
                   </tr>
                 </thead>
@@ -1863,6 +1866,12 @@ export function TimelinePage() {
                           )
                         )}
                       </TableCell>
+                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                        <NotesBadgeButton
+                          count={getNotesCount(student.id)}
+                          onClick={() => setNotesModal(student)}
+                        />
+                      </TableCell>
                       <TableActionCell width={columnWidths.actions} onClick={(e) => e.stopPropagation()}>
                         <TableActions actions={getStudentActions(student)} />
                       </TableActionCell>
@@ -1991,9 +2000,7 @@ export function TimelinePage() {
       {drawerStudent && (
         <TimelineDrawer
           student={drawerStudent}
-          notes={adminNotes.filter(n => n.studentId === drawerStudent.id)}
           onClose={() => setDrawerStudent(null)}
-          onOpenNotes={() => { setNotesModal(drawerStudent); }}
           onReassignCoach={() => { setReassignModal(drawerStudent); setSelectedCoach(drawerStudent.assignedCoachName || ''); }}
           onMarkComplete={() => { setConfirmModal({ type: 'complete', student: drawerStudent }); }}
           onRemove={() => { setConfirmModal({ type: 'remove', student: drawerStudent }); }}
