@@ -589,7 +589,7 @@ export function LavorazioneDetailDrawer({
                 <option value={22}>22%</option>
               </select>
               <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                Le rate senza override ereditano questa aliquota.
+                Le rate senza scelta specifica usano questa aliquota.
               </span>
             </div>
 
@@ -727,9 +727,9 @@ export function LavorazioneDetailDrawer({
                               markInstDirty(inst.id);
                             }}
                           >
-                            <option value="default">Default ({localServiceTaxRate}%)</option>
-                            <option value="4">Override 4%</option>
-                            <option value="22">Override 22%</option>
+                            <option value="default">{localServiceTaxRate}%</option>
+                            <option value="4">4% (sostituisci)</option>
+                            <option value="22">22% (sostituisci)</option>
                           </select>
                         </div>
                         <div>
