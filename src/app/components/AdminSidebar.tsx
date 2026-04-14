@@ -55,6 +55,7 @@ const extraSections: NavSection[] = [
     label: 'Sottocheck App',
     icon: <CheckSquare size={20} />,
     items: [
+      { label: 'Check Sottocheck', path: '/sottocheck/check' },
       { label: 'Lavorazioni sottocheck', path: '/sottocheck/lavorazioni' },
       { label: 'Impostazioni sottocheck', path: '/sottocheck/impostazioni' },
       { label: 'Pagamenti e fatture', path: '/sottocheck/pagamenti-fatture' },

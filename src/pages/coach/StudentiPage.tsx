@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
@@ -8,9 +8,9 @@ import {
   Calendar,
   AlertTriangle,
   Bell,
+  LifeBuoy,
   MoreVertical,
   CheckCircle2,
-  LifeBuoy,
   UserMinus,
   X,
   Upload,
@@ -20,7 +20,6 @@ import {
   STUDENTS_DATA,
   StudentStatus,
   STATUS_LABELS,
-  STATUS_STYLES,
   SERVICE_TYPE_LABELS,
   THESIS_TYPE_LABELS,
   ADMIN_REFERENTI,
@@ -28,14 +27,38 @@ import {
 import { CalendarTableView } from '../../app/components/coach/CalendarTableView.tsx';
 import { getFileTypeFromName, getFileExtension, formatFileSize, FILE_TYPE_LABELS } from '../../app/utils/fileTypeUtils';
 import { getViewBasePath } from './viewBasePath';
+import { useTableResize } from '@/app/hooks/useTableResize';
 
 type TabMode = 'active' | 'past' | 'calendar';
-type SortField = 'name' | 'degree' | 'status' | 'planStart' | 'planEnd' | 'serviceType' | 'thesisType';
+type SortField = 'name' | 'degree' | 'status' | 'planStart' | 'planEnd' | 'serviceType' | 'thesisType' | 'progress';
 type SortDir = 'asc' | 'desc';
+type CoachTableColumnKey = SortField | 'tickets' | 'actions';
 
 /* ──────────────── All possible statuses for the filter dropdown ──────────────── */
 const ACTIVE_STATUSES: StudentStatus[] = ['pending_payment', 'active', 'paused'];
 const PAST_STATUSES: StudentStatus[] = ['completed', 'cancelled', 'expired'];
+const COACH_ACTIVE_STATUSES: Exclude<StudentStatus, 'pending_payment'>[] = ['active', 'paused'];
+
+const COACH_COLUMN_WIDTHS: Record<CoachTableColumnKey, number> = {
+  name: 260,
+  degree: 220,
+  thesisType: 140,
+  serviceType: 150,
+  status: 170,
+  progress: 130,
+  planStart: 160,
+  planEnd: 160,
+  tickets: 80,
+  actions: 72,
+};
+
+const COACH_STATUS_DOT_COLORS: Record<Exclude<StudentStatus, 'pending_payment'>, string> = {
+  active: 'var(--primary)',
+  paused: 'var(--muted-foreground)',
+  completed: 'var(--chart-2)',
+  cancelled: 'var(--destructive-foreground)',
+  expired: 'var(--muted-foreground)',
+};
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
@@ -49,6 +72,11 @@ export function StudentiPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const { columnWidths, handleResize } = useTableResize(COACH_COLUMN_WIDTHS);
+  const tableMinWidth = useMemo(
+    () => Object.values(columnWidths).reduce((sum, width) => sum + width, 0),
+    [columnWidths]
+  );
 
   /* Only assigned students (coach's own) */
   const assignedStudents = STUDENTS_DATA.filter(s => s.assigned);
@@ -67,6 +95,8 @@ export function StudentiPage() {
   /* Sort */
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
+    const progressA = getProgressRatio(a.currentPhase, a.status);
+    const progressB = getProgressRatio(b.currentPhase, b.status);
     switch (sortField) {
       case 'name': cmp = a.name.localeCompare(b.name); break;
       case 'degree': cmp = a.degree.localeCompare(b.degree); break;
@@ -75,6 +105,10 @@ export function StudentiPage() {
       case 'planEnd': cmp = (a.planEndDate || '').localeCompare(b.planEndDate || ''); break;
       case 'planStart': cmp = (a.planStartDate || '').localeCompare(b.planStartDate || ''); break;
       case 'thesisType': cmp = (a.thesisType || '').localeCompare(b.thesisType || ''); break;
+      case 'progress': {
+        cmp = progressA - progressB;
+        break;
+      }
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
@@ -97,6 +131,7 @@ export function StudentiPage() {
   const [ticketSent, setTicketSent] = useState(false);
   const [ticketFiles, setTicketFiles] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [ticketCountByStudent, setTicketCountByStudent] = useState<Record<string, number>>({});
 
   /* Close menu on outside click */
   useEffect(() => {
@@ -117,9 +152,14 @@ export function StudentiPage() {
 
   function handleSendTicket() {
     if (!ticketModal || !ticketMessage.trim()) return;
+    const studentId = ticketModal.studentId;
     // Mock — in production this creates a ticket
     setTicketSent(true);
     setTimeout(() => {
+      setTicketCountByStudent(prev => ({
+        ...prev,
+        [studentId]: (prev[studentId] || 0) + 1,
+      }));
       setTicketModal(null);
       setTicketMessage('');
       setTicketFiles([]);
@@ -136,15 +176,16 @@ export function StudentiPage() {
 
   /* Status badge */
   function statusBadge(status: StudentStatus) {
-    const s = STATUS_STYLES[status];
+    const coachStatus = normalizeCoachStatus(status);
     return (
       <span
         className="inline-flex items-center gap-[6px] whitespace-nowrap"
         style={{
           fontFamily: 'var(--font-inter)',
-          fontSize: '12px',
+          fontSize: 'var(--text-label)',
           fontWeight: 'var(--font-weight-medium)',
-          color: s.text,
+          color: COACH_STATUS_DOT_COLORS[coachStatus],
+          lineHeight: '1.5',
         }}
       >
         <span
@@ -153,10 +194,10 @@ export function StudentiPage() {
             width: '6px',
             height: '6px',
             borderRadius: '50%',
-            background: s.text,
+            background: COACH_STATUS_DOT_COLORS[coachStatus],
           }}
         />
-        {STATUS_LABELS[status]}
+        {STATUS_LABELS[coachStatus]}
       </span>
     );
   }
@@ -242,25 +283,29 @@ export function StudentiPage() {
             style={{ borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}
           >
             <option value="all">Tutti gli stati</option>
-            {activeTab === 'active' ? ACTIVE_STATUSES.map(st => <option key={st} value={st}>{STATUS_LABELS[st]}</option>) : PAST_STATUSES.map(st => <option key={st} value={st}>{STATUS_LABELS[st]}</option>)}
+            {activeTab === 'active'
+              ? COACH_ACTIVE_STATUSES.map(st => <option key={st} value={st}>{STATUS_LABELS[st]}</option>)
+              : PAST_STATUSES.map(st => <option key={st} value={st}>{STATUS_LABELS[st]}</option>)}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)] pointer-events-none" />
         </div>
       </div>
 
       {/* ── Table ── */}
-      <div className="border border-[var(--border)] bg-[var(--card)] overflow-hidden" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}>
+      <div className="border border-[var(--border)] bg-[var(--card)] overflow-x-auto" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}>
         {/* Header */}
-        <div className="bg-[var(--muted)] border-b border-[var(--border)]">
-          <div className="flex items-center h-[54px]">
-            <HeaderCell label="Nome" field="name" width="w-[18%] min-w-[150px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Corso di Laurea" field="degree" width="w-[15%] min-w-[130px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Tipologia" field="thesisType" width="w-[10%] min-w-[100px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Lavorazione" field="serviceType" width="w-[11%] min-w-[110px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Stato" field="status" width="w-[12%] min-w-[120px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Inizio piano" field="planStart" width="w-[11%] min-w-[110px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="Scadenza piano" field="planEnd" width="w-[11%] min-w-[110px]" sortField={sortField} sortDir={sortDir} onSort={toggleSort} SortIcon={SortIcon} />
-            <HeaderCell label="" width="w-[6%] min-w-[50px]" />
+        <div className="bg-[var(--muted)]">
+          <div className="flex items-center h-[54px]" style={{ minWidth: `${tableMinWidth}px` }}>
+            <HeaderCell id="name" label="Nome" field="name" width={columnWidths.name} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="degree" label="Corso di Laurea" field="degree" width={columnWidths.degree} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="thesisType" label="Tipologia" field="thesisType" width={columnWidths.thesisType} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="serviceType" label="Lavorazione" field="serviceType" width={columnWidths.serviceType} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="status" label="Stato" field="status" width={columnWidths.status} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="progress" label="Progresso" field="progress" width={columnWidths.progress} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="planStart" label="Inizio piano" field="planStart" width={columnWidths.planStart} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="planEnd" label="Scadenza piano" field="planEnd" width={columnWidths.planEnd} onSort={toggleSort} SortIcon={SortIcon} onResize={handleResize} />
+            <HeaderCell id="tickets" label="Ticket" width={columnWidths.tickets} onResize={handleResize} />
+            <HeaderCell id="actions" label="Azioni" width={columnWidths.actions} />
           </div>
         </div>
 
@@ -278,11 +323,11 @@ export function StudentiPage() {
                 {/* Main row */}
                 <div
                   className="flex items-stretch transition-colors cursor-pointer border-b border-[var(--border)] hover:bg-[var(--muted)]"
-                  style={{ minHeight: '68px' }}
+                  style={{ minHeight: '68px', minWidth: `${tableMinWidth}px` }}
                   onClick={() => navigate(`${viewBasePath}/studenti/${student.id}`)}
                 >
                   {/* Name + optional university + activity indicator */}
-                  <Cell width="w-[18%] min-w-[150px]">
+                  <Cell width={columnWidths.name}>
                     <div className="flex items-center gap-[10px]">
                       <div className="flex flex-col gap-[2px] min-w-0">
                         <div className="flex items-center gap-[8px]">
@@ -315,8 +360,8 @@ export function StudentiPage() {
                       </div>
                     </div>
                   </Cell>
-                  <Cell width="w-[15%] min-w-[130px]">{student.degree}</Cell>
-                  <Cell width="w-[10%] min-w-[100px]">
+                  <Cell width={columnWidths.degree}>{student.degree}</Cell>
+                  <Cell width={columnWidths.thesisType}>
                     {student.thesisType ? (
                       <span
                         className="inline-flex items-center px-[10px] py-[3px] whitespace-nowrap"
@@ -346,10 +391,10 @@ export function StudentiPage() {
                       </span>
                     )}
                   </Cell>
-                  <Cell width="w-[11%] min-w-[110px]">
+                  <Cell width={columnWidths.serviceType}>
                     {serviceTypeBadge(student.serviceType)}
                   </Cell>
-                  <Cell width="w-[12%] min-w-[120px]">
+                  <Cell width={columnWidths.status}>
                     <div className="flex flex-col gap-[4px]">
                       {statusBadge(student.status)}
                       {!student.hasTimeline && student.status === 'pending_payment' && (
@@ -360,7 +405,10 @@ export function StudentiPage() {
                       )}
                     </div>
                   </Cell>
-                  <Cell width="w-[11%] min-w-[110px]">
+                  <Cell width={columnWidths.progress}>
+                    <TimelineProgressCell {...getTimelineProgress(student.currentPhase, student.status)} />
+                  </Cell>
+                  <Cell width={columnWidths.planStart}>
                     {student.planStartDate ? (
                       <div className="flex items-center gap-[6px]">
                         <Calendar className="w-[12px] h-[12px] text-[var(--muted-foreground)] shrink-0" />
@@ -374,7 +422,7 @@ export function StudentiPage() {
                       </span>
                     )}
                   </Cell>
-                  <Cell width="w-[11%] min-w-[110px]">
+                  <Cell width={columnWidths.planEnd}>
                     {student.planEndDate ? (
                       <div className="flex items-center gap-[6px]">
                         <Calendar className="w-[12px] h-[12px] text-[var(--muted-foreground)] shrink-0" />
@@ -389,8 +437,17 @@ export function StudentiPage() {
                     )}
                   </Cell>
 
+                  <Cell width={columnWidths.tickets}>
+                    <div className="w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                      <TicketBadgeButton
+                        count={ticketCountByStudent[student.id] || 0}
+                        onClick={() => setTicketModal({ studentId: student.id, studentName: student.name })}
+                      />
+                    </div>
+                  </Cell>
+
                   {/* ── Three-dot actions menu ── */}
-                  <Cell width="w-[6%] min-w-[50px]">
+                  <Cell width={columnWidths.actions}>
                     <div className="relative" onClick={e => e.stopPropagation()} ref={openMenuId === student.id ? menuRef : undefined}>
                       <button
                         className="flex items-center justify-center w-[32px] h-[32px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
@@ -864,32 +921,221 @@ function TabButton({ active, count, onClick, children }: { active: boolean; coun
   );
 }
 
-function HeaderCell({ label, field, width, sortField, sortDir, onSort, SortIcon }: {
-  label: string; field?: SortField; width: string;
-  sortField?: SortField; sortDir?: SortDir;
+function HeaderCell({ id, label, field, width, onSort, SortIcon, onResize }: {
+  id: CoachTableColumnKey;
+  label: string;
+  field?: SortField;
+  width: number;
   onSort?: (f: SortField) => void;
   SortIcon?: React.FC<{ field: SortField }>;
+  onResize?: (columnKey: string, e: React.MouseEvent) => void;
 }) {
+  const isSortable = Boolean(field && onSort);
   return (
     <div
-      className={`${width} px-[16px] flex items-center gap-2 shrink-0 ${field ? 'cursor-pointer select-none' : ''}`}
+      className={`px-[16px] shrink-0 relative ${isSortable ? 'cursor-pointer select-none' : ''}`}
+      style={{
+        width: `${width}px`,
+        minWidth: `${width}px`,
+        height: '100%',
+        backgroundColor: 'var(--muted)',
+        borderBottom: '1px solid var(--border)',
+      }}
       onClick={() => field && onSort?.(field)}
     >
-      <span className="text-[var(--muted-foreground)] uppercase tracking-[0.7px]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
-        {label}
-      </span>
-      {field && SortIcon && <SortIcon field={field} />}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          justifyContent: label ? (field ? 'space-between' : 'center') : 'center',
+          height: '100%',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-label)',
+            fontWeight: 'var(--font-weight-medium)',
+            color: 'var(--foreground)',
+            lineHeight: '1.5',
+            textTransform: 'none',
+            letterSpacing: 'normal',
+          }}
+        >
+          {label}
+        </span>
+        {field && SortIcon && <SortIcon field={field} />}
+      </div>
+      {onResize && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '6px',
+            cursor: 'col-resize',
+            borderRight: '1px solid var(--border)',
+            transition: 'border-color 0.15s ease',
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onResize(id, e);
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLDivElement).style.borderRight = '2px solid var(--primary)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLDivElement).style.borderRight = '1px solid var(--border)';
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function Cell({ children, width }: { children: React.ReactNode; width: string }) {
+function Cell({ children, width }: { children: React.ReactNode; width: number }) {
   return (
     <div
-      className={`${width} px-[16px] py-[12px] shrink-0 flex items-center text-[var(--foreground)]`}
-      style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-regular)' }}
+      className="px-[16px] py-[12px] shrink-0 flex items-center text-[var(--foreground)]"
+      style={{
+        width: `${width}px`,
+        minWidth: `${width}px`,
+        fontFamily: 'var(--font-inter)',
+        fontSize: 'var(--text-base)',
+        fontWeight: 'var(--font-weight-regular)',
+      }}
     >
       {children}
+    </div>
+  );
+}
+
+function TicketBadgeButton({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={`${count} ticket`}
+      style={{
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        padding: '0.25rem',
+        color: count > 0 ? 'var(--chart-2)' : 'var(--muted-foreground)',
+      }}
+    >
+      <LifeBuoy size={18} />
+      {count > 0 && (
+        <span
+          style={{
+            position: 'absolute',
+            top: '-4px',
+            right: '-4px',
+            backgroundColor: 'var(--chart-2)',
+            color: 'var(--background)',
+            borderRadius: '50%',
+            width: '16px',
+            height: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '10px',
+            fontWeight: 'var(--font-weight-medium)',
+            fontFamily: 'var(--font-inter)',
+            lineHeight: '1',
+          }}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function normalizeCoachStatus(status: StudentStatus): Exclude<StudentStatus, 'pending_payment'> {
+  if (status === 'pending_payment') return 'active';
+  return status;
+}
+
+function getProgressRatio(currentPhase: string, status: StudentStatus): number {
+  const { completed, total } = getTimelineProgress(currentPhase, status);
+  if (total <= 0) return -1;
+  return completed / total;
+}
+
+function getTimelineProgress(currentPhase: string, status: StudentStatus): { completed: number; total: number } {
+  if (status === 'completed') {
+    const completedMatch = currentPhase.match(/(\d+)\s*\/\s*(\d+)/);
+    if (completedMatch) {
+      return { completed: parseInt(completedMatch[2], 10), total: parseInt(completedMatch[2], 10) };
+    }
+  }
+
+  const phaseMatch = currentPhase.match(/fase\s+(\d+)\s+di\s+(\d+)/i);
+  if (!phaseMatch) return { completed: 0, total: 0 };
+
+  const current = parseInt(phaseMatch[1], 10);
+  const total = parseInt(phaseMatch[2], 10);
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 0) return { completed: 0, total: 0 };
+
+  return { completed: Math.max(0, Math.min(current, total)), total };
+}
+
+function TimelineProgressCell({ completed, total }: { completed: number; total: number }) {
+  if (total === 0) {
+    return (
+      <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: '1.5' }}>
+        —
+      </span>
+    );
+  }
+
+  const pct = Math.round((completed / total) * 100);
+  const barColor = pct === 100 ? 'var(--primary)' : pct >= 50 ? 'var(--chart-2)' : 'var(--chart-3)';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '60px' }}>
+      <span
+        style={{
+          fontFamily: 'var(--font-inter)',
+          fontSize: '11px',
+          fontWeight: 'var(--font-weight-medium)',
+          color: 'var(--foreground)',
+          lineHeight: '1.5',
+        }}
+      >
+        {completed}/{total}
+      </span>
+      <div
+        style={{
+          width: '100%',
+          height: '4px',
+          borderRadius: '2px',
+          background: 'var(--border)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            borderRadius: '2px',
+            background: barColor,
+            transition: 'width 0.3s ease',
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { getStudentTimeline } from '@/pages/coach/studentTimelines';
 
 // ─── Types ───────────────────────────────────────────────────
 export type ServiceStatus = 'active' | 'paused' | 'completed' | 'cancelled' | 'expired';
@@ -94,6 +95,8 @@ export type PayoutStatus = 'pending_invoice' | 'waiting_due_date' | 'ready_to_pa
 export interface CoachPayout {
   id: string;
   notula_number?: string;
+  notula_status?: 'da_programmare' | 'programmata' | 'inviata' | 'pagata';
+  invoice_status?: 'da_ricevere' | 'ricevuta' | 'pagata';
   notula_issue_date?: string;
   notula_amount?: number;
   payment_due_date?: string;
@@ -186,6 +189,7 @@ export interface Installment {
   amount: number;
   dueDate: string;
   status: InstallmentStatus;
+  net_tax_rate?: 4 | 22;
   invoice_number?: string;
   invoice?: Invoice;
   payment?: Payment;
@@ -198,6 +202,70 @@ export interface CoachingTimeline {
   status: TimelineStatus;
   startedAt?: string;
   completedAt?: string;
+}
+
+export interface SharedTimelineDocumentItem {
+  id: string;
+  fileName: string;
+  uploadDate: string;
+  uploadedBy: string;
+  isNew?: boolean;
+}
+
+export interface SharedTimelineActivity {
+  id: string;
+  type: 'document' | 'note';
+  timestamp: string;
+  author: string;
+  isNew?: boolean;
+  fileName?: string;
+  description?: string;
+  content?: string;
+}
+
+export interface SharedTimelineStep {
+  id: string;
+  phaseNumber: string;
+  title: string;
+  description?: string;
+  startDate?: string;
+  deadline: string;
+  originalDeadline?: string;
+  completedDate?: string;
+  completionStatus?: 'on-time' | 'early' | 'late';
+  status: 'active' | 'completed' | 'upcoming';
+  isDraft?: boolean;
+  isVisibleToStudent?: boolean;
+  documents: SharedTimelineDocumentItem[];
+  activities: SharedTimelineActivity[];
+}
+
+export interface SharedArchiveDocument {
+  id: string;
+  name: string;
+  sender: 'student' | 'coach';
+  stepId: string | null;
+  stepTitle: string | null;
+  date: string;
+  size: string;
+  uploadedBy: string;
+  plagiarismStatus?: 'none' | 'pending' | 'clear' | 'flagged';
+  plagiarismCheckDate?: string;
+  plagiarismCheckedBy?: string;
+  note?: string;
+}
+
+export interface SharedAdminNote {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SharedStepOption {
+  id: string;
+  phaseNumber: string;
+  title: string;
 }
 
 export interface CheckJob {
@@ -226,6 +294,7 @@ export interface StudentService {
   service_category: ServiceCategory;
   quote_id: string;
   quoted_gross_amount?: number;
+  total_tax_rate?: 4 | 22;
   invoice_number?: string;
   contract_id?: string;
   academic_record_id?: string;
@@ -241,6 +310,9 @@ export interface StudentService {
   contract?: Contract;
   installments: Installment[];
   coaching_timeline?: CoachingTimeline[];
+  coaching_timeline_full?: SharedTimelineStep[];
+  shared_documents?: SharedArchiveDocument[];
+  admin_notes?: SharedAdminNote[];
   check_job?: CheckJob;
   coach_fee?: number;
   coach_name?: string;
@@ -262,6 +334,78 @@ export interface StudentService {
   pause_end_date?: string;
   pipeline_id?: string; // ID della pipeline che ha generato questa lavorazione
 }
+
+const mapMinimalTimelineToSharedStep = (phase: CoachingTimeline, index: number, total: number): SharedTimelineStep => ({
+  id: phase.id,
+  phaseNumber: phase.phase || `FASE ${index + 1} DI ${total}`,
+  title: phase.description || phase.phase,
+  description: phase.description,
+  startDate: phase.startedAt,
+  deadline: phase.completedAt || 'Data da definire',
+  completedDate: phase.completedAt,
+  status:
+    phase.status === 'completed'
+      ? 'completed'
+      : phase.status === 'in_progress'
+      ? 'active'
+      : 'upcoming',
+  isVisibleToStudent: true,
+  documents: [],
+  activities: [],
+});
+
+const getSharedTimelineStepsFromService = (service?: StudentService): SharedTimelineStep[] => {
+  if (!service) return [];
+  if (service.coaching_timeline_full && service.coaching_timeline_full.length > 0) {
+    return service.coaching_timeline_full;
+  }
+  if (!service.coaching_timeline || service.coaching_timeline.length === 0) {
+    return [];
+  }
+  return service.coaching_timeline.map((phase, index, items) => mapMinimalTimelineToSharedStep(phase, index, items.length));
+};
+
+const getSharedArchiveDocumentsFromService = (service?: StudentService): SharedArchiveDocument[] =>
+  service?.shared_documents || [];
+
+const getSharedAdminNotesFromService = (service?: StudentService): SharedAdminNote[] =>
+  service?.admin_notes || [];
+
+const getSharedStepOptionsFromService = (service?: StudentService): SharedStepOption[] =>
+  getSharedTimelineStepsFromService(service).map(step => ({
+    id: step.id,
+    phaseNumber: step.phaseNumber,
+    title: step.title,
+  }));
+
+const LEGACY_TIMELINE_ID_BY_STUDENT_NAME: Record<string, string> = {
+  'Giulia Verdi': 'S-034',
+  'Sara Martini': 'S-022',
+  'Alessandro Brun': 'S-015',
+  'Alex Johnson': 'S-052',
+};
+
+const hydrateServiceWithLegacySharedData = (service: StudentService): StudentService => {
+  if (service.coaching_timeline_full?.length || service.shared_documents?.length) {
+    return service;
+  }
+
+  const legacyTimelineId = LEGACY_TIMELINE_ID_BY_STUDENT_NAME[service.student_name];
+  if (!legacyTimelineId) {
+    return service;
+  }
+
+  const legacyBundle = getStudentTimeline(legacyTimelineId, service.student_name);
+  if (!legacyBundle.steps.length && !legacyBundle.documents.length) {
+    return service;
+  }
+
+  return {
+    ...service,
+    coaching_timeline_full: legacyBundle.steps,
+    shared_documents: legacyBundle.documents,
+  };
+};
 
 // ─── Profili Admin (referenti Sottotesi) ────────────────────
 export interface AdminProfile {
@@ -1019,6 +1163,8 @@ const initialData: StudentService[] = [
   { id: 'SS-167', pipeline_id: 'PIP-031', student_id: 'STU-596', student_name: 'Simone Caruso', service_id: 'SRV-001', service_name: 'Starter Pack', service_category: 'Starter Pack', quote_id: 'QT-992', status: 'active', created_at: '2026-03-05', created_by: 'Claudia', updated_at: '2026-03-05', updated_by: 'Claudia', referente: 'Giada', plan_start_date: '2026-03-15', plan_end_date: '2026-04-15', contract: { id: 'CT-167', status: 'draft', documentUrl: '/contratti/CT-167.pdf' }, installments: [{ id: 'INS-1140', amount: 99, dueDate: '2026-03-15', status: 'paid', invoice_number: '28/2026', payment: { id: 'PAY-1140', amount: 99, paidAt: '2026-03-13', method: 'Carta di credito' } }] },
 ];
 
+const hydratedInitialData = initialData.map(hydrateServiceWithLegacySharedData);
+
 // ─── Context ────────────────────────────────────────────────
 interface LavorazioniContextType {
   data: StudentService[];
@@ -1026,6 +1172,10 @@ interface LavorazioniContextType {
   pipelines: Pipeline[];
   sources: string[];
   communicationChannels: string[];
+  getServiceTimelineSteps: (serviceId: string) => SharedTimelineStep[];
+  getServiceArchiveDocuments: (serviceId: string) => SharedArchiveDocument[];
+  getServiceAdminNotes: (serviceId: string) => SharedAdminNote[];
+  getServiceStepOptions: (serviceId: string) => SharedStepOption[];
   addStudent: (student: Student) => void;
   updateStudent: (id: string, updater: (s: Student) => Student) => void;
   addPipeline: (pipeline: Pipeline) => void;
@@ -1043,11 +1193,15 @@ interface LavorazioniContextType {
 const noop = () => {};
 
 const DEFAULT_CONTEXT: LavorazioniContextType = {
-  data: initialData,
+  data: hydratedInitialData,
   students: INITIAL_STUDENTS,
   pipelines: INITIAL_PIPELINES,
   sources: AVAILABLE_SOURCES,
   communicationChannels: COMMUNICATION_CHANNELS,
+  getServiceTimelineSteps: () => [],
+  getServiceArchiveDocuments: () => [],
+  getServiceAdminNotes: () => [],
+  getServiceStepOptions: () => [],
   addStudent: noop,
   updateStudent: noop,
   addPipeline: noop,
@@ -1073,12 +1227,40 @@ const LavorazioniContext: React.Context<LavorazioniContextType> =
 globalWithLavorazioni.__LavorazioniContext = LavorazioniContext;
 
 export function LavorazioniProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<StudentService[]>(initialData);
+  const [data, setData] = useState<StudentService[]>(hydratedInitialData);
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
   const [pipelines, setPipelines] = useState<Pipeline[]>(INITIAL_PIPELINES);
   const [sources, setSources] = useState<string[]>(AVAILABLE_SOURCES);
   const [communicationChannels, setCommunicationChannels] = useState<string[]>(COMMUNICATION_CHANNELS);
   const [taxPercent, setTaxPercent] = useState(22);
+
+  useEffect(() => {
+    setData(prev => {
+      const next = prev.map(hydrateServiceWithLegacySharedData);
+      const changed = next.some((service, index) => service !== prev[index]);
+      return changed ? next : prev;
+    });
+  }, []);
+
+  const getServiceTimelineSteps = useCallback((serviceId: string) => {
+    const service = data.find(item => item.id === serviceId);
+    return getSharedTimelineStepsFromService(service);
+  }, [data]);
+
+  const getServiceArchiveDocuments = useCallback((serviceId: string) => {
+    const service = data.find(item => item.id === serviceId);
+    return getSharedArchiveDocumentsFromService(service);
+  }, [data]);
+
+  const getServiceAdminNotes = useCallback((serviceId: string) => {
+    const service = data.find(item => item.id === serviceId);
+    return getSharedAdminNotesFromService(service);
+  }, [data]);
+
+  const getServiceStepOptions = useCallback((serviceId: string) => {
+    const service = data.find(item => item.id === serviceId);
+    return getSharedStepOptionsFromService(service);
+  }, [data]);
 
   const updateService = useCallback((id: string, updater: (s: StudentService) => StudentService) => {
     setData(prev => prev.map(s => s.id === id ? updater(s) : s));
@@ -1135,6 +1317,10 @@ export function LavorazioniProvider({ children }: { children: React.ReactNode })
       pipelines, 
       sources, 
       communicationChannels,
+      getServiceTimelineSteps,
+      getServiceArchiveDocuments,
+      getServiceAdminNotes,
+      getServiceStepOptions,
       addStudent, 
       updateStudent, 
       addPipeline, 

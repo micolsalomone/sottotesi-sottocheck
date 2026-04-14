@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, X, ExternalLink, Download, RefreshCw, Trash2, StickyNote } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, X, ExternalLink, Download, RefreshCw, Trash2, StickyNote, Pencil } from 'lucide-react';
 import {
   CellTextPrimary,
   CellTextSecondary,
@@ -27,6 +27,7 @@ import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { Checkbox } from '../../app/components/ui/checkbox';
+import { useLavorazioni } from '@/app/data/LavorazioniContext';
 
 interface CheckReport {
   id: string;
@@ -39,6 +40,7 @@ interface CheckReport {
 
 interface Job {
   id: string;
+  admin_name: string;
   student: string;
   student_id: string;
   service_id?: string;
@@ -89,10 +91,11 @@ const formatDateTimeIT = (dateTime?: string): string => {
 
 const mockJobs: Job[] = [
   {
-    id: 'SC-101',
+    id: 'ADM-CHK-101',
+    admin_name: 'Francesca Bianchi',
     student: 'Marco Bianchi',
     student_id: 'STU-601',
-    service_id: 'SS-201',
+    service_id: 'SS-101',
     status: 'completed',
     startedAt: '2026-01-15 10:30',
     completedAt: '2026-01-15 10:55',
@@ -113,9 +116,11 @@ const mockJobs: Job[] = [
     ]
   },
   {
-    id: 'SC-102',
+    id: 'ADM-CHK-102',
+    admin_name: 'Claudia Neri',
     student: 'Anna Russo',
     student_id: 'STU-602',
+    service_id: undefined,
     status: 'completed',
     startedAt: '2026-01-20 14:00',
     completedAt: '2026-01-20 14:18',
@@ -134,9 +139,11 @@ const mockJobs: Job[] = [
     notes: []
   },
   {
-    id: 'SC-103',
+    id: 'ADM-CHK-103',
+    admin_name: 'Francesca Bianchi',
     student: 'Federico Conti',
     student_id: 'STU-603',
+    service_id: 'SS-117',
     status: 'running',
     startedAt: '2026-02-28 09:00',
     completedAt: null,
@@ -147,9 +154,11 @@ const mockJobs: Job[] = [
     notes: []
   },
   {
-    id: 'SC-104',
+    id: 'ADM-CHK-104',
+    admin_name: 'Marta Rossi',
     student: 'Elena Marchetti',
     student_id: 'STU-604',
+    service_id: undefined,
     status: 'failed',
     startedAt: '2026-02-25 16:30',
     completedAt: '2026-02-25 16:32',
@@ -162,9 +171,11 @@ const mockJobs: Job[] = [
     ]
   },
   {
-    id: 'SC-105',
+    id: 'ADM-CHK-105',
+    admin_name: 'Claudia Neri',
     student: 'Davide Ferretti',
     student_id: 'STU-605',
+    service_id: 'SS-165',
     status: 'pending',
     startedAt: '2026-03-01 08:00',
     completedAt: null,
@@ -177,6 +188,19 @@ const mockJobs: Job[] = [
 ];
 
 const CURRENT_ADMIN = 'Francesca';
+const ADMIN_SOTTOCHECK_STORAGE_KEY = 'admin-sottocheck-jobs-v1';
+
+function loadStoredJobs(fallback: Job[]): Job[] {
+  try {
+    const raw = localStorage.getItem(ADMIN_SOTTOCHECK_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return fallback;
+    return parsed as Job[];
+  } catch {
+    return fallback;
+  }
+}
 
 const labelStyle: React.CSSProperties = {
   fontFamily: 'var(--font-inter)',
@@ -221,14 +245,18 @@ function formatNumber(n: number): string {
 }
 
 export function LavorazioniSottocheckPage() {
-  const [jobs, setJobs] = useState<Job[]>(
-    mockJobs.map(j => ({
-      ...j,
-      created_by: 'Francesca',
-      created_at: j.startedAt,
-      updated_by: 'Francesca',
-      updated_at: j.completedAt || j.startedAt,
-    }))
+  const { data: serviziStudenti, students } = useLavorazioni();
+
+  const [jobs, setJobs] = useState<Job[]>(() =>
+    loadStoredJobs(
+      mockJobs.map(j => ({
+        ...j,
+        created_by: 'Francesca',
+        created_at: j.startedAt,
+        updated_by: 'Francesca',
+        updated_at: j.completedAt || j.startedAt,
+      }))
+    )
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -248,6 +276,17 @@ export function LavorazioniSottocheckPage() {
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [editCorrelationJobId, setEditCorrelationJobId] = useState<string | null>(null);
+  const [editStudentId, setEditStudentId] = useState('');
+  const [editServiceId, setEditServiceId] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ADMIN_SOTTOCHECK_STORAGE_KEY, JSON.stringify(jobs));
+    } catch {
+      // Ignore storage errors in environments where storage is blocked.
+    }
+  }, [jobs]);
 
   // ─── Filters Reset ──────────────────────────────────────────
   const handleResetFilters = () => {
@@ -258,7 +297,7 @@ export function LavorazioniSottocheckPage() {
   };
 
   // Sort
-  type SortKey = 'id' | 'student' | 'status' | 'startedAt' | 'characters' | 'pages' | 'copyleaks_credits' | null;
+  type SortKey = 'id' | 'admin_name' | 'student' | 'service_id' | 'status' | 'startedAt' | 'characters' | 'pages' | 'copyleaks_credits' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -266,7 +305,9 @@ export function LavorazioniSottocheckPage() {
   const { columnWidths, handleResize: handleMouseDown } = useTableResize({
     checkbox: 50,
     id: 90,
+    admin: 150,
     student: 150,
+    lavorazione: 180,
     characters: 100,
     pages: 80,
     credits: 90,
@@ -291,14 +332,81 @@ export function LavorazioniSottocheckPage() {
     }
   };
 
+  const servicesById = useMemo(
+    () => Object.fromEntries(serviziStudenti.map(service => [service.id, service])),
+    [serviziStudenti]
+  );
+
+  const studentNameById = useMemo(
+    () => Object.fromEntries(students.map(student => [student.id, student.name])),
+    [students]
+  );
+
+  const getLavorazioneLabel = (serviceId?: string) => {
+    if (!serviceId) return 'Non associata';
+    const service = servicesById[serviceId];
+    if (!service) return `${serviceId} (non trovata)`;
+    return `${service.id} - ${service.student_name} - ${service.service_name}`;
+  };
+
+  const editableStudentOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    serviziStudenti.forEach(service => {
+      if (!byId.has(service.student_id)) {
+        byId.set(service.student_id, service.student_name);
+      }
+    });
+    return Array.from(byId.entries()).map(([id, name]) => ({ id, name }));
+  }, [serviziStudenti]);
+
+  const editableServiceOptions = useMemo(
+    () => serviziStudenti.filter(service => service.student_id === editStudentId),
+    [serviziStudenti, editStudentId]
+  );
+
+  const openEditCorrelation = (job: Job) => {
+    setEditCorrelationJobId(job.id);
+    setEditStudentId(job.student_id);
+    setEditServiceId(job.service_id || '');
+  };
+
+  const saveCorrelation = () => {
+    if (!editCorrelationJobId || !editStudentId) return;
+
+    setJobs(prev =>
+      prev.map(job => {
+        if (job.id !== editCorrelationJobId) return job;
+
+        const service = servicesById[editServiceId];
+        const resolvedStudentName = studentNameById[editStudentId] || job.student;
+
+        return {
+          ...job,
+          student_id: editStudentId,
+          student: resolvedStudentName,
+          service_id: service ? service.id : undefined,
+          updated_by: CURRENT_ADMIN,
+          updated_at: new Date().toISOString(),
+        };
+      })
+    );
+
+    setEditCorrelationJobId(null);
+    setEditStudentId('');
+    setEditServiceId('');
+    toast.success('Correlazione aggiornata');
+  };
+
   const filteredData = useMemo(() => {
     let data = [...jobs];
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       data = data.filter(j =>
+        j.admin_name.toLowerCase().includes(q) ||
         j.student.toLowerCase().includes(q) ||
         j.id.toLowerCase().includes(q) ||
+        getLavorazioneLabel(j.service_id).toLowerCase().includes(q) ||
         (j.document_name || '').toLowerCase().includes(q)
       );
     }
@@ -308,8 +416,8 @@ export function LavorazioniSottocheckPage() {
 
     if (sortColumn) {
       data.sort((a, b) => {
-        let aVal: any = a[sortColumn];
-        let bVal: any = b[sortColumn];
+        let aVal: any = sortColumn === 'service_id' ? getLavorazioneLabel(a.service_id) : a[sortColumn];
+        let bVal: any = sortColumn === 'service_id' ? getLavorazioneLabel(b.service_id) : b[sortColumn];
         if (typeof aVal === 'string') {
           aVal = aVal.toLowerCase();
           bVal = (bVal || '').toLowerCase();
@@ -320,7 +428,7 @@ export function LavorazioniSottocheckPage() {
       });
     }
     return data;
-  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterDateFrom, filterDateTo]);
+  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterDateFrom, filterDateTo, serviziStudenti]);
 
   const hasActiveFilters = searchQuery || filterStatus !== 'all' || filterDateFrom || filterDateTo;
 
@@ -368,7 +476,7 @@ export function LavorazioniSottocheckPage() {
     if (jobToDelete) {
       setJobs(prev => prev.filter(j => j.id !== jobToDelete));
       setJobToDelete(null);
-      toast.success('Lavorazione eliminata');
+      toast.success('Check eliminato');
     }
   };
 
@@ -383,7 +491,7 @@ export function LavorazioniSottocheckPage() {
         j.id === jobToRestart ? { ...j, status: 'pending' as const, completedAt: null, updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString() } : j
       ));
       setJobToRestart(null);
-      toast.success('Lavorazione riavviata');
+      toast.success('Check riavviato');
     }
   };
 
@@ -420,7 +528,7 @@ export function LavorazioniSottocheckPage() {
           failedIds.includes(j.id) ? { ...j, status: 'pending' as const, completedAt: null, updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString() } : j
         ));
         setSelectedIds([]);
-        toast.success(`${failedIds.length} lavorazioni riavviate`);
+        toast.success(`${failedIds.length} check riavviati`);
       },
       variant: 'default'
     },
@@ -430,7 +538,7 @@ export function LavorazioniSottocheckPage() {
       onClick: (ids) => {
         setJobs(prev => prev.filter(j => !ids.includes(j.id)));
         setSelectedIds([]);
-        toast.success(`${ids.length} lavorazioni eliminate`);
+        toast.success(`${ids.length} check eliminati`);
       },
       variant: 'destructive'
     },
@@ -443,6 +551,11 @@ export function LavorazioniSottocheckPage() {
         label: 'Vedi dettagli',
         icon: <ExternalLink size={16} />,
         onClick: () => handleViewDetails(job)
+      },
+      {
+        label: 'Modifica correlazione',
+        icon: <Pencil size={16} />,
+        onClick: () => openEditCorrelation(job),
       },
     ];
 
@@ -479,7 +592,7 @@ export function LavorazioniSottocheckPage() {
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Lavorazioni Sottocheck</h1>
-        <p className="page-subtitle">Controlli Check Plagio/AI del sistema Sottocheck</p>
+        <p className="page-subtitle">Check Plagio/AI avviati dagli admin, con riferimento opzionale alla lavorazione</p>
         <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
       </div>
 
@@ -512,7 +625,7 @@ export function LavorazioniSottocheckPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', flex: 1, width: '100%' }}>
           <input
             type="text"
-            placeholder="Cerca per ID, studente o documento..."
+            placeholder="Cerca per ID, admin, studente, lavorazione o documento..."
             className="search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -591,7 +704,9 @@ export function LavorazioniSottocheckPage() {
                   onCheckedChange={handleSelectAll}
                 />
                 <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="characters" label="Caratteri" width={columnWidths.characters} sortable align="right" sortDirection={sortColumn === 'characters' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="pages" label="Pagine" width={columnWidths.pages} sortable align="right" sortDirection={sortColumn === 'pages' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="copyleaks_credits" label="Crediti" width={columnWidths.credits} sortable align="right" sortDirection={sortColumn === 'copyleaks_credits' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
@@ -604,7 +719,7 @@ export function LavorazioniSottocheckPage() {
             </thead>
             <tbody>
               {filteredData.length === 0 ? (
-                <TableEmptyState message="Nessuna lavorazione trovata" colSpan={11} />
+                <TableEmptyState message="Nessun check admin trovato" colSpan={13} />
               ) : (
                 filteredData.map((job) => {
                   const noteCount = (job.notes || []).length;
@@ -623,7 +738,9 @@ export function LavorazioniSottocheckPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                       <TableCell><CellTextSecondary>{job.id}</CellTextSecondary></TableCell>
+                      <TableCell><CellTextPrimary>{job.admin_name}</CellTextPrimary></TableCell>
                       <TableCell><CellTextPrimary>{job.student}</CellTextPrimary></TableCell>
+                      <TableCell><CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.pages}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
@@ -686,6 +803,7 @@ export function LavorazioniSottocheckPage() {
                       </div>
                       <div>
                         <CellTextSecondary>{job.id}</CellTextSecondary>
+                        <CellTextSecondary>{job.admin_name}</CellTextSecondary>
                         <CellTextPrimary>{job.student}</CellTextPrimary>
                       </div>
                     </div>
@@ -709,6 +827,11 @@ export function LavorazioniSottocheckPage() {
                       <CellTextPrimary>{job.copyleaks_credits > 0 ? job.copyleaks_credits : '-'}</CellTextPrimary>
                     </div>
                   </div>
+
+                  <ResponsiveMobileCardSection marginBottom="0.75rem">
+                    <ResponsiveMobileFieldLabel>Lavorazione (opz.)</ResponsiveMobileFieldLabel>
+                    <CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary>
+                  </ResponsiveMobileCardSection>
 
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
@@ -763,7 +886,7 @@ export function LavorazioniSottocheckPage() {
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h2 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
-                  Dettaglio Lavorazione
+                  Dettaglio Check Admin
                 </h2>
                 <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', margin: 0 }}>
                   {selectedJob.id} &mdash; Check Plagio/AI
@@ -786,8 +909,16 @@ export function LavorazioniSottocheckPage() {
                     <div style={valueBoldStyle}>{selectedJob.student} ({selectedJob.student_id})</div>
                   </div>
                   <div>
+                    <div style={labelStyle}>Admin</div>
+                    <div style={valueBoldStyle}>{selectedJob.admin_name}</div>
+                  </div>
+                  <div>
                     <div style={labelStyle}>Stato</div>
                     <StatusBadge status={STATUS_MAP[selectedJob.status]} label={STATUS_LABELS[selectedJob.status]} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={labelStyle}>Lavorazione (opzionale)</div>
+                    <div style={valueStyle}>{getLavorazioneLabel(selectedJob.service_id)}</div>
                   </div>
                   {selectedJob.document_name && (
                     <div>
@@ -850,38 +981,6 @@ export function LavorazioniSottocheckPage() {
                         <div style={labelStyle}>Report ID</div>
                         <div style={valueBoldStyle}>{selectedJob.report.id}</div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                        <div style={{
-                          padding: '0.75rem',
-                          backgroundColor: selectedJob.report.similarityPercentage > 20 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(11, 182, 63, 0.05)',
-                          borderRadius: 'var(--radius)',
-                          border: `1px solid ${selectedJob.report.similarityPercentage > 20 ? 'var(--destructive-foreground)' : 'var(--primary)'}`
-                        }}>
-                          <div style={labelStyle}>Similarita</div>
-                          <div style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-h3)',
-                            color: selectedJob.report.similarityPercentage > 20 ? 'var(--destructive-foreground)' : 'var(--primary)',
-                            fontWeight: 'var(--font-weight-bold)', lineHeight: '1.5'
-                          }}>
-                            {selectedJob.report.similarityPercentage}%
-                          </div>
-                        </div>
-                        <div style={{
-                          padding: '0.75rem',
-                          backgroundColor: selectedJob.report.aiDetectionPercentage > 30 ? 'rgba(255, 193, 7, 0.05)' : 'rgba(11, 182, 63, 0.05)',
-                          borderRadius: 'var(--radius)',
-                          border: `1px solid ${selectedJob.report.aiDetectionPercentage > 30 ? 'var(--chart-3)' : 'var(--primary)'}`
-                        }}>
-                          <div style={labelStyle}>AI Detection</div>
-                          <div style={{
-                            fontFamily: 'var(--font-inter)', fontSize: 'var(--text-h3)',
-                            color: selectedJob.report.aiDetectionPercentage > 30 ? 'var(--chart-3)' : 'var(--primary)',
-                            fontWeight: 'var(--font-weight-bold)', lineHeight: '1.5'
-                          }}>
-                            {selectedJob.report.aiDetectionPercentage}%
-                          </div>
-                        </div>
-                      </div>
                       <div style={{ marginTop: '1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                         Generato il {selectedJob.report.generatedAt}
                       </div>
@@ -928,20 +1027,108 @@ export function LavorazioniSottocheckPage() {
           isOpen={notesDrawerOpen}
           onClose={() => { setNotesDrawerOpen(false); setNotesJobId(null); }}
           entityId={notesJob.id}
-          entityType="Lavorazione"
-          entityName={`Check Plagio/AI - ${notesJob.student}`}
+          entityType="Check admin"
+          entityName={`Check Plagio/AI - ${notesJob.admin_name} - ${notesJob.student}`}
           notes={notesJob.notes || []}
           onAddNote={handleAddNote}
           currentAdmin={CURRENT_ADMIN}
         />
       )}
 
+      {editCorrelationJobId && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 60,
+            }}
+            onClick={() => setEditCorrelationJobId(null)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '100%',
+              maxWidth: '560px',
+              background: 'var(--background)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              zIndex: 70,
+              padding: '1.25rem',
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: 'var(--font-alegreya)',
+                fontSize: 'var(--text-h3)',
+                fontWeight: 'var(--font-weight-medium)',
+                color: 'var(--foreground)',
+              }}
+            >
+              Modifica correlazione check
+            </h3>
+
+            <div className="mt-4" style={{ display: 'grid', gap: '0.75rem' }}>
+              <div>
+                <label style={labelStyle}>Studente</label>
+                <select
+                  value={editStudentId}
+                  onChange={(e) => {
+                    setEditStudentId(e.target.value);
+                    setEditServiceId('');
+                  }}
+                  className="search-input"
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Seleziona studente...</option>
+                  {editableStudentOptions.map(student => (
+                    <option key={student.id} value={student.id}>{student.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Lavorazione (opzionale)</label>
+                <select
+                  value={editServiceId}
+                  onChange={(e) => setEditServiceId(e.target.value)}
+                  className="search-input"
+                  style={{ width: '100%' }}
+                  disabled={!editStudentId}
+                >
+                  <option value="">Non associata</option>
+                  {editableServiceOptions.map(service => (
+                    <option key={service.id} value={service.id}>{`${service.id} - ${service.service_name}`}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setEditCorrelationJobId(null)}>
+                Annulla
+              </button>
+              <button className="btn btn-primary" onClick={saveCorrelation} disabled={!editStudentId}>
+                Salva
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Confirm Dialogs */}
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title="Elimina lavorazione"
-        description="Sei sicuro di voler eliminare questa lavorazione? Questa azione non puo essere annullata."
+        title="Elimina check"
+        description="Sei sicuro di voler eliminare questo check? Questa azione non puo essere annullata."
         confirmLabel="Elimina"
         cancelLabel="Annulla"
         onConfirm={confirmDelete}
@@ -950,8 +1137,8 @@ export function LavorazioniSottocheckPage() {
       <ConfirmDialog
         open={restartConfirmOpen}
         onOpenChange={setRestartConfirmOpen}
-        title="Riavvia lavorazione"
-        description="Sei sicuro di voler riavviare questa lavorazione fallita? Verra messa nuovamente in coda."
+        title="Riavvia check"
+        description="Sei sicuro di voler riavviare questo check fallito? Verra messo nuovamente in coda."
         confirmLabel="Riavvia"
         cancelLabel="Annulla"
         onConfirm={confirmRestart}

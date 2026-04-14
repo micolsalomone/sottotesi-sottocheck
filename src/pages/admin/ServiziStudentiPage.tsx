@@ -1,7 +1,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useCallback, useEffect, useRef, type MouseEvent as ReactMouseEvent, CSSProperties } from 'react';
-import { Plus, ExternalLink, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Clock, AlertTriangle, Pencil, Check, Settings, ChevronRight, Calendar, UserPlus, StickyNote, Trash2, User, GraduationCap, Download, PauseCircle, Mail } from 'lucide-react';
+import { Plus, ExternalLink, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Clock, AlertTriangle, Pencil, ChevronRight, Calendar, UserPlus, StickyNote, Trash2, User, GraduationCap, Download, PauseCircle, Mail } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
@@ -63,13 +63,16 @@ interface MonthGroup {
   overdueCount: number;
 }
 
+const normalizeTaxRate = (value?: number): 4 | 22 => (value === 4 ? 4 : 22);
+const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+
 // ─── Admin Note type (estende Note con serviceId per flat storage) ──
 interface ServiceNote extends Note {
   serviceId: string;
 }
 
 export function ServiziStudentiPage() {
-  const { data: localData, students, pipelines, addStudent, updateStudent, taxPercent, setTaxPercent, updateService, addService, removeService } = useLavorazioni();
+  const { data: localData, students, pipelines, addStudent, updateStudent, taxPercent, updateService, addService, removeService } = useLavorazioni();
   const { getActiveAree } = useAreeTematiche();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -144,11 +147,11 @@ export function ServiziStudentiPage() {
   // ─── Column visibility per vista ─────────────────────────
   const VISTA_COLUMNS: Record<Vista, Set<string>> = {
     lavorazioni: new Set(['checkbox','student','rate','contratto','netto','lordo','incassato','coachCompenso','nextDue','coachName','createdAt','expiresAt','status','notes','actions']),
-    compensi:    new Set(['checkbox','coach','student','servizio','statoLav','compenso','nNotula','dataNotula','scad40gg','statoPag','pagatoIl','rifPag','actions']),
+    compensi:    new Set(['checkbox','coach','student','servizio','statoLav','compenso','dataNotula','scad45gg','statoNotula','pagatoIl','rifPag','actions']),
   };
   const visibleCols = VISTA_COLUMNS[activeVista];
   const colVis = (col: string): CSSProperties => visibleCols.has(col) ? {} : { display: 'none' };
-  const ALL_COLS = ['checkbox','id','coach','student','status','createdAt','expiresAt','servizio','rate','contratto','fattura','netto','lordo','incassato','coachCompenso','nextDue','coachName','statoLav','compenso','nNotula','dataNotula','scad40gg','statoPag','pagatoIl','rifPag','notes','actions'] as const;
+  const ALL_COLS = ['checkbox','id','coach','student','status','createdAt','expiresAt','servizio','rate','contratto','fattura','netto','lordo','incassato','coachCompenso','nextDue','coachName','statoLav','compenso','dataNotula','scad45gg','statoNotula','pagatoIl','rifPag','notes','actions'] as const;
   const visibleColCount = ALL_COLS.filter(c => visibleCols.has(c)).length;
 
   // ─── Quick filters (operational) ──────────────────────────
@@ -209,12 +212,9 @@ export function ServiziStudentiPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterCoach, setFilterCoach] = useState('all');
   
-  type SortKey = 'id' | 'student_name' | 'created_at' | 'status' | 'nextDue' | 'coach_name' | 'compenso' | 'dataNotula' | 'scad40gg' | 'statoPag' | 'plan_start_date' | 'plan_end_date' | null;
+  type SortKey = 'id' | 'student_name' | 'created_at' | 'status' | 'nextDue' | 'coach_name' | 'compenso' | 'dataNotula' | 'scad45gg' | 'statoNotula' | 'plan_start_date' | 'plan_end_date' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  
-  const [showTaxSettings, setShowTaxSettings] = useState(false);
-  const [taxInput, setTaxInput] = useState(String(taxPercent));
   
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
@@ -240,9 +240,6 @@ export function ServiziStudentiPage() {
   const [instInvoiceNumInput, setInstInvoiceNumInput] = useState('');
   const [instInvoiceYearInput, setInstInvoiceYearInput] = useState('');
   // Compensi coach inline editing states
-  const [editingNotula, setEditingNotula] = useState<string | null>(null);
-  const [notulaNumInput, setNotulaNumInput] = useState('');
-  const [notulaYearInput, setNotulaYearInput] = useState('');
   const [editingDataNotula, setEditingDataNotula] = useState<string | null>(null);
   const [dataNotulaInput, setDataNotulaInput] = useState('');
   const [editingPagatoIl, setEditingPagatoIl] = useState<string | null>(null);
@@ -276,10 +273,9 @@ export function ServiziStudentiPage() {
     servizio: 160,
     statoLav: 120,
     compenso: 130,
-    nNotula: 120,
     dataNotula: 140,
-    scad40gg: 150,
-    statoPag: 150,
+    scad45gg: 150,
+    statoNotula: 150,
     pagatoIl: 120,
     rifPag: 180,
   }));
@@ -358,8 +354,8 @@ export function ServiziStudentiPage() {
     setEditingInstAmount(null);
     toast.success('Importo rata aggiornato');
   };
-  
-  const updateLordo = (serviceId: string, newLordo: number) => {
+
+  const updateLordo = (serviceId: string, newLordo: number, taxRate: 4 | 22) => {
     updateService(serviceId, s => {
       const count = s.installments.length;
       if (count === 0) return s;
@@ -368,6 +364,7 @@ export function ServiziStudentiPage() {
       return {
         ...s,
         updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString(),
+        total_tax_rate: taxRate,
         installments: s.installments.map((inst, idx) => ({
           ...inst,
           amount: idx === count - 1 ? remainder : perInst
@@ -530,6 +527,37 @@ export function ServiziStudentiPage() {
     return pending.length > 0 ? pending[0].dueDate : null;
   }, []);
 
+  const getServiceTaxRate = useCallback((service: StudentService): 4 | 22 => {
+    return normalizeTaxRate(service.total_tax_rate);
+  }, []);
+
+  const getInstallmentTaxRate = useCallback((service: StudentService, installment: { net_tax_rate?: 4 | 22 }): 4 | 22 => {
+    return normalizeTaxRate(installment.net_tax_rate ?? service.total_tax_rate);
+  }, []);
+
+  const getInstallmentNet = useCallback((service: StudentService, installment: { amount: number; net_tax_rate?: 4 | 22 }): number => {
+    const rate = getInstallmentTaxRate(service, installment);
+    return roundToCents(installment.amount * (1 - rate / 100));
+  }, [getInstallmentTaxRate]);
+
+  const getServiceLordo = useCallback((service: StudentService): number => {
+    return service.installments.reduce((sum, i) => sum + i.amount, 0);
+  }, []);
+
+  const getServiceNet = useCallback((service: StudentService): number => {
+    return roundToCents(service.installments.reduce((sum, i) => sum + getInstallmentNet(service, i), 0));
+  }, [getInstallmentNet]);
+
+  const getPaidNet = useCallback((service: StudentService): number => {
+    return roundToCents(service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + getInstallmentNet(service, i), 0));
+  }, [getInstallmentNet]);
+
+  const grossFromNet = useCallback((netAmount: number, taxRate: 4 | 22): number => {
+    const divisor = 1 - taxRate / 100;
+    if (divisor <= 0) return netAmount;
+    return roundToCents(netAmount / divisor);
+  }, []);
+
   // Prefiltered base data (exclude Sottocheck)
   const baseData = useMemo(() => localData.filter(s => s.service_category !== 'Check plagio/AI'), [localData]);
   const uniqueCoaches = Array.from(new Set(baseData.map(s => s.coach_name).filter(Boolean))).sort() as string[];
@@ -637,17 +665,19 @@ export function ServiziStudentiPage() {
           if (aD > bD) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         }
-        if (sortColumn === 'scad40gg') {
-          const aD = a.coach_payout?.payment_due_date || '9999-12-31';
-          const bD = b.coach_payout?.payment_due_date || '9999-12-31';
+        if (sortColumn === 'scad45gg') {
+          const aNotula = a.coach_payout?.notula_issue_date;
+          const bNotula = b.coach_payout?.notula_issue_date;
+          const aD = aNotula ? new Date(aNotula).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
+          const bD = bNotula ? new Date(bNotula).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
           if (aD < bD) return sortDirection === 'asc' ? -1 : 1;
           if (aD > bD) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         }
-        if (sortColumn === 'statoPag') {
-          const order: Record<string, number> = { pending_invoice: 0, waiting_due_date: 1, ready_to_pay: 2, paid: 3, disputed: 4 };
-          const aV = order[a.coach_payout?.status || 'pending_invoice'] || 0;
-          const bV = order[b.coach_payout?.status || 'pending_invoice'] || 0;
+        if (sortColumn === 'statoNotula') {
+          const order: Record<string, number> = { da_programmare: 0, programmata: 1, inviata: 2, pagata: 3 };
+          const aV = order[a.coach_payout?.notula_status || 'da_programmare'] || 0;
+          const bV = order[b.coach_payout?.notula_status || 'da_programmare'] || 0;
           return sortDirection === 'asc' ? aV - bV : bV - aV;
         }
         let aVal: any = a[sortColumn as keyof StudentService];
@@ -689,15 +719,15 @@ export function ServiziStudentiPage() {
       const monthIdx = parseInt(monthStr) - 1;
       const label = `${MONTH_NAMES_IT[monthIdx]} ${yearStr}`;
       
-      const totalLordo = services.reduce((sum, s) => sum + s.installments.reduce((si, i) => si + i.amount, 0), 0);
-      const totalNetto = Math.round(totalLordo / (1 + taxPercent / 100));
+      const totalLordo = services.reduce((sum, s) => sum + getServiceLordo(s), 0);
+      const totalNetto = Math.round(services.reduce((sum, s) => sum + getServiceNet(s), 0));
       const totalIncassato = services.reduce((sum, s) => sum + s.installments.filter(i => i.status === 'paid').reduce((si, i) => si + i.amount, 0), 0);
       const totalCoachFees = services.reduce((sum, s) => sum + (s.coach_fee || 0), 0);
       const overdueCount = services.reduce((count, s) => count + s.installments.filter(i => i.status === 'overdue').length, 0);
 
       return { key, label, services, totalLordo, totalNetto, totalIncassato, totalCoachFees, overdueCount };
     });
-  }, [filteredAndSortedData, taxPercent]);
+  }, [filteredAndSortedData, getServiceLordo, getServiceNet]);
 
   const handleMouseDown = (columnKey: string, e: ReactMouseEvent) => {
     e.preventDefault();
@@ -906,30 +936,17 @@ export function ServiziStudentiPage() {
   };
 
   // ─── Compensi coach helpers ────────────────────────────────
-  const getPayoutStatusColor = (status?: PayoutStatus): string => {
-    switch (status) {
-      case 'paid': return 'var(--primary)';
-      case 'ready_to_pay': return 'var(--chart-3)';
-      case 'waiting_due_date': return 'var(--chart-2)';
-      case 'pending_invoice': return 'var(--muted-foreground)';
-      case 'disputed': return 'var(--destructive-foreground)';
-      default: return 'var(--muted-foreground)';
-    }
+  const NOTULA_STATUS_BADGE: Record<NonNullable<CoachPayout['notula_status']>, { label: string; bg: string; fg: string }> = {
+    da_programmare: { label: 'Da programmare', bg: 'var(--muted)', fg: 'var(--muted-foreground)' },
+    programmata: { label: 'Programmata', bg: 'var(--chart-2)', fg: '#fff' },
+    inviata: { label: 'Inviata', bg: 'var(--chart-3)', fg: '#fff' },
+    pagata: { label: 'Pagata', bg: 'var(--primary)', fg: 'var(--primary-foreground)' },
   };
-  const getPayoutStatusLabel = (status?: PayoutStatus): string => {
-    switch (status) {
-      case 'paid': return 'Pagato';
-      case 'ready_to_pay': return 'Da pagare';
-      case 'waiting_due_date': return 'In scadenza';
-      case 'pending_invoice': return 'Attesa notula';
-      case 'disputed': return 'Contestato';
-      default: return 'N/D';
-    }
-  };
-  const computeScad40gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
+
+  const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
     if (!notulaDate) return null;
     const d = new Date(notulaDate);
-    d.setDate(d.getDate() + 40);
+    d.setDate(d.getDate() + 45);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -992,95 +1009,10 @@ export function ServiziStudentiPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="page-header" style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start' }}>
         <div>
           <h1 className="page-title">Lavorazioni</h1>
           <p className="page-subtitle">Centro operativo — gestione servizi e compensi coach</p>
-        </div>
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowTaxSettings(!showTaxSettings)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              padding: '0.375rem 0.75rem',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              fontFamily: 'var(--font-inter)',
-              fontSize: 'var(--text-label)',
-              fontWeight: 'var(--font-weight-medium)',
-              color: 'var(--muted-foreground)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Settings size={14} />
-            IVA {taxPercent}%
-          </button>
-          {showTaxSettings && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '0.5rem',
-              padding: '1rem',
-              backgroundColor: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              boxShadow: 'var(--elevation-sm)',
-              zIndex: 50,
-              width: '200px',
-            }}>
-              <label style={{
-                display: 'block',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-                color: 'var(--foreground)',
-                marginBottom: '0.5rem'
-              }}>
-                Aliquota IVA (%)
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={taxInput}
-                  onChange={(e) => setTaxInput(e.target.value)}
-                  style={{
-                    flex: 1,
-                    ...inlineInputStyle,
-                    padding: '0.375rem 0.5rem',
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    const val = Number(taxInput);
-                    if (!isNaN(val) && val >= 0 && val <= 100) {
-                      setTaxPercent(val);
-                      setShowTaxSettings(false);
-                      toast.success(`IVA aggiornata a ${val}%`);
-                    }
-                  }}
-                  className="btn btn-primary"
-                  style={{ padding: '0.375rem 0.625rem', fontSize: 'var(--text-label)' }}
-                >
-                  <Check size={14} />
-                </button>
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: '11px',
-                color: 'var(--muted-foreground)',
-                marginTop: '0.5rem',
-              }}>
-                Netto = Lordo − IVA
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1427,7 +1359,8 @@ export function ServiziStudentiPage() {
 
       {/* ─── Summary cards (vista-aware) ────────────────────────── */}
       {(() => {
-        const totalLordo = filteredAndSortedData.reduce((sum, s) => sum + s.installments.reduce((si, i) => si + i.amount, 0), 0);
+        const totalLordo = filteredAndSortedData.reduce((sum, s) => sum + getServiceLordo(s), 0);
+        const totalNetto = Math.round(filteredAndSortedData.reduce((sum, s) => sum + getServiceNet(s), 0));
         const totalIncassato = filteredAndSortedData.reduce((sum, s) => sum + s.installments.filter(i => i.status === 'paid').reduce((si, i) => si + i.amount, 0), 0);
         const totalOverdue = filteredAndSortedData.reduce((count, s) => count + s.installments.filter(i => i.status === 'overdue').length, 0);
         const totalNoCoach = filteredAndSortedData.filter(s => !s.coach_name && s.service_category === 'Coaching').length;
@@ -1472,7 +1405,7 @@ export function ServiziStudentiPage() {
             {activeVista === 'lavorazioni' && (
               <div style={statCard()}>
                 <div style={statLabel}>Totale netto</div>
-                <div style={statVal()}>€{Math.round(totalLordo / (1 + taxPercent / 100)).toLocaleString('it-IT')}</div>
+                <div style={statVal()}>€{totalNetto.toLocaleString('it-IT')}</div>
               </div>
             )}
             {activeVista === 'lavorazioni' && (
@@ -1657,12 +1590,6 @@ export function ServiziStudentiPage() {
                   </div>
                   {resizeHandle('compenso')}
                 </TableHeaderBaseCell>
-                <TableHeaderBaseCell style={{ width: `${columnWidths.nNotula}px`, position: 'relative', userSelect: 'none', ...colVis('nNotula') }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span>N. Notula</span>
-                  </div>
-                  {resizeHandle('nNotula')}
-                </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.dataNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('dataNotula') }} onClick={() => handleSort('dataNotula')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                     <span>Data notula</span>
@@ -1670,19 +1597,19 @@ export function ServiziStudentiPage() {
                   </div>
                   {resizeHandle('dataNotula')}
                 </TableHeaderBaseCell>
-                <TableHeaderBaseCell style={{ width: `${columnWidths.scad40gg}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('scad40gg') }} onClick={() => handleSort('scad40gg')}>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.scad45gg}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('scad45gg') }} onClick={() => handleSort('scad45gg')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Scad. 40gg</span>
-                    {getSortIcon('scad40gg')}
+                    <span>Scad. 45gg</span>
+                    {getSortIcon('scad45gg')}
                   </div>
-                  {resizeHandle('scad40gg')}
+                  {resizeHandle('scad45gg')}
                 </TableHeaderBaseCell>
-                <TableHeaderBaseCell style={{ width: `${columnWidths.statoPag}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('statoPag') }} onClick={() => handleSort('statoPag')}>
+                <TableHeaderBaseCell style={{ width: `${columnWidths.statoNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('statoNotula') }} onClick={() => handleSort('statoNotula')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Stato pag.</span>
-                    {getSortIcon('statoPag')}
+                    <span>Stato notula</span>
+                    {getSortIcon('statoNotula')}
                   </div>
-                  {resizeHandle('statoPag')}
+                  {resizeHandle('statoNotula')}
                 </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.pagatoIl}px`, position: 'relative', userSelect: 'none', ...colVis('pagatoIl') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1760,10 +1687,9 @@ export function ServiziStudentiPage() {
                       <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.totalCoachFees > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5', ...colVis('compenso') }}>
                         {activeVista === 'compensi' && `€${group.totalCoachFees.toLocaleString('it-IT')}`}
                       </TableCell>
-                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('nNotula') }}></TableCell>
                       <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('dataNotula') }}></TableCell>
-                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('scad40gg') }}></TableCell>
-                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('statoPag') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('scad45gg') }}></TableCell>
+                      <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('statoNotula') }}></TableCell>
                       <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('pagatoIl') }}></TableCell>
                       <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('rifPag') }}></TableCell>
                       <TableCell style={{ padding: '0.5rem 0.25rem', ...colVis('notes') }}></TableCell>
@@ -1771,8 +1697,9 @@ export function ServiziStudentiPage() {
                     </TableRow>
                   </tbody>,
               ...group.services.map((service) => {
-                const lordo = service.installments.reduce((sum, i) => sum + i.amount, 0);
-                const netto = lordo * (1 - taxPercent / 100);
+                const lordo = getServiceLordo(service);
+                const netto = getServiceNet(service);
+                const hasReducedTaxRate = service.installments.some(inst => getInstallmentTaxRate(service, inst) === 4);
                 const paidCount = service.installments.filter(i => i.status === 'paid').length;
                 const totalCount = service.installments.length;
                 const hasOverdue = service.installments.some(i => i.status === 'overdue');
@@ -2001,15 +1928,30 @@ export function ServiziStudentiPage() {
                         )}
                       </TableCell>
                       <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', ...colVis('netto') }}>
-                        €{netto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <span>€{netto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                          {hasReducedTaxRate && (
+                            <span style={{
+                              border: '1px solid var(--chart-3)',
+                              color: 'var(--chart-3)',
+                              borderRadius: '999px',
+                              padding: '0 0.375rem',
+                              fontSize: '10px',
+                              lineHeight: '16px',
+                              fontWeight: 'var(--font-weight-medium)',
+                            }}>
+                              4%
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
                         {editingLordo === service.id ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <span style={{ color: 'var(--muted-foreground)' }}>€</span>
                             <input type="number" value={lordoInput} onChange={(e) => setLordoInput(e.target.value)} autoFocus
-                              onKeyDown={(e) => { if (e.key === 'Enter') { const val = Number(lordoInput); if (!isNaN(val) && val > 0) updateLordo(service.id, val); } if (e.key === 'Escape') setEditingLordo(null); }}
-                              onBlur={() => { const val = Number(lordoInput); if (!isNaN(val) && val > 0) updateLordo(service.id, val); else setEditingLordo(null); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { const val = Number(lordoInput); if (!isNaN(val) && val > 0) updateLordo(service.id, val, getServiceTaxRate(service)); } if (e.key === 'Escape') setEditingLordo(null); }}
+                              onBlur={() => { const val = Number(lordoInput); if (!isNaN(val) && val > 0) updateLordo(service.id, val, getServiceTaxRate(service)); else setEditingLordo(null); }}
                               style={{ width: '70px', ...inlineInputStyle }}
                             />
                           </div>
@@ -2100,34 +2042,6 @@ export function ServiziStudentiPage() {
                           </div>
                         )}
                       </TableCell>
-                      {/* N. Notula */}
-                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.nNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('nNotula') }}>
-                        {editingNotula === service.id ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.125rem' }}>
-                            <input type="text" inputMode="numeric" value={notulaNumInput}
-                              onChange={(e) => setNotulaNumInput(e.target.value.replace(/\D/g, ''))} autoFocus
-                              onKeyDown={(e) => { if (e.key === 'Enter') { const num = notulaNumInput && notulaYearInput ? `${notulaNumInput}/${notulaYearInput}` : ''; if (num) updatePayoutField(service.id, { notula_number: num }); setEditingNotula(null); } if (e.key === 'Escape') setEditingNotula(null); }}
-                              onBlur={(e) => { if ((e.relatedTarget as HTMLElement)?.getAttribute?.('data-notula-year') === service.id) return; const num = notulaNumInput && notulaYearInput ? `${notulaNumInput}/${notulaYearInput}` : ''; if (num) updatePayoutField(service.id, { notula_number: num }); setEditingNotula(null); }}
-                              placeholder="N." style={{ width: '40px', textAlign: 'right', ...inlineInputStyle }}
-                            />
-                            <span style={{ color: 'var(--muted-foreground)' }}>/</span>
-                            <input type="text" inputMode="numeric" data-notula-year={service.id} value={notulaYearInput}
-                              onChange={(e) => setNotulaYearInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                              onKeyDown={(e) => { if (e.key === 'Enter') { const num = notulaNumInput && notulaYearInput ? `${notulaNumInput}/${notulaYearInput}` : ''; if (num) updatePayoutField(service.id, { notula_number: num }); setEditingNotula(null); } if (e.key === 'Escape') setEditingNotula(null); }}
-                              onBlur={() => { const num = notulaNumInput && notulaYearInput ? `${notulaNumInput}/${notulaYearInput}` : ''; if (num) updatePayoutField(service.id, { notula_number: num }); setEditingNotula(null); }}
-                              placeholder="Anno" style={{ width: '48px', ...inlineInputStyle }}
-                            />
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', color: service.coach_payout?.notula_number ? 'var(--foreground)' : 'var(--muted-foreground)' }}
-                            onClick={() => { setEditingNotula(service.id); const parts = (service.coach_payout?.notula_number || '').split('/'); setNotulaNumInput(parts[0] || ''); setNotulaYearInput(parts[1] || ''); }}
-                            title="Clicca per modificare"
-                          >
-                            <span>{service.coach_payout?.notula_number || '—'}</span>
-                            <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
-                          </div>
-                        )}
-                      </TableCell>
                       {/* Data Notula */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.dataNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('dataNotula') }}>
                         {editingDataNotula === service.id ? (
@@ -2146,10 +2060,10 @@ export function ServiziStudentiPage() {
                           </div>
                         )}
                       </TableCell>
-                      {/* Scad. 40gg */}
-                      <TableCell style={{ minWidth: columnWidths.scad40gg, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('scad40gg') }}>
+                      {/* Scad. 45gg */}
+                      <TableCell style={{ minWidth: columnWidths.scad45gg, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('scad45gg') }}>
                         {(() => {
-                          const scad = computeScad40gg(service.coach_payout?.notula_issue_date);
+                          const scad = computeScad45gg(service.coach_payout?.notula_issue_date);
                           if (!scad) return <span style={{ color: 'var(--muted-foreground)' }}>—</span>;
                           const isWarning = scad.daysLeft <= 7 && scad.daysLeft > 0;
                           const isOverdue = scad.daysLeft <= 0;
@@ -2166,19 +2080,27 @@ export function ServiziStudentiPage() {
                           );
                         })()}
                       </TableCell>
-                      {/* Stato pag. */}
-                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.statoPag, fontFamily: 'var(--font-inter)', ...colVis('statoPag') }}>
-                        <select
-                          value={service.coach_payout?.status || 'pending_invoice'}
-                          onChange={(e) => { const newStatus = e.target.value as PayoutStatus; updatePayoutField(service.id, { status: newStatus }); toast.success(`Stato pagamento aggiornato: ${getPayoutStatusLabel(newStatus)}`); }}
-                          style={{ padding: '0.25rem 0.5rem', borderRadius: '8px', border: 'none', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' as any, color: '#fff', backgroundColor: getPayoutStatusColor(service.coach_payout?.status), cursor: 'pointer', outline: 'none', appearance: 'none' as any, WebkitAppearance: 'none' as any, width: '128px', textAlign: 'center' as any }}
-                        >
-                          <option value="pending_invoice">Attesa notula</option>
-                          <option value="waiting_due_date">In scadenza</option>
-                          <option value="ready_to_pay">Da pagare</option>
-                          <option value="paid">Pagato</option>
-                          <option value="disputed">Contestato</option>
-                        </select>
+                      {/* Stato notula */}
+                      <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.statoNotula, fontFamily: 'var(--font-inter)', ...colVis('statoNotula') }}>
+                        {(() => {
+                          const badge = NOTULA_STATUS_BADGE[service.coach_payout?.notula_status || 'da_programmare'];
+                          return (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '0.125rem 0.5rem',
+                              borderRadius: 'var(--radius-badge)',
+                              backgroundColor: badge.bg,
+                              color: badge.fg,
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: 'var(--text-label)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              lineHeight: '1.5',
+                            }}>
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       {/* Pagato il */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.pagatoIl, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('pagatoIl') }}>
@@ -2339,7 +2261,7 @@ export function ServiziStudentiPage() {
                           )}
                         </TableCell>
                         <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5', ...colVis('netto') }}>
-                          €{(inst.amount * (1 - taxPercent / 100)).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          €{getInstallmentNet(service, inst).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.lordo, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('lordo') }}>
                           {editingInstAmount === inst.id ? (
@@ -2366,10 +2288,9 @@ export function ServiziStudentiPage() {
                         <TableCell style={colVis('nextDue')}></TableCell>
                         <TableCell style={colVis('statoLav')}></TableCell>
                         <TableCell style={colVis('compenso')}></TableCell>
-                        <TableCell style={colVis('nNotula')}></TableCell>
                         <TableCell style={colVis('dataNotula')}></TableCell>
-                        <TableCell style={colVis('scad40gg')}></TableCell>
-                        <TableCell style={colVis('statoPag')}></TableCell>
+                        <TableCell style={colVis('scad45gg')}></TableCell>
+                        <TableCell style={colVis('statoNotula')}></TableCell>
                         <TableCell style={colVis('pagatoIl')}></TableCell>
                         <TableCell style={colVis('rifPag')}></TableCell>
                         <TableCell style={colVis('notes')}></TableCell>
@@ -2379,7 +2300,7 @@ export function ServiziStudentiPage() {
                     {/* Totale incassato row */}
                     {isExpanded && service.installments.length > 0 && (() => {
                       const paidTotal = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
-                      const paidNetto = paidTotal * (1 - taxPercent / 100);
+                      const paidNetto = getPaidNet(service);
                       return (
                         <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
                           <TableCell style={{ minWidth: columnWidths.checkbox, ...colVis('checkbox') }}></TableCell>
@@ -2400,10 +2321,9 @@ export function ServiziStudentiPage() {
                           <TableCell style={colVis('nextDue')}></TableCell>
                           <TableCell style={colVis('statoLav')}></TableCell>
                           <TableCell style={colVis('compenso')}></TableCell>
-                          <TableCell style={colVis('nNotula')}></TableCell>
                           <TableCell style={colVis('dataNotula')}></TableCell>
-                          <TableCell style={colVis('scad40gg')}></TableCell>
-                          <TableCell style={colVis('statoPag')}></TableCell>
+                          <TableCell style={colVis('scad45gg')}></TableCell>
+                          <TableCell style={colVis('statoNotula')}></TableCell>
                           <TableCell style={colVis('pagatoIl')}></TableCell>
                           <TableCell style={colVis('rifPag')}></TableCell>
                           <TableCell style={colVis('notes')}></TableCell>
@@ -2445,8 +2365,8 @@ export function ServiziStudentiPage() {
             <ResponsiveMobileCardSection marginBottom="0">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {(() => {
-                const mLordo = service.installments.reduce((s, i) => s + i.amount, 0);
-                const mNetto = mLordo * (1 - taxPercent / 100);
+                const mLordo = getServiceLordo(service);
+                const mNetto = getServiceNet(service);
                 return (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
                     <span>Netto: <span style={{ color: 'var(--foreground)', fontWeight: 'var(--font-weight-bold)' }}>€{mNetto.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</span></span>

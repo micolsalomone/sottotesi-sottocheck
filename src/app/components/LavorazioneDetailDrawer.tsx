@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   FileText, User, Briefcase, CreditCard,
   Calendar, AlertTriangle, Check, Pencil, ExternalLink,
-  Plus, Trash2, Settings, Hash, GraduationCap,
+  Plus, Save, Trash2, Settings, Hash, GraduationCap,
   Phone, Mail, Copy, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,7 +15,6 @@ import {
   type ServiceStatus,
   type ContractStatus,
   type InstallmentStatus,
-  type PayoutStatus,
   type CoachPayout,
   REFERENTI_SOTTOTESI,
   ADMIN_PROFILES,
@@ -64,32 +63,35 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
   expired: 'Scaduto',
 };
 
-const PAYOUT_STATUS_OPTIONS: { value: PayoutStatus; label: string }[] = [
-  { value: 'pending_invoice', label: 'Attesa notula' },
-  { value: 'waiting_due_date', label: 'In scadenza' },
-  { value: 'ready_to_pay', label: 'Da pagare' },
-  { value: 'paid', label: 'Pagato' },
-  { value: 'disputed', label: 'Contestato' },
+const NOTULA_STATUS_OPTIONS: { value: NonNullable<CoachPayout['notula_status']>; label: string }[] = [
+  { value: 'da_programmare', label: 'Da programmare' },
+  { value: 'programmata', label: 'Programmata' },
+  { value: 'inviata', label: 'Inviata' },
+  { value: 'pagata', label: 'Pagata' },
 ];
 
-const getPayoutStatusColor = (status?: PayoutStatus): string => {
+const INVOICE_STATUS_OPTIONS: { value: NonNullable<CoachPayout['invoice_status']>; label: string }[] = [
+  { value: 'da_ricevere', label: 'Da ricevere' },
+  { value: 'ricevuta', label: 'Ricevuta' },
+  { value: 'pagata', label: 'Pagata' },
+];
+
+const getNotulaStatusColor = (status?: CoachPayout['notula_status']): string => {
   switch (status) {
-    case 'paid': return 'var(--primary)';
-    case 'ready_to_pay': return 'var(--chart-3)';
-    case 'waiting_due_date': return 'var(--chart-2)';
-    case 'pending_invoice': return 'var(--muted-foreground)';
-    case 'disputed': return 'var(--destructive-foreground)';
+    case 'pagata': return 'var(--primary)';
+    case 'inviata': return 'var(--chart-3)';
+    case 'programmata': return 'var(--chart-2)';
+    case 'da_programmare': return 'var(--muted-foreground)';
     default: return 'var(--muted-foreground)';
   }
 };
 
-const getPayoutStatusLabel = (status?: PayoutStatus): string => {
+const getNotulaStatusLabel = (status?: CoachPayout['notula_status']): string => {
   switch (status) {
-    case 'paid': return 'Pagato';
-    case 'ready_to_pay': return 'Da pagare';
-    case 'waiting_due_date': return 'In scadenza';
-    case 'pending_invoice': return 'Attesa notula';
-    case 'disputed': return 'Contestato';
+    case 'pagata': return 'Pagata';
+    case 'inviata': return 'Inviata';
+    case 'programmata': return 'Programmata';
+    case 'da_programmare': return 'Da programmare';
     default: return 'N/D';
   }
 };
@@ -129,15 +131,18 @@ const formatDateTimestamp = (dateStr?: string): string => {
   });
 };
 
-const computeScad40gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
+const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
   if (!notulaDate) return null;
   const d = new Date(notulaDate);
-  d.setDate(d.getDate() + 40);
+  d.setDate(d.getDate() + 45);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   return { date: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }), daysLeft };
 };
+
+const normalizeTaxRate = (value?: number): 4 | 22 => (value === 4 ? 4 : 22);
+const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
 // ─── Component ───────────────────────────────────────────────
 export function LavorazioneDetailDrawer({
@@ -160,8 +165,7 @@ export function LavorazioneDetailDrawer({
   const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
   const lastKnownUpdate = useRef(service.updated_at || '');
 
-  const payoutNeedsAttention = service.coach_payout?.status === 'disputed'
-    || service.coach_payout?.status === 'ready_to_pay';
+  const payoutNeedsAttention = service.coach_payout?.notula_status === 'inviata';
 
   const [sections, setSections] = useState({
     operativi: true,
@@ -199,14 +203,44 @@ export function LavorazioneDetailDrawer({
     toast.success(msg);
   };
 
-  const totalLordo = service.installments.reduce((sum, i) => sum + i.amount, 0);
+  // ─── Rate: stato locale + dirty tracking ─────────────────
+  const [localInstallments, setLocalInstallments] = useState([...service.installments]);
+  const [localServiceTaxRate, setLocalServiceTaxRate] = useState<4 | 22>(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
+  const [dirtyInstallmentIds, setDirtyInstallmentIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setLocalInstallments([...service.installments]);
+    setLocalServiceTaxRate(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
+    setDirtyInstallmentIds(new Set());
+  }, [service.id, service.installments, service.total_tax_rate, taxPercent]);
+
+  const markInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.add(id); return n; });
+  const clearInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+
+  const handleSaveInstallment = (instId: string) => {
+    doUpdate(s => ({ ...s, installments: localInstallments }), 'Rata salvata');
+    clearInstDirty(instId);
+  };
+
+  const getInstallmentTaxRate = (inst: { net_tax_rate?: 4 | 22 }): 4 | 22 => {
+    return normalizeTaxRate(inst.net_tax_rate ?? localServiceTaxRate);
+  };
+
+  const getInstallmentNet = (inst: { amount: number; net_tax_rate?: 4 | 22 }): number => {
+    const rate = getInstallmentTaxRate(inst);
+    return roundToCents(inst.amount * (1 - rate / 100));
+  };
+
+  const totalLordo = localInstallments.reduce((sum, i) => sum + i.amount, 0);
   const quotedGrossFallback = service.quoted_gross_amount || 0;
   const displayedLordo = totalLordo > 0 ? totalLordo : quotedGrossFallback;
-  const totalNetto = displayedLordo * (1 - taxPercent / 100);
-  const paidTotal = service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
-  const overdueCount = service.installments.filter(i => i.status === 'overdue').length;
-  const paidCount = service.installments.filter(i => i.status === 'paid').length;
-  const scad40gg = computeScad40gg(service.coach_payout?.notula_issue_date);
+  const totalNetto = localInstallments.length > 0
+    ? localInstallments.reduce((sum, i) => sum + getInstallmentNet(i), 0)
+    : displayedLordo * (1 - localServiceTaxRate / 100);
+  const paidTotal = localInstallments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
+  const overdueCount = localInstallments.filter(i => i.status === 'overdue').length;
+  const paidCount = localInstallments.filter(i => i.status === 'paid').length;
+  const scad45gg = computeScad45gg(service.coach_payout?.notula_issue_date);
 
   const student = (students || []).find(s => s.id === service.student_id);
   const academicRecord = student?.academic_records?.find(r => r.id === service.academic_record_id)
@@ -525,6 +559,40 @@ export function LavorazioneDetailDrawer({
               <MiniInfo label="Incassato" value={`€${paidTotal.toLocaleString('it-IT')}`} color={paidTotal > 0 ? 'var(--primary)' : undefined} />
             </div>
 
+            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{
+                fontFamily: 'var(--font-inter)',
+                fontSize: '11px',
+                fontWeight: 'var(--font-weight-medium)',
+                color: 'var(--muted-foreground)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                lineHeight: '1.5',
+              }}>
+                Aliquota default lavorazione
+              </span>
+              <select
+                value={localServiceTaxRate}
+                onChange={(e) => {
+                  const nextRate = normalizeTaxRate(Number(e.target.value));
+                  setLocalServiceTaxRate(nextRate);
+                  doUpdate(s => ({ ...s, total_tax_rate: nextRate }), `Aliquota lavorazione → ${nextRate}%`);
+                }}
+                style={{
+                  ...drawerInputStyle,
+                  width: 'auto',
+                  minWidth: '90px',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                <option value={4}>4%</option>
+                <option value={22}>22%</option>
+              </select>
+              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                Le rate senza scelta specifica usano questa aliquota.
+              </span>
+            </div>
+
             {service.installments.length === 0 && quotedGrossFallback > 0 && (
               <div style={{
                 marginBottom: '0.75rem',
@@ -541,124 +609,290 @@ export function LavorazioneDetailDrawer({
               </div>
             )}
 
-            {service.installments.length === 0 ? (
+            {localInstallments.length === 0 ? (
               <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>Nessuna rata configurata</span>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                {service.installments.map((inst, idx) => (
-                  <div key={inst.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', background: inst.status === 'overdue' ? 'color-mix(in srgb, var(--destructive-foreground) 4%, transparent)' : 'var(--muted)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        Rata {idx + 1}/{service.installments.length}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        {inst.status !== 'paid' && (
-                          confirmDeleteId === inst.id ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <button onClick={() => { doUpdate(s => ({ ...s, installments: s.installments.filter(i => i.id !== inst.id) }), `Rata ${idx + 1} rimossa`); setConfirmDeleteId(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--destructive-foreground)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--destructive)', color: 'var(--destructive-foreground)', cursor: 'pointer' }}>Conferma</button>
-                              <button onClick={() => setConfirmDeleteId(null)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}><X size={10} /></button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDeleteId(inst.id)} title="Rimuovi rata" style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.25rem', borderRadius: 'var(--radius)', border: 'none', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
-                          )
-                        )}
-                        <button onClick={() => {
-                          doUpdate(s => ({ ...s, installments: s.installments.map(i => {
-                            if (i.id !== inst.id) return i;
-                            if (i.status === 'paid') return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
-                            const today = new Date().toISOString().split('T')[0];
-                            return { ...i, status: 'paid' as InstallmentStatus, payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Bonifico' } };
-                          }) }), inst.status === 'paid' ? 'Rata riportata a pending' : 'Rata segnata come pagata');
-                        }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--foreground)', cursor: 'pointer' }}>
-                          {inst.status === 'paid' ? <><Check size={10} /> Pagata</> : inst.status === 'overdue' ? <><AlertTriangle size={10} /> Scaduta</> : <><Calendar size={10} /> Pending</>}
-                        </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                {localInstallments.map((inst, idx) => {
+                  const isDirty = dirtyInstallmentIds.has(inst.id);
+                  return (
+                    <div
+                      key={inst.id}
+                      style={{
+                        padding: '1rem',
+                        backgroundColor: inst.status === 'overdue'
+                          ? 'color-mix(in srgb, var(--destructive-foreground) 4%, var(--muted))'
+                          : 'var(--muted)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                        position: 'relative',
+                      }}
+                    >
+                      {/* Riga titolo + azioni */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                          Rata {idx + 1}/{localInstallments.length}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {inst.status !== 'paid' && (
+                            confirmDeleteId === inst.id ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <button
+                                  onClick={() => {
+                                    const updated = localInstallments.filter(i => i.id !== inst.id);
+                                    setLocalInstallments(updated);
+                                    clearInstDirty(inst.id);
+                                    doUpdate(s => ({ ...s, installments: updated }), `Rata ${idx + 1} rimossa`);
+                                    setConfirmDeleteId(null);
+                                  }}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--destructive-foreground)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--destructive)', color: 'var(--destructive-foreground)', cursor: 'pointer' }}
+                                >Conferma</button>
+                                <button onClick={() => setConfirmDeleteId(null)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}><X size={10} /></button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setConfirmDeleteId(inst.id)} title="Rimuovi rata" style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.25rem', borderRadius: 'var(--radius)', border: 'none', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
+                            )
+                          )}
+                          <button
+                            onClick={() => {
+                              const today = new Date().toISOString().split('T')[0];
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                if (i.status === 'paid') return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
+                                return { ...i, status: 'paid' as InstallmentStatus, payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Bonifico' } };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--foreground)', cursor: 'pointer' }}
+                          >
+                            {inst.status === 'paid' ? <><Check size={10} /> Pagata</> : inst.status === 'overdue' ? <><AlertTriangle size={10} /> Scaduta</> : <><Calendar size={10} /> Pending</>}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Importo</span>
-                        {inst.status === 'paid' ? (
-                          <span style={{ ...drawerReadonlyValueStyle, fontSize: '12px' }}>€{inst.amount.toLocaleString('it-IT')}</span>
-                        ) : (
-                          <EditableField value={String(inst.amount)} displayPrefix="€" type="number" onSave={(val) => { const num = Number(val); if (!isNaN(num) && num > 0) doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id ? { ...i, amount: num } : i) }), 'Importo rata aggiornato'); }} />
-                        )}
-                      </div>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Scadenza</span>
-                        {inst.status === 'paid' ? (
-                          <span style={{ ...drawerReadonlyValueStyle, fontSize: '12px' }}>{formatDateIT(inst.dueDate)}</span>
-                        ) : (
-                          <input type="date" value={inst.dueDate} onChange={(e) => doUpdate(s => ({ ...s, installments: s.installments.map(i => { if (i.id !== inst.id) return i; const newDate = e.target.value; const today = new Date(); today.setHours(0,0,0,0); const due = new Date(newDate); const isOvr = due < today && i.status !== 'paid'; return { ...i, dueDate: newDate, status: isOvr ? 'overdue' as InstallmentStatus : i.status === 'overdue' ? 'pending' as InstallmentStatus : i.status }; }) }), 'Scadenza rata aggiornata')} style={{ ...drawerInputStyle, fontSize: '12px', padding: '0.25rem 0.5rem' }} />
-                        )}
-                      </div>
-                      <div>
-                        <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>N. Fattura</span>
-                        <EditableField value={inst.invoice_number || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id ? { ...i, invoice_number: val || undefined } : i) }), val ? 'N. fattura aggiornato' : 'N. fattura rimosso')} />
-                      </div>
-                      {inst.status === 'paid' && inst.payment && (
+
+                      {/* Campi */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                         <div>
-                          <span style={{ ...drawerLabelStyle, fontSize: '11px' }}>Pagato il</span>
-                          <input type="date" value={inst.payment.paidAt || ''} onChange={(e) => doUpdate(s => ({ ...s, installments: s.installments.map(i => i.id === inst.id && i.payment ? { ...i, payment: { ...i.payment, paidAt: e.target.value } } : i) }), 'Data pagamento aggiornata')} style={{ ...drawerInputStyle, fontSize: '12px', padding: '0.25rem 0.5rem', color: 'var(--primary)' }} />
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Importo</div>
+                          <input
+                            type="number" min="0" step="0.01"
+                            style={drawerInputStyle}
+                            value={inst.amount || ''}
+                            placeholder="es. 1200"
+                            onChange={(e) => {
+                              const num = Number(e.target.value);
+                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, amount: isNaN(num) ? 0 : num } : i);
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Scadenza</div>
+                          <input
+                            type="date"
+                            style={drawerInputStyle}
+                            value={inst.dueDate}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              const today = new Date(); today.setHours(0, 0, 0, 0);
+                              const due = new Date(newDate);
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                const isOvr = due < today && i.status !== 'paid';
+                                return { ...i, dueDate: newDate, status: isOvr ? 'overdue' as InstallmentStatus : i.status === 'overdue' ? 'pending' as InstallmentStatus : i.status };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Aliquota</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={inst.net_tax_rate ? String(inst.net_tax_rate) : 'default'}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                if (next === 'default') {
+                                  const { net_tax_rate, ...rest } = i;
+                                  return rest;
+                                }
+                                return { ...i, net_tax_rate: normalizeTaxRate(Number(next)) };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          >
+                            <option value="default">{localServiceTaxRate}%</option>
+                            <option value="4">4% (sostituisci)</option>
+                            <option value="22">22% (sostituisci)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Netto (preview)</div>
+                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center' }}>
+                            €{getInstallmentNet(inst).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>N. Fattura</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input
+                              type="text"
+                              style={{ ...drawerInputStyle, flex: 1 }}
+                              value={(inst.invoice_number || '').split('/')[0] || ''}
+                              placeholder="es. 001"
+                              onChange={(e) => {
+                                const parts = (inst.invoice_number || '').split('/');
+                                const year = parts[1] || new Date().getFullYear().toString();
+                                const updated = localInstallments.map(i => i.id === inst.id ? { ...i, invoice_number: `${e.target.value}/${year}` } : i);
+                                setLocalInstallments(updated);
+                                markInstDirty(inst.id);
+                              }}
+                            />
+                            <input
+                              type="text"
+                              style={{ ...drawerInputStyle, width: '65px' }}
+                              value={(inst.invoice_number || '').split('/')[1] || new Date().getFullYear().toString()}
+                              placeholder={new Date().getFullYear().toString()}
+                              onChange={(e) => {
+                                const parts = (inst.invoice_number || '').split('/');
+                                const num = parts[0] || '';
+                                const updated = localInstallments.map(i => i.id === inst.id ? { ...i, invoice_number: `${num}/${e.target.value}` } : i);
+                                setLocalInstallments(updated);
+                                markInstDirty(inst.id);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Pagato il</div>
+                          <input
+                            type="date"
+                            style={{ ...drawerInputStyle, color: inst.status === 'paid' ? 'var(--primary)' : undefined }}
+                            value={inst.payment?.paidAt || ''}
+                            onChange={(e) => {
+                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, payment: i.payment ? { ...i.payment, paidAt: e.target.value } : { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: e.target.value, method: 'Bonifico' } } : i);
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Salva rata — visibile solo se dirty */}
+                      {isDirty && (
+                        <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                          <button
+                            onClick={() => handleSaveInstallment(inst.id)}
+                            className="btn btn-primary"
+                            style={{ width: '100%', justifyContent: 'center', gap: '0.375rem' }}
+                          >
+                            <Save size={14} /> Salva rata
+                          </button>
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
-            {(paidCount < service.installments.length || service.installments.length === 0) && (
-              <DrawerAddButton onClick={() => {
+            <DrawerAddButton onClick={() => {
                 const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1);
-                doUpdate(s => ({ ...s, installments: [...s.installments, { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus }] }), 'Rata aggiunta');
+                const newInst = { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus };
+                setLocalInstallments(prev => [...prev, newInst]);
+                markInstDirty(newInst.id);
+                toast.success('Rata aggiunta. Premi Salva per registrarla');
               }}>
                 <Plus size={14} /> Aggiungi rata
               </DrawerAddButton>
-            )}
           </DrawerCollapsibleSection>
 
           {/* ═══ 4. COMPENSO COACH (PAYOUT) ════════════════════ */}
           <DrawerCollapsibleSection
             icon={Briefcase}
             title="Compenso Coach (Payout)"
-            badge={getPayoutStatusLabel(service.coach_payout?.status)}
-            alertBadge={service.coach_payout?.status === 'disputed' ? 'Contestato' : undefined}
+            badge={getNotulaStatusLabel(service.coach_payout?.notula_status)}
+            alertBadge={service.coach_payout?.notula_status === 'inviata' && scad45gg && scad45gg.daysLeft <= 0 ? 'Scaduta' : undefined}
             isOpen={sections.payout}
             onToggle={() => toggleSection('payout')}
           >
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>N. Notula</label>
-                <EditableField value={service.coach_payout?.notula_number || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), notula_number: val || undefined } }), val ? 'N. notula aggiornato' : 'N. notula rimosso')} />
+                <label style={drawerLabelStyle}>Status notula</label>
+                <select
+                  value={service.coach_payout?.notula_status || 'da_programmare'}
+                  onChange={(e) => {
+                    const next = e.target.value as NonNullable<CoachPayout['notula_status']>;
+                    doUpdate(
+                      s => ({
+                        ...s,
+                        coach_payout: {
+                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
+                          notula_status: next,
+                        },
+                      }),
+                      `Status notula → ${NOTULA_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
+                    );
+                  }}
+                  style={drawerInputStyle}
+                >
+                  {NOTULA_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={drawerFieldGroupStyle}>
+                <label style={drawerLabelStyle}>Fattura</label>
+                <select
+                  value={service.coach_payout?.invoice_status || 'da_ricevere'}
+                  onChange={(e) => {
+                    const next = e.target.value as NonNullable<CoachPayout['invoice_status']>;
+                    doUpdate(
+                      s => ({
+                        ...s,
+                        coach_payout: {
+                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
+                          invoice_status: next,
+                        },
+                      }),
+                      `Fattura → ${INVOICE_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
+                    );
+                  }}
+                  style={drawerInputStyle}
+                >
+                  {INVOICE_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Data notula</label>
-                <input type="date" value={service.coach_payout?.notula_issue_date || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), notula_issue_date: e.target.value || undefined } }), 'Data notula aggiornata')} style={drawerInputStyle} />
+                <input type="date" value={service.coach_payout?.notula_issue_date || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), notula_issue_date: e.target.value || undefined } }), 'Data notula aggiornata')} style={drawerInputStyle} />
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Scadenza 40gg</label>
-                {scad40gg ? (
-                  <span style={{ ...drawerReadonlyValueStyle, fontWeight: scad40gg.daysLeft <= 0 && service.coach_payout?.status !== 'paid' ? 'var(--font-weight-bold)' : undefined, color: service.coach_payout?.status === 'paid' ? 'var(--foreground)' : scad40gg.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad40gg.daysLeft <= 7 ? 'var(--chart-3)' : 'var(--foreground)' }}>
-                    {scad40gg.date}
-                    {service.coach_payout?.status !== 'paid' && scad40gg.daysLeft <= 14 && (
-                      <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad40gg.daysLeft > 0 ? `-${scad40gg.daysLeft}gg` : `+${Math.abs(scad40gg.daysLeft)}gg`})</span>
+                <label style={drawerLabelStyle}>Scadenza 45gg</label>
+                {scad45gg ? (
+                  <span style={{ ...drawerReadonlyValueStyle, fontWeight: scad45gg.daysLeft <= 0 && service.coach_payout?.notula_status !== 'pagata' ? 'var(--font-weight-bold)' : undefined, color: service.coach_payout?.notula_status === 'pagata' ? 'var(--foreground)' : scad45gg.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad45gg.daysLeft <= 7 ? getNotulaStatusColor(service.coach_payout?.notula_status) : 'var(--foreground)' }}>
+                    {scad45gg.date}
+                    {service.coach_payout?.notula_status !== 'pagata' && scad45gg.daysLeft <= 14 && (
+                      <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad45gg.daysLeft > 0 ? `-${scad45gg.daysLeft}gg` : `+${Math.abs(scad45gg.daysLeft)}gg`})</span>
                     )}
                   </span>
                 ) : <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>—</span>}
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Stato pagamento</label>
-                <select value={service.coach_payout?.status || 'pending_invoice'} onChange={(e) => { const newStatus = e.target.value as PayoutStatus; doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), status: newStatus } }), `Stato pagamento → ${getPayoutStatusLabel(newStatus)}`); }} style={{ ...drawerInputStyle, color: '#fff', backgroundColor: getPayoutStatusColor(service.coach_payout?.status), fontWeight: 'var(--font-weight-medium)', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none', borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer' }}>
-                  {PAYOUT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Pagato il</label>
-                <input type="date" value={service.coach_payout?.paid_at || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), paid_at: e.target.value || undefined } }), 'Data pagamento aggiornata')} style={drawerInputStyle} />
+                <input type="date" value={service.coach_payout?.paid_at || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), paid_at: e.target.value || undefined } }), 'Data pagamento aggiornata')} style={drawerInputStyle} />
               </div>
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Rif. pagamento</label>
-                <EditableField value={service.coach_payout?.payment_reference || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice' as PayoutStatus }), payment_reference: val || undefined } }), val ? 'Rif. pagamento aggiornato' : 'Rif. pagamento rimosso')} />
+                <EditableField value={service.coach_payout?.payment_reference || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), payment_reference: val || undefined } }), val ? 'Rif. pagamento aggiornato' : 'Rif. pagamento rimosso')} />
               </div>
             </div>
           </DrawerCollapsibleSection>

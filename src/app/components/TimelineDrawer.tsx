@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2, Clock,
-  StickyNote, UserPlus, UserMinus,
+  UserPlus, UserMinus,
   TicketIcon, Eye, FolderOpen, ExternalLink,
   Mail, Phone, Copy, CheckCircle, Circle, Key, Send, Calendar, Hash,
   ListChecks, ShieldCheck, User,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import type { StudentData, AdminNote, CoachingStep, Ticket } from '../../pages/admin/TimelinePage';
+import type { StudentData, CoachingStep, Ticket } from '../../pages/admin/TimelinePage';
 import {
   DrawerOverlay,
   DrawerShell,
@@ -71,19 +71,19 @@ const formatDateTimeIT = (dateTime?: string): string => {
 
 interface Props {
   student: StudentData;
-  notes: AdminNote[];
   onClose: () => void;
-  onOpenNotes: () => void;
   onReassignCoach: () => void;
   onMarkComplete: () => void;
   onRemove: () => void;
   onOpenStudentDetail?: () => void;
+  onOpenSharedArchive?: (student: StudentData) => void;
 }
 
 export function TimelineDrawer({
-  student, notes, onClose,
-  onOpenNotes, onReassignCoach, onMarkComplete, onRemove,
+  student, onClose,
+  onReassignCoach, onMarkComplete, onRemove,
   onOpenStudentDetail,
+  onOpenSharedArchive,
 }: Props) {
   const navigate = useNavigate();
   const { students, updateStudent, updateService } = useLavorazioni();
@@ -274,7 +274,6 @@ export function TimelineDrawer({
             flexWrap: 'wrap',
             alignItems: 'center',
           }}>
-            <QuickActionBtn icon={<StickyNote size={14} />} label={`Note (${notes.length})`} onClick={onOpenNotes} color="var(--chart-5)" />
             <QuickActionBtn icon={<UserPlus size={14} />} label="Riassegna" onClick={onReassignCoach} color="var(--chart-2)" />
             <QuickActionBtn icon={<CheckCircle2 size={14} />} label="Completa" onClick={onMarkComplete} color="var(--primary)" />
             <QuickActionBtn icon={<UserMinus size={14} />} label="Rimuovi" onClick={onRemove} color="var(--destructive-foreground)" />
@@ -289,7 +288,7 @@ export function TimelineDrawer({
             <QuickActionBtn
               icon={<FolderOpen size={13} />}
               label="Archivio docs"
-              onClick={() => alert('Archivio documenti timeline — pagina in sviluppo')}
+              onClick={() => onOpenSharedArchive?.(student)}
               color="var(--muted-foreground)"
               small
             />

@@ -20,6 +20,7 @@ import { LavorazioniSottocheckPage } from '../pages/admin/LavorazioniSottocheckP
 import { ImpostazioniSottocheckPage } from '../pages/admin/ImpostazioniSottocheckPage';
 import { ProfiliAdminPage } from '../pages/admin/ProfiliAdminPage';
 import { InfoAccountPage } from '../pages/admin/InfoAccountPage';
+import { SottocheckAdminPage } from '@/pages/admin/SottocheckAdminPage';
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
@@ -52,6 +53,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'coaching/ticket', Component: TicketPage },
       { path: 'sottocheck/job', Component: JobPage },
       { path: 'aree-tematiche', Component: AreeTematichePage },
+      { path: 'sottocheck/check', Component: SottocheckAdminPage },
       { path: 'sottocheck/lavorazioni', Component: LavorazioniSottocheckPage },
       { path: 'sottocheck/impostazioni', Component: ImpostazioniSottocheckPage },
       { path: 'servizi/catalogo', Component: CatalogoServiziPage },
@@ -71,6 +73,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'studenti', Component: CoachStudentiPage },
       { path: 'studenti/:studentId', Component: StudentTimelinePage },
       { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: '*', Component: NotFoundPage },
     ],

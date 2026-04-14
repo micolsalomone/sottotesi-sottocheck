@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
   FileText,
   CheckCircle,
@@ -9,19 +9,10 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
-import { getViewBasePath } from './viewBasePath';
+import { useLavorazioni } from '@/app/data/LavorazioniContext';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
-type CheckStatus = 'created' | 'processing' | 'completed' | 'error';
-type PlanType = 'starter_pack' | 'coaching' | 'coaching_plus';
-
-interface TimelinePath {
-  id: string;
-  studentName: string;
-  serviceName: string;
-  timelineLabel: string;
-  planType: PlanType;
-}
+type CheckStatus = 'created' | 'processing' | 'completed';
 
 interface UploadedDocument {
   name: string;
@@ -30,66 +21,85 @@ interface UploadedDocument {
   format: string;
 }
 
-const MAX_FREE_CHECK_CREDITS = 100;
 const MOCK_CREDIT_COST_PER_CHECK = 8;
-const ELIGIBLE_PLAN: PlanType = 'coaching';
+const ADMIN_SOTTOCHECK_STORAGE_KEY = 'admin-sottocheck-jobs-v1';
+const CURRENT_ADMIN = 'Francesca';
 
-const PLAN_LABELS: Record<PlanType, string> = {
-  starter_pack: 'Starter Pack',
-  coaching: 'Coaching',
-  coaching_plus: 'Coaching Plus',
+type PersistedAdminCheck = {
+  id: string;
+  admin_name: string;
+  student: string;
+  student_id: string;
+  service_id?: string;
+  status: 'completed' | 'running' | 'failed' | 'pending';
+  startedAt: string;
+  completedAt: string | null;
+  document_name?: string;
+  characters: number;
+  pages: number;
+  copyleaks_credits: number;
+  report?: {
+    id: string;
+    similarityPercentage: number;
+    plagiarismDetected: boolean;
+    aiDetectionPercentage: number;
+    generatedAt: string;
+    pdfUrl: string;
+  };
+  notes?: Array<{ id: string; content: string; admin: string; timestamp: string }>;
+  created_by?: string;
+  created_at?: string;
+  updated_by?: string;
+  updated_at?: string;
 };
 
-const MOCK_TIMELINE_PATHS: TimelinePath[] = [
-  {
-    id: 'svc-giulia-verdi',
-    studentName: 'Giulia Verdi',
-    serviceName: 'Coaching',
-    timelineLabel: 'Timeline Tesi Magistrale',
-    planType: 'coaching',
-  },
-  {
-    id: 'svc-sara-martini',
-    studentName: 'Sara Martini',
-    serviceName: 'Coaching Plus',
-    timelineLabel: 'Timeline Revisione Finale',
-    planType: 'coaching_plus',
-  },
-  {
-    id: 'svc-luca-neri',
-    studentName: 'Luca Neri',
-    serviceName: 'Starter Pack',
-    timelineLabel: 'Timeline Base',
-    planType: 'starter_pack',
-  },
-];
-
-const MOCK_USED_CREDITS_BY_PATH: Record<string, number> = {
-  'svc-giulia-verdi': 36,
-  'svc-sara-martini': 12,
-  'svc-luca-neri': 8,
+const toDateTimeLabel = (date: Date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 };
 
-export function SottocheckPage() {
+export function SottocheckAdminPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const viewBasePath = getViewBasePath(location.pathname);
+  const { data: serviziStudenti, students } = useLavorazioni();
 
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [pagesSelected, setPagesSelected] = useState<number>(0);
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedPathId, setSelectedPathId] = useState<string>('');
-  const [draftUsedCreditsByPath, setDraftUsedCreditsByPath] = useState<Record<string, number>>(MOCK_USED_CREDITS_BY_PATH);
+  const [usedCredits, setUsedCredits] = useState<number>(0);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [runningJobId, setRunningJobId] = useState<string | null>(null);
 
-  const eligibleTimelinePaths = MOCK_TIMELINE_PATHS.filter(path => path.planType === ELIGIBLE_PLAN);
-  const selectedPath = eligibleTimelinePaths.find(path => path.id === selectedPathId) || null;
-  const selectedPlanType = selectedPath?.planType;
-  const draftUsedCredits = selectedPath ? (draftUsedCreditsByPath[selectedPath.id] ?? 0) : 0;
+  const studentOptions = useMemo(() => {
+    const unique = new Map<string, string>();
+    serviziStudenti.forEach(service => {
+      if (!unique.has(service.student_id)) {
+        unique.set(service.student_id, service.student_name);
+      }
+    });
+    return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+  }, [serviziStudenti]);
 
-  const isCoachingPlan = selectedPlanType === ELIGIBLE_PLAN;
-  const availableCredits = selectedPath ? Math.max(0, MAX_FREE_CHECK_CREDITS - draftUsedCredits) : 0;
+  const selectedStudentName = studentOptions.find(student => student.id === selectedStudentId)?.name || '';
+
+  const serviceOptions = useMemo(
+    () => serviziStudenti.filter(service => service.student_id === selectedStudentId),
+    [serviziStudenti, selectedStudentId]
+  );
+
+  useEffect(() => {
+    if (!selectedServiceId) return;
+    const stillAvailable = serviceOptions.some(service => service.id === selectedServiceId);
+    if (!stillAvailable) {
+      setSelectedServiceId('');
+    }
+  }, [selectedServiceId, serviceOptions]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -139,22 +149,86 @@ export function SottocheckPage() {
   };
 
   const handleStartCheck = () => {
-    if (!selectedPath || !document || documentStatus !== 'valid' || pagesSelected <= 0 || !isCoachingPlan || availableCredits <= 0) {
+    if (!selectedStudentId || !selectedServiceId || !document || documentStatus !== 'valid' || pagesSelected <= 0) {
       return;
     }
 
-    setDraftUsedCreditsByPath(prev => ({
-      ...prev,
-      [selectedPath.id]: Math.min(MAX_FREE_CHECK_CREDITS, (prev[selectedPath.id] ?? 0) + MOCK_CREDIT_COST_PER_CHECK),
-    }));
+    const now = new Date();
+    const existing: PersistedAdminCheck[] = (() => {
+      try {
+        const raw = localStorage.getItem(ADMIN_SOTTOCHECK_STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as PersistedAdminCheck[]) : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const newId = `ADM-CHK-${Date.now().toString().slice(-6)}`;
+    const selectedService = serviziStudenti.find(service => service.id === selectedServiceId);
+    const selectedStudent = students.find(student => student.id === selectedStudentId);
+
+    const nextJob: PersistedAdminCheck = {
+      id: newId,
+      admin_name: CURRENT_ADMIN,
+      student: selectedStudentName || selectedStudent?.name || selectedService?.student_name || 'Studente',
+      student_id: selectedStudentId,
+      service_id: selectedServiceId,
+      status: 'running',
+      startedAt: toDateTimeLabel(now),
+      completedAt: null,
+      document_name: document.name,
+      characters: pagesSelected * 2500,
+      pages: pagesSelected,
+      copyleaks_credits: MOCK_CREDIT_COST_PER_CHECK,
+      notes: [],
+      created_by: CURRENT_ADMIN,
+      created_at: now.toISOString(),
+      updated_by: CURRENT_ADMIN,
+      updated_at: now.toISOString(),
+    };
+
+    try {
+      localStorage.setItem(ADMIN_SOTTOCHECK_STORAGE_KEY, JSON.stringify([nextJob, ...existing]));
+    } catch {
+      // Ignore localStorage errors.
+    }
+
+    setUsedCredits(prev => prev + MOCK_CREDIT_COST_PER_CHECK);
+    setRunningJobId(newId);
     setCheckStatus('processing');
 
     setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(ADMIN_SOTTOCHECK_STORAGE_KEY);
+        const items: PersistedAdminCheck[] = raw ? JSON.parse(raw) : [];
+        const updated = items.map(job => {
+          if (job.id !== newId) return job;
+          const completedAt = toDateTimeLabel(new Date());
+          return {
+            ...job,
+            status: 'completed' as const,
+            completedAt,
+            updated_by: CURRENT_ADMIN,
+            updated_at: new Date().toISOString(),
+            report: {
+              id: `REP-${newId.replace('ADM-CHK-', '')}`,
+              similarityPercentage: 14.2,
+              plagiarismDetected: false,
+              aiDetectionPercentage: 6.8,
+              generatedAt: completedAt.slice(0, 10),
+              pdfUrl: `/reports/${newId}.pdf`,
+            },
+          };
+        });
+        localStorage.setItem(ADMIN_SOTTOCHECK_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignore localStorage errors.
+      }
       setCheckStatus('completed');
     }, 3000);
   };
 
-  const canStartCheck = Boolean(selectedPath) && document && documentStatus === 'valid' && pagesSelected > 0 && isCoachingPlan && availableCredits > 0 && checkStatus !== 'processing';
+  const canStartCheck = Boolean(selectedStudentId) && Boolean(selectedServiceId) && Boolean(document) && documentStatus === 'valid' && pagesSelected > 0 && checkStatus !== 'processing';
 
   if (checkStatus === 'processing' || checkStatus === 'completed') {
     return (
@@ -169,7 +243,7 @@ export function SottocheckPage() {
               color: 'var(--foreground)',
             }}
           >
-            Sottocheck – Verifica plagio
+            Sottocheck Admin - Verifica plagio
           </h1>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -179,9 +253,9 @@ export function SottocheckPage() {
               fontWeight: 'var(--font-weight-regular)',
             }}
           >
-            {selectedPath
-              ? `Percorso: ${selectedPath.studentName} · ${selectedPath.timelineLabel}`
-              : 'Il controllo è in corso'}
+            {checkStatus === 'processing'
+              ? `Controllo in corso per ${selectedStudentName || 'studente selezionato'}`
+              : `Controllo completato${runningJobId ? ` (${runningJobId})` : ''}`}
           </p>
         </div>
 
@@ -216,7 +290,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il controllo richiede alcuni minuti. Riceverai una notifica al completamento.
+                Il report sara disponibile nello storico lavorazioni Sottocheck.
               </p>
               <Progress value={60} className="w-full" />
             </>
@@ -247,10 +321,10 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il report di verifica plagio è pronto
+                Il report e stato generato correttamente.
               </p>
               <button
-                onClick={() => navigate(`${viewBasePath}/archivio`)}
+                onClick={() => navigate('/sottocheck/lavorazioni')}
                 className="w-full px-[24px] py-[12px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
                 style={{
                   borderRadius: 'var(--radius)',
@@ -259,7 +333,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-medium)',
                 }}
               >
-                Vai allo storico Sottocheck
+                Vai a Lavorazioni sottocheck
               </button>
             </>
           )}
@@ -280,7 +354,7 @@ export function SottocheckPage() {
             color: 'var(--foreground)',
           }}
         >
-          Sottocheck – Verifica plagio
+          Sottocheck Admin - Verifica plagio
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"
@@ -290,7 +364,7 @@ export function SottocheckPage() {
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          Seleziona percorso, carica documento e avvia il controllo
+          Carica documento e avvia il controllo senza limitazioni di crediti
         </p>
       </div>
 
@@ -317,7 +391,7 @@ export function SottocheckPage() {
                   color: 'var(--foreground)',
                 }}
               >
-                Seleziona percorso
+                Seleziona studente e lavorazione
               </h3>
               <p
                 className="mt-1 text-[var(--muted-foreground)]"
@@ -327,52 +401,74 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il Sottocheck è disponibile solo per servizi Coaching. Seleziona prima un percorso idoneo.
+                Il check admin viene correlato a una lavorazione di Servizi Studenti.
               </p>
 
-              <select
-                value={selectedPathId}
-                onChange={(e) => {
-                  setSelectedPathId(e.target.value);
-                  setDocument(null);
-                  setDocumentStatus('idle');
-                  setPagesSelected(0);
-                  setCheckStatus('created');
-                }}
-                className="mt-4 w-full h-[44px] px-[12px] border border-[var(--border)] bg-[var(--card)]"
-                style={{
-                  borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-regular)',
-                  color: 'var(--foreground)',
-                }}
-              >
-                <option value="">Seleziona una lavorazione/timeline...</option>
-                {eligibleTimelinePaths.map((path) => (
-                  <option key={path.id} value={path.id}>
-                    {`${path.studentName} · ${path.serviceName} · ${path.timelineLabel}`}
-                  </option>
-                ))}
-              </select>
-
-              {selectedPath && (
-                <div
-                  className="mt-3 p-3"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                  }}
-                >
-                  <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                    {`${selectedPath.studentName} · ${selectedPath.timelineLabel}`}
-                  </p>
-                  <p className="mt-1" style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)' }}>
-                    Piano: {PLAN_LABELS[selectedPath.planType]}
-                  </p>
+              <div className="mt-4" style={{ display: 'grid', gap: '0.75rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    Studente
+                  </label>
+                  <select
+                    value={selectedStudentId}
+                    onChange={(e) => {
+                      setSelectedStudentId(e.target.value);
+                      setSelectedServiceId('');
+                    }}
+                    className="mt-2 w-full h-[40px] px-[10px] border border-[var(--border)] bg-[var(--card)]"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-regular)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <option value="">Seleziona studente...</option>
+                    {studentOptions.map(student => (
+                      <option key={student.id} value={student.id}>{student.name}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
+
+                <div>
+                  <label
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    Lavorazione
+                  </label>
+                  <select
+                    value={selectedServiceId}
+                    onChange={(e) => setSelectedServiceId(e.target.value)}
+                    disabled={!selectedStudentId}
+                    className="mt-2 w-full h-[40px] px-[10px] border border-[var(--border)] bg-[var(--card)]"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-regular)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <option value="">Seleziona lavorazione...</option>
+                    {serviceOptions.map(service => (
+                      <option key={service.id} value={service.id}>{`${service.id} - ${service.service_name}`}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -422,23 +518,7 @@ export function SottocheckPage() {
                 Dimensione massima file: 50MB
               </p>
 
-              {!selectedPath ? (
-                <div
-                  className="mt-4 p-4"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    border: '1px solid rgba(247,144,9,0.35)',
-                    background: 'rgba(247,144,9,0.08)',
-                  }}
-                >
-                  <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                    Seleziona prima una lavorazione/timeline
-                  </p>
-                  <p className="mt-1" style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)' }}>
-                    Il controllo e i crediti vengono calcolati sul percorso selezionato.
-                  </p>
-                </div>
-              ) : !document ? (
+              {!document ? (
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
@@ -544,7 +624,7 @@ export function SottocheckPage() {
                             fontWeight: 'var(--font-weight-regular)',
                           }}
                         >
-                          Formato valido – Puoi procedere
+                          Formato valido - Puoi procedere
                         </p>
                       </div>
                     </div>
@@ -580,7 +660,7 @@ export function SottocheckPage() {
                               fontWeight: 'var(--font-weight-regular)',
                             }}
                           >
-                            Il file caricato non è in un formato supportato. Carica un file PDF o DOCX.
+                            Il file caricato non e in un formato supportato. Carica un file PDF o DOCX.
                           </p>
                         </div>
                       </div>
@@ -642,7 +722,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il Sottocheck è disponibile solo per piani Coaching.
+                Nessun limite crediti per admin. Viene tracciato solo il totale usato.
               </p>
 
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
@@ -656,7 +736,7 @@ export function SottocheckPage() {
                         fontWeight: 'var(--font-weight-regular)',
                       }}
                     >
-                      Crediti disponibili
+                      Crediti utilizzati (sessione)
                     </p>
                     <p
                       className="text-[var(--foreground)]"
@@ -666,7 +746,7 @@ export function SottocheckPage() {
                         fontWeight: 'var(--font-weight-bold)',
                       }}
                     >
-                      {availableCredits}/{MAX_FREE_CHECK_CREDITS}
+                      {usedCredits}
                     </p>
                     <p
                       className="text-[var(--muted-foreground)]"
@@ -676,9 +756,7 @@ export function SottocheckPage() {
                         fontWeight: 'var(--font-weight-regular)',
                       }}
                     >
-                      {selectedPath
-                        ? `Bozza prototipo: usati ${draftUsedCredits} crediti · costo esempio ${MOCK_CREDIT_COST_PER_CHECK} crediti/check`
-                        : 'Seleziona un percorso per vedere i crediti associati'}
+                      Costo esempio per check: {MOCK_CREDIT_COST_PER_CHECK} crediti
                     </p>
                   </div>
 
@@ -705,20 +783,6 @@ export function SottocheckPage() {
                 </div>
               </div>
 
-              <p
-                className="mt-3"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
-                  fontWeight: 'var(--font-weight-regular)',
-                  color: 'var(--muted-foreground)',
-                }}
-              >
-                {isCoachingPlan
-                  ? 'Piano idoneo ai check liberi.'
-                  : 'I check liberi sono disponibili solo per piani Coaching.'}
-              </p>
-
               {!canStartCheck && (
                 <p
                   className="mt-3 text-[var(--chart-3)]"
@@ -728,27 +792,11 @@ export function SottocheckPage() {
                     fontWeight: 'var(--font-weight-regular)',
                   }}
                 >
-                  {!selectedPath
-                    ? 'Seleziona prima una lavorazione/timeline.'
-                    : !document || documentStatus !== 'valid'
-                      ? 'Carica prima un documento valido per avviare il controllo.'
-                      : !isCoachingPlan
-                        ? 'Questo piano non ha accesso ai check liberi.'
-                        : 'Crediti esauriti: il limite prototipo di 100 crediti è stato raggiunto.'}
+                  {!selectedStudentId || !selectedServiceId
+                    ? 'Seleziona studente e lavorazione prima di avviare il controllo.'
+                    : 'Carica prima un documento valido per avviare il controllo.'}
                 </p>
               )}
-
-              <p
-                className="mt-2"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
-                  fontWeight: 'var(--font-weight-regular)',
-                  color: 'var(--muted-foreground)',
-                }}
-              >
-                Nota prototipo: conteggio crediti in bozza, non ancora collegato al consumo reale per singola timeline/pagina.
-              </p>
             </div>
           </div>
         </div>

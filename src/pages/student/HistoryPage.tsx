@@ -1,4 +1,4 @@
-import { FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, CheckCircle, Clock, AlertCircle, Download } from 'lucide-react';
 
 type HistoryItemStatus = 'completed' | 'processing' | 'error';
 
@@ -104,6 +104,26 @@ function StatusBadge({ status }: { status: HistoryItemStatus }) {
   );
 }
 
+function downloadReport(check: HistoryItem) {
+  const reportLines = [
+    'Report Sottocheck',
+    `ID controllo: ${check.id}`,
+    `Documento: ${check.documentName}`,
+    `Pagine analizzate: ${check.pagesSelected}`,
+    `Costo: EUR ${check.price.toFixed(2)}`,
+    `Stato: ${check.status}`,
+    `Creato il: ${formatDate(check.createdAt)}`,
+  ];
+
+  const blob = new Blob([reportLines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `report-sottocheck-${check.id}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function HistoryPage() {
   return (
     <div className="px-[40px] py-[32px]">
@@ -175,6 +195,21 @@ export function HistoryPage() {
                   <span>€{check.price.toFixed(2)}</span>
                   <span>{formatDate(check.createdAt)}</span>
                 </div>
+
+                <button
+                  onClick={() => downloadReport(check)}
+                  className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  Scarica report
+                </button>
               </div>
             </div>
           </div>
