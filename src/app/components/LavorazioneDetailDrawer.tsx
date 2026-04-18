@@ -16,6 +16,7 @@ import {
   type ContractStatus,
   type InstallmentStatus,
   type CoachPayout,
+  type TaxRate,
   REFERENTI_SOTTOTESI,
   ADMIN_PROFILES,
   SERVICE_CATALOG,
@@ -63,34 +64,88 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
   expired: 'Scaduto',
 };
 
-const NOTULA_STATUS_OPTIONS: { value: NonNullable<CoachPayout['notula_status']>; label: string }[] = [
-  { value: 'da_programmare', label: 'Da programmare' },
-  { value: 'programmata', label: 'Programmata' },
-  { value: 'inviata', label: 'Inviata' },
-  { value: 'pagata', label: 'Pagata' },
-];
+type NotulaWorkflowStatus = 'da_programmare' | 'creata' | 'da_pagare' | 'pagata';
+
+const createDefaultCoachPayout = (serviceId: string, idSuffix = `${Date.now()}`): CoachPayout => ({
+  id: `CP-${serviceId}-${idSuffix}`,
+  document_type: 'notula',
+  status: 'pending_invoice',
+  notula_status: 'da_programmare',
+  invoice_status: 'da_ricevere',
+  tax_rate: 0,
+  sent_manually: false,
+});
+
+const normalizeNotulaStatus = (status?: CoachPayout['notula_status']): NotulaWorkflowStatus => {
+  if (status === 'pagata') return 'pagata';
+  if (status === 'inviata' || status === 'da_pagare') return 'da_pagare';
+  if (status === 'creata' || status === 'programmata') return 'creata';
+  return 'da_programmare';
+};
+
+const getPayoutIssueDate = (payout?: Partial<CoachPayout>): string | undefined => {
+  if (!payout) return undefined;
+  return payout.document_type === 'fattura'
+    ? payout.invoice_date
+    : payout.notula_issue_date;
+};
+
+const resolveNotulaStatus = (payout?: Partial<CoachPayout>): NotulaWorkflowStatus => {
+  if (!payout) return 'da_programmare';
+  const isFattura = payout.document_type === 'fattura';
+
+  if (payout.paid_at) return 'pagata';
+  if (isFattura) {
+    if (payout.invoice_status === 'ricevuta') return 'da_pagare';
+    if (payout.invoice_date) return 'creata';
+    return 'da_programmare';
+  }
+
+  if (payout.sent_manually || normalizeNotulaStatus(payout.notula_status) === 'da_pagare') return 'da_pagare';
+  if (payout.notula_issue_date) return 'creata';
+  return 'da_programmare';
+};
+
+const withSyncedNotulaStatus = (payout: CoachPayout): CoachPayout => ({
+  ...payout,
+  notula_status: resolveNotulaStatus(payout),
+});
+
+const buildCoachPayoutsFromService = (service: StudentService): CoachPayout[] => {
+  const fromList = service.coach_payouts && service.coach_payouts.length > 0
+    ? service.coach_payouts
+    : service.coach_payout
+      ? [service.coach_payout]
+      : service.coach_fee !== undefined
+        ? [{ ...createDefaultCoachPayout(service.id, 'legacy'), notula_amount: service.coach_fee }]
+        : [];
+  return fromList.map((p, idx) => withSyncedNotulaStatus({
+    ...createDefaultCoachPayout(service.id, `${idx}`),
+    ...p,
+    id: p.id || `CP-${service.id}-${idx}`,
+  }));
+};
 
 const INVOICE_STATUS_OPTIONS: { value: NonNullable<CoachPayout['invoice_status']>; label: string }[] = [
   { value: 'da_ricevere', label: 'Da ricevere' },
   { value: 'ricevuta', label: 'Ricevuta' },
-  { value: 'pagata', label: 'Pagata' },
 ];
 
-const getNotulaStatusColor = (status?: CoachPayout['notula_status']): string => {
-  switch (status) {
+const getNotulaStatusColor = (status?: CoachPayout['notula_status'] | NotulaWorkflowStatus): string => {
+  switch (normalizeNotulaStatus(status)) {
     case 'pagata': return 'var(--primary)';
-    case 'inviata': return 'var(--chart-3)';
-    case 'programmata': return 'var(--chart-2)';
+    case 'da_pagare': return 'var(--chart-3)';
+    case 'creata': return 'var(--chart-2)';
     case 'da_programmare': return 'var(--muted-foreground)';
     default: return 'var(--muted-foreground)';
   }
 };
 
-const getNotulaStatusLabel = (status?: CoachPayout['notula_status']): string => {
-  switch (status) {
+const getNotulaStatusLabel = (status?: CoachPayout['notula_status'] | NotulaWorkflowStatus): string => {
+  switch (normalizeNotulaStatus(status)) {
     case 'pagata': return 'Pagata';
-    case 'inviata': return 'Inviata';
-    case 'programmata': return 'Programmata';
+    case 'da_pagare': return 'Da pagare';
+    case 'creata': return 'Creata';
     case 'da_programmare': return 'Da programmare';
     default: return 'N/D';
   }
@@ -131,9 +186,10 @@ const formatDateTimestamp = (dateStr?: string): string => {
   });
 };
 
-const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
-  if (!notulaDate) return null;
-  const d = new Date(notulaDate);
+const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLeft: number } | null => {
+  const issueDate = getPayoutIssueDate(payout);
+  if (!issueDate) return null;
+  const d = new Date(issueDate);
   d.setDate(d.getDate() + 45);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -141,7 +197,7 @@ const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number 
   return { date: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }), daysLeft };
 };
 
-const normalizeTaxRate = (value?: number): 4 | 22 => (value === 4 ? 4 : 22);
+const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
 // ─── Component ───────────────────────────────────────────────
@@ -162,16 +218,15 @@ export function LavorazioneDetailDrawer({
 
   const [isStale, setIsStale] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeletePayoutId, setConfirmDeletePayoutId] = useState<string | null>(null);
   const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
   const lastKnownUpdate = useRef(service.updated_at || '');
-
-  const payoutNeedsAttention = service.coach_payout?.notula_status === 'inviata';
 
   const [sections, setSections] = useState({
     operativi: true,
     contratto: false,
-    pagamenti: true,
-    payout: payoutNeedsAttention,
+    pagamenti: false,
+    payout: false,
     preventivi: false,
     riferimenti: false,
   });
@@ -205,14 +260,19 @@ export function LavorazioneDetailDrawer({
 
   // ─── Rate: stato locale + dirty tracking ─────────────────
   const [localInstallments, setLocalInstallments] = useState([...service.installments]);
-  const [localServiceTaxRate, setLocalServiceTaxRate] = useState<4 | 22>(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
+  const [localServiceTaxRate, setLocalServiceTaxRate] = useState<TaxRate>(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
   const [dirtyInstallmentIds, setDirtyInstallmentIds] = useState<Set<string>>(new Set());
+
+  const [localCoachPayouts, setLocalCoachPayouts] = useState<CoachPayout[]>(buildCoachPayoutsFromService(service));
+  const [dirtyPayoutIds, setDirtyPayoutIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLocalInstallments([...service.installments]);
     setLocalServiceTaxRate(normalizeTaxRate(service.total_tax_rate ?? taxPercent));
     setDirtyInstallmentIds(new Set());
-  }, [service.id, service.installments, service.total_tax_rate, taxPercent]);
+    setLocalCoachPayouts(buildCoachPayoutsFromService(service));
+    setDirtyPayoutIds(new Set());
+  }, [service.id, service.installments, service.total_tax_rate, service.coach_payouts, service.coach_payout, service.coach_fee, taxPercent]);
 
   const markInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.add(id); return n; });
   const clearInstDirty = (id: string) => setDirtyInstallmentIds(prev => { const n = new Set(prev); n.delete(id); return n; });
@@ -222,11 +282,27 @@ export function LavorazioneDetailDrawer({
     clearInstDirty(instId);
   };
 
-  const getInstallmentTaxRate = (inst: { net_tax_rate?: 4 | 22 }): 4 | 22 => {
+  const markPayoutDirty = (id: string) => setDirtyPayoutIds(prev => { const n = new Set(prev); n.add(id); return n; });
+  const clearPayoutDirty = (id: string) => setDirtyPayoutIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+
+  const handleSaveCoachPayout = (payoutId: string) => {
+    const synced = localCoachPayouts.map(p => withSyncedNotulaStatus(p));
+    const primary = synced[0];
+    const totalCoachFee = roundToCents(synced.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
+    doUpdate(s => ({
+      ...s,
+      coach_payouts: synced.length > 0 ? synced : undefined,
+      coach_payout: primary,
+      coach_fee: synced.length > 0 ? totalCoachFee : undefined,
+    }), 'Payout coach salvato');
+    clearPayoutDirty(payoutId);
+  };
+
+  const getInstallmentTaxRate = (inst: { net_tax_rate?: TaxRate }): TaxRate => {
     return normalizeTaxRate(inst.net_tax_rate ?? localServiceTaxRate);
   };
 
-  const getInstallmentNet = (inst: { amount: number; net_tax_rate?: 4 | 22 }): number => {
+  const getInstallmentNet = (inst: { amount: number; net_tax_rate?: TaxRate }): number => {
     const rate = getInstallmentTaxRate(inst);
     return roundToCents(inst.amount * (1 - rate / 100));
   };
@@ -240,7 +316,27 @@ export function LavorazioneDetailDrawer({
   const paidTotal = localInstallments.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
   const overdueCount = localInstallments.filter(i => i.status === 'overdue').length;
   const paidCount = localInstallments.filter(i => i.status === 'paid').length;
-  const scad45gg = computeScad45gg(service.coach_payout?.notula_issue_date);
+
+  const syncedCoachPayouts = localCoachPayouts.map(p => withSyncedNotulaStatus(p));
+  const payoutDaPagareCount = syncedCoachPayouts.filter(p => resolveNotulaStatus(p) === 'da_pagare').length;
+  const payoutScaduteCount = syncedCoachPayouts.filter(p => {
+    const scad = computeScad45gg(p);
+    return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft <= 0;
+  }).length;
+  const payoutInScadenzaCount = syncedCoachPayouts.filter(p => {
+    const scad = computeScad45gg(p);
+    return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft > 0 && scad.daysLeft <= 7;
+  }).length;
+  const coachCompensoLordo = roundToCents(syncedCoachPayouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
+  const coachCompensoNetto = roundToCents(syncedCoachPayouts.reduce((sum, p) => {
+    const rate = normalizeTaxRate(p.tax_rate ?? 0);
+    return sum + (p.notula_amount || 0) * (1 + rate / 100);
+  }, 0));
+  const coachCompensoPagato = roundToCents(syncedCoachPayouts.reduce((sum, p) => {
+    if (resolveNotulaStatus(p) !== 'pagata') return sum;
+    const rate = normalizeTaxRate(p.tax_rate ?? 0);
+    return sum + (p.notula_amount || 0) * (1 + rate / 100);
+  }, 0));
 
   const student = (students || []).find(s => s.id === service.student_id);
   const academicRecord = student?.academic_records?.find(r => r.id === service.academic_record_id)
@@ -481,10 +577,6 @@ export function LavorazioneDetailDrawer({
               )}
             </div>
 
-            <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Compenso coach (€)</label>
-              <EditableField value={service.coach_fee !== undefined ? `${service.coach_fee}` : ''} placeholder="Da definire" displayPrefix="€" type="number" onSave={(val) => { const num = Number(val); if (!isNaN(num) && num >= 0) doUpdate(s => ({ ...s, coach_fee: num }), 'Compenso coach aggiornato'); }} />
-            </div>
 
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Referente Sottotesi</label>
@@ -585,6 +677,7 @@ export function LavorazioneDetailDrawer({
                   padding: '0.25rem 0.5rem',
                 }}
               >
+                <option value={0}>0%</option>
                 <option value={4}>4%</option>
                 <option value={22}>22%</option>
               </select>
@@ -728,6 +821,7 @@ export function LavorazioneDetailDrawer({
                             }}
                           >
                             <option value="default">{localServiceTaxRate}%</option>
+                            <option value="0">0% (sostituisci)</option>
                             <option value="4">4% (sostituisci)</option>
                             <option value="22">22% (sostituisci)</option>
                           </select>
@@ -817,84 +911,275 @@ export function LavorazioneDetailDrawer({
           <DrawerCollapsibleSection
             icon={Briefcase}
             title="Compenso Coach (Payout)"
-            badge={getNotulaStatusLabel(service.coach_payout?.notula_status)}
-            alertBadge={service.coach_payout?.notula_status === 'inviata' && scad45gg && scad45gg.daysLeft <= 0 ? 'Scaduta' : undefined}
+            badge={`${localCoachPayouts.length} ${localCoachPayouts.length === 1 ? 'payout' : 'payout'}`}
+            alertBadge={
+              payoutScaduteCount > 0
+                ? `${payoutScaduteCount} scadute`
+                : payoutInScadenzaCount > 0
+                  ? `${payoutInScadenzaCount} in scadenza`
+                  : payoutDaPagareCount > 0
+                    ? `${payoutDaPagareCount} da pagare`
+                    : undefined
+            }
             isOpen={sections.payout}
             onToggle={() => toggleSection('payout')}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Status notula</label>
-                <select
-                  value={service.coach_payout?.notula_status || 'da_programmare'}
-                  onChange={(e) => {
-                    const next = e.target.value as NonNullable<CoachPayout['notula_status']>;
-                    doUpdate(
-                      s => ({
-                        ...s,
-                        coach_payout: {
-                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
-                          notula_status: next,
-                        },
-                      }),
-                      `Status notula → ${NOTULA_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
-                    );
-                  }}
-                  style={drawerInputStyle}
-                >
-                  {NOTULA_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Fattura</label>
-                <select
-                  value={service.coach_payout?.invoice_status || 'da_ricevere'}
-                  onChange={(e) => {
-                    const next = e.target.value as NonNullable<CoachPayout['invoice_status']>;
-                    doUpdate(
-                      s => ({
-                        ...s,
-                        coach_payout: {
-                          ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }),
-                          invoice_status: next,
-                        },
-                      }),
-                      `Fattura → ${INVOICE_STATUS_OPTIONS.find(o => o.value === next)?.label || next}`
-                    );
-                  }}
-                  style={drawerInputStyle}
-                >
-                  {INVOICE_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Data notula</label>
-                <input type="date" value={service.coach_payout?.notula_issue_date || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), notula_issue_date: e.target.value || undefined } }), 'Data notula aggiornata')} style={drawerInputStyle} />
-              </div>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Scadenza 45gg</label>
-                {scad45gg ? (
-                  <span style={{ ...drawerReadonlyValueStyle, fontWeight: scad45gg.daysLeft <= 0 && service.coach_payout?.notula_status !== 'pagata' ? 'var(--font-weight-bold)' : undefined, color: service.coach_payout?.notula_status === 'pagata' ? 'var(--foreground)' : scad45gg.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad45gg.daysLeft <= 7 ? getNotulaStatusColor(service.coach_payout?.notula_status) : 'var(--foreground)' }}>
-                    {scad45gg.date}
-                    {service.coach_payout?.notula_status !== 'pagata' && scad45gg.daysLeft <= 14 && (
-                      <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad45gg.daysLeft > 0 ? `-${scad45gg.daysLeft}gg` : `+${Math.abs(scad45gg.daysLeft)}gg`})</span>
-                    )}
-                  </span>
-                ) : <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>—</span>}
-              </div>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Pagato il</label>
-                <input type="date" value={service.coach_payout?.paid_at || ''} onChange={(e) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), paid_at: e.target.value || undefined } }), 'Data pagamento aggiornata')} style={drawerInputStyle} />
-              </div>
-              <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Rif. pagamento</label>
-                <EditableField value={service.coach_payout?.payment_reference || ''} placeholder="—" onSave={(val) => doUpdate(s => ({ ...s, coach_payout: { ...(s.coach_payout || { id: `CP-${s.id}`, status: 'pending_invoice', notula_status: 'da_programmare', invoice_status: 'da_ricevere' }), payment_reference: val || undefined } }), val ? 'Rif. pagamento aggiornato' : 'Rif. pagamento rimosso')} />
-              </div>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+              <MiniInfo label="Compenso lordo" value={`€${coachCompensoLordo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <MiniInfo label="Totale da pagare al coach" value={`€${coachCompensoNetto.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <MiniInfo label="Pagato" value={`€${coachCompensoPagato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             </div>
+
+            {localCoachPayouts.length === 0 ? (
+              <span style={{ ...drawerReadonlyValueStyle, color: 'var(--muted-foreground)' }}>Nessun payout configurato</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                {localCoachPayouts.map((payout, idx) => {
+                  const status = resolveNotulaStatus(payout);
+                  const isFattura = payout.document_type === 'fattura';
+                  const issueDate = getPayoutIssueDate(payout);
+                  const documentLabel = isFattura ? 'Fattura' : 'Notula';
+                  const scad = computeScad45gg(payout);
+                  const isDirty = dirtyPayoutIds.has(payout.id);
+                  return (
+                    <div key={payout.id} style={{
+                      padding: '1rem',
+                      backgroundColor: status === 'da_pagare' && scad && scad.daysLeft <= 0
+                        ? 'color-mix(in srgb, var(--destructive-foreground) 4%, var(--muted))'
+                        : 'var(--muted)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                      position: 'relative',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                          Payout {idx + 1}/{localCoachPayouts.length}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {confirmDeletePayoutId === payout.id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <button
+                                onClick={() => {
+                                  const updated = localCoachPayouts.filter(p => p.id !== payout.id);
+                                  setLocalCoachPayouts(updated);
+                                  clearPayoutDirty(payout.id);
+                                  const synced = updated.map(p => withSyncedNotulaStatus(p));
+                                  const primary = synced[0];
+                                  const totalCoachFee = roundToCents(synced.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
+                                  doUpdate(s => ({
+                                    ...s,
+                                    coach_payouts: synced.length > 0 ? synced : undefined,
+                                    coach_payout: primary,
+                                    coach_fee: synced.length > 0 ? totalCoachFee : undefined,
+                                  }), `Payout ${idx + 1} rimosso`);
+                                  setConfirmDeletePayoutId(null);
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--destructive-foreground)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--destructive)', color: 'var(--destructive-foreground)', cursor: 'pointer' }}
+                              >Conferma</button>
+                              <button onClick={() => setConfirmDeletePayoutId(null)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}><X size={10} /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDeletePayoutId(payout.id)} title="Rimuovi payout" style={{ display: 'inline-flex', alignItems: 'center', padding: '0.125rem 0.25rem', borderRadius: 'var(--radius)', border: 'none', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', opacity: 0.5 }}><Trash2 size={12} /></button>
+                          )}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: 'var(--card)', color: getNotulaStatusColor(status) }}>
+                            {getNotulaStatusLabel(status)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Compenso lordo</div>
+                          <input
+                            type="number" min="0" step="0.01"
+                            style={drawerInputStyle}
+                            value={payout.notula_amount || ''}
+                            placeholder="es. 480"
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, notula_amount: Number.isNaN(value) ? 0 : value }) : p));
+                              markPayoutDirty(payout.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Aliquota coach</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={normalizeTaxRate(payout.tax_rate ?? 0)}
+                            onChange={(e) => {
+                              const rate = normalizeTaxRate(Number(e.target.value));
+                              setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, tax_rate: rate }) : p));
+                              markPayoutDirty(payout.id);
+                            }}
+                          >
+                            <option value={0}>0%</option>
+                            <option value={4}>4%</option>
+                            <option value={22}>22%</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Totale da pagare (preview)</div>
+                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center' }}>
+                            €{roundToCents((payout.notula_amount || 0) * (1 + normalizeTaxRate(payout.tax_rate ?? 0) / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Tipo documento</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={payout.document_type || 'notula'}
+                            onChange={(e) => {
+                              const nextType = e.target.value as 'notula' | 'fattura';
+                              setLocalCoachPayouts(prev => prev.map(p => {
+                                if (p.id !== payout.id) return p;
+                                const base = {
+                                  ...p,
+                                  document_type: nextType,
+                                  sent_manually: false,
+                                };
+                                return nextType === 'fattura'
+                                  ? withSyncedNotulaStatus({
+                                    ...base,
+                                    notula_issue_date: undefined,
+                                    notula_sent_date: undefined,
+                                    notula_number: undefined,
+                                    invoice_status: p.invoice_status || 'da_ricevere',
+                                  })
+                                  : withSyncedNotulaStatus({
+                                    ...base,
+                                    invoice_date: undefined,
+                                    invoice_status: 'da_ricevere',
+                                  });
+                              }));
+                              markPayoutDirty(payout.id);
+                            }}
+                          >
+                            <option value="notula">Notula</option>
+                            <option value="fattura">Fattura</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Data emissione {documentLabel.toLowerCase()}</div>
+                          <input
+                            type="date"
+                            style={drawerInputStyle}
+                            value={issueDate || ''}
+                            onChange={(e) => {
+                              setLocalCoachPayouts(prev => prev.map(p => {
+                                if (p.id !== payout.id) return p;
+                                const nextValue = e.target.value || undefined;
+                                const next = isFattura
+                                  ? { ...p, invoice_date: nextValue, notula_issue_date: undefined, sent_manually: false }
+                                  : { ...p, notula_issue_date: nextValue, invoice_date: undefined, sent_manually: nextValue ? p.sent_manually : false };
+                                return withSyncedNotulaStatus(next);
+                              }));
+                              markPayoutDirty(payout.id);
+                            }}
+                          />
+                        </div>
+                        {isFattura && (
+                          <div>
+                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Fattura</div>
+                            <select
+                              style={drawerInputStyle}
+                              value={payout.invoice_status || 'da_ricevere'}
+                              onChange={(e) => {
+                                const next = e.target.value as NonNullable<CoachPayout['invoice_status']>;
+                                setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, invoice_status: next }) : p));
+                                markPayoutDirty(payout.id);
+                              }}
+                            >
+                              {INVOICE_STATUS_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Pagato il</div>
+                          <input
+                            type="date"
+                            style={drawerInputStyle}
+                            value={payout.paid_at || ''}
+                            onChange={(e) => {
+                              setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, paid_at: e.target.value || undefined }) : p));
+                              markPayoutDirty(payout.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Rif. pagamento</div>
+                          <input
+                            type="text"
+                            style={drawerInputStyle}
+                            value={payout.payment_reference || ''}
+                            placeholder="—"
+                            onChange={(e) => {
+                              setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, payment_reference: e.target.value || undefined }) : p));
+                              markPayoutDirty(payout.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Scadenza 45gg</div>
+                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center', color: status === 'pagata' ? 'var(--foreground)' : scad && scad.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad && scad.daysLeft <= 7 ? getNotulaStatusColor(status) : 'var(--foreground)' }}>
+                            {scad ? (
+                              <>
+                                {scad.date}
+                                {status !== 'pagata' && scad.daysLeft <= 14 && (
+                                  <span style={{ fontSize: '11px', marginLeft: '0.25rem' }}>({scad.daysLeft > 0 ? `-${scad.daysLeft}gg` : `+${Math.abs(scad.daysLeft)}gg`})</span>
+                                )}
+                              </>
+                            ) : '—'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            setLocalCoachPayouts(prev => prev.map(p => {
+                              if (p.id !== payout.id) return p;
+                              return isFattura
+                                ? withSyncedNotulaStatus({ ...p, sent_manually: false, invoice_status: 'ricevuta' })
+                                : withSyncedNotulaStatus({ ...p, sent_manually: true, notula_sent_date: p.notula_sent_date || new Date().toISOString().split('T')[0], notula_status: 'da_pagare' });
+                            }));
+                            markPayoutDirty(payout.id);
+                          }}
+                          disabled={!issueDate || status === 'pagata'}
+                          style={{ width: '100%', justifyContent: 'center', fontSize: '12px' }}
+                          title={!issueDate ? `Inserisci prima la data emissione ${documentLabel.toLowerCase()}` : status === 'pagata' ? 'Payout già pagato' : isFattura ? 'Segna fattura ricevuta e passa in stato da pagare' : 'Segna notula inviata e passa in stato da pagare'}
+                        >
+                          {isFattura ? 'Segna fattura ricevuta (da pagare)' : 'Segna notula inviata (da pagare)'}
+                        </button>
+
+                        {isDirty && (
+                          <button
+                            onClick={() => handleSaveCoachPayout(payout.id)}
+                            className="btn btn-primary"
+                            style={{ width: '100%', justifyContent: 'center', gap: '0.375rem' }}
+                          >
+                            <Save size={14} /> Salva payout
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <DrawerAddButton onClick={() => {
+              const newPayout = createDefaultCoachPayout(service.id);
+              setLocalCoachPayouts(prev => [...prev, newPayout]);
+              markPayoutDirty(newPayout.id);
+              toast.success('Payout aggiunto. Premi Salva per registrarlo');
+            }}>
+              <Plus size={14} /> Aggiungi payout coach
+            </DrawerAddButton>
           </DrawerCollapsibleSection>
 
           {/* ═══ 5. PREVENTIVI ════════════════════════════════ */}
