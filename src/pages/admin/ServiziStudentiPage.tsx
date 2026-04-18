@@ -20,6 +20,7 @@ import {
   type DegreeLevel,
   type PayoutStatus,
   type CoachPayout,
+  type TaxRate,
 } from '../../app/data/LavorazioniContext';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
 import { useAreeTematiche } from '../../app/data/AreeTematicheContext';
@@ -50,6 +51,8 @@ const VISTA_LABELS: Record<Vista, string> = {
   compensi: 'Compensi Coach',
 };
 
+type NotulaWorkflowStatus = 'da_programmare' | 'creata' | 'da_pagare' | 'pagata';
+
 const MONTH_NAMES_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
 interface MonthGroup {
@@ -63,8 +66,54 @@ interface MonthGroup {
   overdueCount: number;
 }
 
-const normalizeTaxRate = (value?: number): 4 | 22 => (value === 4 ? 4 : 22);
+const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+const normalizeNotulaStatus = (status?: CoachPayout['notula_status']): NotulaWorkflowStatus => {
+  if (status === 'pagata') return 'pagata';
+  if (status === 'inviata' || status === 'da_pagare') return 'da_pagare';
+  if (status === 'creata' || status === 'programmata') return 'creata';
+  return 'da_programmare';
+};
+const getPayoutIssueDate = (payout?: Partial<CoachPayout>): string | undefined => {
+  if (!payout) return undefined;
+  return payout.document_type === 'fattura'
+    ? payout.invoice_date
+    : payout.notula_issue_date;
+};
+const getPayoutDocumentDate = (payout?: Partial<CoachPayout>): string | undefined => {
+  if (!payout) return undefined;
+  return payout.document_type === 'fattura'
+    ? payout.invoice_date
+    : payout.notula_sent_date || payout.notula_issue_date;
+};
+const resolveNotulaStatus = (payout?: Partial<CoachPayout>): NotulaWorkflowStatus => {
+  if (!payout) return 'da_programmare';
+  const isFattura = payout.document_type === 'fattura';
+
+  if (payout.paid_at) return 'pagata';
+  if (isFattura) {
+    if (payout.invoice_status === 'ricevuta') return 'da_pagare';
+    if (payout.invoice_date) return 'creata';
+    return 'da_programmare';
+  }
+
+  if (payout.sent_manually || normalizeNotulaStatus(payout.notula_status) === 'da_pagare') return 'da_pagare';
+  if (payout.notula_issue_date) return 'creata';
+  return 'da_programmare';
+};
+const createDefaultCoachPayout = (serviceId: string): CoachPayout => ({
+  id: `CP-${serviceId}`,
+  document_type: 'notula',
+  status: 'pending_invoice',
+  notula_status: 'da_programmare',
+  invoice_status: 'da_ricevere',
+  tax_rate: 0,
+  sent_manually: false,
+});
+const withSyncedNotulaStatus = (payout: CoachPayout): CoachPayout => ({
+  ...payout,
+  notula_status: resolveNotulaStatus(payout),
+});
 
 // ─── Admin Note type (estende Note con serviceId per flat storage) ──
 interface ServiceNote extends Note {
@@ -355,7 +404,7 @@ export function ServiziStudentiPage() {
     toast.success('Importo rata aggiornato');
   };
 
-  const updateLordo = (serviceId: string, newLordo: number, taxRate: 4 | 22) => {
+  const updateLordo = (serviceId: string, newLordo: number, taxRate: TaxRate) => {
     updateService(serviceId, s => {
       const count = s.installments.length;
       if (count === 0) return s;
@@ -527,15 +576,15 @@ export function ServiziStudentiPage() {
     return pending.length > 0 ? pending[0].dueDate : null;
   }, []);
 
-  const getServiceTaxRate = useCallback((service: StudentService): 4 | 22 => {
+  const getServiceTaxRate = useCallback((service: StudentService): TaxRate => {
     return normalizeTaxRate(service.total_tax_rate);
   }, []);
 
-  const getInstallmentTaxRate = useCallback((service: StudentService, installment: { net_tax_rate?: 4 | 22 }): 4 | 22 => {
+  const getInstallmentTaxRate = useCallback((service: StudentService, installment: { net_tax_rate?: TaxRate }): TaxRate => {
     return normalizeTaxRate(installment.net_tax_rate ?? service.total_tax_rate);
   }, []);
 
-  const getInstallmentNet = useCallback((service: StudentService, installment: { amount: number; net_tax_rate?: 4 | 22 }): number => {
+  const getInstallmentNet = useCallback((service: StudentService, installment: { amount: number; net_tax_rate?: TaxRate }): number => {
     const rate = getInstallmentTaxRate(service, installment);
     return roundToCents(installment.amount * (1 - rate / 100));
   }, [getInstallmentTaxRate]);
@@ -552,7 +601,7 @@ export function ServiziStudentiPage() {
     return roundToCents(service.installments.filter(i => i.status === 'paid').reduce((sum, i) => sum + getInstallmentNet(service, i), 0));
   }, [getInstallmentNet]);
 
-  const grossFromNet = useCallback((netAmount: number, taxRate: 4 | 22): number => {
+  const grossFromNet = useCallback((netAmount: number, taxRate: TaxRate): number => {
     const divisor = 1 - taxRate / 100;
     if (divisor <= 0) return netAmount;
     return roundToCents(netAmount / divisor);
@@ -659,25 +708,25 @@ export function ServiziStudentiPage() {
           return sortDirection === 'asc' ? aV - bV : bV - aV;
         }
         if (sortColumn === 'dataNotula') {
-          const aD = a.coach_payout?.notula_issue_date || '9999-12-31';
-          const bD = b.coach_payout?.notula_issue_date || '9999-12-31';
+          const aD = getPayoutDocumentDate(a.coach_payout) || '9999-12-31';
+          const bD = getPayoutDocumentDate(b.coach_payout) || '9999-12-31';
           if (aD < bD) return sortDirection === 'asc' ? -1 : 1;
           if (aD > bD) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         }
         if (sortColumn === 'scad45gg') {
-          const aNotula = a.coach_payout?.notula_issue_date;
-          const bNotula = b.coach_payout?.notula_issue_date;
-          const aD = aNotula ? new Date(aNotula).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
-          const bD = bNotula ? new Date(bNotula).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
+          const aIssueDate = getPayoutIssueDate(a.coach_payout);
+          const bIssueDate = getPayoutIssueDate(b.coach_payout);
+          const aD = aIssueDate ? new Date(aIssueDate).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
+          const bD = bIssueDate ? new Date(bIssueDate).getTime() + (45 * 24 * 60 * 60 * 1000) : Number.MAX_SAFE_INTEGER;
           if (aD < bD) return sortDirection === 'asc' ? -1 : 1;
           if (aD > bD) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         }
         if (sortColumn === 'statoNotula') {
-          const order: Record<string, number> = { da_programmare: 0, programmata: 1, inviata: 2, pagata: 3 };
-          const aV = order[a.coach_payout?.notula_status || 'da_programmare'] || 0;
-          const bV = order[b.coach_payout?.notula_status || 'da_programmare'] || 0;
+          const order: Record<NotulaWorkflowStatus, number> = { da_programmare: 0, creata: 1, da_pagare: 2, pagata: 3 };
+          const aV = order[resolveNotulaStatus(a.coach_payout)];
+          const bV = order[resolveNotulaStatus(b.coach_payout)];
           return sortDirection === 'asc' ? aV - bV : bV - aV;
         }
         let aVal: any = a[sortColumn as keyof StudentService];
@@ -936,16 +985,28 @@ export function ServiziStudentiPage() {
   };
 
   // ─── Compensi coach helpers ────────────────────────────────
-  const NOTULA_STATUS_BADGE: Record<NonNullable<CoachPayout['notula_status']>, { label: string; bg: string; fg: string }> = {
-    da_programmare: { label: 'Da programmare', bg: 'var(--muted)', fg: 'var(--muted-foreground)' },
-    programmata: { label: 'Programmata', bg: 'var(--chart-2)', fg: '#fff' },
-    inviata: { label: 'Inviata', bg: 'var(--chart-3)', fg: '#fff' },
-    pagata: { label: 'Pagata', bg: 'var(--primary)', fg: 'var(--primary-foreground)' },
+  const NOTULA_STATUS_MAP: Record<NotulaWorkflowStatus, StatusType> = {
+    da_programmare: 'inactive',
+    creata: 'warning',
+    da_pagare: 'active',
+    pagata: 'completed',
   };
 
-  const computeScad45gg = (notulaDate?: string): { date: string; daysLeft: number } | null => {
-    if (!notulaDate) return null;
-    const d = new Date(notulaDate);
+  const NOTULA_STATUS_LABELS: Record<NotulaWorkflowStatus, string> = {
+    da_programmare: 'Da programmare',
+    creata: 'Creata',
+    da_pagare: 'Da pagare',
+    pagata: 'Pagata',
+  };
+
+  const getNotulaStatusBadge = (status: NotulaWorkflowStatus) => (
+    <StatusBadge status={NOTULA_STATUS_MAP[status]} label={NOTULA_STATUS_LABELS[status]} />
+  );
+
+  const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLeft: number } | null => {
+    const issueDate = getPayoutIssueDate(payout);
+    if (!issueDate) return null;
+    const d = new Date(issueDate);
     d.setDate(d.getDate() + 45);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -975,7 +1036,28 @@ export function ServiziStudentiPage() {
   const updatePayoutField = (serviceId: string, field: Partial<CoachPayout>) => {
     updateService(serviceId, s => ({
       ...s,
-      coach_payout: { ...(s.coach_payout || { id: `CP-${serviceId}`, status: 'pending_invoice' as PayoutStatus }), ...field },
+      coach_payout: (() => {
+        const current = s.coach_payout || createDefaultCoachPayout(serviceId);
+        const nextDocumentType = field.document_type ?? current.document_type ?? 'notula';
+        const merged: CoachPayout = {
+          ...current,
+          ...field,
+          sent_manually: (('notula_issue_date' in field && !field.notula_issue_date) || ('invoice_date' in field && !field.invoice_date))
+            ? false
+            : (current.sent_manually ?? false),
+        };
+
+        if (nextDocumentType === 'fattura') {
+          merged.notula_issue_date = undefined;
+          merged.notula_sent_date = undefined;
+          merged.notula_number = undefined;
+        } else {
+          merged.invoice_date = undefined;
+          merged.invoice_status = 'da_ricevere';
+        }
+
+        return withSyncedNotulaStatus(merged);
+      })(),
       updated_by: CURRENT_ADMIN,
       updated_at: new Date().toISOString(),
     }));
@@ -1592,7 +1674,7 @@ export function ServiziStudentiPage() {
                 </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.dataNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('dataNotula') }} onClick={() => handleSort('dataNotula')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Data notula</span>
+                    <span>Data invio/emissione</span>
                     {getSortIcon('dataNotula')}
                   </div>
                   {resizeHandle('dataNotula')}
@@ -1606,7 +1688,7 @@ export function ServiziStudentiPage() {
                 </TableHeaderBaseCell>
                 <TableHeaderBaseCell style={{ width: `${columnWidths.statoNotula}px`, position: 'relative', cursor: 'pointer', userSelect: 'none', ...colVis('statoNotula') }} onClick={() => handleSort('statoNotula')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                    <span>Stato notula</span>
+                    <span>Status</span>
                     {getSortIcon('statoNotula')}
                   </div>
                   {resizeHandle('statoNotula')}
@@ -1699,7 +1781,7 @@ export function ServiziStudentiPage() {
               ...group.services.map((service) => {
                 const lordo = getServiceLordo(service);
                 const netto = getServiceNet(service);
-                const hasReducedTaxRate = service.installments.some(inst => getInstallmentTaxRate(service, inst) === 4);
+                const hasCustomTaxRate = service.installments.some(inst => getInstallmentTaxRate(service, inst) !== 22);
                 const paidCount = service.installments.filter(i => i.status === 'paid').length;
                 const totalCount = service.installments.length;
                 const hasOverdue = service.installments.some(i => i.status === 'overdue');
@@ -1930,7 +2012,7 @@ export function ServiziStudentiPage() {
                       <TableCell style={{ minWidth: columnWidths.netto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', ...colVis('netto') }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                           <span>€{netto.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                          {hasReducedTaxRate && (
+                          {hasCustomTaxRate && (
                             <span style={{
                               border: '1px solid var(--chart-3)',
                               color: 'var(--chart-3)',
@@ -1940,7 +2022,7 @@ export function ServiziStudentiPage() {
                               lineHeight: '16px',
                               fontWeight: 'var(--font-weight-medium)',
                             }}>
-                              4%
+                              aliquota custom
                             </span>
                           )}
                         </div>
@@ -2020,54 +2102,68 @@ export function ServiziStudentiPage() {
                       </TableCell>
                       {/* Compenso — editabile */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.compenso, fontFamily: 'var(--font-inter)', ...colVis('compenso') }}>
-                        {editingCoachFee === service.id && activeVista === 'compensi' ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ color: 'var(--muted-foreground)' }}>€</span>
-                            <input type="number" value={coachFeeInput} onChange={(e) => setCoachFeeInput(e.target.value)} autoFocus
-                              onKeyDown={(e) => { if (e.key === 'Enter') { const val = Number(coachFeeInput); if (!isNaN(val) && val >= 0) updateCoachFee(service.id, val); } if (e.key === 'Escape') setEditingCoachFee(null); }}
-                              onBlur={() => { const val = Number(coachFeeInput); if (!isNaN(val) && val >= 0) updateCoachFee(service.id, val); else setEditingCoachFee(null); }}
-                              style={{ width: '70px', ...inlineInputStyle }}
-                            />
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => { setEditingCoachFee(service.id); setCoachFeeInput(String(service.coach_fee ?? '')); }}
-                            title="Clicca per modificare compenso"
-                          >
-                            {service.coach_fee !== undefined ? (
-                              <><span style={{ fontWeight: 'var(--font-weight-bold)' as any }}>€{service.coach_fee.toLocaleString('it-IT')}</span><Pencil size={11} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} /></>
-                            ) : (
-                              <><span style={{ color: 'var(--muted-foreground)' }}>—</span><Pencil size={11} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} /></>
-                            )}
-                          </div>
-                        )}
+                        {(() => {
+                          const totalLordo = service.coach_payouts && service.coach_payouts.length > 0
+                            ? service.coach_payouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0)
+                            : service.coach_fee;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              {totalLordo !== undefined && totalLordo > 0 ? (
+                                <span style={{ fontWeight: 'var(--font-weight-bold)' as any }}>€{totalLordo.toLocaleString('it-IT')}</span>
+                              ) : (
+                                <span style={{ color: 'var(--muted-foreground)' }}>—</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
-                      {/* Data Notula */}
+                      {/* Data invio notula / emissione fattura */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.dataNotula, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('dataNotula') }}>
-                        {editingDataNotula === service.id ? (
-                          <input type="date" value={dataNotulaInput} onChange={(e) => setDataNotulaInput(e.target.value)} autoFocus
-                            onKeyDown={(e) => { if (e.key === 'Enter' && dataNotulaInput) { updatePayoutField(service.id, { notula_issue_date: dataNotulaInput }); setEditingDataNotula(null); } if (e.key === 'Escape') setEditingDataNotula(null); }}
-                            onBlur={() => { if (dataNotulaInput) updatePayoutField(service.id, { notula_issue_date: dataNotulaInput }); setEditingDataNotula(null); }}
-                            style={{ width: '130px', ...inlineInputStyle }}
-                          />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', color: service.coach_payout?.notula_issue_date ? 'var(--foreground)' : 'var(--muted-foreground)' }}
-                            onClick={() => { setEditingDataNotula(service.id); setDataNotulaInput(service.coach_payout?.notula_issue_date || ''); }}
-                            title="Clicca per modificare"
-                          >
-                            <span>{formatDateIT(service.coach_payout?.notula_issue_date)}</span>
-                            <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
-                          </div>
-                        )}
+                        {(() => {
+                          const documentDate = getPayoutDocumentDate(service.coach_payout);
+                          const isFattura = service.coach_payout?.document_type === 'fattura';
+                          if (editingDataNotula === service.id) {
+                            return (
+                              <input
+                                type="date"
+                                value={dataNotulaInput}
+                                onChange={(e) => setDataNotulaInput(e.target.value)}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && dataNotulaInput) {
+                                    updatePayoutField(service.id, isFattura ? { invoice_date: dataNotulaInput } : { notula_sent_date: dataNotulaInput });
+                                    setEditingDataNotula(null);
+                                  }
+                                  if (e.key === 'Escape') setEditingDataNotula(null);
+                                }}
+                                onBlur={() => {
+                                  if (dataNotulaInput) updatePayoutField(service.id, isFattura ? { invoice_date: dataNotulaInput } : { notula_sent_date: dataNotulaInput });
+                                  setEditingDataNotula(null);
+                                }}
+                                style={{ width: '130px', ...inlineInputStyle }}
+                              />
+                            );
+                          }
+                          return (
+                            <div
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', color: documentDate ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+                              onClick={() => { setEditingDataNotula(service.id); setDataNotulaInput(documentDate || ''); }}
+                              title={`Clicca per modificare data ${isFattura ? 'emissione fattura' : 'invio notula'}`}
+                            >
+                              <span>{formatDateIT(documentDate)}</span>
+                              <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4 }} />
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       {/* Scad. 45gg */}
                       <TableCell style={{ minWidth: columnWidths.scad45gg, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('scad45gg') }}>
                         {(() => {
-                          const scad = computeScad45gg(service.coach_payout?.notula_issue_date);
+                          const scad = computeScad45gg(service.coach_payout);
                           if (!scad) return <span style={{ color: 'var(--muted-foreground)' }}>—</span>;
                           const isWarning = scad.daysLeft <= 7 && scad.daysLeft > 0;
                           const isOverdue = scad.daysLeft <= 0;
-                          const isPast = service.coach_payout?.status === 'paid';
+                          const isPast = resolveNotulaStatus(service.coach_payout) === 'pagata';
                           return (
                             <span style={{ fontWeight: isOverdue && !isPast ? 'var(--font-weight-bold)' as any : undefined, color: isPast ? 'var(--foreground)' : isOverdue ? 'var(--destructive-foreground)' : isWarning ? 'var(--chart-3)' : 'var(--foreground)' }}>
                               {scad.date}
@@ -2080,27 +2176,9 @@ export function ServiziStudentiPage() {
                           );
                         })()}
                       </TableCell>
-                      {/* Stato notula */}
+                      {/* Status documento */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.statoNotula, fontFamily: 'var(--font-inter)', ...colVis('statoNotula') }}>
-                        {(() => {
-                          const badge = NOTULA_STATUS_BADGE[service.coach_payout?.notula_status || 'da_programmare'];
-                          return (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: 'var(--radius-badge)',
-                              backgroundColor: badge.bg,
-                              color: badge.fg,
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-medium)',
-                              lineHeight: '1.5',
-                            }}>
-                              {badge.label}
-                            </span>
-                          );
-                        })()}
+                        {getNotulaStatusBadge(resolveNotulaStatus(service.coach_payout))}
                       </TableCell>
                       {/* Pagato il */}
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.pagatoIl, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('pagatoIl') }}>
