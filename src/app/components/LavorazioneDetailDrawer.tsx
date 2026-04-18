@@ -225,7 +225,7 @@ export function LavorazioneDetailDrawer({
   const [sections, setSections] = useState({
     operativi: true,
     contratto: false,
-    pagamenti: true,
+    pagamenti: false,
     payout: false,
     preventivi: false,
     riferimenti: false,
