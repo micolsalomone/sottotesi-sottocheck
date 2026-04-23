@@ -64,7 +64,7 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
   expired: 'Scaduto',
 };
 
-type NotulaWorkflowStatus = 'da_programmare' | 'creata' | 'da_pagare' | 'pagata';
+type NotulaWorkflowStatus = 'da_programmare' | 'da_pagare' | 'pagata';
 
 const createDefaultCoachPayout = (serviceId: string, idSuffix = `${Date.now()}`): CoachPayout => ({
   id: `CP-${serviceId}-${idSuffix}`,
@@ -78,9 +78,8 @@ const createDefaultCoachPayout = (serviceId: string, idSuffix = `${Date.now()}`)
 
 const normalizeNotulaStatus = (status?: CoachPayout['notula_status']): NotulaWorkflowStatus => {
   if (status === 'pagata') return 'pagata';
-  if (status === 'inviata' || status === 'da_pagare') return 'da_pagare';
-  if (status === 'creata' || status === 'programmata') return 'creata';
-  return 'da_programmare';
+  if (!status || status === 'da_programmare') return 'da_programmare';
+  return 'da_pagare';
 };
 
 const getPayoutIssueDate = (payout?: Partial<CoachPayout>): string | undefined => {
@@ -97,12 +96,12 @@ const resolveNotulaStatus = (payout?: Partial<CoachPayout>): NotulaWorkflowStatu
   if (payout.paid_at) return 'pagata';
   if (isFattura) {
     if (payout.invoice_status === 'ricevuta') return 'da_pagare';
-    if (payout.invoice_date) return 'creata';
+    if (payout.invoice_date) return 'da_pagare';
     return 'da_programmare';
   }
 
   if (payout.sent_manually || normalizeNotulaStatus(payout.notula_status) === 'da_pagare') return 'da_pagare';
-  if (payout.notula_issue_date) return 'creata';
+  if (payout.notula_issue_date) return 'da_pagare';
   return 'da_programmare';
 };
 
@@ -135,7 +134,6 @@ const getNotulaStatusColor = (status?: CoachPayout['notula_status'] | NotulaWork
   switch (normalizeNotulaStatus(status)) {
     case 'pagata': return 'var(--primary)';
     case 'da_pagare': return 'var(--chart-3)';
-    case 'creata': return 'var(--chart-2)';
     case 'da_programmare': return 'var(--muted-foreground)';
     default: return 'var(--muted-foreground)';
   }
@@ -144,8 +142,7 @@ const getNotulaStatusColor = (status?: CoachPayout['notula_status'] | NotulaWork
 const getNotulaStatusLabel = (status?: CoachPayout['notula_status'] | NotulaWorkflowStatus): string => {
   switch (normalizeNotulaStatus(status)) {
     case 'pagata': return 'Pagata';
-    case 'da_pagare': return 'Da pagare';
-    case 'creata': return 'Creata';
+    case 'da_pagare': return 'Inviata';
     case 'da_programmare': return 'Da programmare';
     default: return 'N/D';
   }
@@ -1139,8 +1136,20 @@ export function LavorazioneDetailDrawer({
                                 if (p.id !== payout.id) return p;
                                 const nextValue = e.target.value || undefined;
                                 const next = isFattura
-                                  ? { ...p, invoice_date: nextValue, notula_issue_date: undefined, sent_manually: false }
-                                  : { ...p, notula_issue_date: nextValue, invoice_date: undefined, sent_manually: nextValue ? p.sent_manually : false };
+                                  ? {
+                                    ...p,
+                                    invoice_date: nextValue,
+                                    notula_issue_date: undefined,
+                                    sent_manually: false,
+                                    invoice_status: nextValue ? 'ricevuta' : 'da_ricevere',
+                                  }
+                                  : {
+                                    ...p,
+                                    notula_issue_date: nextValue,
+                                    notula_sent_date: nextValue,
+                                    invoice_date: undefined,
+                                    sent_manually: !!nextValue,
+                                  };
                                 return withSyncedNotulaStatus(next);
                               }));
                               markPayoutDirty(payout.id);
@@ -1206,25 +1215,6 @@ export function LavorazioneDetailDrawer({
                       </div>
 
                       <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => {
-                            setLocalCoachPayouts(prev => prev.map(p => {
-                              if (p.id !== payout.id) return p;
-                              return isFattura
-                                ? withSyncedNotulaStatus({ ...p, sent_manually: false, invoice_status: 'ricevuta' })
-                                : withSyncedNotulaStatus({ ...p, sent_manually: true, notula_sent_date: p.notula_sent_date || new Date().toISOString().split('T')[0], notula_status: 'da_pagare' });
-                            }));
-                            markPayoutDirty(payout.id);
-                          }}
-                          disabled={!issueDate || status === 'pagata'}
-                          style={{ width: '100%', justifyContent: 'center', fontSize: '12px' }}
-                          title={!issueDate ? `Inserisci prima la data emissione ${documentLabel.toLowerCase()}` : status === 'pagata' ? 'Payout già pagato' : isFattura ? 'Segna fattura ricevuta e passa in stato da pagare' : 'Segna notula inviata e passa in stato da pagare'}
-                        >
-                          {isFattura ? 'Segna fattura ricevuta (da pagare)' : 'Segna notula inviata (da pagare)'}
-                        </button>
-
                         {isDirty && (
                           <button
                             onClick={() => handleSaveCoachPayout(payout.id)}
