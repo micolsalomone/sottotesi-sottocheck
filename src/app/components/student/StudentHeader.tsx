@@ -1,7 +1,7 @@
-import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
 import { getStudentViewStudent } from '@/app/utils/studentView';
-import SottotesiLogodefDefault from '../../../imports/SottotesiLogodefDefault';
+import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
+import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
 
 interface StudentHeaderProps {
   sidebarCollapsed?: boolean;
@@ -27,10 +27,11 @@ export function StudentHeader({ sidebarCollapsed }: StudentHeaderProps) {
       <div className="admin-header-right">
         <div className="admin-user">
           <span className="admin-username">studente</span>
-          <button className="admin-badge">
-            {currentStudent.name}
-            <ChevronDown size={14} />
-          </button>
+          <UserTopbarMenu
+            displayName={currentStudent.name}
+            profilePath="/student-view/profilo"
+            logoutPath="/"
+          />
         </div>
       </div>
     </header>

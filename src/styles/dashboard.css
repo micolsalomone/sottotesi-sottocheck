@@ -134,6 +134,19 @@
   color: var(--foreground);
 }
 
+/* Topbar user dropdown — override accent hover with neutral grey */
+[data-slot="dropdown-menu-item"]:focus,
+[data-slot="dropdown-menu-item"][data-highlighted] {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+
+[data-slot="dropdown-menu-item"][data-variant="destructive"]:focus,
+[data-slot="dropdown-menu-item"][data-variant="destructive"][data-highlighted] {
+  background-color: var(--muted) !important;
+  color: var(--destructive) !important;
+}
+
 /* User menu */
 .admin-user {
   display: flex;

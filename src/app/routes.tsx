@@ -31,9 +31,11 @@ import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
+import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
+import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
 
 export const router = createBrowserRouter([
   // Vista Admin
@@ -76,6 +78,7 @@ export const router = createBrowserRouter([
       { path: 'sottocheck', Component: SottocheckPage },
       { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
+      { path: 'profilo', Component: CoachProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
   },
@@ -99,6 +102,7 @@ export const router = createBrowserRouter([
       { path: 'sottocheck', Component: StudentSottocheckPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
+      { path: 'profilo', Component: StudentProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
   },

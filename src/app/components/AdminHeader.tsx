@@ -1,7 +1,6 @@
-import React from 'react';
 import { Link } from 'react-router';
-import { ChevronDown } from 'lucide-react';
-import SottotesiLogodefDefault from '../../imports/SottotesiLogodefDefault';
+import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
+import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
 
 interface AdminHeaderProps {
   sidebarCollapsed?: boolean;
@@ -27,10 +26,11 @@ export function AdminHeader({ sidebarCollapsed }: AdminHeaderProps) {
       <div className="admin-header-right">
         <div className="admin-user">
           <span className="admin-username">admin</span>
-          <button className="admin-badge">
-            Francesca
-            <ChevronDown size={14} />
-          </button>
+          <UserTopbarMenu
+            displayName="Francesca"
+            profilePath="/impostazioni/account"
+            logoutPath="/"
+          />
         </div>
       </div>
     </header>
