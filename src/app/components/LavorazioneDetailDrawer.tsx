@@ -186,11 +186,31 @@ const formatDateTimestamp = (dateStr?: string): string => {
   });
 };
 
-const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLeft: number } | null => {
-  const issueDate = getPayoutIssueDate(payout);
-  if (!issueDate) return null;
-  const d = new Date(issueDate);
+const calculatePaymentDueDate = (serviceEndDate?: string): string | undefined => {
+  if (!serviceEndDate) return undefined;
+  const d = new Date(serviceEndDate);
   d.setDate(d.getDate() + 45);
+  return d.toISOString().split('T')[0];
+};
+
+const computeScad45gg = (payout?: Partial<CoachPayout>, serviceEndDate?: string): { date: string; daysLeft: number } | null => {
+  // Prefer payment_due_date, fallback to service end date + 45 days
+  let dueDate: string | undefined = payout?.payment_due_date;
+  
+  if (!dueDate && serviceEndDate) {
+    dueDate = calculatePaymentDueDate(serviceEndDate);
+  }
+  
+  if (!dueDate) {
+    // Fallback to issue date (legacy behavior)
+    const issueDate = getPayoutIssueDate(payout);
+    if (!issueDate) return null;
+    const d = new Date(issueDate);
+    d.setDate(d.getDate() + 45);
+    dueDate = d.toISOString().split('T')[0];
+  }
+  
+  const d = new Date(dueDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const daysLeft = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -286,7 +306,14 @@ export function LavorazioneDetailDrawer({
   const clearPayoutDirty = (id: string) => setDirtyPayoutIds(prev => { const n = new Set(prev); n.delete(id); return n; });
 
   const handleSaveCoachPayout = (payoutId: string) => {
-    const synced = localCoachPayouts.map(p => withSyncedNotulaStatus(p));
+    const synced = localCoachPayouts.map(p => {
+      const newPayout = withSyncedNotulaStatus(p);
+      // Auto-set payment_due_date if service is completed and no due date is set
+      if (service.status === 'completed' && serviceEndDate && !newPayout.payment_due_date) {
+        newPayout.payment_due_date = calculatePaymentDueDate(serviceEndDate);
+      }
+      return newPayout;
+    });
     const primary = synced[0];
     const totalCoachFee = roundToCents(synced.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
     doUpdate(s => ({
@@ -319,12 +346,13 @@ export function LavorazioneDetailDrawer({
 
   const syncedCoachPayouts = localCoachPayouts.map(p => withSyncedNotulaStatus(p));
   const payoutDaPagareCount = syncedCoachPayouts.filter(p => resolveNotulaStatus(p) === 'da_pagare').length;
+  const serviceEndDate = service.plan_end_date || service.end_date;
   const payoutScaduteCount = syncedCoachPayouts.filter(p => {
-    const scad = computeScad45gg(p);
+    const scad = computeScad45gg(p, serviceEndDate);
     return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft <= 0;
   }).length;
   const payoutInScadenzaCount = syncedCoachPayouts.filter(p => {
-    const scad = computeScad45gg(p);
+    const scad = computeScad45gg(p, serviceEndDate);
     return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft > 0 && scad.daysLeft <= 7;
   }).length;
   const coachCompensoLordo = roundToCents(syncedCoachPayouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
@@ -349,36 +377,70 @@ export function LavorazioneDetailDrawer({
   if (!isOpen) return null;
 
   // ─── Header actions: status select ───────────────────────
+  const isCompletedStatus = service.status === 'completed';
   const statusSelect = (
-    <select
-      value={service.status}
-      onChange={(e) => {
-        const newStatus = e.target.value as ServiceStatus;
-        doUpdate(s => {
-          const updated: Partial<StudentService> = { status: newStatus };
-          if (newStatus === 'paused' && !s.pause_start_date) updated.pause_start_date = new Date().toISOString().split('T')[0];
-          if (newStatus !== 'paused' && s.status === 'paused') updated.pause_end_date = s.pause_end_date || new Date().toISOString().split('T')[0];
-          return { ...s, ...updated };
-        }, `Stato lavorazione → ${SERVICE_STATUS_LABELS[newStatus]}`);
-      }}
+    <div
       style={{
-        padding: '0.25rem 0.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
         borderRadius: 'var(--radius)',
-        border: '1px solid var(--border)',
-        fontFamily: 'var(--font-inter)',
-        fontSize: '12px',
-        fontWeight: 'var(--font-weight-medium)',
-        backgroundColor: 'var(--input-background)',
-        color: 'var(--foreground)',
-        cursor: 'pointer',
-        outline: 'none',
+        border: isCompletedStatus ? '1px solid var(--primary)' : '1px solid var(--border)',
+        backgroundColor: isCompletedStatus
+          ? 'color-mix(in srgb, var(--primary) 10%, var(--input-background))'
+          : 'var(--input-background)',
+        padding: '0.25rem 0.5rem',
         flexShrink: 0,
       }}
     >
-      {Object.entries(SERVICE_STATUS_LABELS).map(([key, label]) => (
-        <option key={key} value={key}>{label}</option>
-      ))}
-    </select>
+      {isCompletedStatus && <Check size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />}
+      <select
+        value={service.status}
+        onChange={(e) => {
+          const newStatus = e.target.value as ServiceStatus;
+          doUpdate(s => {
+            const updated: Partial<StudentService> = { status: newStatus };
+            if (newStatus === 'paused' && !s.pause_start_date) updated.pause_start_date = new Date().toISOString().split('T')[0];
+            if (newStatus !== 'paused' && s.status === 'paused') updated.pause_end_date = s.pause_end_date || new Date().toISOString().split('T')[0];
+
+            // Auto-set payment_due_date for payouts when marking as completed
+            if (newStatus === 'completed' && s.status !== 'completed') {
+              // Track completion timestamp and admin
+              updated.completed_at = new Date().toISOString();
+              updated.completed_by = currentAdmin;
+
+              const serviceEndDate = s.plan_end_date || s.end_date;
+              if (serviceEndDate) {
+                const dueDate = calculatePaymentDueDate(serviceEndDate);
+                if (dueDate) {
+                  updated.coach_payouts = (s.coach_payouts || []).map(p => ({ ...p, payment_due_date: dueDate }));
+                  if (s.coach_payout) {
+                    updated.coach_payout = { ...s.coach_payout, payment_due_date: dueDate };
+                  }
+                }
+              }
+            }
+
+            return { ...s, ...updated };
+          }, `Stato lavorazione → ${SERVICE_STATUS_LABELS[newStatus]}`);
+        }}
+        style={{
+          border: 'none',
+          backgroundColor: 'transparent',
+          fontFamily: 'var(--font-inter)',
+          fontSize: '12px',
+          fontWeight: 'var(--font-weight-medium)',
+          color: 'var(--foreground)',
+          cursor: 'pointer',
+          outline: 'none',
+          padding: 0,
+        }}
+      >
+        {Object.entries(SERVICE_STATUS_LABELS).map(([key, label]) => (
+          <option key={key} value={key}>{label}</option>
+        ))}
+      </select>
+    </div>
   );
 
   return (
@@ -404,6 +466,13 @@ export function LavorazioneDetailDrawer({
         ) : (
           <DrawerMetaRow>
             Ultimo aggiornamento: {service.updated_by || '—'} — {formatDateTimestamp(service.updated_at)}
+          </DrawerMetaRow>
+        )}
+
+        {/* ─── Completion info ─────────────────────────────── */}
+        {service.status === 'completed' && service.completed_at && (
+          <DrawerMetaRow>
+            Completato da: {service.completed_by || '—'} — {formatDateTimestamp(service.completed_at)}
           </DrawerMetaRow>
         )}
 
@@ -939,7 +1008,7 @@ export function LavorazioneDetailDrawer({
                   const isFattura = payout.document_type === 'fattura';
                   const issueDate = getPayoutIssueDate(payout);
                   const documentLabel = isFattura ? 'Fattura' : 'Notula';
-                  const scad = computeScad45gg(payout);
+                  const scad = computeScad45gg(payout, serviceEndDate);
                   const isDirty = dirtyPayoutIds.has(payout.id);
                   return (
                     <div key={payout.id} style={{
