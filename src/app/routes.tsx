@@ -21,6 +21,7 @@ import { ImpostazioniSottocheckPage } from '../pages/admin/ImpostazioniSottochec
 import { ProfiliAdminPage } from '../pages/admin/ProfiliAdminPage';
 import { InfoAccountPage } from '../pages/admin/InfoAccountPage';
 import { SottocheckAdminPage } from '@/pages/admin/SottocheckAdminPage';
+import { SottocheckOutputPreviewPage } from '@/pages/admin/SottocheckOutputPreviewPage';
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: 'sottocheck/job', Component: JobPage },
       { path: 'aree-tematiche', Component: AreeTematichePage },
       { path: 'sottocheck/check', Component: SottocheckAdminPage },
+      { path: 'sottocheck/output-preview', Component: SottocheckOutputPreviewPage },
       { path: 'sottocheck/lavorazioni', Component: LavorazioniSottocheckPage },
       { path: 'sottocheck/impostazioni', Component: ImpostazioniSottocheckPage },
       { path: 'servizi/catalogo', Component: CatalogoServiziPage },

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus, X, ExternalLink, Download, RefreshCw, Trash2, StickyNote, Pencil } from 'lucide-react';
 import {
   CellTextPrimary,
@@ -245,6 +246,7 @@ function formatNumber(n: number): string {
 }
 
 export function LavorazioniSottocheckPage() {
+  const navigate = useNavigate();
   const { data: serviziStudenti, students } = useLavorazioni();
 
   const [jobs, setJobs] = useState<Job[]>(() =>
@@ -985,6 +987,14 @@ export function LavorazioniSottocheckPage() {
                         Generato il {selectedJob.report.generatedAt}
                       </div>
                     </div>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ width: '100%', justifyContent: 'center', marginBottom: '0.5rem' }}
+                      onClick={() => { setSelectedJob(null); navigate('/sottocheck/output-preview'); }}
+                    >
+                      <ExternalLink size={16} />
+                      Vedi il risultato
+                    </button>
                     <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleDownloadReport(selectedJob)}>
                       <Download size={16} />
                       Scarica report PDF
