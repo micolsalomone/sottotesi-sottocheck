@@ -1,4 +1,6 @@
 export function SottocheckOutputPreviewPage() {
+  const previewSrc = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL).toString();
+
   return (
     <div
       style={{
@@ -9,7 +11,7 @@ export function SottocheckOutputPreviewPage() {
     >
       <iframe
         title="Sottocheck Output Preview"
-        src="/sottocheck-output-preview.html"
+        src={previewSrc}
         style={{
           width: '100%',
           height: '100%',

@@ -346,14 +346,19 @@ Gruppo X
                 </aside>
         </div>
         <script>
+            function getBasePrefix() {
+                return window.location.pathname.replace(/\/sottocheck-output-preview\.html$/, '');
+            }
+
             // Back navigation via postMessage to parent React app
             document.getElementById('sc-back').addEventListener('click', function (e) {
                 e.preventDefault();
+                var backUrl = getBasePrefix() + '/#/sottocheck/lavorazioni';
                 if (window.parent !== window) {
-                    window.parent.location.href = '/#/sottocheck/lavorazioni';
+                    window.parent.location.href = backUrl;
                     return;
                 }
-                window.location.href = '/#/sottocheck/lavorazioni';
+                window.location.href = backUrl;
             });
 
             // Notify parent of content height so iframe can resize
