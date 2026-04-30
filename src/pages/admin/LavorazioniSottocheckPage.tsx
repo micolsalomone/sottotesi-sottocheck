@@ -85,6 +85,13 @@ interface Job {
   created_at?: string;
   updated_by?: string;
   updated_at?: string;
+  initiator_role?: 'admin' | 'coach' | 'student';
+  coach_name?: string;
+  payment?: {
+    amount: number;
+    paidAt: string;
+    method: string;
+  };
 }
 
 const STATUS_MAP: Record<string, StatusType> = {
@@ -118,152 +125,117 @@ const formatDateTimeIT = (dateTime?: string): string => {
 };
 
 const mockJobs: Job[] = [
+  // Caso ADMIN
   {
-    id: 'ADM-CHK-101',
+    id: 'ADM-CHK-201',
+    initiator_role: 'admin',
     admin_name: 'Francesca Bianchi',
     student: 'Marco Bianchi',
     student_id: 'STU-601',
     service_id: 'SS-101',
     status: 'completed',
-    startedAt: '2026-01-15 10:30',
-    completedAt: '2026-01-15 10:55',
-    document_name: 'tesi_bianchi_cap3.pdf',
-    characters: 42350,
-    pages: 18,
-    copyleaks_credits: 19,
+    startedAt: '2026-04-01 09:00',
+    completedAt: '2026-04-01 09:30',
+    document_name: 'tesi_bianchi.pdf',
+    characters: 40000,
+    pages: 20,
+    copyleaks_credits: 20,
     report: {
-      scanId: '5f69d65d-862b-4e3e-a4cf-4aca6a5030ee',
-      creationTime: '2026-01-15T10:55:00.000Z',
-      totalWords: 1387,
+      scanId: 'admin-001',
+      creationTime: '2026-04-01T09:30:00.000Z',
+      totalWords: 1500,
+      totalExcluded: 0,
+      credits: 7,
+      expectedCredits: 7,
+      detectedLanguage: 'it',
+      score: {
+        identicalWords: 1200,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 90.0,
+      },
+      sources: [],
+      pdfUrl: '/reports/REP-301.pdf'
+    },
+    notes: [
+      { id: 'N-1', content: 'Controllo avviato da admin', admin: 'Francesca', timestamp: '2026-04-01 09:31' }
+    ]
+  },
+  // Caso COACH
+  {
+    id: 'COACH-CHK-202',
+    initiator_role: 'coach',
+    coach_name: 'Luca Bianchi',
+    admin_name: 'Francesca Bianchi',
+    student: 'Anna Russo',
+    student_id: 'STU-602',
+    service_id: 'SS-102',
+    status: 'completed',
+    startedAt: '2026-04-02 10:00',
+    completedAt: '2026-04-02 10:25',
+    document_name: 'tesi_russo.pdf',
+    characters: 42000,
+    pages: 21,
+    copyleaks_credits: 21,
+    report: {
+      scanId: 'coach-001',
+      creationTime: '2026-04-02T10:25:00.000Z',
+      totalWords: 1600,
+      totalExcluded: 0,
+      credits: 8,
+      expectedCredits: 8,
+      detectedLanguage: 'it',
+      score: {
+        identicalWords: 1300,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 92.0,
+      },
+      sources: [],
+      pdfUrl: '/reports/REP-302.pdf'
+    },
+    notes: [
+      { id: 'N-2', content: 'Controllo avviato da coach', admin: 'Luca', timestamp: '2026-04-02 10:26' }
+    ]
+  },
+  // Caso STUDENTE
+  {
+    id: 'STU-CHK-203',
+    initiator_role: 'student',
+    student: 'Davide Ferretti',
+    student_id: 'STU-605',
+    status: 'completed',
+    startedAt: '2026-04-03 11:00',
+    completedAt: '2026-04-03 11:20',
+    document_name: 'tesi_ferretti.pdf',
+    characters: 38000,
+    pages: 19,
+    copyleaks_credits: 19,
+    payment: {
+      amount: 9.50,
+      paidAt: '2026-04-03 10:59',
+      method: 'Stripe',
+    },
+    report: {
+      scanId: 'student-001',
+      creationTime: '2026-04-03T11:20:00.000Z',
+      totalWords: 1400,
       totalExcluded: 0,
       credits: 6,
       expectedCredits: 6,
       detectedLanguage: 'it',
       score: {
-        identicalWords: 1245,
-        minorChangedWords: 122,
-        relatedMeaningWords: 0,
-        aggregatedScore: 98.6,
+        identicalWords: 1100,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 88.0,
       },
-      sources: [
-        {
-          id: 'aa1d7f900b',
-          url: 'https://www.slideshare.net/slideshow/x-output-strategia-di-comunicazione/238694598',
-          title: 'X - Output - Strategia di comunicazione | PDF',
-          introduction: 'Uploaded by La Scuola Open Source 317 views. Documento sulla strategia di comunicazione e propaganda per il centro culturale nova.',
-          matchedWords: 1367,
-          identicalWords: 1245,
-          similarWords: 122,
-          paraphrasedWords: 0,
-          totalWords: 2320,
-          metadata: {
-            filename: '238694598',
-            authors: [],
-          },
-          tags: [],
-        },
-      ],
-      pdfUrl: '/reports/REP-201.pdf'
+      sources: [],
+      pdfUrl: '/reports/REP-303.pdf'
     },
     notes: [
-      { id: 'N-1', content: 'Risultato nella norma', admin: 'Claudia', timestamp: '2026-01-15 11:00' }
+      { id: 'N-3', content: 'Controllo avviato da studente', admin: 'Davide', timestamp: '2026-04-03 11:21' }
     ]
-  },
-  {
-    id: 'ADM-CHK-102',
-    admin_name: 'Claudia Neri',
-    student: 'Anna Russo',
-    student_id: 'STU-602',
-    service_id: undefined,
-    status: 'completed',
-    startedAt: '2026-01-20 14:00',
-    completedAt: '2026-01-20 14:18',
-    document_name: 'tesi_russo_completa.pdf',
-    characters: 98200,
-    pages: 42,
-    copyleaks_credits: 42,
-    report: {
-      scanId: 'f86c8eb3-2f6f-470a-9f0d-b2cbf62922f2',
-      creationTime: '2026-01-20T14:18:00.000Z',
-      totalWords: 2214,
-      totalExcluded: 15,
-      credits: 9,
-      expectedCredits: 9,
-      detectedLanguage: 'it',
-      score: {
-        identicalWords: 1492,
-        minorChangedWords: 267,
-        relatedMeaningWords: 41,
-        aggregatedScore: 81.5,
-      },
-      sources: [
-        {
-          id: '15b4cbdb98',
-          url: 'https://example.com/tesi-analisi-dati',
-          title: 'Analisi dati e metodologia - PDF',
-          introduction: 'Fonte principale con contenuti metodologici sovrapposti alla bozza analizzata.',
-          matchedWords: 1704,
-          identicalWords: 1430,
-          similarWords: 233,
-          paraphrasedWords: 41,
-          totalWords: 4120,
-          metadata: {
-            filename: 'tesi-analisi-dati',
-            authors: ['Autore sconosciuto'],
-          },
-          tags: ['metodologia'],
-        },
-      ],
-      pdfUrl: '/reports/REP-202.pdf'
-    },
-    notes: []
-  },
-  {
-    id: 'ADM-CHK-103',
-    admin_name: 'Francesca Bianchi',
-    student: 'Federico Conti',
-    student_id: 'STU-603',
-    service_id: 'SS-117',
-    status: 'running',
-    startedAt: '2026-02-28 09:00',
-    completedAt: null,
-    document_name: 'capitolo_finale.pdf',
-    characters: 35600,
-    pages: 15,
-    copyleaks_credits: 15,
-    notes: []
-  },
-  {
-    id: 'ADM-CHK-104',
-    admin_name: 'Marta Rossi',
-    student: 'Elena Marchetti',
-    student_id: 'STU-604',
-    service_id: undefined,
-    status: 'failed',
-    startedAt: '2026-02-25 16:30',
-    completedAt: '2026-02-25 16:32',
-    document_name: 'tesi_marchetti.pdf',
-    characters: 67800,
-    pages: 29,
-    copyleaks_credits: 0,
-    notes: [
-      { id: 'N-2', content: 'Errore nel processamento, da riavviare', admin: 'Francesca', timestamp: '2026-02-25 16:35' }
-    ]
-  },
-  {
-    id: 'ADM-CHK-105',
-    admin_name: 'Claudia Neri',
-    student: 'Davide Ferretti',
-    student_id: 'STU-605',
-    service_id: 'SS-165',
-    status: 'pending',
-    startedAt: '2026-03-01 08:00',
-    completedAt: null,
-    document_name: 'ref_ferretti.pdf',
-    characters: 54100,
-    pages: 23,
-    copyleaks_credits: 0,
-    notes: []
   },
 ];
 
@@ -343,6 +315,7 @@ export function LavorazioniSottocheckPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterInitiator, setFilterInitiator] = useState<'all' | 'admin' | 'coach' | 'student'>('all');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Notes drawer
@@ -492,6 +465,7 @@ export function LavorazioniSottocheckPage() {
       );
     }
     if (filterStatus !== 'all') data = data.filter(j => j.status === filterStatus);
+    if (filterInitiator !== 'all') data = data.filter(j => j.initiator_role === filterInitiator);
     if (filterDateFrom) data = data.filter(j => j.startedAt >= filterDateFrom);
     if (filterDateTo) data = data.filter(j => j.startedAt <= filterDateTo);
 
@@ -509,7 +483,7 @@ export function LavorazioniSottocheckPage() {
       });
     }
     return data;
-  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterDateFrom, filterDateTo, serviziStudenti]);
+  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterInitiator, filterDateFrom, filterDateTo, serviziStudenti]);
 
   const hasActiveFilters = searchQuery || filterStatus !== 'all' || filterDateFrom || filterDateTo;
 
@@ -755,7 +729,12 @@ export function LavorazioniSottocheckPage() {
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
             Avviato da
           </label>
-          <input type="date" className="search-input" style={{ width: '100%' }} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          <select className="select-dropdown" style={{ width: '100%' }} value={filterInitiator} onChange={e => setFilterInitiator(e.target.value as 'all' | 'admin' | 'coach' | 'student')}>
+            <option value="all">Tutti</option>
+            <option value="admin">Admin</option>
+            <option value="coach">Coach</option>
+            <option value="student">Studente</option>
+          </select>
         </div>
         <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
@@ -789,9 +768,10 @@ export function LavorazioniSottocheckPage() {
                   onCheckedChange={handleSelectAll}
                 />
                 <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                {/* <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                {/* <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                {/* <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                <TableHeaderCell id="avviato_da" label="Avviato da" width={180} />
                 <TableHeaderCell id="characters" label="Caratteri" width={columnWidths.characters} sortable align="right" sortDirection={sortColumn === 'characters' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="pages" label="Pagine" width={columnWidths.pages} sortable align="right" sortDirection={sortColumn === 'pages' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="copyleaks_credits" label="Crediti" width={columnWidths.credits} sortable align="right" sortDirection={sortColumn === 'copyleaks_credits' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
@@ -823,9 +803,13 @@ export function LavorazioniSottocheckPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                       <TableCell><CellTextSecondary>{job.id}</CellTextSecondary></TableCell>
-                      <TableCell><CellTextPrimary>{job.admin_name}</CellTextPrimary></TableCell>
-                      <TableCell><CellTextPrimary>{job.student}</CellTextPrimary></TableCell>
-                      <TableCell><CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary></TableCell>
+                      <TableCell>
+                        <CellTextPrimary>
+                          {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
+                          {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
+                          {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
+                        </CellTextPrimary>
+                      </TableCell>
                       <TableCell align="right"><CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.pages}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
@@ -888,8 +872,8 @@ export function LavorazioniSottocheckPage() {
                       </div>
                       <div>
                         <CellTextSecondary>{job.id}</CellTextSecondary>
-                        <CellTextSecondary>{job.admin_name}</CellTextSecondary>
-                        <CellTextPrimary>{job.student}</CellTextPrimary>
+                        {/* <CellTextSecondary>{job.admin_name}</CellTextSecondary> */}
+                        {/* <CellTextPrimary>{job.student}</CellTextPrimary> */}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -916,10 +900,14 @@ export function LavorazioniSottocheckPage() {
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Lavorazione (opz.)</ResponsiveMobileFieldLabel>
                     <CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary>
+                  <ResponsiveMobileCardSection>
+                    <ResponsiveMobileFieldLabel>Avviato da</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>
+                      {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
+                      {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
+                      {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
+                    </CellTextPrimary>
                   </ResponsiveMobileCardSection>
-
-                  <ResponsiveMobileCardSection marginBottom="0.75rem">
-                    <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
                     <CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary>
                   </ResponsiveMobileCardSection>
                   {job.completedAt && (
