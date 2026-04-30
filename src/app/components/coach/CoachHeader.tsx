@@ -1,6 +1,6 @@
-import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
-import SottotesiLogodefDefault from '../../../imports/SottotesiLogodefDefault';
+import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
+import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
 
 interface CoachHeaderProps {
   sidebarCollapsed?: boolean;
@@ -8,7 +8,7 @@ interface CoachHeaderProps {
 
 export function CoachHeader({ sidebarCollapsed }: CoachHeaderProps) {
   return (
-<header className="admin-header">
+    <header className="admin-header">
       {/* Logo area — fixed left, independent from sidebar state */}
       <div
         className="admin-header-logo"
@@ -22,17 +22,18 @@ export function CoachHeader({ sidebarCollapsed }: CoachHeaderProps) {
         </Link>
       </div>
 
-       {/* Right section — user menu, stretches to fill */}
-       <div className="admin-header-right">
-         <div className="admin-user">
-           <span className="admin-username">coach</span>
-           <button className="admin-badge">
-             Teresa P.
-             <ChevronDown size={14} />
-           </button>
-         </div>
-       </div>
-      </header>
+      {/* Right section — user menu, stretches to fill */}
+      <div className="admin-header-right">
+        <div className="admin-user">
+          <span className="admin-username">coach</span>
+          <UserTopbarMenu
+            displayName="Teresa P."
+            profilePath="/coach-view/profilo"
+            logoutPath="/"
+          />
+        </div>
+      </div>
+    </header>
   );
 }
 

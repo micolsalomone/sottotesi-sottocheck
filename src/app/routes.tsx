@@ -21,6 +21,7 @@ import { ImpostazioniSottocheckPage } from '../pages/admin/ImpostazioniSottochec
 import { ProfiliAdminPage } from '../pages/admin/ProfiliAdminPage';
 import { InfoAccountPage } from '../pages/admin/InfoAccountPage';
 import { SottocheckAdminPage } from '@/pages/admin/SottocheckAdminPage';
+import { SottocheckOutputPreviewPage } from '@/pages/admin/SottocheckOutputPreviewPage';
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
@@ -31,9 +32,11 @@ import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
+import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
+import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
 
 export const router = createHashRouter([  // Vista Admin
   {
@@ -54,6 +57,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'sottocheck/job', Component: JobPage },
       { path: 'aree-tematiche', Component: AreeTematichePage },
       { path: 'sottocheck/check', Component: SottocheckAdminPage },
+      { path: 'sottocheck/output-preview', Component: SottocheckOutputPreviewPage },
       { path: 'sottocheck/lavorazioni', Component: LavorazioniSottocheckPage },
       { path: 'sottocheck/impostazioni', Component: ImpostazioniSottocheckPage },
       { path: 'servizi/catalogo', Component: CatalogoServiziPage },
@@ -75,6 +79,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'sottocheck', Component: SottocheckPage },
       { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
+      { path: 'profilo', Component: CoachProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
   },
@@ -98,6 +103,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'sottocheck', Component: StudentSottocheckPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
+      { path: 'profilo', Component: StudentProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
   },

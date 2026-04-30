@@ -340,6 +340,8 @@ export interface StudentService {
   pause_start_date?: string;
   pause_end_date?: string;
   pipeline_id?: string; // ID della pipeline che ha generato questa lavorazione
+  completed_at?: string; // ISO timestamp del completamento della lavorazione
+  completed_by?: string; // Admin che ha segnato come completato
 }
 
 const mapMinimalTimelineToSharedStep = (phase: CoachingTimeline, index: number, total: number): SharedTimelineStep => ({
