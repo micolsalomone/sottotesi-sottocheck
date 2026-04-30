@@ -211,6 +211,17 @@ export function SottocheckReportDetailDrawer({
                   </div>
                 </>
               )}
+
+              {/* Limite crediti (solo coach) */}
+              {selectedJob.initiator_role === 'coach' && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={labelStyle}>Limite crediti coach</div>
+                  <div style={valueBoldStyle}>
+                    {/* Sostituire 50 con il valore reale se disponibile come prop o da contesto */}
+                    50
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

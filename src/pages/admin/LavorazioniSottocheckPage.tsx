@@ -835,7 +835,13 @@ export function LavorazioniSottocheckPage() {
                       </TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.report && typeof job.report.totalWords === 'number' ? formatNumber(job.report.totalWords) : '-'}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.report && job.report.score && typeof job.report.score.aggregatedScore === 'number' ? job.report.score.aggregatedScore.toFixed(1) + '%' : '-'}</CellTextPrimary></TableCell>
-                      <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
+                      <TableCell align="right">
+                        <CellTextPrimary>
+                          {job.initiator_role === 'coach'
+                            ? `${job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'} / 50`
+                            : job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}
+                        </CellTextPrimary>
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
                       </TableCell>
