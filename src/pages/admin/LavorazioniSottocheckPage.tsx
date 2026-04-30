@@ -351,7 +351,7 @@ export function LavorazioniSottocheckPage() {
   };
 
   // Sort
-  type SortKey = 'id' | 'admin_name' | 'student' | 'service_id' | 'status' | 'startedAt' | 'characters' | 'pages' | 'copyleaks_credits' | null;
+  type SortKey = 'id' | 'admin_name' | 'student' | 'service_id' | 'status' | 'startedAt' | 'characters' | 'pages' | 'copyleaks_credits' | 'avviato_da' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -362,8 +362,8 @@ export function LavorazioniSottocheckPage() {
     admin: 150,
     student: 150,
     lavorazione: 180,
-    characters: 100,
-    pages: 80,
+    words: 100,
+    score: 80,
     credits: 90,
     status: 110,
     startedAt: 150,
@@ -471,11 +471,26 @@ export function LavorazioniSottocheckPage() {
 
     if (sortColumn) {
       data.sort((a, b) => {
-        let aVal: any = sortColumn === 'service_id' ? getLavorazioneLabel(a.service_id) : a[sortColumn];
-        let bVal: any = sortColumn === 'service_id' ? getLavorazioneLabel(b.service_id) : b[sortColumn];
-        if (typeof aVal === 'string') {
-          aVal = aVal.toLowerCase();
-          bVal = (bVal || '').toLowerCase();
+        let aVal: any;
+        let bVal: any;
+        if (sortColumn === 'service_id') {
+          aVal = getLavorazioneLabel(a.service_id);
+          bVal = getLavorazioneLabel(b.service_id);
+        } else if (sortColumn === 'avviato_da') {
+          const getAvviatoDa = (j: Job) =>
+            j.initiator_role === 'student' ? `Studente: ${j.student} (${j.student_id})`
+            : j.initiator_role === 'coach' ? `Coach: ${j.coach_name}`
+            : j.initiator_role === 'admin' ? `Admin: ${j.admin_name}`
+            : '';
+          aVal = getAvviatoDa(a).toLowerCase();
+          bVal = getAvviatoDa(b).toLowerCase();
+        } else {
+          aVal = a[sortColumn];
+          bVal = b[sortColumn];
+          if (typeof aVal === 'string') {
+            aVal = aVal.toLowerCase();
+            bVal = (bVal || '').toLowerCase();
+          }
         }
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
@@ -771,9 +786,17 @@ export function LavorazioniSottocheckPage() {
                 {/* <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
                 {/* <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
                 {/* <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
-                <TableHeaderCell id="avviato_da" label="Avviato da" width={180} />
-                <TableHeaderCell id="characters" label="Caratteri" width={columnWidths.characters} sortable align="right" sortDirection={sortColumn === 'characters' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="pages" label="Pagine" width={columnWidths.pages} sortable align="right" sortDirection={sortColumn === 'pages' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                <TableHeaderCell
+                  id="avviato_da"
+                  label="Avviato da"
+                  width={180}
+                  sortable
+                  sortDirection={sortColumn === 'avviato_da' ? sortDirection : null}
+                  onSort={(id) => handleSort(id as SortKey)}
+                  onResize={handleMouseDown}
+                />
+                <TableHeaderCell id="words" label="Parole" width={columnWidths.words} align="right" />
+                <TableHeaderCell id="score" label="Punteggio" width={columnWidths.score} align="right" />
                 <TableHeaderCell id="copyleaks_credits" label="Crediti" width={columnWidths.credits} sortable align="right" sortDirection={sortColumn === 'copyleaks_credits' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="status" label="Stato" width={columnWidths.status} sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="startedAt" label="Avviato" width={columnWidths.startedAt} sortable sortDirection={sortColumn === 'startedAt' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
@@ -810,8 +833,8 @@ export function LavorazioniSottocheckPage() {
                           {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
                         </CellTextPrimary>
                       </TableCell>
-                      <TableCell align="right"><CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary></TableCell>
-                      <TableCell align="right"><CellTextPrimary>{job.pages}</CellTextPrimary></TableCell>
+                      <TableCell align="right"><CellTextPrimary>{job.report && typeof job.report.totalWords === 'number' ? formatNumber(job.report.totalWords) : '-'}</CellTextPrimary></TableCell>
+                      <TableCell align="right"><CellTextPrimary>{job.report && job.report.score && typeof job.report.score.aggregatedScore === 'number' ? job.report.score.aggregatedScore.toFixed(1) + '%' : '-'}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
                       <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
@@ -884,12 +907,12 @@ export function LavorazioniSottocheckPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                     <div>
-                      <ResponsiveMobileFieldLabel>Caratteri</ResponsiveMobileFieldLabel>
-                      <CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary>
+                      <ResponsiveMobileFieldLabel>Parole</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{job.report && typeof job.report.totalWords === 'number' ? formatNumber(job.report.totalWords) : '-'}</CellTextPrimary>
                     </div>
                     <div>
-                      <ResponsiveMobileFieldLabel>Pagine</ResponsiveMobileFieldLabel>
-                      <CellTextPrimary>{job.pages}</CellTextPrimary>
+                      <ResponsiveMobileFieldLabel>Punteggio</ResponsiveMobileFieldLabel>
+                      <CellTextPrimary>{job.report && job.report.score && typeof job.report.score.aggregatedScore === 'number' ? job.report.score.aggregatedScore.toFixed(1) + '%' : '-'}</CellTextPrimary>
                     </div>
                     <div>
                       <ResponsiveMobileFieldLabel>Crediti</ResponsiveMobileFieldLabel>
