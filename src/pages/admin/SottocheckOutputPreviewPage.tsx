@@ -1,5 +1,15 @@
 export function SottocheckOutputPreviewPage() {
-  const previewSrc = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL).toString();
+  const previewUrl = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL);
+  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+    .map((link) => link.getAttribute('href') || '')
+    .filter((href) => href.endsWith('.css'));
+
+  cssLinks.forEach((href) => {
+    const absoluteHref = new URL(href, window.location.origin).toString();
+    previewUrl.searchParams.append('css', absoluteHref);
+  });
+
+  const previewSrc = previewUrl.toString();
 
   return (
     <div
