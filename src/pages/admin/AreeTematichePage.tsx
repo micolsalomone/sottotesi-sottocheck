@@ -346,7 +346,7 @@ export function AreeTematichePage() {
                           ) : (
                             <>
                               <button onClick={() => setDetailAreaId(area.id)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset' }}><Pencil size={14} /></button>
-                              <button onClick={() => setConfirmDeleteId(area.id)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset', color: 'var(--destructive-foreground)' }}><Trash2 size={14} /></button>
+                              <button onClick={() => setConfirmDeleteId(area.id)} className="btn btn-secondary" style={{ padding: '0.35rem 0.55rem', minWidth: 'unset', color: 'var(--destructive)' }}><Trash2 size={14} /></button>
                             </>
                           )}
                         </div>

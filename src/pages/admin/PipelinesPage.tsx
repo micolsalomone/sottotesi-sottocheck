@@ -689,7 +689,7 @@ export function PipelinesPage() {
           <div className="stat-value" style={{ color: 'var(--warning)' }}>{stats.expiringSoon}</div>
         </div>
 
-        <div className="stat-card" style={{ border: '1px solid var(--destructive-foreground)', background: 'var(--destructive)' }}>
+        <div className="stat-card" style={{ border: '1px solid var(--destructive)', background: 'var(--destructive)' }}>
           <div className="stat-header">
             <span className="stat-label" style={{ color: 'var(--destructive-foreground)' }}>Scaduti</span>
           </div>

@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <h1 style={{
             fontSize: 'var(--text-h1)',
             fontFamily: 'var(--font-alegreya)',
-            color: 'var(--destructive-foreground)',
+            color: 'var(--destructive)',
             marginBottom: '1rem'
           }}>
             Errore nell'applicazione

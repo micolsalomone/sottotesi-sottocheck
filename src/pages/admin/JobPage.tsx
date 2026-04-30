@@ -267,7 +267,7 @@ function formatNumber(n: number): string {
 
 function getCreditsUsageColor(used: number, max: number): string {
   const ratio = used / max;
-  if (ratio >= 0.9) return 'var(--destructive-foreground)';
+  if (ratio >= 0.9) return 'var(--destructive)';
   if (ratio >= 0.7) return 'var(--chart-3)';
   return 'var(--foreground)';
 }
@@ -558,9 +558,9 @@ export function JobPage() {
           <div style={statLabelStyle}>In corso</div>
           <div style={{ ...statValueStyle, color: stats.running > 0 ? 'var(--chart-2)' : 'var(--muted-foreground)' }}>{stats.running}</div>
         </div>
-        <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: stats.failed > 0 ? '2px solid var(--destructive-foreground)' : '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+        <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: stats.failed > 0 ? '2px solid var(--destructive)' : '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
           <div style={statLabelStyle}>Falliti</div>
-          <div style={{ ...statValueStyle, color: stats.failed > 0 ? 'var(--destructive-foreground)' : 'var(--muted-foreground)' }}>{stats.failed}</div>
+          <div style={{ ...statValueStyle, color: stats.failed > 0 ? 'var(--destructive)' : 'var(--muted-foreground)' }}>{stats.failed}</div>
         </div>
         <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
           <div style={statLabelStyle}>Crediti usati</div>

@@ -46,7 +46,7 @@ export function TableActions({ actions, label = 'Azioni' }: TableActionsProps) {
                 onClick={action.onClick}
                 className={
                   action.variant === 'destructive'
-                    ? 'text-[var(--destructive-foreground)] focus:text-[var(--destructive-foreground)] focus:bg-[var(--destructive)]'
+                    ? 'text-[var(--destructive)] focus:text-[var(--destructive-foreground)] focus:bg-[var(--destructive)]'
                     : ''
                 }
               >

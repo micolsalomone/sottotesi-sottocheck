@@ -461,7 +461,7 @@ export function FatturePage() {
                       ) : (
                         <button
                           onClick={() => setExpandedError(expandedError === payment.id ? null : payment.id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)', border: 'none', cursor: 'pointer' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive)', border: 'none', cursor: 'pointer' }}
                         >
                           <AlertTriangle size={12} />
                           Errore {payment.erroreOrigine}
@@ -487,7 +487,7 @@ export function FatturePage() {
                     <tr key={`${payment.id}-error`}>
                       <td colSpan={10} style={{ padding: 0 }}>
                         <div style={{ padding: '0.75rem 1rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                          <AlertTriangle size={14} style={{ color: 'var(--destructive-foreground)', flexShrink: 0, marginTop: '1px' }} />
+                          <AlertTriangle size={14} style={{ color: 'var(--destructive)', flexShrink: 0, marginTop: '1px' }} />
                           <div>
                             <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Origine: {payment.erroreOrigine}</span>
                             <span style={{ margin: '0 0.5rem', color: 'var(--muted-foreground)' }}>—</span>
@@ -515,7 +515,7 @@ export function FatturePage() {
                   {payment.stato === 'completato' ? (
                     <StatusBadge status="active" label="Completato" />
                   ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive-foreground)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--destructive)' }}>
                       <AlertTriangle size={12} />Errore
                     </span>
                   )}
@@ -532,7 +532,7 @@ export function FatturePage() {
 
                 {payment.stato !== 'completato' && (
                   <ResponsiveMobileCardSection>
-                    <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive-foreground)', borderRadius: '0 var(--radius) var(--radius) 0', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
+                    <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderLeft: '3px solid var(--destructive)', borderRadius: '0 var(--radius) var(--radius) 0', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)' }}>
                       <span style={{ fontWeight: 'var(--font-weight-medium)' }}>{payment.erroreOrigine}:</span> {payment.erroreDettaglio}
                     </div>
                   </ResponsiveMobileCardSection>

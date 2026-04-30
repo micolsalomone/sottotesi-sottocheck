@@ -506,7 +506,7 @@ export function StudentiPage() {
             <span className="stat-label">Senza timeline</span>
             <div className="stat-icon"><Clock size={20} /></div>
           </div>
-          <div className="stat-value" style={{ color: stats.withoutTimeline > 0 ? 'var(--destructive-foreground, #dc2626)' : 'var(--foreground)' }}>
+          <div className="stat-value" style={{ color: stats.withoutTimeline > 0 ? 'var(--destructive)' : 'var(--foreground)' }}>
             {stats.withoutTimeline}
           </div>
           <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', marginTop: '0.25rem', lineHeight: '1.5' }}>

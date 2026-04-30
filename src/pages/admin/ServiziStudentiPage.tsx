@@ -1372,7 +1372,7 @@ export function ServiziStudentiPage() {
           Azioni richieste:
         </span>
         {([
-          { key: 'overdueRates', label: 'Rate scadute', count: quickFilterCounts.overdueRates, color: 'var(--destructive-foreground)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
+          { key: 'overdueRates', label: 'Rate scadute', count: quickFilterCounts.overdueRates, color: 'var(--destructive)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
           { key: 'missingContract', label: 'Contratto mancante', count: quickFilterCounts.missingContract, color: 'var(--chart-3)', bgActive: 'rgba(251, 191, 36, 0.08)', bgBadge: 'rgba(251, 191, 36, 0.15)' },
           { key: 'noCoach', label: 'Senza coach', count: quickFilterCounts.noCoach, color: 'var(--chart-3)', bgActive: 'rgba(251, 191, 36, 0.08)', bgBadge: 'rgba(251, 191, 36, 0.15)' },
           { key: 'noPriceQuote', label: 'Preventivo da fare', count: quickFilterCounts.noPriceQuote, color: 'var(--muted-foreground)', bgActive: 'rgba(113, 118, 128, 0.08)', bgBadge: 'rgba(113, 118, 128, 0.15)' },
@@ -1503,9 +1503,9 @@ export function ServiziStudentiPage() {
               </div>
             )}
             {activeVista === 'lavorazioni' && totalOverdue > 0 && (
-              <div style={statCard('var(--destructive-foreground)')}>
+              <div style={statCard('var(--destructive)')}>
                 <div style={statLabel}>Rate scadute</div>
-                <div style={statVal('var(--destructive-foreground)')}>{totalOverdue}</div>
+                <div style={statVal('var(--destructive)')}>{totalOverdue}</div>
               </div>
             )}
             {activeVista === 'lavorazioni' && totalNoCoach > 0 && (
@@ -1740,7 +1740,7 @@ export function ServiziStudentiPage() {
                               fontFamily: 'var(--font-inter)',
                               fontSize: '10px',
                               fontWeight: 'var(--font-weight-bold)',
-                              color: 'var(--destructive-foreground)',
+                              color: 'var(--destructive)',
                               backgroundColor: 'var(--destructive)',
                               borderRadius: '999px',
                               padding: '0 0.375rem',
@@ -1843,7 +1843,7 @@ export function ServiziStudentiPage() {
                           value={service.coach_name || ''}
                           onChange={(val) => updateCoachName(service.id, val)}
                           areaTematica={service.area_tematica}
-                          style={{ ...inlineSelectStyle, fontSize: 'var(--text-label)', padding: '0.25rem 0.375rem', maxWidth: '130px', color: service.coach_name ? 'var(--foreground)' : 'var(--destructive-foreground)', fontWeight: 'var(--font-weight-medium)' }}
+                          style={{ ...inlineSelectStyle, fontSize: 'var(--text-label)', padding: '0.25rem 0.375rem', maxWidth: '130px', color: service.coach_name ? 'var(--foreground)' : 'var(--destructive)', fontWeight: 'var(--font-weight-medium)' }}
                           title="Cambia coach"
                           emptyLabel="Nessun coach"
                         />
@@ -1929,10 +1929,10 @@ export function ServiziStudentiPage() {
                       <TableCell onClick={(e) => { e.stopPropagation(); toggleRowExpand(service.id); }} style={{ minWidth: columnWidths.rate, cursor: 'pointer', ...colVis('rate') }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <ChevronRight size={14} style={{ color: 'var(--muted-foreground)', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease', flexShrink: 0 }} />
-                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: hasOverdue ? 'var(--destructive-foreground)' : paidCount === totalCount ? 'var(--primary)' : 'var(--foreground)' }}>
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: hasOverdue ? 'var(--destructive)' : paidCount === totalCount ? 'var(--primary)' : 'var(--foreground)' }}>
                             {paidCount}/{totalCount}
                           </span>
-                          {hasOverdue && <AlertTriangle size={12} style={{ color: 'var(--destructive-foreground)' }} />}
+                          {hasOverdue && <AlertTriangle size={12} style={{ color: 'var(--destructive)' }} />}
                         </div>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.contratto, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('contratto') }}>
@@ -1946,7 +1946,7 @@ export function ServiziStudentiPage() {
                               ...inlineSelectStyle,
                               color: service.contract?.status === 'signed' ? 'var(--primary)' 
                                 : service.contract?.status === 'draft' ? 'var(--chart-5)' 
-                                : 'var(--destructive-foreground)',
+                                : 'var(--destructive)',
                               fontWeight: 'var(--font-weight-medium)',
                               maxWidth: '90px',
                             }}
@@ -2084,8 +2084,8 @@ export function ServiziStudentiPage() {
                           const dueDate = new Date(nextDue); dueDate.setHours(0,0,0,0);
                           const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                           let color = 'var(--foreground)'; let label = '';
-                          if (diffDays < 0) { color = 'var(--destructive-foreground)'; label = `${Math.abs(diffDays)}g fa`; }
-                          else if (diffDays === 0) { color = 'var(--destructive-foreground)'; label = 'Oggi'; }
+                          if (diffDays < 0) { color = 'var(--destructive)'; label = `${Math.abs(diffDays)}g fa`; }
+                          else if (diffDays === 0) { color = 'var(--destructive)'; label = 'Oggi'; }
                           else if (diffDays <= 7) { color = 'var(--chart-3)'; label = `tra ${diffDays}g`; }
                           else { color = 'var(--muted-foreground)'; label = `tra ${diffDays}g`; }
                           return (
@@ -2165,10 +2165,10 @@ export function ServiziStudentiPage() {
                           const isOverdue = scad.daysLeft <= 0;
                           const isPast = resolveNotulaStatus(service.coach_payout) === 'pagata';
                           return (
-                            <span style={{ fontWeight: isOverdue && !isPast ? 'var(--font-weight-bold)' as any : undefined, color: isPast ? 'var(--foreground)' : isOverdue ? 'var(--destructive-foreground)' : isWarning ? 'var(--chart-3)' : 'var(--foreground)' }}>
+                            <span style={{ fontWeight: isOverdue && !isPast ? 'var(--font-weight-bold)' as any : undefined, color: isPast ? 'var(--foreground)' : isOverdue ? 'var(--destructive)' : isWarning ? 'var(--chart-3)' : 'var(--foreground)' }}>
                               {scad.date}
                               {!isPast && scad.daysLeft <= 14 && (
-                                <span style={{ fontSize: '11px', color: isOverdue ? 'var(--destructive-foreground)' : 'var(--chart-3)', marginLeft: '0.125rem' }}>
+                                <span style={{ fontSize: '11px', color: isOverdue ? 'var(--destructive)' : 'var(--chart-3)', marginLeft: '0.125rem' }}>
                                   ({scad.daysLeft > 0 ? `-${scad.daysLeft}gg` : `+${Math.abs(scad.daysLeft)}gg`})
                                 </span>
                               )}
@@ -2278,7 +2278,7 @@ export function ServiziStudentiPage() {
                         <TableCell onClick={(e) => e.stopPropagation()} style={{ minWidth: columnWidths.status, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', ...colVis('status') }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button onClick={() => toggleInstallmentPaid(service.id, inst.id)}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--muted-foreground)' }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive)' : 'var(--muted-foreground)' }}
                             >
                               {inst.status === 'paid' ? <CheckCircle size={12} /> : <Clock size={12} />}
                               {inst.status === 'paid' ? 'Pagata' : inst.status === 'overdue' ? 'Scaduta' : 'In attesa'}
@@ -2466,7 +2466,7 @@ export function ServiziStudentiPage() {
                       ? <span style={{ color: 'var(--primary)', fontWeight: 'var(--font-weight-medium)' }}>Firmato</span>
                       : service.contract?.status === 'draft'
                         ? <span style={{ color: 'var(--chart-5)', fontWeight: 'var(--font-weight-medium)' }}>Bozza</span>
-                        : <span style={{ color: 'var(--destructive-foreground)', fontWeight: 'var(--font-weight-medium)' }}>Mancante</span>
+                        : <span style={{ color: 'var(--destructive)', fontWeight: 'var(--font-weight-medium)' }}>Mancante</span>
                     }
                   </span>
                 )}

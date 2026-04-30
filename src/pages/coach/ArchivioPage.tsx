@@ -87,7 +87,7 @@ function StatusBadge({ status }: { status: HistoryItemStatus }) {
       style={{
         borderRadius: 'var(--radius-badge)',
         background: 'rgba(220,38,38,0.10)',
-        color: 'var(--destructive-foreground)',
+        color: 'var(--destructive)',
         fontFamily: 'var(--font-inter)',
         fontSize: '11px',
         fontWeight: 'var(--font-weight-medium)',

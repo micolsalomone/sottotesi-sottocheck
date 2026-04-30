@@ -601,7 +601,7 @@ export function SottocheckAdminPage() {
                         </p>
                       </div>
                       {documentStatus === 'valid' && <CheckCircle className="w-5 h-5 text-[var(--primary)] shrink-0" />}
-                      {documentStatus === 'invalid' && <XCircle className="w-5 h-5 text-[var(--destructive-foreground)] shrink-0" />}
+                      {documentStatus === 'invalid' && <XCircle className="w-5 h-5 text-[var(--destructive)] shrink-0" />}
                     </div>
                   </div>
 
@@ -640,7 +640,7 @@ export function SottocheckAdminPage() {
                       }}
                     >
                       <div className="flex gap-2">
-                        <XCircle className="w-4 h-4 text-[var(--destructive-foreground)] shrink-0 mt-[2px]" />
+                        <XCircle className="w-4 h-4 text-[var(--destructive)] shrink-0 mt-[2px]" />
                         <div>
                           <p
                             className="text-[var(--foreground)]"
