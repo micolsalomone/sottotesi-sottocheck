@@ -1,4 +1,70 @@
-interface ReportSource {
+// Props per il drawer, da adattare se necessario
+// Tipi dettagliati per il drawer
+export interface SottocheckReportDetailDrawerProps {
+  selectedJob: SelectedJob | null;
+  onClose: () => void;
+  onOpenFullReport: () => void;
+  onDownloadReport: () => void;
+  getLavorazioneLabel: (serviceId: string) => string;
+  formatDateTimeIT: (date: string) => string;
+  formatNumber: (n: number) => string;
+  statusMap: Record<string, any>;
+  statusLabels: Record<string, string>;
+}
+
+export interface SelectedJob {
+  id: string;
+  initiator_role: 'student' | 'coach' | 'admin';
+  student?: string;
+  student_id?: string;
+  coach_name?: string;
+  admin_name?: string;
+  status: string;
+  service_id?: string;
+  document_name?: string;
+  startedAt?: string;
+  completedAt?: string;
+  payment?: {
+    amount: number;
+    paidAt: string;
+    method?: string;
+  };
+  report?: SottocheckReport;
+}
+
+export interface SottocheckReport {
+  scannedDocument?: {
+    scanId: string;
+    totalWords: number;
+    totalExcluded: number;
+    credits: number;
+    expectedCredits: number;
+    creationTime: string;
+    detectedLanguage?: string;
+    metadata?: {
+      filename?: string;
+      authors?: string[];
+    };
+  };
+  results?: {
+    score?: {
+      identicalWords: number;
+      minorChangedWords: number;
+      relatedMeaningWords: number;
+      aggregatedScore: number;
+    };
+    aiScore?: {
+      aggregatedScore: number;
+      aiWords: number;
+    };
+    internet?: ReportSource[];
+    database?: ReportSource[];
+    batch?: ReportSource[];
+    repositories?: ReportSource[];
+    internalAIData?: ReportSource[];
+  };
+}
+export interface ReportSource {
   id: string;
   url: string;
   title: string;
@@ -8,6 +74,11 @@ interface ReportSource {
   similarWords: number;
   paraphrasedWords: number;
   totalWords: number;
+  metadata?: {
+    filename?: string;
+    authors?: string[];
+  };
+  tags?: string[];
 }
 
 const labelStyle: React.CSSProperties = {
@@ -81,28 +152,36 @@ export function SottocheckReportDetailDrawer({
               Informazioni principali
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+              {/* Chi ha avviato il check */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <div style={labelStyle}>Studente</div>
-                <div style={valueBoldStyle}>{selectedJob.student} ({selectedJob.student_id})</div>
+                <div style={labelStyle}>Avviato da</div>
+                <div style={valueBoldStyle}>
+                  {/* Esempio: Studente: Mario Rossi, Coach: Luca Bianchi, Admin: Anna Verdi */}
+                  {selectedJob.initiator_role === 'student' && `Studente: ${selectedJob.student} (${selectedJob.student_id})`}
+                  {selectedJob.initiator_role === 'coach' && `Coach: ${selectedJob.coach_name}`}
+                  {selectedJob.initiator_role === 'admin' && `Admin: ${selectedJob.admin_name}`}
+                </div>
               </div>
-              <div>
-                <div style={labelStyle}>Admin</div>
-                <div style={valueBoldStyle}>{selectedJob.admin_name}</div>
-              </div>
+              {/* Stato */}
               <div>
                 <div style={labelStyle}>Stato</div>
                 <StatusBadge status={statusMap[selectedJob.status]} label={statusLabels[selectedJob.status]} />
               </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div style={labelStyle}>Lavorazione (opzionale)</div>
-                <div style={valueStyle}>{getLavorazioneLabel(selectedJob.service_id)}</div>
-              </div>
+              {/* Lavorazione (solo se presente) */}
+              {selectedJob.service_id && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={labelStyle}>Lavorazione</div>
+                  <div style={valueStyle}>{getLavorazioneLabel(selectedJob.service_id)}</div>
+                </div>
+              )}
+              {/* Documento */}
               {selectedJob.document_name && (
                 <div>
                   <div style={labelStyle}>Documento</div>
                   <div style={valueBoldStyle}>{selectedJob.document_name}</div>
                 </div>
               )}
+              {/* Date */}
               <div>
                 <div style={labelStyle}>Data avvio</div>
                 <div style={valueStyle}>{selectedJob.startedAt}</div>
@@ -112,6 +191,23 @@ export function SottocheckReportDetailDrawer({
                   <div style={labelStyle}>Data completamento</div>
                   <div style={valueStyle}>{selectedJob.completedAt}</div>
                 </div>
+              )}
+              {/* Pagamento (solo studente) */}
+              {selectedJob.initiator_role === 'student' && selectedJob.payment && (
+                <>
+                  <div>
+                    <div style={labelStyle}>Importo pagato</div>
+                    <div style={valueBoldStyle}>€{selectedJob.payment.amount.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>Data pagamento</div>
+                    <div style={valueStyle}>{selectedJob.payment.paidAt}</div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>Provider</div>
+                    <div style={valueStyle}>{selectedJob.payment.method || 'Stripe'}</div>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -206,28 +302,6 @@ export function SottocheckReportDetailDrawer({
             </div>
           )}
 
-          {selectedJob.created_by && (
-            <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <div style={labelStyle}>Creato da</div>
-                  <div style={valueStyle}>{selectedJob.created_by}</div>
-                </div>
-                <div>
-                  <div style={labelStyle}>Creato il</div>
-                  <div style={valueStyle}>{formatDateTimeIT(selectedJob.created_at)}</div>
-                </div>
-                <div>
-                  <div style={labelStyle}>Aggiornato da</div>
-                  <div style={valueStyle}>{selectedJob.updated_by}</div>
-                </div>
-                <div>
-                  <div style={labelStyle}>Aggiornato il</div>
-                  <div style={valueStyle}>{formatDateTimeIT(selectedJob.updated_at)}</div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </>
