@@ -29,13 +29,40 @@ import { BulkActionsBar, type BulkAction } from '../../app/components/BulkAction
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { Checkbox } from '../../app/components/ui/checkbox';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
+import { SottocheckReportDetailDrawer } from '@/app/components/SottocheckReportDetailDrawer';
+
+interface CheckReportSource {
+  id: string;
+  url: string;
+  title: string;
+  introduction: string;
+  matchedWords: number;
+  identicalWords: number;
+  similarWords: number;
+  paraphrasedWords: number;
+  totalWords: number;
+  metadata?: {
+    filename?: string;
+    authors?: string[];
+  };
+  tags?: string[];
+}
 
 interface CheckReport {
-  id: string;
-  similarityPercentage: number;
-  plagiarismDetected: boolean;
-  aiDetectionPercentage: number;
-  generatedAt: string;
+  scanId: string;
+  creationTime: string;
+  totalWords: number;
+  totalExcluded: number;
+  credits: number;
+  expectedCredits: number;
+  detectedLanguage: string;
+  score: {
+    identicalWords: number;
+    minorChangedWords: number;
+    relatedMeaningWords: number;
+    aggregatedScore: number;
+  };
+  sources: CheckReportSource[];
   pdfUrl: string;
 }
 
@@ -58,6 +85,13 @@ interface Job {
   created_at?: string;
   updated_by?: string;
   updated_at?: string;
+  initiator_role?: 'admin' | 'coach' | 'student';
+  coach_name?: string;
+  payment?: {
+    amount: number;
+    paidAt: string;
+    method: string;
+  };
 }
 
 const STATUS_MAP: Record<string, StatusType> = {
@@ -91,100 +125,117 @@ const formatDateTimeIT = (dateTime?: string): string => {
 };
 
 const mockJobs: Job[] = [
+  // Caso ADMIN
   {
-    id: 'ADM-CHK-101',
+    id: 'ADM-CHK-201',
+    initiator_role: 'admin',
     admin_name: 'Francesca Bianchi',
     student: 'Marco Bianchi',
     student_id: 'STU-601',
     service_id: 'SS-101',
     status: 'completed',
-    startedAt: '2026-01-15 10:30',
-    completedAt: '2026-01-15 10:55',
-    document_name: 'tesi_bianchi_cap3.pdf',
-    characters: 42350,
-    pages: 18,
-    copyleaks_credits: 19,
+    startedAt: '2026-04-01 09:00',
+    completedAt: '2026-04-01 09:30',
+    document_name: 'tesi_bianchi.pdf',
+    characters: 40000,
+    pages: 20,
+    copyleaks_credits: 20,
     report: {
-      id: 'REP-201',
-      similarityPercentage: 18.2,
-      plagiarismDetected: false,
-      aiDetectionPercentage: 5.1,
-      generatedAt: '2026-01-15',
-      pdfUrl: '/reports/REP-201.pdf'
+      scanId: 'admin-001',
+      creationTime: '2026-04-01T09:30:00.000Z',
+      totalWords: 1500,
+      totalExcluded: 0,
+      credits: 7,
+      expectedCredits: 7,
+      detectedLanguage: 'it',
+      score: {
+        identicalWords: 1200,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 90.0,
+      },
+      sources: [],
+      pdfUrl: '/reports/REP-301.pdf'
     },
     notes: [
-      { id: 'N-1', content: 'Risultato nella norma', admin: 'Claudia', timestamp: '2026-01-15 11:00' }
+      { id: 'N-1', content: 'Controllo avviato da admin', admin: 'Francesca', timestamp: '2026-04-01 09:31' }
     ]
   },
+  // Caso COACH
   {
-    id: 'ADM-CHK-102',
-    admin_name: 'Claudia Neri',
+    id: 'COACH-CHK-202',
+    initiator_role: 'coach',
+    coach_name: 'Luca Bianchi',
+    admin_name: 'Francesca Bianchi',
     student: 'Anna Russo',
     student_id: 'STU-602',
-    service_id: undefined,
+    service_id: 'SS-102',
     status: 'completed',
-    startedAt: '2026-01-20 14:00',
-    completedAt: '2026-01-20 14:18',
-    document_name: 'tesi_russo_completa.pdf',
-    characters: 98200,
-    pages: 42,
-    copyleaks_credits: 42,
+    startedAt: '2026-04-02 10:00',
+    completedAt: '2026-04-02 10:25',
+    document_name: 'tesi_russo.pdf',
+    characters: 42000,
+    pages: 21,
+    copyleaks_credits: 21,
     report: {
-      id: 'REP-202',
-      similarityPercentage: 22.7,
-      plagiarismDetected: true,
-      aiDetectionPercentage: 3.4,
-      generatedAt: '2026-01-20',
-      pdfUrl: '/reports/REP-202.pdf'
+      scanId: 'coach-001',
+      creationTime: '2026-04-02T10:25:00.000Z',
+      totalWords: 1600,
+      totalExcluded: 0,
+      credits: 8,
+      expectedCredits: 8,
+      detectedLanguage: 'it',
+      score: {
+        identicalWords: 1300,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 92.0,
+      },
+      sources: [],
+      pdfUrl: '/reports/REP-302.pdf'
     },
-    notes: []
-  },
-  {
-    id: 'ADM-CHK-103',
-    admin_name: 'Francesca Bianchi',
-    student: 'Federico Conti',
-    student_id: 'STU-603',
-    service_id: 'SS-117',
-    status: 'running',
-    startedAt: '2026-02-28 09:00',
-    completedAt: null,
-    document_name: 'capitolo_finale.pdf',
-    characters: 35600,
-    pages: 15,
-    copyleaks_credits: 15,
-    notes: []
-  },
-  {
-    id: 'ADM-CHK-104',
-    admin_name: 'Marta Rossi',
-    student: 'Elena Marchetti',
-    student_id: 'STU-604',
-    service_id: undefined,
-    status: 'failed',
-    startedAt: '2026-02-25 16:30',
-    completedAt: '2026-02-25 16:32',
-    document_name: 'tesi_marchetti.pdf',
-    characters: 67800,
-    pages: 29,
-    copyleaks_credits: 0,
     notes: [
-      { id: 'N-2', content: 'Errore nel processamento, da riavviare', admin: 'Francesca', timestamp: '2026-02-25 16:35' }
+      { id: 'N-2', content: 'Controllo avviato da coach', admin: 'Luca', timestamp: '2026-04-02 10:26' }
     ]
   },
+  // Caso STUDENTE
   {
-    id: 'ADM-CHK-105',
-    admin_name: 'Claudia Neri',
+    id: 'STU-CHK-203',
+    initiator_role: 'student',
     student: 'Davide Ferretti',
     student_id: 'STU-605',
-    service_id: 'SS-165',
-    status: 'pending',
-    startedAt: '2026-03-01 08:00',
-    completedAt: null,
-    document_name: 'ref_ferretti.pdf',
-    characters: 54100,
-    pages: 23,
-    copyleaks_credits: 0,
-    notes: []
+    status: 'completed',
+    startedAt: '2026-04-03 11:00',
+    completedAt: '2026-04-03 11:20',
+    document_name: 'tesi_ferretti.pdf',
+    characters: 38000,
+    pages: 19,
+    copyleaks_credits: 19,
+    payment: {
+      amount: 9.50,
+      paidAt: '2026-04-03 10:59',
+      method: 'Stripe',
+    },
+    report: {
+      scanId: 'student-001',
+      creationTime: '2026-04-03T11:20:00.000Z',
+      totalWords: 1400,
+      totalExcluded: 0,
+      credits: 6,
+      expectedCredits: 6,
+      detectedLanguage: 'it',
+      score: {
+        identicalWords: 1100,
+        minorChangedWords: 200,
+        relatedMeaningWords: 100,
+        aggregatedScore: 88.0,
+      },
+      sources: [],
+      pdfUrl: '/reports/REP-303.pdf'
+    },
+    notes: [
+      { id: 'N-3', content: 'Controllo avviato da studente', admin: 'Davide', timestamp: '2026-04-03 11:21' }
+    ]
   },
 ];
 
@@ -264,6 +315,7 @@ export function LavorazioniSottocheckPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterInitiator, setFilterInitiator] = useState<'all' | 'admin' | 'coach' | 'student'>('all');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Notes drawer
@@ -413,6 +465,7 @@ export function LavorazioniSottocheckPage() {
       );
     }
     if (filterStatus !== 'all') data = data.filter(j => j.status === filterStatus);
+    if (filterInitiator !== 'all') data = data.filter(j => j.initiator_role === filterInitiator);
     if (filterDateFrom) data = data.filter(j => j.startedAt >= filterDateFrom);
     if (filterDateTo) data = data.filter(j => j.startedAt <= filterDateTo);
 
@@ -430,7 +483,7 @@ export function LavorazioniSottocheckPage() {
       });
     }
     return data;
-  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterDateFrom, filterDateTo, serviziStudenti]);
+  }, [jobs, sortColumn, sortDirection, searchQuery, filterStatus, filterInitiator, filterDateFrom, filterDateTo, serviziStudenti]);
 
   const hasActiveFilters = searchQuery || filterStatus !== 'all' || filterDateFrom || filterDateTo;
 
@@ -498,7 +551,11 @@ export function LavorazioniSottocheckPage() {
   };
 
   const handleDownloadReport = (job: Job) => {
-    console.log('Download report:', job.report?.pdfUrl);
+    if (!job.report?.pdfUrl) {
+      toast.error('Report PDF non disponibile');
+      return;
+    }
+    window.open(job.report.pdfUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Bulk selection
@@ -612,9 +669,9 @@ export function LavorazioniSottocheckPage() {
           <div style={statLabelStyle}>In corso</div>
           <div style={{ ...statValueStyle, color: stats.running > 0 ? 'var(--chart-2)' : 'var(--muted-foreground)' }}>{stats.running}</div>
         </div>
-        <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: stats.failed > 0 ? '2px solid var(--destructive-foreground)' : '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+        <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: stats.failed > 0 ? '2px solid var(--destructive)' : '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
           <div style={statLabelStyle}>Fallite</div>
-          <div style={{ ...statValueStyle, color: stats.failed > 0 ? 'var(--destructive-foreground)' : 'var(--muted-foreground)' }}>{stats.failed}</div>
+          <div style={{ ...statValueStyle, color: stats.failed > 0 ? 'var(--destructive)' : 'var(--muted-foreground)' }}>{stats.failed}</div>
         </div>
         <div style={{ flex: '1 1 120px', minWidth: '120px', padding: '0.75rem 1rem', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
           <div style={statLabelStyle}>Crediti totali</div>
@@ -672,7 +729,12 @@ export function LavorazioniSottocheckPage() {
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
             Avviato da
           </label>
-          <input type="date" className="search-input" style={{ width: '100%' }} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          <select className="select-dropdown" style={{ width: '100%' }} value={filterInitiator} onChange={e => setFilterInitiator(e.target.value as 'all' | 'admin' | 'coach' | 'student')}>
+            <option value="all">Tutti</option>
+            <option value="admin">Admin</option>
+            <option value="coach">Coach</option>
+            <option value="student">Studente</option>
+          </select>
         </div>
         <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
           <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
@@ -706,9 +768,10 @@ export function LavorazioniSottocheckPage() {
                   onCheckedChange={handleSelectAll}
                 />
                 <TableHeaderCell id="id" label="ID" width={columnWidths.id} sortable sortDirection={sortColumn === 'id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
-                <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
+                {/* <TableHeaderCell id="admin_name" label="Admin" width={columnWidths.admin} sortable sortDirection={sortColumn === 'admin_name' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                {/* <TableHeaderCell id="student" label="Studente" width={columnWidths.student} sortable sortDirection={sortColumn === 'student' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                {/* <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
+                <TableHeaderCell id="avviato_da" label="Avviato da" width={180} />
                 <TableHeaderCell id="characters" label="Caratteri" width={columnWidths.characters} sortable align="right" sortDirection={sortColumn === 'characters' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="pages" label="Pagine" width={columnWidths.pages} sortable align="right" sortDirection={sortColumn === 'pages' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
                 <TableHeaderCell id="copyleaks_credits" label="Crediti" width={columnWidths.credits} sortable align="right" sortDirection={sortColumn === 'copyleaks_credits' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} />
@@ -740,9 +803,13 @@ export function LavorazioniSottocheckPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                       <TableCell><CellTextSecondary>{job.id}</CellTextSecondary></TableCell>
-                      <TableCell><CellTextPrimary>{job.admin_name}</CellTextPrimary></TableCell>
-                      <TableCell><CellTextPrimary>{job.student}</CellTextPrimary></TableCell>
-                      <TableCell><CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary></TableCell>
+                      <TableCell>
+                        <CellTextPrimary>
+                          {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
+                          {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
+                          {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
+                        </CellTextPrimary>
+                      </TableCell>
                       <TableCell align="right"><CellTextPrimary>{formatNumber(job.characters)}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.pages}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
@@ -805,8 +872,8 @@ export function LavorazioniSottocheckPage() {
                       </div>
                       <div>
                         <CellTextSecondary>{job.id}</CellTextSecondary>
-                        <CellTextSecondary>{job.admin_name}</CellTextSecondary>
-                        <CellTextPrimary>{job.student}</CellTextPrimary>
+                        {/* <CellTextSecondary>{job.admin_name}</CellTextSecondary> */}
+                        {/* <CellTextPrimary>{job.student}</CellTextPrimary> */}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -833,10 +900,14 @@ export function LavorazioniSottocheckPage() {
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Lavorazione (opz.)</ResponsiveMobileFieldLabel>
                     <CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary>
+                  <ResponsiveMobileCardSection>
+                    <ResponsiveMobileFieldLabel>Avviato da</ResponsiveMobileFieldLabel>
+                    <CellTextPrimary>
+                      {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
+                      {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
+                      {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
+                    </CellTextPrimary>
                   </ResponsiveMobileCardSection>
-
-                  <ResponsiveMobileCardSection marginBottom="0.75rem">
-                    <ResponsiveMobileFieldLabel>Avviato</ResponsiveMobileFieldLabel>
                     <CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary>
                   </ResponsiveMobileCardSection>
                   {job.completedAt && (
@@ -873,163 +944,23 @@ export function LavorazioniSottocheckPage() {
         )}
       />
 
-      {/* Detail Drawer */}
-      {selectedJob && (
-        <>
-          <div
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 40 }}
-            onClick={() => setSelectedJob(null)}
-          />
-          <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: '600px',
-            backgroundColor: 'var(--background)', zIndex: 50, boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.1)',
-            display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
-                  Dettaglio Check Admin
-                </h2>
-                <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5', margin: 0 }}>
-                  {selectedJob.id} &mdash; Check Plagio/AI
-                </p>
-              </div>
-              <button onClick={() => setSelectedJob(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <X size={24} />
-              </button>
-            </div>
-
-            <div style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
-              {/* Informazioni principali */}
-              <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5' }}>
-                  Informazioni principali
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={labelStyle}>Studente</div>
-                    <div style={valueBoldStyle}>{selectedJob.student} ({selectedJob.student_id})</div>
-                  </div>
-                  <div>
-                    <div style={labelStyle}>Admin</div>
-                    <div style={valueBoldStyle}>{selectedJob.admin_name}</div>
-                  </div>
-                  <div>
-                    <div style={labelStyle}>Stato</div>
-                    <StatusBadge status={STATUS_MAP[selectedJob.status]} label={STATUS_LABELS[selectedJob.status]} />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={labelStyle}>Lavorazione (opzionale)</div>
-                    <div style={valueStyle}>{getLavorazioneLabel(selectedJob.service_id)}</div>
-                  </div>
-                  {selectedJob.document_name && (
-                    <div>
-                      <div style={labelStyle}>Documento</div>
-                      <div style={valueBoldStyle}>{selectedJob.document_name}</div>
-                    </div>
-                  )}
-                  <div>
-                    <div style={labelStyle}>Data avvio</div>
-                    <div style={valueStyle}>{selectedJob.startedAt}</div>
-                  </div>
-                  {selectedJob.completedAt && (
-                    <div>
-                      <div style={labelStyle}>Data completamento</div>
-                      <div style={valueStyle}>{selectedJob.completedAt}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Dati documento */}
-              <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5' }}>
-                  Dati documento & crediti
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={labelStyle}>Caratteri</div>
-                    <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                      {formatNumber(selectedJob.characters)}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={labelStyle}>Pagine</div>
-                    <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                      {selectedJob.pages}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={labelStyle}>Crediti Copyleaks</div>
-                    <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: selectedJob.copyleaks_credits > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                      {selectedJob.copyleaks_credits > 0 ? formatNumber(selectedJob.copyleaks_credits) : '-'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ marginTop: '0.5rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                  Crediti calcolati da API Copyleaks in base al contenuto del documento
-                </div>
-              </div>
-
-              {/* Report */}
-              {selectedJob.report && (
-                <div>
-                  <h3 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5' }}>
-                    Report
-                  </h3>
-                  <div style={{ padding: '1.5rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ padding: '1rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={labelStyle}>Report ID</div>
-                        <div style={valueBoldStyle}>{selectedJob.report.id}</div>
-                      </div>
-                      <div style={{ marginTop: '1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                        Generato il {selectedJob.report.generatedAt}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ width: '100%', justifyContent: 'center', marginBottom: '0.5rem' }}
-                      onClick={() => { setSelectedJob(null); navigate('/sottocheck/output-preview'); }}
-                    >
-                      <ExternalLink size={16} />
-                      Vedi il risultato
-                    </button>
-                    <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleDownloadReport(selectedJob)}>
-                      <Download size={16} />
-                      Scarica report PDF
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Tracking */}
-              {selectedJob.created_by && (
-                <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div>
-                      <div style={labelStyle}>Creato da</div>
-                      <div style={valueStyle}>{selectedJob.created_by}</div>
-                    </div>
-                    <div>
-                      <div style={labelStyle}>Creato il</div>
-                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.created_at)}</div>
-                    </div>
-                    <div>
-                      <div style={labelStyle}>Aggiornato da</div>
-                      <div style={valueStyle}>{selectedJob.updated_by}</div>
-                    </div>
-                    <div>
-                      <div style={labelStyle}>Aggiornato il</div>
-                      <div style={valueStyle}>{formatDateTimeIT(selectedJob.updated_at)}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      <SottocheckReportDetailDrawer
+        selectedJob={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        onOpenFullReport={() => {
+          setSelectedJob(null);
+          navigate('/sottocheck/output-preview');
+        }}
+        onDownloadReport={() => {
+          if (!selectedJob) return;
+          handleDownloadReport(selectedJob);
+        }}
+        getLavorazioneLabel={getLavorazioneLabel}
+        formatDateTimeIT={formatDateTimeIT}
+        formatNumber={formatNumber}
+        statusMap={STATUS_MAP}
+        statusLabels={STATUS_LABELS}
+      />
 
       {/* Notes Drawer */}
       {notesJob && (

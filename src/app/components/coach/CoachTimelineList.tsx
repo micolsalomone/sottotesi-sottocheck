@@ -485,7 +485,7 @@ export function CoachTimelineList({
                         onRemoveStep(step.id);
                       }
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--destructive-foreground)] hover:bg-[var(--destructive)] transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--destructive)] hover:bg-[rgba(220,38,38,0.10)] transition-colors cursor-pointer"
                     style={{
                       fontFamily: 'var(--font-inter)',
                       fontSize: 'var(--text-label)',

@@ -458,7 +458,7 @@ function EventTypeBadge({ type, isPast }: { type: string; isPast: boolean }) {
 
   if (type === 'deadline') {
     bg = isPast ? 'rgba(220,38,38,0.10)' : 'rgba(247,144,9,0.10)';
-    color = isPast ? 'var(--destructive-foreground)' : 'var(--chart-3)';
+    color = isPast ? 'var(--destructive)' : 'var(--chart-3)';
   } else if (type === 'start') {
     bg = 'rgba(46,144,250,0.10)';
     color = 'var(--chart-2)';

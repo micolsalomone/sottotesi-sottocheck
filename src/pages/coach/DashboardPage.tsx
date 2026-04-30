@@ -37,7 +37,7 @@ const AVAILABILITY_CONFIG: Record<
   },
   non_disponibile: {
     label: 'Non disponibile',
-    color: 'var(--destructive-foreground)',
+    color: 'var(--destructive)',
     bg: 'rgba(220,38,38,0.10)',
   },
 };
@@ -265,7 +265,7 @@ export function DashboardPage() {
                   className="inline-flex items-center justify-center px-[7px]"
                   style={{
                     background: 'rgba(220,38,38,0.10)',
-                    color: 'var(--destructive-foreground)',
+                    color: 'var(--destructive)',
                     borderRadius: 'var(--radius-badge)',
                     fontFamily: 'var(--font-inter)',
                     fontSize: '11px',

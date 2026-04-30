@@ -48,7 +48,7 @@ const STATUS_DOT_COLORS: Record<StudentStatus, string> = {
   active: 'var(--primary)',
   paused: 'var(--muted-foreground)',
   completed: 'var(--chart-2)',
-  cancelled: 'var(--destructive-foreground)',
+  cancelled: 'var(--destructive)',
   expired: 'var(--muted-foreground)',
 };
 
@@ -76,7 +76,7 @@ const CLOSED_REASON_LABELS: Record<ClosedReason, string> = {
 const CLOSED_REASON_COLORS: Record<ClosedReason, string> = {
   concluso: 'var(--primary)',
   upgrade: 'var(--chart-2)',
-  annullato: 'var(--destructive-foreground)',
+  annullato: 'var(--destructive)',
   abbandono: 'var(--chart-3)',
 };
 
@@ -1186,8 +1186,8 @@ export function TimelinePage() {
                           </div>
                           {student.installmentStatus === 'overdue' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
-                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                              <CreditCard size={11} style={{ color: 'var(--destructive)' }} />
+                              <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive)', lineHeight: '1.5' }}>
                                 Rata scaduta{(student.installmentOverdueCount ?? 0) > 1 ? ` (${student.installmentOverdueCount})` : ''}
                               </span>
                             </div>
@@ -1309,8 +1309,8 @@ export function TimelinePage() {
                     {student.installmentStatus === 'overdue' && (
                       <ResponsiveMobileCardSection marginBottom="0">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <CreditCard size={11} style={{ color: 'var(--destructive-foreground)' }} />
-                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                          <CreditCard size={11} style={{ color: 'var(--destructive)' }} />
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--destructive)', lineHeight: '1.5' }}>
                             Rata scaduta
                           </span>
                         </div>
@@ -1553,7 +1553,7 @@ function ConfirmModal({ type, studentName, onClose, onConfirm }: {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               {isRemove
-                ? <UserMinus size={18} style={{ color: 'var(--destructive-foreground)' }} />
+                ? <UserMinus size={18} style={{ color: 'var(--destructive)' }} />
                 : <CheckCircle2 size={18} style={{ color: 'var(--primary)' }} />
               }
             </div>
@@ -1596,7 +1596,7 @@ function ConfirmModal({ type, studentName, onClose, onConfirm }: {
               fontSize: 'var(--text-base)',
               fontWeight: 'var(--font-weight-medium)',
               color: '#fff',
-              background: isRemove ? 'var(--destructive-foreground)' : 'var(--primary)',
+              background: isRemove ? 'var(--destructive)' : 'var(--primary)',
               cursor: 'pointer',
               lineHeight: '1.5',
             }}
@@ -1945,7 +1945,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                           fontFamily: 'var(--font-inter)',
                           fontSize: '11px',
                           fontWeight: 'var(--font-weight-regular)',
-                          color: 'var(--destructive-foreground)',
+                          color: 'var(--destructive)',
                           lineHeight: '1.5',
                         }}>
                           Eliminare?
@@ -1956,7 +1956,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                             background: 'none', border: 'none', cursor: 'pointer',
                             fontFamily: 'var(--font-inter)', fontSize: '11px',
                             fontWeight: 'var(--font-weight-medium)',
-                            color: 'var(--destructive-foreground)',
+                            color: 'var(--destructive)',
                             padding: '2px 6px',
                             borderRadius: '4px',
                             lineHeight: '1.5',
@@ -1988,7 +1988,7 @@ function NotesModal({ student, notes, onAddNote, onDeleteNote, onClose }: {
                           color: 'var(--muted-foreground)', padding: '2px',
                           borderRadius: '4px', display: 'flex', alignItems: 'center',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--destructive-foreground)'; e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--destructive)'; e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted-foreground)'; e.currentTarget.style.background = 'none'; }}
                         title="Elimina nota"
                       >

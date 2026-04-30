@@ -52,7 +52,7 @@ export function BulkActionsBar({
             disabled={action.disabled}
             className={
               action.variant === 'destructive'
-                ? 'bg-[var(--destructive-foreground)] text-white hover:opacity-90'
+                ? 'bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90'
                 : 'bg-white text-[var(--foreground)] hover:bg-white/90'
             }
           >

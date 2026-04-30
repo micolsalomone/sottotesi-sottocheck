@@ -106,7 +106,7 @@ export function StepArchiveDrawer({
   const getPlagiarismLabel = (status?: string) => {
     switch (status) {
       case 'clear': return { label: 'Nessun plagio', color: 'var(--primary)' };
-      case 'flagged': return { label: 'Segnalato', color: 'var(--destructive-foreground)' };
+      case 'flagged': return { label: 'Segnalato', color: 'var(--destructive)' };
       case 'pending': return { label: 'In corso...', color: 'var(--chart-3)' };
       default: return null;
     }
@@ -606,12 +606,12 @@ export function StepArchiveDrawer({
                                     onDeleteDocument(doc.id);
                                   }
                                 }}
-                                className="flex items-center gap-1.5 px-2 py-1 ml-auto transition-colors hover:bg-[var(--destructive)]"
+                                className="flex items-center gap-1.5 px-2 py-1 ml-auto transition-colors hover:bg-[rgba(220,38,38,0.10)]"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
                                   fontSize: '12px',
                                   fontWeight: 'var(--font-weight-medium)',
-                                  color: 'var(--destructive-foreground)',
+                                  color: 'var(--destructive)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
                                 }}
                               >

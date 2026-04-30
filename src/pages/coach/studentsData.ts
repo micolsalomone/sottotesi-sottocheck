@@ -22,7 +22,7 @@ export const STATUS_STYLES: Record<StudentStatus, { bg: string; text: string }> 
   active: { bg: 'rgba(11,182,63,0.10)', text: 'var(--primary)' },
   paused: { bg: 'rgba(113,118,128,0.10)', text: 'var(--muted-foreground)' },
   completed: { bg: 'rgba(46,144,250,0.10)', text: 'var(--chart-2)' },
-  cancelled: { bg: 'rgba(220,38,38,0.10)', text: 'var(--destructive-foreground)' },
+  cancelled: { bg: 'rgba(220,38,38,0.10)', text: 'var(--destructive)' },
   expired: { bg: 'rgba(113,118,128,0.10)', text: 'var(--muted-foreground)' },
 };
 

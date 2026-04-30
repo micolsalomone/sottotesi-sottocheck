@@ -56,7 +56,7 @@ const COACH_STATUS_DOT_COLORS: Record<Exclude<StudentStatus, 'pending_payment'>,
   active: 'var(--primary)',
   paused: 'var(--muted-foreground)',
   completed: 'var(--chart-2)',
-  cancelled: 'var(--destructive-foreground)',
+  cancelled: 'var(--destructive)',
   expired: 'var(--muted-foreground)',
 };
 
@@ -502,8 +502,8 @@ export function StudentiPage() {
                               setConfirmModal({ type: 'unassign', studentId: student.id, studentName: student.name });
                             }}
                           >
-                            <UserMinus className="w-[15px] h-[15px] text-[var(--destructive-foreground)] shrink-0" />
-                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--destructive-foreground)' }}>
+                            <UserMinus className="w-[15px] h-[15px] text-[var(--destructive)] shrink-0" />
+                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--destructive)' }}>
                               Rimuovi assegnazione
                             </span>
                           </button>
@@ -536,7 +536,7 @@ export function StudentiPage() {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center w-[36px] h-[36px]" style={{ borderRadius: '50%', background: 'rgba(220,38,38,0.10)' }}>
-                    <UserMinus className="w-[18px] h-[18px] text-[var(--destructive-foreground)]" />
+                    <UserMinus className="w-[18px] h-[18px] text-[var(--destructive)]" />
                   </div>
                 )}
                 <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
@@ -578,8 +578,8 @@ export function StudentiPage() {
                   fontFamily: 'var(--font-inter)',
                   fontSize: 'var(--text-label)',
                   fontWeight: 'var(--font-weight-medium)',
-                  background: confirmModal.type === 'complete' ? 'var(--primary)' : 'var(--destructive-foreground)',
-                  color: '#fff',
+                  background: confirmModal.type === 'complete' ? 'var(--primary)' : 'var(--destructive)',
+                  color: confirmModal.type === 'complete' ? '#fff' : 'var(--destructive-foreground)',
                 }}
                 onClick={handleConfirmAction}
               >
@@ -837,7 +837,7 @@ function TicketModalContent({
 
                       {/* Remove button */}
                       <button
-                        className="shrink-0 flex items-center justify-center w-[26px] h-[26px] text-[var(--muted-foreground)] hover:text-[var(--destructive-foreground)] hover:bg-[var(--muted)] transition-colors"
+                        className="shrink-0 flex items-center justify-center w-[26px] h-[26px] text-[var(--muted-foreground)] hover:text-[var(--destructive)] hover:bg-[var(--muted)] transition-colors"
                         style={{ borderRadius: 'calc(var(--radius) - 4px)' }}
                         onClick={() => setTicketFiles(prev => prev.filter((_, i) => i !== index))}
                         disabled={ticketSent}

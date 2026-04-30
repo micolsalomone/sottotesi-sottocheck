@@ -41,9 +41,9 @@ const toneStyles: Record<AdminBadgeTone, CSSProperties> = {
     border: '1px solid color-mix(in srgb, var(--warning) 22%, transparent)',
   },
   danger: {
-    background: 'color-mix(in srgb, var(--destructive-foreground) 10%, var(--background))',
-    color: 'var(--destructive-foreground)',
-    border: '1px solid color-mix(in srgb, var(--destructive-foreground) 18%, transparent)',
+    background: 'color-mix(in srgb, var(--destructive) 10%, var(--background))',
+    color: 'var(--destructive)',
+    border: '1px solid color-mix(in srgb, var(--destructive) 18%, transparent)',
   },
   info: {
     background: 'color-mix(in srgb, var(--chart-2) 12%, var(--background))',
