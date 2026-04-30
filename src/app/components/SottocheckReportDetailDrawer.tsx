@@ -197,11 +197,13 @@ export function SottocheckReportDetailDrawer({
                 <>
                   <div>
                     <div style={labelStyle}>Importo pagato</div>
-                    <div style={valueBoldStyle}>€{selectedJob.payment.amount.toFixed(2)}</div>
+                    <div style={valueBoldStyle}>
+                      €{typeof selectedJob.payment.amount === 'number' && !isNaN(selectedJob.payment.amount) ? selectedJob.payment.amount.toFixed(2) : '-'}
+                    </div>
                   </div>
                   <div>
                     <div style={labelStyle}>Data pagamento</div>
-                    <div style={valueStyle}>{selectedJob.payment.paidAt}</div>
+                    <div style={valueStyle}>{selectedJob.payment.paidAt || '-'}</div>
                   </div>
                   <div>
                     <div style={labelStyle}>Provider</div>
@@ -220,19 +222,21 @@ export function SottocheckReportDetailDrawer({
               <div style={{ textAlign: 'center' }}>
                 <div style={labelStyle}>Parole analizzate</div>
                 <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                  {selectedJob.report ? formatNumber(selectedJob.report.totalWords) : '-'}
+                  {selectedJob.report && typeof selectedJob.report.totalWords === 'number' ? formatNumber(selectedJob.report.totalWords) : '-'}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={labelStyle}>Parole escluse</div>
                 <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                  {selectedJob.report ? formatNumber(selectedJob.report.totalExcluded) : '-'}
+                  {selectedJob.report && typeof selectedJob.report.totalExcluded === 'number' ? formatNumber(selectedJob.report.totalExcluded) : '-'}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={labelStyle}>Crediti usati/attesi</div>
                 <div style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                  {selectedJob.report ? `${selectedJob.report.credits} / ${selectedJob.report.expectedCredits}` : '-'}
+                  {selectedJob.report && typeof selectedJob.report.credits === 'number' && typeof selectedJob.report.expectedCredits === 'number'
+                    ? `${selectedJob.report.credits} / ${selectedJob.report.expectedCredits}`
+                    : '-'}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
@@ -247,7 +251,7 @@ export function SottocheckReportDetailDrawer({
             </div>
           </div>
 
-          {selectedJob.report && (
+          {selectedJob.report && selectedJob.report.score && (
             <div>
               <h3 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: '1.5' }}>
                 Report
@@ -256,32 +260,32 @@ export function SottocheckReportDetailDrawer({
                 <div style={{ padding: '1rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={labelStyle}>Scan ID</div>
-                    <div style={{ ...valueBoldStyle, fontSize: '12px' }}>{selectedJob.report.scanId}</div>
+                    <div style={{ ...valueBoldStyle, fontSize: '12px' }}>{selectedJob.report.scanId || '-'}</div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div>
                       <div style={labelStyle}>Punteggio aggregato</div>
                       <div style={{ ...valueBoldStyle, color: 'var(--destructive)' }}>
-                        {selectedJob.report.score.aggregatedScore.toFixed(1)}%
+                        {typeof selectedJob.report.score.aggregatedScore === 'number' ? selectedJob.report.score.aggregatedScore.toFixed(1) + '%' : '-'}
                       </div>
                     </div>
                     <div>
                       <div style={labelStyle}>Parole identiche</div>
-                      <div style={valueBoldStyle}>{formatNumber(selectedJob.report.score.identicalWords)}</div>
+                      <div style={valueBoldStyle}>{typeof selectedJob.report.score.identicalWords === 'number' ? formatNumber(selectedJob.report.score.identicalWords) : '-'}</div>
                     </div>
                     <div>
                       <div style={labelStyle}>Modifiche minori</div>
-                      <div style={valueBoldStyle}>{formatNumber(selectedJob.report.score.minorChangedWords)}</div>
+                      <div style={valueBoldStyle}>{typeof selectedJob.report.score.minorChangedWords === 'number' ? formatNumber(selectedJob.report.score.minorChangedWords) : '-'}</div>
                     </div>
                     <div>
                       <div style={labelStyle}>Significato correlato</div>
-                      <div style={valueBoldStyle}>{formatNumber(selectedJob.report.score.relatedMeaningWords)}</div>
+                      <div style={valueBoldStyle}>{typeof selectedJob.report.score.relatedMeaningWords === 'number' ? formatNumber(selectedJob.report.score.relatedMeaningWords) : '-'}</div>
                     </div>
                   </div>
 
                   <div style={{ marginTop: '1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                    Creato il {formatDateTimeIT(selectedJob.report.creationTime)}
+                    Creato il {selectedJob.report.creationTime ? formatDateTimeIT(selectedJob.report.creationTime) : '-'}
                   </div>
                 </div>
 
