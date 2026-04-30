@@ -655,40 +655,50 @@
   padding: 0;
   font-family: Inter, sans-serif;
   height: 100%;
-  overflow-x: hidden;
-  overflow-y: hidden;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .sottocheck-preview #sc-root {
-  height: 100vh !important;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   overflow: hidden;
 }
 
 .sottocheck-preview #sc-grid {
   display: grid;
   grid-template-columns: 280px 1fr 320px;
+  grid-template-rows: 1fr;
   gap: 0.75rem;
-  flex: 1 1 0%;
+  padding: 0 0.75rem 0.75rem;
+  flex: 1 1 0;
   min-height: 0;
 }
 
 /* Toolbar */
 .sottocheck-preview .sc-preview-root {
-  display: flex;
-  flex-direction: column;
-  height: auto;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 1rem 1rem;
 }
 
 .sottocheck-preview .sc-preview-toolbar {
   display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+}
+
+.sottocheck-preview .sc-toolbar-top {
+  display: flex;
+  align-items: center;
+}
+
+.sottocheck-preview .sc-toolbar-main {
+  display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem 1rem;
-  background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   flex-wrap: wrap;
 }
 
@@ -696,20 +706,40 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--muted-foreground);
+  color: var(--foreground);
   text-decoration: none;
   font-size: var(--text-sm);
+  margin-bottom: 1rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius);
 }
 
 .sottocheck-preview .sc-title-group {
-  border-left: 1px solid var(--border);
-  padding-left: 1rem;
+  display: block;
 }
 
 .sottocheck-preview .sc-job-title {
   font-family: var(--font-alegreya);
-  font-size: var(--text-h3);
+  font-size: var(--text-h1);
   font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sottocheck-preview .sc-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-inter);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-badge);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .sottocheck-preview .sc-job-subtitle {
@@ -719,26 +749,21 @@
 
 /* KPI */
 .sottocheck-preview .sc-kpi-wrap {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(560px, 100%);
+  max-width: 720px;
   margin-left: auto;
 }
 
-.sottocheck-preview .sc-kpi-item {
-  text-align: right;
+.sottocheck-preview .sc-kpi-card {
+  min-width: 0;
 }
 
-.sottocheck-preview .sc-kpi-label {
-  font-size: 11px;
+.sottocheck-preview .sc-kpi-card .stat-icon {
+  background: var(--muted);
   color: var(--muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.sottocheck-preview .sc-kpi-value {
-  font-family: var(--font-alegreya);
-  font-size: 20px;
-  font-weight: var(--font-weight-bold);
 }
 
 /* Filters */
@@ -747,6 +772,33 @@
   gap: 0.5rem;
   align-items: center;
   width: 100%;
+}
+
+.sottocheck-preview .sc-legend-label {
+  font-family: var(--font-inter);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sottocheck-preview .sc-legend-help {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-family: var(--font-inter);
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: help;
 }
 
 .sottocheck-preview .sc-chip-identical,
@@ -794,6 +846,7 @@
 /* Left panel */
 .sottocheck-preview .sc-sources-panel {
   overflow: auto;
+  min-height: 0;
   padding: 0.75rem;
   background-color: var(--card);
   border: 1px solid var(--border);
@@ -848,6 +901,7 @@
 /* Main text panel */
 .sottocheck-preview .sc-main-panel {
   overflow: auto;
+  min-height: 0;
   padding: 1.5rem;
   background-color: var(--card);
   border: 1px solid var(--border);
@@ -875,6 +929,7 @@
 /* Right detail panel */
 .sottocheck-preview .sc-detail-panel {
   padding: 1rem;
+  min-height: 0;
   background-color: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -891,8 +946,8 @@
 
 .sottocheck-preview .sc-detail-title {
   font-family: var(--font-alegreya);
-  font-size: var(--text-h4);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-bold);
   margin-bottom: 0.25rem;
 }
 
@@ -901,9 +956,9 @@
   align-items: center;
   gap: 0.25rem;
   font-size: var(--text-sm);
-  color: var(--primary);
   text-decoration: none;
-  word-break: break-all;
+  margin-top: 0.75rem;
+  word-break: normal;
 }
 
 .sottocheck-preview .sc-detail-badges {
@@ -925,7 +980,23 @@
   font-size: var(--text-sm);
   color: var(--muted-foreground);
   font-style: italic;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
+  line-clamp: 3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sottocheck-preview .sc-detail-description.expanded {
+  display: block;
+  overflow: visible;
+}
+
+.sottocheck-preview .sc-desc-toggle {
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .sottocheck-preview .sc-detail-divider {
@@ -1055,6 +1126,8 @@
   .sottocheck-preview {
     height: auto;
     overflow-y: auto;
+    overflow-x: hidden;
+    margin-left: 0;
   }
 
   .sottocheck-preview #sc-root {
@@ -1062,17 +1135,63 @@
     overflow: visible !important;
   }
 
+  .sottocheck-preview .sc-preview-root {
+    padding: 0;
+    gap: 1rem;
+  }
+
+  .sottocheck-preview .sc-preview-toolbar {
+    padding: 0 1rem;
+    margin: 0;
+  }
+
+  .sottocheck-preview .sc-back-link {
+    margin-bottom: 0.5rem;
+  }
+
+  .sottocheck-preview .sc-job-title {
+    font-size: var(--text-h3);
+    flex-wrap: wrap;
+  }
+
+  .sottocheck-preview .sc-role-badge {
+    font-size: var(--text-label);
+  }
+
+  .sottocheck-preview .sc-filter-row {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .sottocheck-preview .sc-kpi-wrap {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .sottocheck-preview .sc-show-all-btn {
+    order: 10;
+    width: 100%;
+  }
+
+  .sottocheck-preview .sc-chip-identical,
+  .sottocheck-preview .sc-chip-minor,
+  .sottocheck-preview .sc-chip-semantic {
+    font-size: var(--text-label);
+    padding: 0.25rem 0.5rem;
+  }
+
   .sottocheck-preview #sc-grid {
     grid-template-columns: 1fr;
     flex: none;
     min-height: 0;
     overflow: visible;
+    padding: 1rem 1rem 1rem 1rem;
   }
 
   .sottocheck-preview #sc-sources {
     order: -1;
     overflow: auto;
-    max-height: 160px;
+    max-height: 220px;
   }
 
   .sottocheck-preview #sc-main {

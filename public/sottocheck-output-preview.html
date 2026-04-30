@@ -1,17 +1,68 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sottocheck Output Preview</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/src/styles/theme.css">
-<link rel="stylesheet" href="/src/styles/dashboard.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sottocheck Output Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Inter:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles/theme.css">
+    <link rel="stylesheet" href="/src/styles/dashboard.css">
 </head>
+
 <body class="sottocheck-preview">
-<div id="sc-root" class="sc-preview-root"><div class="sc-preview-toolbar"><a id="sc-back" class="sc-back-link" href="#"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> Torna alle lavorazioni</a><div class="sc-title-group"><div class="sc-job-title">JOB-003 — Paolo Russo</div><div class="sc-job-subtitle">Check Plagio/AI</div></div><div class="sc-kpi-wrap"><div class="sc-kpi-item"><div class="sc-kpi-label">Plagio</div><div class="sc-kpi-value">98.6%</div></div><div class="sc-kpi-item"><div class="sc-kpi-label">AI</div><div class="sc-kpi-value">0.0%</div></div></div><div class="sc-filter-row"><button class="sc-chip-identical"><span class="sc-chip-dot-identical"></span>Identico</button><button class="sc-chip-minor"><span class="sc-chip-dot-minor"></span>Modifiche minori</button><button class="sc-chip-semantic"><span class="sc-chip-dot-semantic"></span>Significato correlato</button><button class="sc-show-all-btn">Mostra tutte le fonti (X — Output — Strategia di comunicazione  attiva)</button></div></div><div id="sc-backdrop"></div><div id="sc-grid"><aside id="sc-sources" class="sc-sources-panel"><div class="sc-panel-label">Fonti (1)</div><ul class="sc-source-list"><li><button class="sc-source-item-btn"><div class="sc-source-item-title">X — Output — Strategia di comunicazione | PDF</div><div class="sc-source-item-meta">1367 parole · 1245 identiche · 0 paraf.</div></button></li></ul></aside><main id="sc-main" class="sc-main-panel"><pre class="sc-document-text"><span>l
+    <div id="sc-root" class="sc-preview-root">
+        <div class="sc-preview-toolbar">
+            <div class="sc-toolbar-top"><a id="sc-back" class="sc-back-link btn btn-secondary" href="#"><svg
+                        xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-arrow-left" aria-hidden="true">
+                        <path d="m12 19-7-7 7-7"></path>
+                        <path d="M19 12H5"></path>
+                    </svg> Torna alla lista check</a></div>
+            <div class="sc-toolbar-main">
+                <div class="sc-title-group">
+                    <div class="sc-job-title">JOB-003 — Paolo Russo </div>
+                    <div class="sc-job-subtitle">Check Plagio/AI &nbsp;·&nbsp; Avviato il 14 apr 2026 da Francesca <span class="sc-role-badge">Admin</span></div>
+                </div>
+                <div class="sc-kpi-wrap">
+                    <div class="stat-card sc-kpi-card">
+                        <div class="stat-header"><span class="stat-label">Plagio</span><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></div></div>
+                        <div class="stat-value">98.6%</div>
+                    </div>
+                    <div class="stat-card sc-kpi-card">
+                        <div class="stat-header"><span class="stat-label">AI</span><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div></div>
+                        <div class="stat-value">0.0%</div>
+                    </div>
+                </div>
+                <div class="sc-filter-row"><span class="sc-legend-label">Legenda:</span><button class="sc-legend-help"
+                        type="button" aria-label="Info legenda"
+                        title="I colori evidenziano il tipo di match nel testo: identico, modifiche minori, significato correlato.">i</button><button
+                        class="sc-chip-identical"><span class="sc-chip-dot-identical"></span>Identico</button><button
+                        class="sc-chip-minor"><span class="sc-chip-dot-minor"></span>Modifiche minori</button><button
+                        class="sc-chip-semantic"><span class="sc-chip-dot-semantic"></span>Significato
+                        correlato</button><button class="sc-show-all-btn">Mostra tutte le fonti (X — Output — Strategia
+                        di comunicazione attiva)</button></div>
+            </div>
+        </div>
+        <div id="sc-backdrop"></div>
+        <div id="sc-grid">
+                <aside id="sc-sources" class="sc-sources-panel">
+                    <div class="sc-panel-label">Fonti (1)</div>
+                    <ul class="sc-source-list">
+                        <li><button class="sc-source-item-btn">
+                                <div class="sc-source-item-title">X — Output — Strategia di comunicazione | PDF</div>
+                                <div class="sc-source-item-meta">1367 parole · 1245 identiche · 0 paraf.</div>
+                            </button></li>
+                    </ul>
+                </aside>
+                <main id="sc-main" class="sc-main-panel">
+                    <pre
+                        class="sc-document-text"><span>l
 
 Persi, tra meteore imprevedibili,
 ci siamo ritrovati costellazione.
@@ -218,67 +269,133 @@ La Scuola Open Source
 XYZ 2020
 Gruppo X
 
-</mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark></pre></main><aside id="sc-detail" class="sc-detail-panel"><button id="sc-detail-close" type="button" onclick="closeDetail()" title="Chiudi" aria-label="Chiudi drawer"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><div class="sc-detail-label">Fonte selezionata</div><div class="sc-detail-title">X — Output — Strategia di comunicazione | PDF</div><a href="https://www.slideshare.net/slideshow/x-output-strategia-di-comunicazione/238694598" target="_blank" rel="noopener noreferrer" class="sc-detail-link"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-external-link" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg> Apri fonte</a><div class="sc-detail-badges"><span class="sc-detail-badge">1367 parole</span><span class="sc-detail-badge">1245 ident.</span><span class="sc-detail-badge">0 paraf.</span></div><p class="sc-detail-description">Uploaded byLa Scuola Open Source 317 views X — Output — Strategia di comunicazione Il documento è una strategia di comunicazione e...</p><div class="sc-detail-divider"><div class="sc-detail-section-title">Match nel documento</div><div class="sc-match-group"><div class="sc-match-group-head"><span class="sc-match-dot-identical"></span><span class="sc-match-group-title">Identico (87)</span></div><ul class="sc-match-list"><li class="sc-match-item-mono">"stellare che irradia luce. Questa immagine rappresenta la
-ge…"</li><li class="sc-match-item-mono">"ta bene: consigliamo di non abusare della terminologia legat…"</li><li class="sc-match-item-mono">"lessico meno metaforico.
+</mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Modifiche minori — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-minor"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark><span></span><mark title="Identico — X — Output — Strategia di comunicazione | PDF" class="sc-highlight-identical"></mark></pre>
+                </main>
+                <aside id="sc-detail" class="sc-detail-panel"><button id="sc-detail-close" type="button"
+                        onclick="closeDetail()" title="Chiudi" aria-label="Chiudi drawer"><svg
+                            xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg></button>
+                    <div class="sc-detail-label">Fonte selezionata</div>
+                    <div class="sc-detail-title">X — Output — Strategia di comunicazione | PDF</div><a
+                        href="https://www.slideshare.net/slideshow/x-output-strategia-di-comunicazione/238694598"
+                        target="_blank" rel="noopener noreferrer" class="sc-detail-link btn btn-secondary"><svg
+                            xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-external-link" aria-hidden="true">
+                            <path d="M15 3h6v6"></path>
+                            <path d="M10 14 21 3"></path>
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        </svg> Apri fonte</a>
+                    <div class="sc-detail-badges"><span class="sc-detail-badge">1367 parole</span><span
+                            class="sc-detail-badge">1245 ident.</span><span class="sc-detail-badge">0 paraf.</span>
+                    </div>
+                    <div class="sc-detail-description-wrap">
+                        <p class="sc-detail-description" id="sc-desc-text">Uploaded byLa Scuola Open Source 317 views X — Output — Strategia
+                        di comunicazione Il documento è una strategia di comunicazione e propaganda realizzato per il nuovo centro culturale nòva durante la residenza di progettazione partecipata XYZ. Contiene spunti, proposte e linee guida per costruire e promuovere un immaginario in cui calare e posizionare nòva e le sue attività.</p>
+                        <button class="sc-desc-toggle btn btn-secondary" id="sc-desc-toggle" type="button" onclick="(function(){var p=document.getElementById('sc-desc-text'),b=document.getElementById('sc-desc-toggle');var exp=p.classList.toggle('expanded');b.textContent=exp?'Riduci':'Mostra tutto';})();">Mostra tutto</button>
+                    </div>
+                    <div class="sc-detail-divider">
+                        <div class="sc-detail-section-title">Match nel documento</div>
+                        <div class="sc-match-group">
+                            <div class="sc-match-group-head"><span class="sc-match-dot-identical"></span><span
+                                    class="sc-match-group-title">Identico (87)</span></div>
+                            <ul class="sc-match-list">
+                                <li class="sc-match-item-mono">"stellare che irradia luce. Questa immagine rappresenta
+                                    la
+                                    ge…"</li>
+                                <li class="sc-match-item-mono">"ta bene: consigliamo di non abusare della terminologia
+                                    legat…"</li>
+                                <li class="sc-match-item-mono">"lessico meno metaforico.
 
-La Scuola Open Source
-XYZ 2020
-Gru…"</li><li class="sc-match-item-mono">"ipartimento di design del team X ha creato un
-sistema flessi…"</li><li class="sc-match-item-mono">" ‘D’.
-Grazie al GTL, fino a oggi abbiamo innescato 104.976 e…"</li><li class="sc-match-item-mono">"dalle possibili permutazioni delle 4 u"</li><li class="sc-match-item-mono">"à del logo di nòva. Tutte
-le texture e le esplosio"</li><li class="sc-match-item-mono">"binano liberamente in"</li><li class="sc-match-item-muted">+ altri 79 match</li></ul></div><div class="sc-match-group"><div class="sc-match-group-head"><span class="sc-match-dot-minor"></span><span class="sc-match-group-title">Modifiche minori (8)</span></div><ul class="sc-match-list"><li class="sc-match-item-mono">" comunicazione locale.
-ESPLOSIONI APPASSIONANTI: nòva nasce …"</li><li class="sc-match-item-mono">" singoli caratteri,
-le stanghette della ‘A’ oppure la pancia…"</li><li class="sc-match-item-mono">"mento.
-Durante XYZ 2020, la procedura di installazione del G…"</li><li class="sc-match-item-mono">"…"</li><li class="sc-match-item-mono">"…"</li><li class="sc-match-item-mono">"…"</li><li class="sc-match-item-mono">""</li><li class="sc-match-item-mono">""</li></ul></div></div></aside></div></div><script>
-// Back navigation via postMessage to parent React app
-document.getElementById('sc-back').addEventListener('click', function(e) {
-  e.preventDefault();
-  if (window.parent !== window) {
-    window.parent.location.href = '/#/sottocheck/lavorazioni';
-    return;
-  }
-  window.location.href = '/#/sottocheck/lavorazioni';
-});
+                                    La Scuola Open Source
+                                    XYZ 2020
+                                    Gru…"</li>
+                                <li class="sc-match-item-mono">"ipartimento di design del team X ha creato un
+                                    sistema flessi…"</li>
+                                <li class="sc-match-item-mono">" ‘D’.
+                                    Grazie al GTL, fino a oggi abbiamo innescato 104.976 e…"</li>
+                                <li class="sc-match-item-mono">"dalle possibili permutazioni delle 4 u"</li>
+                                <li class="sc-match-item-mono">"à del logo di nòva. Tutte
+                                    le texture e le esplosio"</li>
+                                <li class="sc-match-item-mono">"binano liberamente in"</li>
+                                <li class="sc-match-item-muted">+ altri 79 match</li>
+                            </ul>
+                        </div>
+                        <div class="sc-match-group">
+                            <div class="sc-match-group-head"><span class="sc-match-dot-minor"></span><span
+                                    class="sc-match-group-title">Modifiche minori (8)</span></div>
+                            <ul class="sc-match-list">
+                                <li class="sc-match-item-mono">" comunicazione locale.
+                                    ESPLOSIONI APPASSIONANTI: nòva nasce …"</li>
+                                <li class="sc-match-item-mono">" singoli caratteri,
+                                    le stanghette della ‘A’ oppure la pancia…"</li>
+                                <li class="sc-match-item-mono">"mento.
+                                    Durante XYZ 2020, la procedura di installazione del G…"</li>
+                                <li class="sc-match-item-mono">"…"</li>
+                                <li class="sc-match-item-mono">"…"</li>
+                                <li class="sc-match-item-mono">"…"</li>
+                                <li class="sc-match-item-mono">""</li>
+                                <li class="sc-match-item-mono">""</li>
+                            </ul>
+                        </div>
+                    </div>
+                </aside>
+        </div>
+        <script>
+            // Back navigation via postMessage to parent React app
+            document.getElementById('sc-back').addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.parent !== window) {
+                    window.parent.location.href = '/#/sottocheck/lavorazioni';
+                    return;
+                }
+                window.location.href = '/#/sottocheck/lavorazioni';
+            });
 
-// Notify parent of content height so iframe can resize
-function reportHeight() {
-  var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-  if (window.parent !== window) {
-    window.parent.postMessage({ type: 'sc-height', height: h }, '*');
-  }
-}
-window.addEventListener('load', function () { reportHeight(); setTimeout(reportHeight, 300); });
-window.addEventListener('resize', reportHeight);
+            // Notify parent of content height so iframe can resize
+            function reportHeight() {
+                var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'sc-height', height: h }, '*');
+                }
+            }
+            window.addEventListener('load', function () { reportHeight(); setTimeout(reportHeight, 300); });
+            window.addEventListener('resize', reportHeight);
 
-// Detail drawer: open/close helpers
-function openDetail() {
-  var detail = document.getElementById('sc-detail');
-  var backdrop = document.getElementById('sc-backdrop');
-  detail.classList.add('open');
-  backdrop.classList.add('open');
-  // height may change after drawer opens
-  setTimeout(reportHeight, 300);
-}
+            // Detail drawer: open/close helpers
+            function openDetail() {
+                var detail = document.getElementById('sc-detail');
+                var backdrop = document.getElementById('sc-backdrop');
+                detail.classList.add('open');
+                backdrop.classList.add('open');
+                // height may change after drawer opens
+                setTimeout(reportHeight, 300);
+            }
 
-function closeDetail() {
-  var detail = document.getElementById('sc-detail');
-  var backdrop = document.getElementById('sc-backdrop');
-  detail.classList.remove('open');
-  backdrop.classList.remove('open');
-  setTimeout(reportHeight, 300);
-}
+            function closeDetail() {
+                var detail = document.getElementById('sc-detail');
+                var backdrop = document.getElementById('sc-backdrop');
+                detail.classList.remove('open');
+                backdrop.classList.remove('open');
+                setTimeout(reportHeight, 300);
+            }
 
-// Backdrop click closes detail
-document.getElementById('sc-backdrop').addEventListener('click', closeDetail);
+            // Backdrop click closes detail
+            document.getElementById('sc-backdrop').addEventListener('click', closeDetail);
 
-// Mark elements: click opens detail panel
-document.querySelectorAll('mark').forEach(function(mark) {
-  mark.addEventListener('click', function() {
-    if (window.matchMedia('(max-width: 1024px)').matches) {
-      openDetail();
-    }
-  });
-});
-</script>
+            // Mark elements: click opens detail panel
+            document.querySelectorAll('mark').forEach(function (mark) {
+                mark.addEventListener('click', function () {
+                    if (window.matchMedia('(max-width: 1024px)').matches) {
+                        openDetail();
+                    }
+                });
+            });
+        </script>
 </body>
+
 </html>
