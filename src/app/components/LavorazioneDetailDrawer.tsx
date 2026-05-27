@@ -1053,7 +1053,7 @@ export function LavorazioneDetailDrawer({
                   const isFattura = payout.document_type === 'fattura';
                   const issueDate = getPayoutIssueDate(payout);
                   const documentLabel = isFattura ? 'Fattura' : 'Notula';
-                  const scad = computeScad45gg(payout, serviceEndDate);
+                  const scad = computeScad45gg(payout);
                   const isDirty = dirtyPayoutIds.has(payout.id);
                   return (
                     <div key={payout.id} style={{
