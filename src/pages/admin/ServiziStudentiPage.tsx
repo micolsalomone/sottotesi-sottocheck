@@ -1161,6 +1161,15 @@ export function ServiziStudentiPage() {
       minute: '2-digit',
     });
   };
+  const getActivePlanOverdueDays = (service: StudentService): number | null => {
+    if (service.status !== 'active' || !service.plan_end_date) return null;
+    const planEnd = toDayDate(service.plan_end_date);
+    if (!planEnd) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (planEnd.getTime() >= today.getTime()) return null;
+    return Math.floor((today.getTime() - planEnd.getTime()) / 86400000);
+  };
   const updatePayoutField = (serviceId: string, field: Partial<CoachPayout>) => {
     updateService(serviceId, s => {
       const currentPrimary = s.coach_payouts?.[0] || s.coach_payout || createDefaultCoachPayout(serviceId);
@@ -3004,14 +3013,55 @@ export function ServiziStudentiPage() {
                             style={{ width: '120px', ...inlineInputStyle }}
                           />
                         ) : (
-                          <div
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', color: service.plan_end_date ? 'var(--foreground)' : 'var(--muted-foreground)' }}
-                            onClick={() => { setEditingExpiresAt(service.id); setExpiresAtInput(service.plan_end_date || ''); }}
-                            title="Clicca per modificare scadenza piano"
-                          >
-                            <span>{service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}</span>
-                            <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
-                          </div>
+                          (() => {
+                            const overdueDays = getActivePlanOverdueDays(service);
+                            const isOverdueActivePlan = overdueDays !== null;
+                            return (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'flex-start',
+                                  gap: '0.125rem',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    cursor: 'pointer',
+                                    color: isOverdueActivePlan
+                                      ? 'var(--destructive)'
+                                      : service.plan_end_date
+                                      ? 'var(--foreground)'
+                                      : 'var(--muted-foreground)',
+                                    fontWeight: isOverdueActivePlan ? ('var(--font-weight-semibold)' as any) : undefined,
+                                  }}
+                                  onClick={() => { setEditingExpiresAt(service.id); setExpiresAtInput(service.plan_end_date || ''); }}
+                                  title="Clicca per modificare scadenza piano"
+                                >
+                                  <span>{service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}</span>
+                                  <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+                                </div>
+                                {isOverdueActivePlan && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontFamily: 'var(--font-inter)',
+                                    fontSize: '10px',
+                                    fontWeight: 'var(--font-weight-medium)',
+                                    color: 'var(--destructive)',
+                                    lineHeight: '1.4',
+                                  }}>
+                                    <AlertTriangle size={10} />
+                                    Scaduto da {overdueDays}g
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()
                         )}
                       </TableCell>
                       <TableCell style={{ minWidth: columnWidths.servizio, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('servizio') }}>
@@ -3562,6 +3612,30 @@ export function ServiziStudentiPage() {
                   </span>
                 )}
               </div>
+              {service.service_category !== 'Check plagio/AI' && (() => {
+                const overdueDays = getActivePlanOverdueDays(service);
+                const isOverdueActivePlan = overdueDays !== null;
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
+                    <span>Scadenza piano:</span>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      color: isOverdueActivePlan ? 'var(--destructive)' : service.plan_end_date ? 'var(--foreground)' : 'var(--muted-foreground)',
+                      fontWeight: isOverdueActivePlan ? ('var(--font-weight-semibold)' as any) : undefined,
+                    }}>
+                      {service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}
+                      {isOverdueActivePlan && (
+                        <>
+                          <AlertTriangle size={11} />
+                          <span style={{ fontSize: '11px' }}>+{overdueDays}g</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
                 <span>Note</span>
                 {(() => {
