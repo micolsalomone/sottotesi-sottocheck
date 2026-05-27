@@ -365,6 +365,16 @@ export function LavorazioneDetailDrawer({
   const pipeline = (pipelines || []).find(p => p.id === service.pipeline_id || p.student_id === service.student_id);
   const quote = pipeline?.quotes?.find(q => q.id === service.quote_id);
 
+  const resolveQuoteGrossAmount = (q: { id: string; number: string; amount_gross?: number }): number | null => {
+    if (typeof q.amount_gross === 'number' && q.amount_gross > 0) return q.amount_gross;
+
+    const hasSingleQuoteInPipeline = (pipeline?.quotes?.length || 0) === 1;
+    const isLinkedQuote = q.id === service.quote_id || q.number === service.quote_id;
+    if ((isLinkedQuote || hasSingleQuoteInPipeline) && displayedLordo > 0) return displayedLordo;
+
+    return null;
+  };
+
   if (!isOpen) return null;
 
   // ─── Header actions: status select ───────────────────────
@@ -1330,6 +1340,7 @@ export function LavorazioneDetailDrawer({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {pipeline.quotes.map(q => {
                   const lifecycleLabel = getQuoteLifecycleLabel(q);
+                  const quoteGrossAmount = resolveQuoteGrossAmount(q);
                   return (
                   <div key={q.id} style={{ 
                     padding: '0.625rem', 
@@ -1365,14 +1376,14 @@ export function LavorazioneDetailDrawer({
                         backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
                           ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
                           : lifecycleLabel === 'Scaduto'
-                            ? 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)'
+                            ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
                             : lifecycleLabel === 'In scadenza'
                               ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
                             : 'var(--muted)',
                         color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
                           ? 'var(--primary)'
                           : lifecycleLabel === 'Scaduto'
-                            ? 'var(--destructive-foreground)'
+                            ? 'var(--destructive)'
                             : lifecycleLabel === 'In scadenza'
                               ? 'var(--chart-3)'
                             : 'var(--muted-foreground)',
@@ -1383,10 +1394,10 @@ export function LavorazioneDetailDrawer({
                         {lifecycleLabel.toUpperCase()}
                       </span>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '0.25rem', lineHeight: '1.5' }}>
-                      {typeof q.amount_gross === 'number' && q.amount_gross > 0
-                        ? `Lordo €${q.amount_gross.toLocaleString('it-IT')} · `
-                        : ''}
+                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                      {quoteGrossAmount !== null
+                        ? `Lordo €${quoteGrossAmount.toLocaleString('it-IT')} · `
+                        : 'Lordo non definito in pipeline · '}
                       {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
                       {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
                     </div>
@@ -1472,22 +1483,30 @@ export function LavorazioneDetailDrawer({
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Rif. preventivo</label>
                   {quote ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={drawerReadonlyValueStyle}>{quote.number}</span>
-                      <span style={{ 
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '9px', 
-                        padding: '1px 5px', 
-                        borderRadius: 'var(--radius-badge)', 
-                        backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-                        color: 'var(--primary)',
-                        fontWeight: 'var(--font-weight-semibold)',
-                        border: '1px solid var(--primary)',
-                        letterSpacing: '0.025em',
-                        lineHeight: '1.6',
-                      }}>
-                        {quote.status.toUpperCase()}
-                      </span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={drawerReadonlyValueStyle}>{quote.number}</span>
+                        <span style={{ 
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: '9px', 
+                          padding: '1px 5px', 
+                          borderRadius: 'var(--radius-badge)', 
+                          backgroundColor: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+                          color: 'var(--primary)',
+                          fontWeight: 'var(--font-weight-semibold)',
+                          border: '1px solid var(--primary)',
+                          letterSpacing: '0.025em',
+                          lineHeight: '1.6',
+                        }}>
+                          {quote.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                        Importo: {(() => {
+                          const amount = resolveQuoteGrossAmount(quote);
+                          return amount !== null ? `€${amount.toLocaleString('it-IT')}` : 'non definito in pipeline';
+                        })()}
+                      </div>
                     </div>
                   ) : (
                     <span style={drawerReadonlyValueStyle}>{service.quote_id || '—'}</span>
