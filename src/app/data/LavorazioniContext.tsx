@@ -92,6 +92,8 @@ export const ADMIN_USERS = [
 // ─── Coach Payout types ─────────────────────────────────────
 export type PayoutStatus = 'pending_invoice' | 'waiting_due_date' | 'ready_to_pay' | 'paid' | 'disputed';
 export type TaxRate = 0 | 4 | 22;
+export const PAYMENT_METHOD_OPTIONS = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHOD_OPTIONS)[number];
 
 export interface CoachPayout {
   id: string;
@@ -108,6 +110,7 @@ export interface CoachPayout {
   payment_due_date?: string;
   status: PayoutStatus;
   paid_at?: string;
+  payment_method?: string;
   payment_reference?: string;
 }
 
@@ -197,6 +200,8 @@ export interface Installment {
   status: InstallmentStatus;
   net_tax_rate?: TaxRate;
   invoice_number?: string;
+  payment_reference?: string;
+  payment_method?: string;
   invoice?: Invoice;
   payment?: Payment;
 }
@@ -394,23 +399,86 @@ const LEGACY_TIMELINE_ID_BY_STUDENT_NAME: Record<string, string> = {
   'Alex Johnson': 'S-052',
 };
 
-const hydrateServiceWithLegacySharedData = (service: StudentService): StudentService => {
-  if (service.coaching_timeline_full?.length || service.shared_documents?.length) {
-    return service;
-  }
+const LEGACY_PAYMENT_METHOD_MAP: Record<string, PaymentMethod> = {
+  'manuale': 'Manuale',
+  'bonifico': 'Bonifico',
+  'bonifico bancario': 'Bonifico',
+  'carta': 'Carta',
+  'carta di credito': 'Carta',
+  'carta di debito': 'Carta',
+  'contanti': 'Contanti',
+  'paypal': 'PayPal',
+  'satispay': 'Satispay',
+  'altro': 'Altro',
+};
 
-  const legacyTimelineId = LEGACY_TIMELINE_ID_BY_STUDENT_NAME[service.student_name];
-  if (!legacyTimelineId) {
-    return service;
-  }
+const normalizePaymentMethod = (method?: string): PaymentMethod | undefined => {
+  if (!method) return undefined;
+  const normalized = LEGACY_PAYMENT_METHOD_MAP[method.trim().toLowerCase()];
+  return normalized || 'Altro';
+};
 
-  const legacyBundle = getStudentTimeline(legacyTimelineId, service.student_name);
-  if (!legacyBundle.steps.length && !legacyBundle.documents.length) {
-    return service;
-  }
+const normalizeServicePaymentMethods = (service: StudentService): StudentService => {
+  let hasChanges = false;
+
+  const normalizedInstallments = service.installments.map(inst => {
+    const normalizedMethod = normalizePaymentMethod(inst.payment_method ?? inst.payment?.method);
+    const nextPayment = inst.payment && normalizedMethod && inst.payment.method !== normalizedMethod
+      ? { ...inst.payment, method: normalizedMethod }
+      : inst.payment;
+
+    const shouldUpdateMethodField = normalizedMethod && inst.payment_method !== normalizedMethod;
+    const changed = shouldUpdateMethodField || nextPayment !== inst.payment;
+    if (!changed) return inst;
+
+    hasChanges = true;
+    return {
+      ...inst,
+      payment_method: normalizedMethod,
+      payment: nextPayment,
+    };
+  });
+
+  const normalizePayout = (payout?: CoachPayout): CoachPayout | undefined => {
+    if (!payout) return payout;
+    const normalizedMethod = normalizePaymentMethod(payout.payment_method);
+    if (!normalizedMethod || payout.payment_method === normalizedMethod) return payout;
+    hasChanges = true;
+    return { ...payout, payment_method: normalizedMethod };
+  };
+
+  const normalizedPrimaryPayout = normalizePayout(service.coach_payout);
+  const normalizedPayouts = service.coach_payouts?.map(payout => normalizePayout(payout) || payout);
+
+  if (!hasChanges) return service;
 
   return {
     ...service,
+    installments: normalizedInstallments,
+    coach_payout: normalizedPrimaryPayout,
+    coach_payouts: normalizedPayouts,
+  };
+};
+
+const hydrateServiceWithLegacySharedData = (service: StudentService): StudentService => {
+  const normalizedService = normalizeServicePaymentMethods(service);
+
+  if (normalizedService.coaching_timeline_full?.length || normalizedService.shared_documents?.length) {
+    return normalizedService;
+  }
+
+  const legacyTimelineId = LEGACY_TIMELINE_ID_BY_STUDENT_NAME[normalizedService.student_name];
+  if (!legacyTimelineId) {
+    return normalizedService;
+  }
+
+  const legacyBundle = getStudentTimeline(legacyTimelineId, normalizedService.student_name);
+  if (!legacyBundle.steps.length && !legacyBundle.documents.length) {
+    return normalizedService;
+  }
+
+  return {
+    ...normalizedService,
     coaching_timeline_full: legacyBundle.steps,
     shared_documents: legacyBundle.documents,
   };
