@@ -2376,10 +2376,7 @@ export function ServiziStudentiPage() {
                   <TableHeaderBaseCell
                     style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none' }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Scadenza</span>
-                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 'var(--font-weight-medium)' }}>Timeline</span>
-                    </div>
+                    <span>Scadenza</span>
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>

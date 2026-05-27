@@ -1279,7 +1279,7 @@ export function LavorazioneDetailDrawer({
                         </div>
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Scadenza 45gg</div>
-                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center', color: status === 'pagata' ? 'var(--foreground)' : scad && scad.daysLeft <= 0 ? 'var(--destructive-foreground)' : scad && scad.daysLeft <= 7 ? getNotulaStatusColor(status) : 'var(--foreground)' }}>
+                          <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center', color: status === 'pagata' ? 'var(--foreground)' : scad && scad.daysLeft <= 0 ? 'var(--destructive)' : scad && scad.daysLeft <= 7 ? getNotulaStatusColor(status) : 'var(--foreground)' }}>
                             {scad ? (
                               <>
                                 {scad.date}
