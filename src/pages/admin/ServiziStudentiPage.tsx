@@ -77,6 +77,8 @@ interface ScadenzarioItem {
   isOverdue: boolean;
   noteCount: number;
   detailLabel: string;
+  referenceLabel: 'Pagamento' | 'Rata' | 'Payout';
+  referenceCode: string;
   paidAt?: string;
   paymentMethod?: string;
   taxRate?: TaxRate;
@@ -407,7 +409,6 @@ export function ServiziStudentiPage() {
     pagatoIl: 120,
     rifPag: 180,
     // Scadenzario columns
-    scadNumero: 72,
     scadInteressato: 240,
     scadLavorazione: 220,
     scadLordo: 110,
@@ -1296,6 +1297,8 @@ export function ServiziStudentiPage() {
           isOverdue,
           noteCount: getNotesCount(service.id),
           detailLabel: `Rata ${idx + 2}/${service.installments.length}`,
+          referenceLabel: inst.payment?.id ? 'Pagamento' : 'Rata',
+          referenceCode: inst.payment?.id || inst.id,
           paidAt: inst.payment?.paidAt,
           paymentMethod: inst.payment_method || inst.payment?.method,
           taxRate: installmentTaxRate,
@@ -1331,6 +1334,8 @@ export function ServiziStudentiPage() {
           isOverdue,
           noteCount: getNotesCount(service.id),
           detailLabel: payout?.document_type === 'fattura' ? 'Compenso coach (fattura)' : 'Compenso coach (notula)',
+          referenceLabel: 'Payout',
+          referenceCode: payout?.id || `CP-${service.id}`,
           paidAt: payout?.paid_at,
           paymentMethod: payout?.payment_method,
           taxRate: payoutTaxRate,
@@ -1581,29 +1586,6 @@ export function ServiziStudentiPage() {
       saldoLordo: entrateLordo - usciteLordo,
       saldoNetto: entrateNetto - usciteNetto,
     };
-  }, [filteredScadenzarioItems]);
-
-  const scadRowNumberById = useMemo(() => {
-    const map = new Map<string, number>();
-    const chronologicallySorted = [...filteredScadenzarioItems].sort((a, b) => {
-      const aDue = toDayDate(a.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-      const bDue = toDayDate(b.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-      if (aDue !== bDue) return aDue - bDue;
-
-      const byStudent = a.studentName.localeCompare(b.studentName, 'it');
-      if (byStudent !== 0) return byStudent;
-
-      const byService = a.serviceName.localeCompare(b.serviceName, 'it');
-      if (byService !== 0) return byService;
-
-      return a.id.localeCompare(b.id, 'it');
-    });
-
-    chronologicallySorted.forEach((item, idx) => {
-      map.set(item.id, idx + 1);
-    });
-
-    return map;
   }, [filteredScadenzarioItems]);
 
   const scadPaymentOverview = useMemo(() => {
@@ -2487,13 +2469,9 @@ export function ServiziStudentiPage() {
         ) : (
         <ResponsiveTableLayout
           desktop={(
-            <TableRoot minWidth="1272px">
+            <TableRoot minWidth="1200px">
               <thead>
                 <TableRow>
-                  <TableHeaderBaseCell style={{ width: `${columnWidths.scadNumero}px`, textAlign: 'center', position: 'relative', userSelect: 'none' }}>
-                    <span>N.</span>
-                    {resizeHandle('scadNumero')}
-                  </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadInteressato}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Interessato</span>
                     {resizeHandle('scadInteressato')}
@@ -2537,7 +2515,7 @@ export function ServiziStudentiPage() {
               {scadenzarioGroups.map((group) => (
                 <tbody key={group.key}>
                   <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-                    <TableCell colSpan={3} style={{ padding: '0.5rem 1rem' }}>
+                    <TableCell colSpan={2} style={{ padding: '0.5rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
                           {group.label}
@@ -2587,9 +2565,6 @@ export function ServiziStudentiPage() {
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
-                          <TableCell style={{ minWidth: columnWidths.scadNumero, textAlign: 'center', fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--muted-foreground)' }}>
-                            {scadRowNumberById.get(item.id)}
-                          </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadInteressato }}>
                             <div style={{ fontFamily: 'var(--font-inter)' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -2597,6 +2572,9 @@ export function ServiziStudentiPage() {
                                   {scadDirectPartyLabel(item)}
                                 </div>
                                 {scadDirectPartyBadge(item)}
+                              </div>
+                              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.5', marginTop: '0.15rem' }}>
+                                {item.referenceLabel}: {item.referenceCode}
                               </div>
                             </div>
                           </TableCell>
@@ -2758,6 +2736,9 @@ export function ServiziStudentiPage() {
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                             <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{scadDirectPartyLabel(item)}</div>
                             {scadDirectPartyBadge(item)}
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                            {item.referenceLabel}: {item.referenceCode}
                           </div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{item.serviceName}</div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
