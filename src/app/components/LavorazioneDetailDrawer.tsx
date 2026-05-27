@@ -64,6 +64,8 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
   expired: 'Scaduto',
 };
 
+const PAYMENT_METHOD_OPTIONS = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'] as const;
+
 type NotulaWorkflowStatus = 'da_programmare' | 'da_pagare' | 'pagata';
 
 const createDefaultCoachPayout = (serviceId: string, idSuffix = `${Date.now()}`): CoachPayout => ({
@@ -352,8 +354,8 @@ export function LavorazioneDetailDrawer({
     const scad = computeScad45gg(p, serviceEndDate);
     return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft > 0 && scad.daysLeft <= 7;
   }).length;
-  const coachCompensoLordo = roundToCents(syncedCoachPayouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
-  const coachCompensoNetto = roundToCents(syncedCoachPayouts.reduce((sum, p) => {
+  const coachCompensoImponibile = roundToCents(syncedCoachPayouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
+  const coachCompensoLordoTotale = roundToCents(syncedCoachPayouts.reduce((sum, p) => {
     const rate = normalizeTaxRate(p.tax_rate ?? 0);
     return sum + (p.notula_amount || 0) * (1 + rate / 100);
   }, 0));
@@ -818,7 +820,13 @@ export function LavorazioneDetailDrawer({
                               const updated = localInstallments.map(i => {
                                 if (i.id !== inst.id) return i;
                                 if (i.status === 'paid') return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
-                                return { ...i, status: 'paid' as InstallmentStatus, payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Bonifico' } };
+                                const method = i.payment_method || i.payment?.method || 'Bonifico';
+                                return {
+                                  ...i,
+                                  status: 'paid' as InstallmentStatus,
+                                  payment_method: method,
+                                  payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method },
+                                };
                               });
                               setLocalInstallments(updated);
                               markInstDirty(inst.id);
@@ -936,7 +944,55 @@ export function LavorazioneDetailDrawer({
                             style={{ ...drawerInputStyle, color: inst.status === 'paid' ? 'var(--primary)' : undefined }}
                             value={inst.payment?.paidAt || ''}
                             onChange={(e) => {
-                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, payment: i.payment ? { ...i.payment, paidAt: e.target.value } : { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: e.target.value, method: 'Bonifico' } } : i);
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                const method = i.payment_method || i.payment?.method || 'Bonifico';
+                                return {
+                                  ...i,
+                                  payment_method: method,
+                                  payment: i.payment
+                                    ? { ...i.payment, paidAt: e.target.value, method }
+                                    : { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: e.target.value, method },
+                                };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Metodo pagamento</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={inst.payment_method || inst.payment?.method || 'Manuale'}
+                            onChange={(e) => {
+                              const method = e.target.value;
+                              const updated = localInstallments.map(i => {
+                                if (i.id !== inst.id) return i;
+                                return {
+                                  ...i,
+                                  payment_method: method,
+                                  payment: i.payment ? { ...i.payment, method } : i.payment,
+                                };
+                              });
+                              setLocalInstallments(updated);
+                              markInstDirty(inst.id);
+                            }}
+                          >
+                            {PAYMENT_METHOD_OPTIONS.map(method => (
+                              <option key={method} value={method}>{method}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Rif. pagamento</div>
+                          <input
+                            type="text"
+                            style={drawerInputStyle}
+                            value={inst.payment_reference || ''}
+                            placeholder="es. CRO/TRX/ID"
+                            onChange={(e) => {
+                              const updated = localInstallments.map(i => i.id === inst.id ? { ...i, payment_reference: e.target.value } : i);
                               setLocalInstallments(updated);
                               markInstDirty(inst.id);
                             }}
@@ -964,7 +1020,7 @@ export function LavorazioneDetailDrawer({
 
             <DrawerAddButton onClick={() => {
                 const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1);
-                const newInst = { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus };
+                const newInst = { id: `INST-${Date.now()}`, amount: 0, dueDate: nextDue.toISOString().split('T')[0], status: 'pending' as InstallmentStatus, payment_method: 'Manuale' };
                 setLocalInstallments(prev => [...prev, newInst]);
                 markInstDirty(newInst.id);
                 toast.success('Rata aggiunta. Premi Salva per registrarla');
@@ -991,9 +1047,9 @@ export function LavorazioneDetailDrawer({
             onToggle={() => toggleSection('payout')}
           >
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-              <MiniInfo label="Compenso lordo" value={`€${coachCompensoLordo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-              <MiniInfo label="Totale da pagare al coach" value={`€${coachCompensoNetto.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-              <MiniInfo label="Pagato" value={`€${coachCompensoPagato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <MiniInfo label="Imponibile (netto)" value={`€${coachCompensoImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <MiniInfo label="Totale lordo da pagare" value={`€${coachCompensoLordoTotale.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <MiniInfo label="Pagato (lordo)" value={`€${coachCompensoPagato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             </div>
 
             {localCoachPayouts.length === 0 ? (
@@ -1055,7 +1111,7 @@ export function LavorazioneDetailDrawer({
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Compenso lordo</div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Imponibile coach (netto)</div>
                           <input
                             type="number" min="0" step="0.01"
                             style={drawerInputStyle}
@@ -1085,7 +1141,7 @@ export function LavorazioneDetailDrawer({
                           </select>
                         </div>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Totale da pagare (preview)</div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Totale lordo da pagare (preview)</div>
                           <div style={{ ...drawerReadonlyValueStyle, height: '36px', display: 'flex', alignItems: 'center' }}>
                             €{roundToCents((payout.notula_amount || 0) * (1 + normalizeTaxRate(payout.tax_rate ?? 0) / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
@@ -1185,6 +1241,22 @@ export function LavorazioneDetailDrawer({
                               markPayoutDirty(payout.id);
                             }}
                           />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Metodo pagamento</div>
+                          <select
+                            style={drawerInputStyle}
+                            value={payout.payment_method || 'Manuale'}
+                            onChange={(e) => {
+                              const method = e.target.value;
+                              setLocalCoachPayouts(prev => prev.map(p => p.id === payout.id ? withSyncedNotulaStatus({ ...p, payment_method: method }) : p));
+                              markPayoutDirty(payout.id);
+                            }}
+                          >
+                            {PAYMENT_METHOD_OPTIONS.map(method => (
+                              <option key={method} value={method}>{method}</option>
+                            ))}
+                          </select>
                         </div>
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Rif. pagamento</div>
