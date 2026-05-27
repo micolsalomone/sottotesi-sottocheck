@@ -1317,7 +1317,108 @@ const initialData: StudentService[] = [
   { id: 'SS-170', pipeline_id: 'PIP-034', student_id: 'STU-629', student_name: 'Camilla Ferretti', service_id: 'SRV-003', service_name: 'Coaching Plus', service_category: 'Coaching', quote_id: 'QT-1004', contract_id: 'CT-170', status: 'active', created_at: '2026-03-18', created_by: 'Francesca', updated_at: '2026-04-12', updated_by: 'Francesca', start_date: '2026-03-20', referente: 'Francesca', area_tematica: 'Economia', plan_start_date: '2026-03-20', plan_end_date: '2026-10-20', needs_timeline: true, coaching_access_enabled: true, invite_email: 'camilla.ferretti@email.com', invite_sent_at: '2026-03-20T10:10:00', invite_status: 'active', contract: { id: 'CT-170', status: 'signed', signedAt: '2026-03-19', documentUrl: '/contratti/CT-170.pdf', expiresAt: '2026-10-20' }, installments: [{ id: 'INS-1180', amount: 600, dueDate: '2026-03-20', status: 'paid', invoice_number: '35/2026', payment: { id: 'PAY-1280', amount: 600, paidAt: '2026-03-19', method: 'Bonifico' } }, { id: 'INS-1181', amount: 600, dueDate: '2026-04-20', status: 'pending' }, { id: 'INS-1182', amount: 600, dueDate: '2026-05-20', status: 'pending' }], coach_fee: 720, coach_name: 'Elena Ferretti', coach_payout: { id: 'CP-170', notula_number: '39/2026', notula_issue_date: '2026-04-15', notula_amount: 720, notula_status: 'inviata', sent_manually: true }, coach_payouts: [{ id: 'CP-170', notula_number: '39/2026', notula_issue_date: '2026-04-15', notula_amount: 720, tax_rate: 22, notula_status: 'inviata', sent_manually: true }], coaching_timeline: [{ id: 'TL-170-1', phase: 'Fase 1', description: 'Set up metodologia e milestones', status: 'completed', startedAt: '2026-03-20', completedAt: '2026-03-30' }, { id: 'TL-170-2', phase: 'Fase 2', description: 'Produzione capitoli centrali', status: 'in_progress', startedAt: '2026-03-31' }, { id: 'TL-170-3', phase: 'Fase 3', description: 'Revisione finale e discussione', status: 'not_started' }] },
 ];
 
-const hydratedInitialData = initialData.map(hydrateServiceWithLegacySharedData);
+const toISODate = (date: Date): string => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const addDays = (baseDate: Date, days: number): Date => {
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const planScadenzarioNext30Days = (services: StudentService[]): StudentService[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let activeIndex = 0;
+
+  const alignPayoutToWindow = (payout: CoachPayout | undefined, dueOffset: number): CoachPayout | undefined => {
+    if (!payout || payout.paid_at) return payout;
+
+    const nextDueDate = toISODate(addDays(today, dueOffset));
+    const nextIssueDate = toISODate(addDays(today, dueOffset - 45));
+
+    if (payout.document_type === 'fattura') {
+      return {
+        ...payout,
+        invoice_date: nextIssueDate,
+        payment_due_date: nextDueDate,
+      };
+    }
+
+    return {
+      ...payout,
+      notula_issue_date: nextIssueDate,
+      payment_due_date: nextDueDate,
+    };
+  };
+
+  return services.map((service) => {
+    if (service.status !== 'active') return service;
+
+    const serviceSlot = activeIndex;
+    activeIndex += 1;
+
+    const pendingBaseOffset = 3 + ((serviceSlot * 3) % 20); // 3..22
+    const installmentSpacing = 7;
+    let openInstallmentCursor = 0;
+    let maxOpenOffset = 0;
+
+    const plannedInstallments = service.installments.map((inst) => {
+      if (inst.status === 'paid') return inst;
+
+      let dueOffset: number;
+      if (inst.status === 'overdue') {
+        dueOffset = -1 - (serviceSlot % 5); // ritardo breve: 1..5 giorni
+      } else {
+        dueOffset = Math.min(30, pendingBaseOffset + (openInstallmentCursor * installmentSpacing));
+      }
+
+      openInstallmentCursor += 1;
+      if (dueOffset > maxOpenOffset) maxOpenOffset = dueOffset;
+
+      return {
+        ...inst,
+        dueDate: toISODate(addDays(today, dueOffset)),
+      };
+    });
+
+    const hasOpenInstallments = plannedInstallments.some(inst => inst.status !== 'paid');
+    const payoutDueOffset = 5 + ((serviceSlot * 4) % 24); // 5..29
+    const plannedPrimaryPayout = alignPayoutToWindow(service.coach_payout, payoutDueOffset);
+    const plannedPayouts = service.coach_payouts?.map((payout, index) =>
+      alignPayoutToWindow(payout, Math.min(30, payoutDueOffset + index * 3)) || payout
+    );
+
+    const nextPlanStart = hasOpenInstallments
+      ? toISODate(addDays(today, -14 - (serviceSlot % 10)))
+      : service.plan_start_date;
+    const nextPlanEnd = hasOpenInstallments
+      ? toISODate(addDays(today, Math.max(40, maxOpenOffset + 20)))
+      : service.plan_end_date;
+
+    return {
+      ...service,
+      installments: plannedInstallments,
+      coach_payout: plannedPrimaryPayout,
+      coach_payouts: plannedPayouts,
+      plan_start_date: nextPlanStart,
+      plan_end_date: nextPlanEnd,
+      contract: service.contract
+        ? {
+            ...service.contract,
+            expiresAt: nextPlanEnd || service.contract.expiresAt,
+          }
+        : service.contract,
+    };
+  });
+};
+
+const realisticScadenzarioData = planScadenzarioNext30Days(initialData);
+const hydratedInitialData = realisticScadenzarioData.map(hydrateServiceWithLegacySharedData);
 
 // ─── Context ────────────────────────────────────────────────
 interface LavorazioniContextType {
