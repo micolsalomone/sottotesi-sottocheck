@@ -1021,10 +1021,14 @@ export function ServiziStudentiPage() {
 
   // ─── Bulk selection handlers ────────────────────────────
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredAndSortedData.length) {
+    const targetIds = activeVista === 'scadenzario'
+      ? filteredScadenzarioItems.map(item => item.id)
+      : filteredAndSortedData.map(s => s.id);
+
+    if (selectedIds.length === targetIds.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredAndSortedData.map(s => s.id));
+      setSelectedIds(targetIds);
     }
   };
 
@@ -1635,7 +1639,7 @@ export function ServiziStudentiPage() {
     return result;
   }, [filteredScadenzarioItems]);
 
-  const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string) => {
+  const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string, options?: { silent?: boolean }) => {
     if (!paidAt) {
       setEditingScadPaidAt(null);
       return;
@@ -1662,11 +1666,11 @@ export function ServiziStudentiPage() {
           };
         }),
       }));
-      toast.success('Data pagamento aggiornata');
+      if (!options?.silent) toast.success('Data pagamento aggiornata');
     } else {
       const selectedMethod = (item.paymentMethod as ScadenzarioPaymentMethod | undefined) || 'Manuale';
       updatePayoutField(item.serviceId, { paid_at: paidAt, status: 'paid', payment_method: selectedMethod });
-      toast.success('Data pagamento compenso aggiornata');
+      if (!options?.silent) toast.success('Data pagamento compenso aggiornata');
     }
     setEditingScadPaidAt(null);
   };
@@ -1693,6 +1697,58 @@ export function ServiziStudentiPage() {
     setEditingScadPaymentMethod(null);
     toast.success('Metodo pagamento aggiornato');
   };
+
+  const scadBulkActions: BulkAction[] = [
+    {
+      label: 'Segna pagato oggi',
+      icon: <CheckCircle size={16} />,
+      onClick: (ids) => {
+        const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
+        if (selectedItems.length === 0) return;
+        const today = new Date().toISOString().split('T')[0];
+        selectedItems.forEach(item => updateScadenzarioPaidAt(item, today, { silent: true }));
+        toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce aggiornata' : 'voci aggiornate'} come pagate`);
+        setSelectedIds([]);
+      },
+      variant: 'default',
+    },
+    {
+      label: 'Esporta CSV',
+      icon: <Download size={16} />,
+      onClick: (ids) => {
+        const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
+        if (selectedItems.length === 0) return;
+        const csv = ['ID,Tipo,Cashflow,Interessato,Lavorazione,Scadenza,Lordo,Netto,Stato,Pagamento,Riferimento'].concat(
+          selectedItems.map((item) => {
+            const statusLabel = item.status === 'pagato' ? 'Pagato' : item.status === 'in_ritardo' ? 'In ritardo' : 'Da pagare';
+            return [
+              item.id,
+              item.type,
+              item.cashflow,
+              scadDirectPartyLabel(item),
+              item.serviceName,
+              item.dueDate,
+              item.amountLordo.toFixed(2),
+              item.amountNetto.toFixed(2),
+              statusLabel,
+              item.paymentMethod || '',
+              `${item.referenceLabel} ${item.referenceCode}`,
+            ].join(',');
+          })
+        ).join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `scadenzario-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce esportata' : 'voci esportate'}`);
+        setSelectedIds([]);
+      },
+      variant: 'secondary',
+    },
+  ];
 
   return (
     <div>
@@ -2460,6 +2516,15 @@ export function ServiziStudentiPage() {
         />
       )}
 
+      {activeVista === 'scadenzario' && (
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          selectedIds={selectedIds}
+          actions={scadBulkActions}
+          onClearSelection={() => setSelectedIds([])}
+        />
+      )}
+
       {/* Table */}
       {activeVista === 'scadenzario' && (
         filteredScadenzarioItems.length === 0 ? (
@@ -2481,6 +2546,17 @@ export function ServiziStudentiPage() {
             <TableRoot minWidth="1200px">
               <thead>
                 <TableRow>
+                  <TableSelectionHeaderCell
+                    width={columnWidths.checkbox}
+                    checked={
+                      selectedIds.length === 0
+                        ? false
+                        : selectedIds.length === filteredScadenzarioItems.length
+                        ? true
+                        : 'indeterminate'
+                    }
+                    onCheckedChange={handleSelectAll}
+                  />
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadInteressato}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Interessato</span>
                     {resizeHandle('scadInteressato')}
@@ -2524,6 +2600,7 @@ export function ServiziStudentiPage() {
               {scadenzarioGroups.map((group) => (
                 <tbody key={group.key}>
                   <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                    <TableCell style={{ minWidth: columnWidths.checkbox }}></TableCell>
                     <TableCell colSpan={2} style={{ padding: '0.5rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
@@ -2559,9 +2636,15 @@ export function ServiziStudentiPage() {
                             cursor: 'pointer',
                             backgroundColor: rowBackground,
                             opacity: 1,
+                            ...(selectedIds.includes(item.id) ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
+                          <TableSelectionCell
+                            checked={selectedIds.includes(item.id)}
+                            onCheckedChange={() => handleSelectRow(item.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <TableCell style={{ minWidth: columnWidths.scadInteressato }}>
                             <div style={{ fontFamily: 'var(--font-inter)' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -2713,12 +2796,16 @@ export function ServiziStudentiPage() {
                   </div>
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
-                    const cardBackground = 'var(--card)';
+                    const cardBackground = selectedIds.includes(item.id) ? 'var(--selected-row-bg)' : 'var(--card)';
                     return (
                     <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
                     <ResponsiveMobileCard backgroundColor={cardBackground}>
                       <ResponsiveMobileCardHeader>
-                        <div>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                          <div onClick={(e) => e.stopPropagation()} style={{ paddingTop: '0.125rem' }}>
+                            <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => handleSelectRow(item.id)} />
+                          </div>
+                          <div>
                           <div style={{ marginBottom: '0.25rem' }}>{scadTypeBadge(item.cashflow)}</div>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                             <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{scadDirectPartyLabel(item)}</div>
@@ -2735,6 +2822,7 @@ export function ServiziStudentiPage() {
                           </div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                             {scadProgressLabel(item)}
+                          </div>
                           </div>
                         </div>
                         {scadStatusBadge(item.status)}
