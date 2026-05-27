@@ -120,6 +120,10 @@ interface MonthGroup {
 
 const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+const formatSignedCurrency = (amount: number, cashflow: ScadenzarioCashflow): string => {
+  const sign = cashflow === 'entrata' ? '+' : '-';
+  return `${sign}€${amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const normalizeNotulaStatus = (status?: CoachPayout['notula_status']): NotulaWorkflowStatus => {
   if (status === 'pagata') return 'pagata';
   if (status === 'inviata' || status === 'da_pagare') return 'da_pagare';
@@ -1259,6 +1263,7 @@ export function ServiziStudentiPage() {
         const isPaid = inst.status === 'paid';
         const isOverdue = !isPaid && dueDate.getTime() < today.getTime();
         const status: ScadenzarioStatus = isPaid ? 'pagato' : isOverdue ? 'in_ritardo' : 'da_pagare';
+        const installmentTaxRate = getInstallmentTaxRate(service, inst);
         items.push({
           id: `rata-${service.id}-${inst.id}`,
           serviceId: service.id,
@@ -1278,6 +1283,7 @@ export function ServiziStudentiPage() {
           detailLabel: `Rata ${idx + 2}/${service.installments.length}`,
           paidAt: inst.payment?.paidAt,
           paymentMethod: inst.payment_method || inst.payment?.method,
+          taxRate: installmentTaxRate,
           progressPaidLordo: paidInstallmentsLordo,
           progressRemainingLordo: remainingInstallmentsLordo,
         });
@@ -1388,10 +1394,10 @@ export function ServiziStudentiPage() {
   };
 
   const scadProgressLabel = (item: ScadenzarioItem) => {
-    const paid = item.progressPaidLordo.toLocaleString('it-IT');
-    const remaining = item.progressRemainingLordo.toLocaleString('it-IT');
-    if (item.cashflow === 'entrata') return `Pagato studente €${paid} · Residuo €${remaining}`;
-    return `Pagato coach €${paid} · Residuo €${remaining}`;
+    const paid = formatSignedCurrency(item.progressPaidLordo, item.cashflow);
+    const remaining = formatSignedCurrency(item.progressRemainingLordo, item.cashflow);
+    if (item.cashflow === 'entrata') return `Pagato studente ${paid} · Residuo ${remaining}`;
+    return `Pagato coach ${paid} · Residuo ${remaining}`;
   };
 
   const scadDueUrgencyMeta = (item: ScadenzarioItem): { icon: React.ReactNode; color: string; label: string } => {
@@ -1423,7 +1429,15 @@ export function ServiziStudentiPage() {
     }
 
     const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
-    if (diffDays <= 30) {
+    if (diffDays <= 0) {
+      return {
+        icon: <AlertTriangle size={13} style={{ color: 'var(--destructive)' }} />,
+        color: 'var(--destructive)',
+        label: diffDays === 0 ? 'Scade oggi' : 'Scaduta',
+      };
+    }
+
+    if (diffDays <= 7) {
       return {
         icon: <Clock size={13} style={{ color: 'var(--chart-3)' }} />,
         color: 'var(--chart-3)',
@@ -1470,16 +1484,18 @@ export function ServiziStudentiPage() {
     const map = new Map<string, ScadenzarioGroup>();
     sortedItems.forEach(item => {
       const meta = getScadGroupMeta(item.dueDate);
+      const aliquotaAmount = Math.max(0, roundToCents(item.amountLordo - item.amountNetto));
       const existing = map.get(meta.key);
       if (existing) {
         existing.items.push(item);
         if (item.cashflow === 'entrata') {
           existing.totalEntrateLordo += item.amountLordo;
           existing.totalEntrateNetto += item.amountNetto;
+          existing.totalAliquote += aliquotaAmount;
         } else {
           existing.totalUsciteLordo += item.amountLordo;
           existing.totalUsciteNetto += item.amountNetto;
-          existing.totalAliquote += Math.max(0, roundToCents(item.amountLordo - item.amountNetto));
+          existing.totalAliquote += aliquotaAmount;
         }
         existing.saldoLordo = existing.totalEntrateLordo - existing.totalUsciteLordo;
         existing.saldoNetto = existing.totalEntrateNetto - existing.totalUsciteNetto;
@@ -1492,7 +1508,7 @@ export function ServiziStudentiPage() {
           totalEntrateNetto: item.cashflow === 'entrata' ? item.amountNetto : 0,
           totalUsciteLordo: item.cashflow === 'uscita' ? item.amountLordo : 0,
           totalUsciteNetto: item.cashflow === 'uscita' ? item.amountNetto : 0,
-          totalAliquote: item.cashflow === 'uscita' ? Math.max(0, roundToCents(item.amountLordo - item.amountNetto)) : 0,
+          totalAliquote: aliquotaAmount,
           saldoLordo: item.cashflow === 'entrata' ? item.amountLordo : -item.amountLordo,
           saldoNetto: item.cashflow === 'entrata' ? item.amountNetto : -item.amountNetto,
           sortValue: meta.sortValue,
@@ -2418,13 +2434,27 @@ export function ServiziStudentiPage() {
 
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
+                    const dueDate = toDayDate(item.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
+                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
+                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
+                    const rowBackground = isCriticalDue
+                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
+                      : isUrgentSoon
+                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
+                        : item.status === 'pagato'
+                          ? 'var(--muted)'
+                          : 'var(--card)';
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
                           onClick={() => handleRowClick(item.serviceId)}
                           style={{
                             cursor: 'pointer',
-                            opacity: item.status === 'pagato' ? 0.72 : 1,
+                            backgroundColor: rowBackground,
+                            opacity: item.status === 'pagato' ? 0.74 : 1,
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
@@ -2452,10 +2482,10 @@ export function ServiziStudentiPage() {
                             </div>
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadLordo, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                            <div>€{item.amountLordo.toLocaleString('it-IT')}</div>
+                            <div>{formatSignedCurrency(item.amountLordo, item.cashflow)}</div>
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadNetto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                            <div>€{item.amountNetto.toLocaleString('it-IT')}</div>
+                            <div>{formatSignedCurrency(item.amountNetto, item.cashflow)}</div>
                             {item.cashflow === 'uscita' && (
                               <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.4' }}>
                                 Imponibile (netto)
@@ -2466,7 +2496,7 @@ export function ServiziStudentiPage() {
                             {item.taxRate !== undefined ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                                 <span>
-                                  €{Math.max(0, roundToCents(item.amountLordo - item.amountNetto)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}
                                 </span>
                                 <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.4' }}>
                                   {item.taxRate}%
@@ -2574,9 +2604,22 @@ export function ServiziStudentiPage() {
                   </div>
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
+                    const dueDate = toDayDate(item.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
+                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
+                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
+                    const cardBackground = isCriticalDue
+                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
+                      : isUrgentSoon
+                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
+                        : item.status === 'pagato'
+                          ? 'var(--muted)'
+                          : 'var(--card)';
                     return (
                     <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
-                    <ResponsiveMobileCard backgroundColor={item.status === 'pagato' ? 'var(--muted)' : 'var(--card)'}>
+                    <ResponsiveMobileCard backgroundColor={cardBackground}>
                       <ResponsiveMobileCardHeader>
                         <div>
                           <div style={{ marginBottom: '0.25rem' }}>{scadTypeBadge(item.cashflow)}</div>
@@ -2598,18 +2641,23 @@ export function ServiziStudentiPage() {
                             Scadenza: {formatDateIT(item.dueDate)}
                           </span>
                           <span style={{ color: item.cashflow === 'entrata' ? 'var(--primary)' : 'var(--destructive)', fontWeight: 'var(--font-weight-bold)' }}>
-                            {item.cashflow === 'entrata' ? '+' : '-'}€{item.amountLordo.toLocaleString('it-IT')}
+                            {formatSignedCurrency(item.amountLordo, item.cashflow)}
                           </span>
                         </div>
                         <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '10px', color: dueUrgency.color }}>
                           {dueUrgency.label}
                         </div>
                         <div style={{ marginTop: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                          Netto €{item.amountNetto.toLocaleString('it-IT')}
+                          Netto {formatSignedCurrency(item.amountNetto, item.cashflow)}
                         </div>
                         {item.cashflow === 'uscita' && item.taxRate !== undefined && (
                           <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                            Imponibile + aliquota {item.taxRate}% (€{Math.max(0, roundToCents(item.amountLordo - item.amountNetto)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) = lordo da pagare
+                            Imponibile + aliquota {item.taxRate}% ({formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}) = lordo da pagare
+                          </div>
+                        )}
+                        {item.cashflow === 'entrata' && item.taxRate !== undefined && (
+                          <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                            Lordo - aliquota {item.taxRate}% ({formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}) = netto da incassare
                           </div>
                         )}
                         {item.isPaid && item.paidAt && (
