@@ -731,11 +731,12 @@ export function DrawerCollapsibleSection({
                 fontFamily: 'var(--font-inter)',
                 fontSize: 'var(--text-xs)',
                 fontWeight: 'var(--font-weight-bold)',
-                color: 'var(--destructive-foreground)',
+                color: 'var(--destructive)',
+                background: 'color-mix(in srgb, var(--destructive) 8%, transparent)',
                 padding: '0 0.375rem',
                 borderRadius: '999px',
                 lineHeight: '18px',
-                border: '1px solid var(--destructive-foreground)',
+                border: '1px solid var(--destructive)',
                 flexShrink: 0,
               }}
             >
