@@ -64,6 +64,7 @@ interface ScadenzarioItem {
   id: string;
   serviceId: string;
   installmentId?: string;
+  serviceStatus: ServiceStatus;
   type: ScadenzarioItemType;
   cashflow: ScadenzarioCashflow;
   studentName: string;
@@ -1020,10 +1021,14 @@ export function ServiziStudentiPage() {
 
   // ─── Bulk selection handlers ────────────────────────────
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredAndSortedData.length) {
+    const targetIds = activeVista === 'scadenzario'
+      ? filteredScadenzarioItems.map(item => item.id)
+      : filteredAndSortedData.map(s => s.id);
+
+    if (selectedIds.length === targetIds.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredAndSortedData.map(s => s.id));
+      setSelectedIds(targetIds);
     }
   };
 
@@ -1284,6 +1289,7 @@ export function ServiziStudentiPage() {
           id: `rata-${service.id}-${inst.id}`,
           serviceId: service.id,
           installmentId: inst.id,
+          serviceStatus: service.status,
           type: 'rata',
           cashflow: 'entrata',
           studentName: service.student_name,
@@ -1321,6 +1327,7 @@ export function ServiziStudentiPage() {
         items.push({
           id: `compenso-${service.id}`,
           serviceId: service.id,
+          serviceStatus: service.status,
           type: 'compenso',
           cashflow: 'uscita',
           studentName: service.student_name,
@@ -1450,6 +1457,12 @@ export function ServiziStudentiPage() {
     return `Pagato coach ${paid} · Residuo ${remaining}`;
   };
 
+  const scadServiceImpactBadge = (item: ScadenzarioItem) => {
+    if (item.serviceStatus === 'paused') return <StatusBadge status="warning" label="In pausa" />;
+    if (item.serviceStatus === 'cancelled') return <StatusBadge status="inactive" label="Annullato" />;
+    return null;
+  };
+
   const scadDueUrgencyMeta = (item: ScadenzarioItem): { icon: React.ReactNode; color: string; label: string } => {
     if (item.isPaid) {
       return {
@@ -1505,6 +1518,10 @@ export function ServiziStudentiPage() {
   const getScadGroupMeta = (dateStr: string): { key: string; label: string; sortValue: number } => {
     const d = toDayDate(dateStr);
     if (!d) return { key: dateStr, label: dateStr, sortValue: Number.MAX_SAFE_INTEGER };
+
+    if (scadViewMode === 'storico') {
+      return { key: 'paid-history', label: 'Pagati', sortValue: 0 };
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1626,7 +1643,7 @@ export function ServiziStudentiPage() {
     return result;
   }, [filteredScadenzarioItems]);
 
-  const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string) => {
+  const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string, options?: { silent?: boolean }) => {
     if (!paidAt) {
       setEditingScadPaidAt(null);
       return;
@@ -1653,11 +1670,11 @@ export function ServiziStudentiPage() {
           };
         }),
       }));
-      toast.success('Data pagamento aggiornata');
+      if (!options?.silent) toast.success('Data pagamento aggiornata');
     } else {
       const selectedMethod = (item.paymentMethod as ScadenzarioPaymentMethod | undefined) || 'Manuale';
       updatePayoutField(item.serviceId, { paid_at: paidAt, status: 'paid', payment_method: selectedMethod });
-      toast.success('Data pagamento compenso aggiornata');
+      if (!options?.silent) toast.success('Data pagamento compenso aggiornata');
     }
     setEditingScadPaidAt(null);
   };
@@ -1684,6 +1701,58 @@ export function ServiziStudentiPage() {
     setEditingScadPaymentMethod(null);
     toast.success('Metodo pagamento aggiornato');
   };
+
+  const scadBulkActions: BulkAction[] = [
+    {
+      label: 'Segna pagato oggi',
+      icon: <CheckCircle size={16} />,
+      onClick: (ids) => {
+        const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
+        if (selectedItems.length === 0) return;
+        const today = new Date().toISOString().split('T')[0];
+        selectedItems.forEach(item => updateScadenzarioPaidAt(item, today, { silent: true }));
+        toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce aggiornata' : 'voci aggiornate'} come pagate`);
+        setSelectedIds([]);
+      },
+      variant: 'default',
+    },
+    {
+      label: 'Esporta CSV',
+      icon: <Download size={16} />,
+      onClick: (ids) => {
+        const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
+        if (selectedItems.length === 0) return;
+        const csv = ['ID,Tipo,Cashflow,Interessato,Lavorazione,Scadenza,Lordo,Netto,Stato,Pagamento,Riferimento'].concat(
+          selectedItems.map((item) => {
+            const statusLabel = item.status === 'pagato' ? 'Pagato' : item.status === 'in_ritardo' ? 'In ritardo' : 'Da pagare';
+            return [
+              item.id,
+              item.type,
+              item.cashflow,
+              scadDirectPartyLabel(item),
+              item.serviceName,
+              item.dueDate,
+              item.amountLordo.toFixed(2),
+              item.amountNetto.toFixed(2),
+              statusLabel,
+              item.paymentMethod || '',
+              `${item.referenceLabel} ${item.referenceCode}`,
+            ].join(',');
+          })
+        ).join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `scadenzario-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce esportata' : 'voci esportate'}`);
+        setSelectedIds([]);
+      },
+      variant: 'secondary',
+    },
+  ];
 
   return (
     <div>
@@ -2451,6 +2520,15 @@ export function ServiziStudentiPage() {
         />
       )}
 
+      {activeVista === 'scadenzario' && (
+        <BulkActionsBar
+          selectedCount={selectedIds.length}
+          selectedIds={selectedIds}
+          actions={scadBulkActions}
+          onClearSelection={() => setSelectedIds([])}
+        />
+      )}
+
       {/* Table */}
       {activeVista === 'scadenzario' && (
         filteredScadenzarioItems.length === 0 ? (
@@ -2472,6 +2550,17 @@ export function ServiziStudentiPage() {
             <TableRoot minWidth="1200px">
               <thead>
                 <TableRow>
+                  <TableSelectionHeaderCell
+                    width={columnWidths.checkbox}
+                    checked={
+                      selectedIds.length === 0
+                        ? false
+                        : selectedIds.length === filteredScadenzarioItems.length
+                        ? true
+                        : 'indeterminate'
+                    }
+                    onCheckedChange={handleSelectAll}
+                  />
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadInteressato}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Interessato</span>
                     {resizeHandle('scadInteressato')}
@@ -2503,7 +2592,7 @@ export function ServiziStudentiPage() {
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>
-                    <span>Stato</span>
+                    <span>Azioni</span>
                     {resizeHandle('scadStato')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadNote}px`, textAlign: 'center', position: 'relative', userSelect: 'none' }}>
@@ -2515,6 +2604,7 @@ export function ServiziStudentiPage() {
               {scadenzarioGroups.map((group) => (
                 <tbody key={group.key}>
                   <TableRow style={{ backgroundColor: 'var(--muted)', borderTop: '2px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                    <TableCell style={{ minWidth: columnWidths.checkbox }}></TableCell>
                     <TableCell colSpan={2} style={{ padding: '0.5rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>
@@ -2541,19 +2631,7 @@ export function ServiziStudentiPage() {
 
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
-                    const dueDate = toDayDate(item.dueDate);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
-                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
-                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
-                    const rowBackground = isCriticalDue
-                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
-                      : isUrgentSoon
-                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
-                        : item.status === 'pagato'
-                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
-                          : 'var(--card)';
+                    const rowBackground = 'var(--card)';
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
@@ -2561,10 +2639,16 @@ export function ServiziStudentiPage() {
                           style={{
                             cursor: 'pointer',
                             backgroundColor: rowBackground,
-                            opacity: item.status === 'pagato' && scadViewMode === 'operativo' ? 0.74 : 1,
+                            opacity: 1,
+                            ...(selectedIds.includes(item.id) ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
+                          <TableSelectionCell
+                            checked={selectedIds.includes(item.id)}
+                            onCheckedChange={() => handleSelectRow(item.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <TableCell style={{ minWidth: columnWidths.scadInteressato }}>
                             <div style={{ fontFamily: 'var(--font-inter)' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -2580,8 +2664,11 @@ export function ServiziStudentiPage() {
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadLavorazione }}>
                             <div style={{ fontFamily: 'var(--font-inter)' }}>
-                              <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                                {item.serviceName}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                                  {item.serviceName}
+                                </div>
+                                {scadServiceImpactBadge(item)}
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                                 {item.detailLabel}
@@ -2625,7 +2712,6 @@ export function ServiziStudentiPage() {
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadStato }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              {scadStatusBadge(item.status)}
                               {editingScadPaidAt === item.id ? (
                                 <input
                                   type="date"
@@ -2714,24 +2800,16 @@ export function ServiziStudentiPage() {
                   </div>
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
-                    const dueDate = toDayDate(item.dueDate);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
-                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
-                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
-                    const cardBackground = isCriticalDue
-                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
-                      : isUrgentSoon
-                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
-                        : item.status === 'pagato'
-                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
-                          : 'var(--card)';
+                    const cardBackground = selectedIds.includes(item.id) ? 'var(--selected-row-bg)' : 'var(--card)';
                     return (
                     <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
                     <ResponsiveMobileCard backgroundColor={cardBackground}>
                       <ResponsiveMobileCardHeader>
-                        <div>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                          <div onClick={(e) => e.stopPropagation()} style={{ paddingTop: '0.125rem' }}>
+                            <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => handleSelectRow(item.id)} />
+                          </div>
+                          <div>
                           <div style={{ marginBottom: '0.25rem' }}>{scadTypeBadge(item.cashflow)}</div>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                             <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{scadDirectPartyLabel(item)}</div>
@@ -2740,9 +2818,15 @@ export function ServiziStudentiPage() {
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
                             {item.referenceLabel}: {item.referenceCode}
                           </div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{item.serviceName}</div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                              {item.serviceName}
+                            </div>
+                            {scadServiceImpactBadge(item)}
+                          </div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                             {scadProgressLabel(item)}
+                          </div>
                           </div>
                         </div>
                         {scadStatusBadge(item.status)}
