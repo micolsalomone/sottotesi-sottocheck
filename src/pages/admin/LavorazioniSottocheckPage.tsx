@@ -19,6 +19,7 @@ import {
   TableRow,
   TableSelectionCell,
   TableSelectionHeaderCell,
+  StudentTypeBadge,
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
@@ -29,7 +30,8 @@ import { BulkActionsBar, type BulkAction } from '../../app/components/BulkAction
 import { NotesDrawer, type Note } from '../../app/components/NotesDrawer';
 import { Checkbox } from '../../app/components/ui/checkbox';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
-import { SottocheckReportDetailDrawer } from '@/app/components/SottocheckReportDetailDrawer';
+import { SottocheckReportDetailDrawer, type SelectedJob } from '@/app/components/SottocheckReportDetailDrawer';
+import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
 
 interface CheckReportSource {
   id: string;
@@ -85,7 +87,7 @@ interface Job {
   created_at?: string;
   updated_by?: string;
   updated_at?: string;
-  initiator_role?: 'admin' | 'coach' | 'student';
+  initiator_role: 'admin' | 'coach' | 'student';
   coach_name?: string;
   payment?: {
     amount: number;
@@ -125,122 +127,149 @@ const formatDateTimeIT = (dateTime?: string): string => {
 };
 
 const mockJobs: Job[] = [
-  // Caso ADMIN
+  // ADMIN su studente con lavorazione attiva (coerente con SS-101)
   {
     id: 'ADM-CHK-201',
     initiator_role: 'admin',
     admin_name: 'Francesca Bianchi',
-    student: 'Marco Bianchi',
-    student_id: 'STU-601',
+    student: 'Giulia Verdi',
+    student_id: 'STU-445',
     service_id: 'SS-101',
     status: 'completed',
     startedAt: '2026-04-01 09:00',
-    completedAt: '2026-04-01 09:30',
-    document_name: 'tesi_bianchi.pdf',
-    characters: 40000,
-    pages: 20,
-    copyleaks_credits: 20,
+    completedAt: '2026-04-01 09:32',
+    document_name: 'tesi_giulia_verdi_v5.pdf',
+    characters: 98500,
+    pages: 54,
+    copyleaks_credits: 49,
     report: {
       scanId: 'admin-001',
-      creationTime: '2026-04-01T09:30:00.000Z',
-      totalWords: 1500,
-      totalExcluded: 0,
-      credits: 7,
-      expectedCredits: 7,
+      creationTime: '2026-04-01T09:32:00.000Z',
+      totalWords: 13240,
+      totalExcluded: 320,
+      credits: 49,
+      expectedCredits: 49,
       detectedLanguage: 'it',
       score: {
-        identicalWords: 1200,
-        minorChangedWords: 200,
-        relatedMeaningWords: 100,
-        aggregatedScore: 90.0,
+        identicalWords: 584,
+        minorChangedWords: 426,
+        relatedMeaningWords: 211,
+        aggregatedScore: 9.2,
       },
       sources: [],
       pdfUrl: '/reports/REP-301.pdf'
     },
     notes: [
-      { id: 'N-1', content: 'Controllo avviato da admin', admin: 'Francesca', timestamp: '2026-04-01 09:31' }
+      { id: 'N-1', content: 'Check pre-consegna relatore, richiesta urgenza entro giornata.', admin: 'Francesca', timestamp: '2026-04-01 09:35' }
     ]
   },
-  // Caso COACH
+
+  // COACH su lavorazione coaching in corso (coerente con SS-159)
   {
     id: 'COACH-CHK-202',
     initiator_role: 'coach',
-    coach_name: 'Luca Bianchi',
+    coach_name: 'Lucia Marchetti',
     admin_name: 'Francesca Bianchi',
-    student: 'Anna Russo',
+    student: 'Anna Greco',
     student_id: 'STU-602',
-    service_id: 'SS-102',
-    status: 'completed',
+    service_id: 'SS-159',
+    status: 'running',
     startedAt: '2026-04-02 10:00',
-    completedAt: '2026-04-02 10:25',
-    document_name: 'tesi_russo.pdf',
-    characters: 42000,
-    pages: 21,
-    copyleaks_credits: 21,
-    report: {
-      scanId: 'coach-001',
-      creationTime: '2026-04-02T10:25:00.000Z',
-      totalWords: 1600,
-      totalExcluded: 0,
-      credits: 8,
-      expectedCredits: 8,
-      detectedLanguage: 'it',
-      score: {
-        identicalWords: 1300,
-        minorChangedWords: 200,
-        relatedMeaningWords: 100,
-        aggregatedScore: 92.0,
-      },
-      sources: [],
-      pdfUrl: '/reports/REP-302.pdf'
-    },
+    completedAt: null,
+    document_name: 'capitolo_metodologia_anna_greco.docx',
+    characters: 41200,
+    pages: 24,
+    copyleaks_credits: 16,
     notes: [
-      { id: 'N-2', content: 'Controllo avviato da coach', admin: 'Luca', timestamp: '2026-04-02 10:26' }
+      { id: 'N-2', content: 'Avviato da coach per controllo intermedio prima revisione referente.', admin: 'Lucia', timestamp: '2026-04-02 10:06' }
     ]
   },
-  // Caso STUDENTE
+
+  // STUDENTE su servizio attivo (coerente con SS-165)
   {
     id: 'STU-CHK-203',
     initiator_role: 'student',
-    student: 'Davide Ferretti',
-    student_id: 'STU-605',
+    admin_name: 'Francesca Bianchi',
+    student: 'Marco De Luca',
+    student_id: 'STU-520',
+    service_id: 'SS-165',
     status: 'completed',
     startedAt: '2026-04-03 11:00',
-    completedAt: '2026-04-03 11:20',
-    document_name: 'tesi_ferretti.pdf',
-    characters: 38000,
-    pages: 19,
-    copyleaks_credits: 19,
+    completedAt: '2026-04-03 11:18',
+    document_name: 'marco_deluca_cap2_rev2.pdf',
+    characters: 36500,
+    pages: 21,
+    copyleaks_credits: 14,
     payment: {
-      amount: 9.50,
-      paidAt: '2026-04-03 10:59',
+      amount: 14.90,
+      paidAt: '2026-04-03 10:58',
       method: 'Stripe',
     },
     report: {
       scanId: 'student-001',
-      creationTime: '2026-04-03T11:20:00.000Z',
-      totalWords: 1400,
-      totalExcluded: 0,
-      credits: 6,
-      expectedCredits: 6,
+      creationTime: '2026-04-03T11:18:00.000Z',
+      totalWords: 8420,
+      totalExcluded: 180,
+      credits: 14,
+      expectedCredits: 14,
       detectedLanguage: 'it',
       score: {
-        identicalWords: 1100,
-        minorChangedWords: 200,
-        relatedMeaningWords: 100,
-        aggregatedScore: 88.0,
+        identicalWords: 276,
+        minorChangedWords: 198,
+        relatedMeaningWords: 102,
+        aggregatedScore: 6.8,
       },
       sources: [],
       pdfUrl: '/reports/REP-303.pdf'
     },
     notes: [
-      { id: 'N-3', content: 'Controllo avviato da studente', admin: 'Davide', timestamp: '2026-04-03 11:21' }
+      { id: 'N-3', content: 'Pagamento completato da studente, report consegnato automaticamente.', admin: 'Marco', timestamp: '2026-04-03 11:19' }
+    ]
+  },
+
+  // ADMIN su lead in pipeline (nessuna lavorazione associata, coerente con PIP-035)
+  {
+    id: 'ADM-CHK-204',
+    initiator_role: 'admin',
+    admin_name: 'Claudia Ferri',
+    student: 'Nicola Ferri',
+    student_id: 'STU-636',
+    status: 'pending',
+    startedAt: '2026-04-04 08:55',
+    completedAt: null,
+    document_name: 'bozza_indice_nicola_ferri.docx',
+    characters: 15400,
+    pages: 9,
+    copyleaks_credits: 0,
+    notes: [
+      { id: 'N-4', content: 'Lead in pipeline: controllo preliminare su bozza senza lavorazione attiva.', admin: 'Claudia', timestamp: '2026-04-04 09:00' }
+    ]
+  },
+
+  // COACH fallito con lavorazione coerente (coerente con SS-153)
+  {
+    id: 'COACH-CHK-205',
+    initiator_role: 'coach',
+    coach_name: 'Andrea Conti',
+    admin_name: 'Francesca Bianchi',
+    student: 'Sofia Ricci',
+    student_id: 'STU-577',
+    service_id: 'SS-153',
+    status: 'failed',
+    startedAt: '2026-04-05 17:10',
+    completedAt: '2026-04-05 17:18',
+    document_name: 'tesi_sofia_ricci_cap5.pdf',
+    characters: 52300,
+    pages: 31,
+    copyleaks_credits: 0,
+    notes: [
+      { id: 'N-5', content: 'Errore provider esterno durante l\'analisi: richiesta di riavvio dal coach.', admin: 'Andrea', timestamp: '2026-04-05 17:20' }
     ]
   },
 ];
 
 const CURRENT_ADMIN = 'Francesca';
-const ADMIN_SOTTOCHECK_STORAGE_KEY = 'admin-sottocheck-jobs-v1';
+const ADMIN_SOTTOCHECK_STORAGE_KEY = 'admin-sottocheck-jobs-v2';
 
 function loadStoredJobs(fallback: Job[]): Job[] {
   try {
@@ -248,10 +277,54 @@ function loadStoredJobs(fallback: Job[]): Job[] {
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return fallback;
-    return parsed as Job[];
+    return parsed.map((entry: any) => {
+      const initiatorRole = entry?.initiator_role;
+      const normalizedInitiatorRole: Job['initiator_role'] =
+        initiatorRole === 'coach' || initiatorRole === 'student' || initiatorRole === 'admin'
+          ? initiatorRole
+          : 'admin';
+
+      return {
+        ...entry,
+        initiator_role: normalizedInitiatorRole,
+        admin_name: typeof entry?.admin_name === 'string' && entry.admin_name.trim().length > 0
+          ? entry.admin_name
+          : CURRENT_ADMIN,
+        student: typeof entry?.student === 'string' && entry.student.trim().length > 0
+          ? entry.student
+          : 'Soggetto non disponibile',
+        student_id: typeof entry?.student_id === 'string' && entry.student_id.trim().length > 0
+          ? entry.student_id
+          : 'N/D',
+      } as Job;
+    });
   } catch {
     return fallback;
   }
+}
+
+function isStudentSubject(job: Job): boolean {
+  return Boolean(job.service_id);
+}
+
+function getSubjectName(job: Job): string {
+  return job.student || job.student_id || 'Soggetto non disponibile';
+}
+
+function getInitiatorRoleLabel(job: Job): string {
+  if (job.initiator_role === 'coach') return 'Coach';
+  if (job.initiator_role === 'student') return 'Studente';
+  return 'Admin';
+}
+
+function getInitiatorName(job: Job): string {
+  if (job.initiator_role === 'coach') return job.coach_name || 'Coach non assegnato';
+  if (job.initiator_role === 'student') return getSubjectName(job);
+  return job.admin_name || 'Admin non disponibile';
+}
+
+function isCoachJobWithoutService(job: Job): boolean {
+  return job.initiator_role === 'coach' && !job.service_id;
 }
 
 const labelStyle: React.CSSProperties = {
@@ -298,7 +371,9 @@ function formatNumber(n: number): string {
 
 export function LavorazioniSottocheckPage() {
   const navigate = useNavigate();
-  const { data: serviziStudenti, students } = useLavorazioni();
+  // Stato per drawer profilo studente
+  const [studentProfileDrawerId, setStudentProfileDrawerId] = useState<string | null>(null);
+  const { data: serviziStudenti, students, pipelines } = useLavorazioni();
 
   const [jobs, setJobs] = useState<Job[]>(() =>
     loadStoredJobs(
@@ -427,6 +502,12 @@ export function LavorazioniSottocheckPage() {
   const saveCorrelation = () => {
     if (!editCorrelationJobId || !editStudentId) return;
 
+    const targetJob = jobs.find(job => job.id === editCorrelationJobId);
+    if (targetJob?.initiator_role === 'coach' && !editServiceId) {
+      toast.error('Per i check avviati da coach la lavorazione e obbligatoria');
+      return;
+    }
+
     setJobs(prev =>
       prev.map(job => {
         if (job.id !== editCorrelationJobId) return job;
@@ -477,13 +558,13 @@ export function LavorazioniSottocheckPage() {
           aVal = getLavorazioneLabel(a.service_id);
           bVal = getLavorazioneLabel(b.service_id);
         } else if (sortColumn === 'avviato_da') {
-          const getAvviatoDa = (j: Job) =>
-            j.initiator_role === 'student' ? `Studente: ${j.student} (${j.student_id})`
-            : j.initiator_role === 'coach' ? `Coach: ${j.coach_name}`
-            : j.initiator_role === 'admin' ? `Admin: ${j.admin_name}`
-            : '';
-          aVal = getAvviatoDa(a).toLowerCase();
-          bVal = getAvviatoDa(b).toLowerCase();
+          const getSoggettoSort = (j: Job) => {
+            const subjectTypeRank = isStudentSubject(j) ? '1' : '0';
+            const subjectName = getSubjectName(j).toLowerCase();
+            return `${subjectTypeRank}-${subjectName}`;
+          };
+          aVal = getSoggettoSort(a);
+          bVal = getSoggettoSort(b);
         } else {
           aVal = a[sortColumn];
           bVal = b[sortColumn];
@@ -662,6 +743,27 @@ export function LavorazioniSottocheckPage() {
 
   const notesJob = jobs.find(j => j.id === notesJobId);
 
+  const handleOpenProfileFromDetail = (job: SelectedJob) => {
+    if (job.service_id && job.student_id) {
+      setSelectedJob(null);
+      setStudentProfileDrawerId(job.student_id);
+      return;
+    }
+
+    const matchingPipeline = pipelines.find(p =>
+      (job.student_id && p.student_id === job.student_id) ||
+      (job.student && p.student_name === job.student)
+    );
+
+    if (!matchingPipeline) {
+      toast.error('Pipeline lead non trovata');
+      return;
+    }
+
+    setSelectedJob(null);
+    navigate(`/pipelines?highlight=${matchingPipeline.id}`);
+  };
+
   return (
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
@@ -788,7 +890,7 @@ export function LavorazioniSottocheckPage() {
                 {/* <TableHeaderCell id="service_id" label="Lavorazione (opz.)" width={columnWidths.lavorazione} sortable sortDirection={sortColumn === 'service_id' ? sortDirection : null} onSort={(id) => handleSort(id as SortKey)} onResize={handleMouseDown} /> */}
                 <TableHeaderCell
                   id="avviato_da"
-                  label="Avviato da"
+                  label="Soggetto"
                   width={180}
                   sortable
                   sortDirection={sortColumn === 'avviato_da' ? sortDirection : null}
@@ -812,6 +914,7 @@ export function LavorazioniSottocheckPage() {
                 filteredData.map((job) => {
                   const noteCount = (job.notes || []).length;
                   const isSelected = selectedIds.includes(job.id);
+                  const coachWithoutService = isCoachJobWithoutService(job);
 
                   return (
                     <TableRow
@@ -827,15 +930,28 @@ export function LavorazioniSottocheckPage() {
                       />
                       <TableCell><CellTextSecondary>{job.id}</CellTextSecondary></TableCell>
                       <TableCell>
-                        <CellTextPrimary>
-                          {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
-                          {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
-                          {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
-                        </CellTextPrimary>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <CellTextPrimary>{getSubjectName(job)}</CellTextPrimary>
+                              <StudentTypeBadge isStudent={isStudentSubject(job)} />
+                            </div>
+                            <CellTextSecondary>{`Avviato da ${getInitiatorRoleLabel(job)} · ${getInitiatorName(job)}`}</CellTextSecondary>
+                          </div>
+                        </div>
+                        {coachWithoutService && (
+                          <CellTextSecondary>Incoerente: un check coach richiede una lavorazione</CellTextSecondary>
+                        )}
                       </TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.report && typeof job.report.totalWords === 'number' ? formatNumber(job.report.totalWords) : '-'}</CellTextPrimary></TableCell>
                       <TableCell align="right"><CellTextPrimary>{job.report && job.report.score && typeof job.report.score.aggregatedScore === 'number' ? job.report.score.aggregatedScore.toFixed(1) + '%' : '-'}</CellTextPrimary></TableCell>
-                      <TableCell align="right"><CellTextPrimary>{job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}</CellTextPrimary></TableCell>
+                      <TableCell align="right">
+                        <CellTextPrimary>
+                          {job.initiator_role === 'coach'
+                            ? `${job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'} / 50`
+                            : job.copyleaks_credits > 0 ? formatNumber(job.copyleaks_credits) : '-'}
+                        </CellTextPrimary>
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
                       </TableCell>
@@ -885,6 +1001,7 @@ export function LavorazioniSottocheckPage() {
             {filteredData.map((job) => {
               const isSelected = selectedIds.includes(job.id);
               const noteCount = (job.notes || []).length;
+              const coachWithoutService = isCoachJobWithoutService(job);
 
               return (
                 <ResponsiveMobileCard key={job.id} backgroundColor={isSelected ? 'var(--selected-row-bg)' : 'var(--card)'}>
@@ -895,8 +1012,14 @@ export function LavorazioniSottocheckPage() {
                       </div>
                       <div>
                         <CellTextSecondary>{job.id}</CellTextSecondary>
-                        {/* <CellTextSecondary>{job.admin_name}</CellTextSecondary> */}
-                        {/* <CellTextPrimary>{job.student}</CellTextPrimary> */}
+                        <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <CellTextPrimary>{getSubjectName(job)}</CellTextPrimary>
+                          <StudentTypeBadge isStudent={isStudentSubject(job)} />
+                        </div>
+                        <CellTextSecondary>{`Avviato da ${getInitiatorRoleLabel(job)} · ${getInitiatorName(job)}`}</CellTextSecondary>
+                        {coachWithoutService && (
+                          <CellTextSecondary>Incoerente: un check coach richiede una lavorazione</CellTextSecondary>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -923,14 +1046,6 @@ export function LavorazioniSottocheckPage() {
                   <ResponsiveMobileCardSection marginBottom="0.75rem">
                     <ResponsiveMobileFieldLabel>Lavorazione (opz.)</ResponsiveMobileFieldLabel>
                     <CellTextSecondary>{getLavorazioneLabel(job.service_id)}</CellTextSecondary>
-                  <ResponsiveMobileCardSection>
-                    <ResponsiveMobileFieldLabel>Avviato da</ResponsiveMobileFieldLabel>
-                    <CellTextPrimary>
-                      {job.initiator_role === 'student' && `Studente: ${job.student} (${job.student_id})`}
-                      {job.initiator_role === 'coach' && `Coach: ${job.coach_name}`}
-                      {job.initiator_role === 'admin' && `Admin: ${job.admin_name}`}
-                    </CellTextPrimary>
-                  </ResponsiveMobileCardSection>
                     <CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary>
                   </ResponsiveMobileCardSection>
                   {job.completedAt && (
@@ -983,7 +1098,19 @@ export function LavorazioniSottocheckPage() {
         formatNumber={formatNumber}
         statusMap={STATUS_MAP}
         statusLabels={STATUS_LABELS}
+        onOpenProfile={handleOpenProfileFromDetail}
       />
+
+      {/* Drawer profilo studente: si apre quando studentProfileDrawerId è valorizzato */}
+      {studentProfileDrawerId && (
+        <CreateStudentDrawer
+          open={!!studentProfileDrawerId}
+          onClose={() => setStudentProfileDrawerId(null)}
+          onStudentCreated={() => {}}
+          editStudent={students.find(s => s.id === studentProfileDrawerId) || null}
+          onStudentUpdated={() => setStudentProfileDrawerId(null)}
+        />
+      )}
 
       {/* Notes Drawer */}
       {notesJob && (
@@ -1072,6 +1199,11 @@ export function LavorazioniSottocheckPage() {
                     <option key={service.id} value={service.id}>{`${service.id} - ${service.service_name}`}</option>
                   ))}
                 </select>
+                {jobs.find(job => job.id === editCorrelationJobId)?.initiator_role === 'coach' && (
+                  <p style={{ ...labelStyle, marginTop: '0.5rem', marginBottom: 0 }}>
+                    Per i check avviati da coach la lavorazione e obbligatoria.
+                  </p>
+                )}
               </div>
             </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router';
 import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -73,6 +74,7 @@ const SERVICE_STATUS_LABELS: Record<string, string> = {
 export function StudentiPage() {
   const { students, data: lavorazioni, addStudent, updateStudent } = useLavorazioni();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // State base
   const [studentsData, setStudentsData] = useState<ExtendedStudent[]>(
@@ -96,6 +98,16 @@ export function StudentiPage() {
   // Drawer state
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
   const [editStudentId, setEditStudentId] = useState<string | null>(null);
+
+  // Effetto: se arrivo con ?id=... nella query, apri drawer profilo studente
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (id && students.find(s => s.id === id)) {
+      setEditStudentId(id);
+      setShowCreateDrawer(true);
+    }
+  }, [location.search, students]);
 
   // Note drawer
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);

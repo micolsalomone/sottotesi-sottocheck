@@ -92,6 +92,8 @@ export const ADMIN_USERS = [
 // ─── Coach Payout types ─────────────────────────────────────
 export type PayoutStatus = 'pending_invoice' | 'waiting_due_date' | 'ready_to_pay' | 'paid' | 'disputed';
 export type TaxRate = 0 | 4 | 22;
+export const PAYMENT_METHOD_OPTIONS = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHOD_OPTIONS)[number];
 
 export interface CoachPayout {
   id: string;
@@ -108,6 +110,7 @@ export interface CoachPayout {
   payment_due_date?: string;
   status: PayoutStatus;
   paid_at?: string;
+  payment_method?: string;
   payment_reference?: string;
 }
 
@@ -197,6 +200,8 @@ export interface Installment {
   status: InstallmentStatus;
   net_tax_rate?: TaxRate;
   invoice_number?: string;
+  payment_reference?: string;
+  payment_method?: string;
   invoice?: Invoice;
   payment?: Payment;
 }
@@ -394,23 +399,86 @@ const LEGACY_TIMELINE_ID_BY_STUDENT_NAME: Record<string, string> = {
   'Alex Johnson': 'S-052',
 };
 
-const hydrateServiceWithLegacySharedData = (service: StudentService): StudentService => {
-  if (service.coaching_timeline_full?.length || service.shared_documents?.length) {
-    return service;
-  }
+const LEGACY_PAYMENT_METHOD_MAP: Record<string, PaymentMethod> = {
+  'manuale': 'Manuale',
+  'bonifico': 'Bonifico',
+  'bonifico bancario': 'Bonifico',
+  'carta': 'Carta',
+  'carta di credito': 'Carta',
+  'carta di debito': 'Carta',
+  'contanti': 'Contanti',
+  'paypal': 'PayPal',
+  'satispay': 'Satispay',
+  'altro': 'Altro',
+};
 
-  const legacyTimelineId = LEGACY_TIMELINE_ID_BY_STUDENT_NAME[service.student_name];
-  if (!legacyTimelineId) {
-    return service;
-  }
+const normalizePaymentMethod = (method?: string): PaymentMethod | undefined => {
+  if (!method) return undefined;
+  const normalized = LEGACY_PAYMENT_METHOD_MAP[method.trim().toLowerCase()];
+  return normalized || 'Altro';
+};
 
-  const legacyBundle = getStudentTimeline(legacyTimelineId, service.student_name);
-  if (!legacyBundle.steps.length && !legacyBundle.documents.length) {
-    return service;
-  }
+const normalizeServicePaymentMethods = (service: StudentService): StudentService => {
+  let hasChanges = false;
+
+  const normalizedInstallments = service.installments.map(inst => {
+    const normalizedMethod = normalizePaymentMethod(inst.payment_method ?? inst.payment?.method);
+    const nextPayment = inst.payment && normalizedMethod && inst.payment.method !== normalizedMethod
+      ? { ...inst.payment, method: normalizedMethod }
+      : inst.payment;
+
+    const shouldUpdateMethodField = normalizedMethod && inst.payment_method !== normalizedMethod;
+    const changed = shouldUpdateMethodField || nextPayment !== inst.payment;
+    if (!changed) return inst;
+
+    hasChanges = true;
+    return {
+      ...inst,
+      payment_method: normalizedMethod,
+      payment: nextPayment,
+    };
+  });
+
+  const normalizePayout = (payout?: CoachPayout): CoachPayout | undefined => {
+    if (!payout) return payout;
+    const normalizedMethod = normalizePaymentMethod(payout.payment_method);
+    if (!normalizedMethod || payout.payment_method === normalizedMethod) return payout;
+    hasChanges = true;
+    return { ...payout, payment_method: normalizedMethod };
+  };
+
+  const normalizedPrimaryPayout = normalizePayout(service.coach_payout);
+  const normalizedPayouts = service.coach_payouts?.map(payout => normalizePayout(payout) || payout);
+
+  if (!hasChanges) return service;
 
   return {
     ...service,
+    installments: normalizedInstallments,
+    coach_payout: normalizedPrimaryPayout,
+    coach_payouts: normalizedPayouts,
+  };
+};
+
+const hydrateServiceWithLegacySharedData = (service: StudentService): StudentService => {
+  const normalizedService = normalizeServicePaymentMethods(service);
+
+  if (normalizedService.coaching_timeline_full?.length || normalizedService.shared_documents?.length) {
+    return normalizedService;
+  }
+
+  const legacyTimelineId = LEGACY_TIMELINE_ID_BY_STUDENT_NAME[normalizedService.student_name];
+  if (!legacyTimelineId) {
+    return normalizedService;
+  }
+
+  const legacyBundle = getStudentTimeline(legacyTimelineId, normalizedService.student_name);
+  if (!legacyBundle.steps.length && !legacyBundle.documents.length) {
+    return normalizedService;
+  }
+
+  return {
+    ...normalizedService,
     coaching_timeline_full: legacyBundle.steps,
     shared_documents: legacyBundle.documents,
   };
@@ -480,6 +548,8 @@ export const AVAILABLE_STUDENTS = [
 ];
 
 const INITIAL_STUDENTS: Student[] = [
+  // MOCK: Davide Ferretti per test apertura drawer profilo studente
+  { id: 'STU-605', name: 'Davide Ferretti', first_name: 'Davide', last_name: 'Ferretti', email: 'davide.ferretti@email.com', phone: '+39 333 0001111', status: 'active', created_at: '2026-03-01', updated_at: '2026-04-01T10:00:00', updated_by: 'Francesca', marketing_consent: false, contacts: { emails: [{ email: 'davide.ferretti@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2026-03-01' }], phones: [{ phone: '+39 333 0001111', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-03-01' }] }, academic_records: [{ id: 'AR-999', student_id: 'STU-605', degree_level: 'magistrale', course_name: 'Lettere Moderne', university_name: 'Università di Bologna', thesis_professor: 'Prof. Testa', thesis_topic: 'Letteratura italiana contemporanea', thesis_subject: 'Letteratura', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-03-01', updated_at: '2026-03-01' }] },
   // ── Studenti con coaching_access_enabled (service_access sull'email primaria) ──
   { id: 'STU-445', name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', status: 'active', created_at: '2025-10-15', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', marketing_consent: true, contacts: { emails: [{ email: 'giulia.verdi@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-10-15' }, { email: 'giulia.verdi@studenti.unibol.it', is_primary: false, purposes: ['generic'], source: 'manual', added_at: '2025-10-20' }], phones: [{ phone: '+39 333 1234567', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2025-10-15' }] }, academic_records: [{ id: 'AR-001', student_id: 'STU-445', degree_level: 'magistrale', course_name: 'Economia Aziendale', university_name: 'Università di Bologna', thesis_professor: 'Prof. Rossi', thesis_topic: 'Strategie di digitalizzazione e sostenibilità nel retail italiano', thesis_subject: 'Economia aziendale', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-10-15', updated_at: '2025-10-15' }] },
   { id: 'STU-478', name: 'Luca Neri', first_name: 'Luca', last_name: 'Neri', email: 'luca.neri@email.com', phone: '+39 340 9876543', status: 'active', created_at: '2025-11-02', updated_at: '2026-02-14T09:15:00', updated_by: 'Giada', marketing_consent: false, contacts: { emails: [{ email: 'luca.neri@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-11-02' }], phones: [{ phone: '+39 340 9876543', is_primary: true, purposes: ['communications', 'coaching'], source: 'manual', added_at: '2025-11-02' }] }, academic_records: [{ id: 'AR-010', student_id: 'STU-478', degree_level: 'magistrale', course_name: 'Ingegneria Gestionale', university_name: 'Politecnico di Torino', thesis_professor: 'Prof. Colombo', thesis_topic: 'Ottimizzazione della supply chain mediante blockchain e IoT', thesis_subject: 'Ingegneria dei processi', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-11-02', updated_at: '2025-11-02' }] },
