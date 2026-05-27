@@ -2,6 +2,7 @@
 
 - Product name and brand assets (including the Sottotesi logo): Sottotesi.
 - UI/Frontend design and implementation: Micol Salomone.
+- Brand/logo reuse authorization: https://sottotesi.it
 
 This Figma Make file includes components from [shadcn/ui](https://ui.shadcn.com/) used under [MIT license](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md).
 
