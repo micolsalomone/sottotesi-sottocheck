@@ -91,6 +91,14 @@ const getPayoutIssueDate = (payout?: Partial<CoachPayout>): string | undefined =
     : payout.notula_issue_date;
 };
 
+const getPayoutDueDateFromIssueDate = (payout?: Partial<CoachPayout>): string | undefined => {
+  const issueDate = getPayoutIssueDate(payout);
+  if (!issueDate) return undefined;
+  const d = new Date(`${issueDate}T00:00:00`);
+  d.setDate(d.getDate() + 45);
+  return d.toISOString().split('T')[0];
+};
+
 const resolveNotulaStatus = (payout?: Partial<CoachPayout>): NotulaWorkflowStatus => {
   if (!payout) return 'da_programmare';
   const isFattura = payout.document_type === 'fattura';
@@ -192,23 +200,10 @@ const calculatePaymentDueDate = (serviceEndDate?: string): string | undefined =>
   return d.toISOString().split('T')[0];
 };
 
-const computeScad45gg = (payout?: Partial<CoachPayout>, serviceEndDate?: string): { date: string; daysLeft: number } | null => {
-  // Prefer payment_due_date, fallback to service end date + 45 days
-  let dueDate: string | undefined = payout?.payment_due_date;
-  
-  if (!dueDate && serviceEndDate) {
-    dueDate = calculatePaymentDueDate(serviceEndDate);
-  }
-  
-  if (!dueDate) {
-    // Fallback to issue date (legacy behavior)
-    const issueDate = getPayoutIssueDate(payout);
-    if (!issueDate) return null;
-    const d = new Date(issueDate);
-    d.setDate(d.getDate() + 45);
-    dueDate = d.toISOString().split('T')[0];
-  }
-  
+const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLeft: number } | null => {
+  const dueDate = getPayoutDueDateFromIssueDate(payout);
+  if (!dueDate) return null;
+
   const d = new Date(dueDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -307,10 +302,8 @@ export function LavorazioneDetailDrawer({
   const handleSaveCoachPayout = (payoutId: string) => {
     const synced = localCoachPayouts.map(p => {
       const newPayout = withSyncedNotulaStatus(p);
-      // Auto-set payment_due_date if service is completed and no due date is set
-      if (service.status === 'completed' && serviceEndDate && !newPayout.payment_due_date) {
-        newPayout.payment_due_date = calculatePaymentDueDate(serviceEndDate);
-      }
+      // Keep persisted due date aligned with issue date +45 (fattura/notula).
+      newPayout.payment_due_date = getPayoutDueDateFromIssueDate(newPayout);
       return newPayout;
     });
     const primary = synced[0];
@@ -345,13 +338,12 @@ export function LavorazioneDetailDrawer({
 
   const syncedCoachPayouts = localCoachPayouts.map(p => withSyncedNotulaStatus(p));
   const payoutDaPagareCount = syncedCoachPayouts.filter(p => resolveNotulaStatus(p) === 'da_pagare').length;
-  const serviceEndDate = service.plan_end_date || service.end_date;
   const payoutScaduteCount = syncedCoachPayouts.filter(p => {
-    const scad = computeScad45gg(p, serviceEndDate);
+    const scad = computeScad45gg(p);
     return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft <= 0;
   }).length;
   const payoutInScadenzaCount = syncedCoachPayouts.filter(p => {
-    const scad = computeScad45gg(p, serviceEndDate);
+    const scad = computeScad45gg(p);
     return resolveNotulaStatus(p) === 'da_pagare' && !!scad && scad.daysLeft > 0 && scad.daysLeft <= 7;
   }).length;
   const coachCompensoImponibile = roundToCents(syncedCoachPayouts.reduce((sum, p) => sum + (p.notula_amount || 0), 0));
@@ -1196,6 +1188,13 @@ export function LavorazioneDetailDrawer({
                                     ...p,
                                     invoice_date: nextValue,
                                     notula_issue_date: undefined,
+                                    payment_due_date: nextValue
+                                      ? (() => {
+                                        const d = new Date(`${nextValue}T00:00:00`);
+                                        d.setDate(d.getDate() + 45);
+                                        return d.toISOString().split('T')[0];
+                                      })()
+                                      : undefined,
                                     sent_manually: false,
                                     invoice_status: nextValue ? 'ricevuta' : 'da_ricevere',
                                   }
@@ -1204,6 +1203,13 @@ export function LavorazioneDetailDrawer({
                                     notula_issue_date: nextValue,
                                     notula_sent_date: nextValue,
                                     invoice_date: undefined,
+                                    payment_due_date: nextValue
+                                      ? (() => {
+                                        const d = new Date(`${nextValue}T00:00:00`);
+                                        d.setDate(d.getDate() + 45);
+                                        return d.toISOString().split('T')[0];
+                                      })()
+                                      : undefined,
                                     sent_manually: !!nextValue,
                                   };
                                 return withSyncedNotulaStatus(next);
