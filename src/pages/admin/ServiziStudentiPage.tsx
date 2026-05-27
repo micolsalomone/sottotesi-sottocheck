@@ -52,12 +52,13 @@ const VISTA_LABELS: Record<Vista, string> = {
   scadenzario: 'Scadenzario',
 };
 
-type ScadenzarioPeriod = 'oggi' | 'settimana' | 'mese' | 'anno';
 type ScadenzarioItemType = 'rata' | 'compenso';
 type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
+type ScadenzarioViewMode = 'operativo' | 'storico';
 type ScadenzarioPaymentMethod = 'Manuale' | 'Bonifico' | 'Carta' | 'Contanti' | 'PayPal' | 'Satispay' | 'Altro';
 const SCAD_PAYMENT_METHOD_OPTIONS: ScadenzarioPaymentMethod[] = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'];
+const SCAD_RECENT_PAID_WINDOW_DAYS = 7;
 
 interface ScadenzarioItem {
   id: string;
@@ -76,6 +77,8 @@ interface ScadenzarioItem {
   isOverdue: boolean;
   noteCount: number;
   detailLabel: string;
+  referenceLabel: 'Pagamento' | 'Rata' | 'Payout';
+  referenceCode: string;
   paidAt?: string;
   paymentMethod?: string;
   taxRate?: TaxRate;
@@ -100,28 +103,12 @@ interface ScadenzarioGroup {
 type NotulaWorkflowStatus = 'da_programmare' | 'creata' | 'da_pagare' | 'pagata';
 
 const MONTH_NAMES_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-const WEEKDAY_NAMES_IT = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato'];
 const toDayDate = (dateStr?: string): Date | null => {
   if (!dateStr) return null;
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
   return d;
-};
-
-const formatLongDateIT = (dateStr: string): string => {
-  const d = toDayDate(dateStr);
-  if (!d) return dateStr;
-  return `${WEEKDAY_NAMES_IT[d.getDay()]} ${d.getDate()} ${MONTH_NAMES_IT[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const getISOWeekInfo = (date: Date): { week: number; year: number } => {
-  const d = new Date(date.getTime());
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  const week = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-  return { week, year: d.getFullYear() };
 };
 
 interface MonthGroup {
@@ -137,6 +124,10 @@ interface MonthGroup {
 
 const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+const formatSignedCurrency = (amount: number, cashflow: ScadenzarioCashflow): string => {
+  const sign = cashflow === 'entrata' ? '+' : '-';
+  return `${sign}€${amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const normalizeNotulaStatus = (status?: CoachPayout['notula_status']): NotulaWorkflowStatus => {
   if (status === 'pagata') return 'pagata';
   if (status === 'inviata' || status === 'da_pagare') return 'da_pagare';
@@ -268,15 +259,14 @@ export function ServiziStudentiPage() {
 
   // ─── Vista state ──────────────────────────────────────────
   const [activeVista, setActiveVista] = useState<Vista>('lavorazioni');
-  const [scadenzarioPeriod, setScadenzarioPeriod] = useState<ScadenzarioPeriod>('oggi');
 
   // ─── Scadenzario filters ───────────────────────────────────
   const [scadenzarioSearchQuery, setScadenzarioSearchQuery] = useState('');
+  const [scadViewMode, setScadViewMode] = useState<ScadenzarioViewMode>('operativo');
   const [scadTypeFilter, setScadTypeFilter] = useState<'all' | ScadenzarioItemType>('all');
   const [scadStatusFilter, setScadStatusFilter] = useState<'all' | ScadenzarioStatus>('all');
   const [scadCoachFilter, setScadCoachFilter] = useState('all');
   const [scadQuickFilter, setScadQuickFilter] = useState<null | 'scadute' | 'da_pagare' | 'compensi_aperti' | 'rate_aperte'>(null);
-  const [scadDueSortDirection, setScadDueSortDirection] = useState<'asc' | 'desc'>('desc');
   const [editingScadPaidAt, setEditingScadPaidAt] = useState<string | null>(null);
   const [scadPaidAtInput, setScadPaidAtInput] = useState('');
   const [editingScadPaymentMethod, setEditingScadPaymentMethod] = useState<string | null>(null);
@@ -354,6 +344,7 @@ export function ServiziStudentiPage() {
   type SortKey = 'id' | 'student_name' | 'created_at' | 'status' | 'nextDue' | 'coach_name' | 'compenso' | 'dataNotula' | 'scad45gg' | 'statoNotula' | 'plan_start_date' | 'plan_end_date' | null;
   const [sortColumn, setSortColumn] = useState<SortKey>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [scadDateSortDirection, setScadDateSortDirection] = useState<'asc' | 'desc'>('asc');
   
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
@@ -621,6 +612,16 @@ export function ServiziStudentiPage() {
       return <ChevronsUpDown size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />;
     }
     return sortDirection === 'asc' 
+      ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
+      : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
+  };
+
+  const toggleScadDateSort = () => {
+    setScadDateSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const getScadDateSortIcon = () => {
+    return scadDateSortDirection === 'asc'
       ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
       : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
   };
@@ -958,7 +959,7 @@ export function ServiziStudentiPage() {
       onRemove: () => setScadTypeFilter('all'),
     });
   }
-  if (scadStatusFilter !== 'all') {
+  if (scadViewMode === 'operativo' && scadStatusFilter !== 'all') {
     const labels: Record<ScadenzarioStatus, string> = {
       da_pagare: 'Da pagare',
       pagato: 'Pagato',
@@ -975,7 +976,7 @@ export function ServiziStudentiPage() {
       onRemove: () => setScadCoachFilter('all'),
     });
   }
-  if (scadQuickFilter) {
+  if (scadViewMode === 'operativo' && scadQuickFilter) {
     const quickLabels: Record<NonNullable<typeof scadQuickFilter>, string> = {
       scadute: 'Azione: Scadute',
       da_pagare: 'Azione: Da pagare',
@@ -1180,6 +1181,15 @@ export function ServiziStudentiPage() {
       minute: '2-digit',
     });
   };
+  const getActivePlanOverdueDays = (service: StudentService): number | null => {
+    if (service.status !== 'active' || !service.plan_end_date) return null;
+    const planEnd = toDayDate(service.plan_end_date);
+    if (!planEnd) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (planEnd.getTime() >= today.getTime()) return null;
+    return Math.floor((today.getTime() - planEnd.getTime()) / 86400000);
+  };
   const updatePayoutField = (serviceId: string, field: Partial<CoachPayout>) => {
     updateService(serviceId, s => {
       const currentPrimary = s.coach_payouts?.[0] || s.coach_payout || createDefaultCoachPayout(serviceId);
@@ -1269,6 +1279,7 @@ export function ServiziStudentiPage() {
         const isPaid = inst.status === 'paid';
         const isOverdue = !isPaid && dueDate.getTime() < today.getTime();
         const status: ScadenzarioStatus = isPaid ? 'pagato' : isOverdue ? 'in_ritardo' : 'da_pagare';
+        const installmentTaxRate = getInstallmentTaxRate(service, inst);
         items.push({
           id: `rata-${service.id}-${inst.id}`,
           serviceId: service.id,
@@ -1286,8 +1297,11 @@ export function ServiziStudentiPage() {
           isOverdue,
           noteCount: getNotesCount(service.id),
           detailLabel: `Rata ${idx + 2}/${service.installments.length}`,
+          referenceLabel: inst.payment?.id ? 'Pagamento' : 'Rata',
+          referenceCode: inst.payment?.id || inst.id,
           paidAt: inst.payment?.paidAt,
           paymentMethod: inst.payment_method || inst.payment?.method,
+          taxRate: installmentTaxRate,
           progressPaidLordo: paidInstallmentsLordo,
           progressRemainingLordo: remainingInstallmentsLordo,
         });
@@ -1320,6 +1334,8 @@ export function ServiziStudentiPage() {
           isOverdue,
           noteCount: getNotesCount(service.id),
           detailLabel: payout?.document_type === 'fattura' ? 'Compenso coach (fattura)' : 'Compenso coach (notula)',
+          referenceLabel: 'Payout',
+          referenceCode: payout?.id || `CP-${service.id}`,
           paidAt: payout?.paid_at,
           paymentMethod: payout?.payment_method,
           taxRate: payoutTaxRate,
@@ -1339,28 +1355,41 @@ export function ServiziStudentiPage() {
     return items;
   }, [getInstallmentNet, getNotesCount, getPrimaryCoachPayout, scadenzarioBaseServices]);
 
+  const getScadPaidAgeDays = useCallback((item: ScadenzarioItem): number | null => {
+    if (!item.isPaid) return null;
+
+    const referenceDate = toDayDate(item.paidAt || item.dueDate);
+    if (!referenceDate) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.floor((today.getTime() - referenceDate.getTime()) / 86400000);
+  }, []);
+
+  const isScadStoricoItem = useCallback((item: ScadenzarioItem): boolean => {
+    const paidAgeDays = getScadPaidAgeDays(item);
+    if (paidAgeDays === null) return false;
+    return paidAgeDays > SCAD_RECENT_PAID_WINDOW_DAYS;
+  }, [getScadPaidAgeDays]);
+
+  const scadVisibleItems = useMemo(() => {
+    if (scadViewMode === 'storico') {
+      return scadenzarioItems.filter(isScadStoricoItem);
+    }
+
+    return scadenzarioItems.filter(item => !isScadStoricoItem(item));
+  }, [isScadStoricoItem, scadViewMode, scadenzarioItems]);
+
   const scadCoaches = useMemo(
-    () => Array.from(new Set(scadenzarioItems.map(i => i.coachName).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'it')),
-    [scadenzarioItems]
+    () => Array.from(new Set(scadVisibleItems.map(i => i.coachName).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'it')),
+    [scadVisibleItems]
   );
 
-  const scadQuickFilterCounts = useMemo(() => {
-    return {
-      scadute: scadenzarioItems.filter(i => i.status === 'in_ritardo').length,
-      da_pagare: scadenzarioItems.filter(i => i.status === 'da_pagare').length,
-      compensi_aperti: scadenzarioItems.filter(i => i.type === 'compenso' && i.status !== 'pagato').length,
-      rate_aperte: scadenzarioItems.filter(i => i.type === 'rata' && i.status !== 'pagato').length,
-    };
-  }, [scadenzarioItems]);
-
-  const filteredScadenzarioItems = useMemo(() => {
-    return scadenzarioItems.filter(item => {
-      if (scadQuickFilter === 'scadute' && item.status !== 'in_ritardo') return false;
-      if (scadQuickFilter === 'da_pagare' && item.status !== 'da_pagare') return false;
-      if (scadQuickFilter === 'compensi_aperti' && !(item.type === 'compenso' && item.status !== 'pagato')) return false;
-      if (scadQuickFilter === 'rate_aperte' && !(item.type === 'rata' && item.status !== 'pagato')) return false;
+  const scadenzarioCoreItems = useMemo(() => {
+    return scadVisibleItems.filter(item => {
       if (scadTypeFilter !== 'all' && item.type !== scadTypeFilter) return false;
-      if (scadStatusFilter !== 'all' && item.status !== scadStatusFilter) return false;
+      if (scadViewMode === 'storico' && item.status !== 'pagato') return false;
+      if (scadViewMode === 'operativo' && scadStatusFilter !== 'all' && item.status !== scadStatusFilter) return false;
       if (scadCoachFilter !== 'all' && (item.coachName || '—') !== scadCoachFilter) return false;
       if (scadenzarioSearchQuery) {
         const q = scadenzarioSearchQuery.toLowerCase();
@@ -1369,7 +1398,30 @@ export function ServiziStudentiPage() {
       }
       return true;
     });
-  }, [scadCoachFilter, scadQuickFilter, scadStatusFilter, scadTypeFilter, scadenzarioItems, scadenzarioSearchQuery]);
+  }, [scadCoachFilter, scadStatusFilter, scadTypeFilter, scadViewMode, scadVisibleItems, scadenzarioSearchQuery]);
+
+  const scadQuickFilterCounts = useMemo(() => {
+    return {
+      scadute: scadenzarioCoreItems.filter(i => i.status === 'in_ritardo').length,
+      da_pagare: scadenzarioCoreItems.filter(i => i.status === 'da_pagare').length,
+      compensi_aperti: scadenzarioCoreItems.filter(i => i.type === 'compenso' && i.status !== 'pagato').length,
+      rate_aperte: scadenzarioCoreItems.filter(i => i.type === 'rata' && i.status !== 'pagato').length,
+    };
+  }, [scadenzarioCoreItems]);
+
+  const filteredScadenzarioItems = useMemo(() => {
+    if (scadViewMode === 'storico') {
+      return scadenzarioCoreItems;
+    }
+
+    return scadenzarioCoreItems.filter(item => {
+      if (scadQuickFilter === 'scadute' && item.status !== 'in_ritardo') return false;
+      if (scadQuickFilter === 'da_pagare' && item.status !== 'da_pagare') return false;
+      if (scadQuickFilter === 'compensi_aperti' && !(item.type === 'compenso' && item.status !== 'pagato')) return false;
+      if (scadQuickFilter === 'rate_aperte' && !(item.type === 'rata' && item.status !== 'pagato')) return false;
+      return true;
+    });
+  }, [scadQuickFilter, scadViewMode, scadenzarioCoreItems]);
 
   const scadStatusBadge = (status: ScadenzarioStatus) => {
     if (status === 'pagato') return <StatusBadge status="inactive" label="Pagato" />;
@@ -1391,15 +1443,11 @@ export function ServiziStudentiPage() {
     return <StatusBadge status="pending" label="Coach" />;
   };
 
-  const scadDueSortIcon = scadDueSortDirection === 'asc'
-    ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-    : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
-
   const scadProgressLabel = (item: ScadenzarioItem) => {
-    const paid = item.progressPaidLordo.toLocaleString('it-IT');
-    const remaining = item.progressRemainingLordo.toLocaleString('it-IT');
-    if (item.cashflow === 'entrata') return `Pagato studente €${paid} · Residuo €${remaining}`;
-    return `Pagato coach €${paid} · Residuo €${remaining}`;
+    const paid = formatSignedCurrency(item.progressPaidLordo, item.cashflow);
+    const remaining = formatSignedCurrency(item.progressRemainingLordo, item.cashflow);
+    if (item.cashflow === 'entrata') return `Pagato studente ${paid} · Residuo ${remaining}`;
+    return `Pagato coach ${paid} · Residuo ${remaining}`;
   };
 
   const scadDueUrgencyMeta = (item: ScadenzarioItem): { icon: React.ReactNode; color: string; label: string } => {
@@ -1431,7 +1479,15 @@ export function ServiziStudentiPage() {
     }
 
     const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
-    if (diffDays <= 5) {
+    if (diffDays <= 0) {
+      return {
+        icon: <AlertTriangle size={13} style={{ color: 'var(--destructive)' }} />,
+        color: 'var(--destructive)',
+        label: diffDays === 0 ? 'Scade oggi' : 'Scaduta',
+      };
+    }
+
+    if (diffDays <= 7) {
       return {
         icon: <Clock size={13} style={{ color: 'var(--chart-3)' }} />,
         color: 'var(--chart-3)',
@@ -1446,63 +1502,51 @@ export function ServiziStudentiPage() {
     };
   };
 
-  const getScadGroupMeta = (dateStr: string, period: ScadenzarioPeriod): { key: string; label: string; sortValue: number } => {
+  const getScadGroupMeta = (dateStr: string): { key: string; label: string; sortValue: number } => {
     const d = toDayDate(dateStr);
     if (!d) return { key: dateStr, label: dateStr, sortValue: Number.MAX_SAFE_INTEGER };
 
-    if (period === 'oggi') {
-      return {
-        key: dateStr,
-        label: formatLongDateIT(dateStr),
-        sortValue: d.getTime(),
-      };
-    }
-    if (period === 'settimana') {
-      const info = getISOWeekInfo(d);
-      const day = (d.getDay() + 6) % 7;
-      const weekStart = new Date(d.getTime());
-      weekStart.setDate(d.getDate() - day);
-      return {
-        key: `${info.year}-W${String(info.week).padStart(2, '0')}`,
-        label: `Settimana ${info.week} · ${info.year}`,
-        sortValue: weekStart.getTime(),
-      };
-    }
-    if (period === 'mese') {
-      return {
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: `${MONTH_NAMES_IT[d.getMonth()]} ${d.getFullYear()}`,
-        sortValue: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-      };
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((d.getTime() - today.getTime()) / 86400000);
+
+    if (diffDays < 0) return { key: 'overdue', label: 'Scaduto', sortValue: 0 };
+    if (diffDays === 0) return { key: 'today', label: 'Oggi', sortValue: 1 };
+    if (diffDays === 1) return { key: 'tomorrow', label: 'Domani', sortValue: 2 };
+    if (diffDays <= 7) return { key: 'next-7', label: 'Prossimi 7 giorni', sortValue: 3 };
+    if (diffDays <= 30) return { key: 'next-30', label: 'Prossimi 30 giorni', sortValue: 4 };
     return {
-      key: String(d.getFullYear()),
-      label: `Anno ${d.getFullYear()}`,
-      sortValue: new Date(d.getFullYear(), 0, 1).getTime(),
+      key: 'future',
+      label: 'Oltre 30 giorni',
+      sortValue: 5,
     };
   };
 
   const scadenzarioGroups = useMemo((): ScadenzarioGroup[] => {
     const groups: ScadenzarioGroup[] = [];
     const sortedItems = [...filteredScadenzarioItems].sort((a, b) => {
-      if (a.dueDate < b.dueDate) return scadDueSortDirection === 'asc' ? -1 : 1;
-      if (a.dueDate > b.dueDate) return scadDueSortDirection === 'asc' ? 1 : -1;
-      return a.studentName.localeCompare(b.studentName, 'it');
+      const aDue = toDayDate(a.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const bDue = toDayDate(b.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (aDue !== bDue) return scadDateSortDirection === 'asc' ? aDue - bDue : bDue - aDue;
+      const byStudent = a.studentName.localeCompare(b.studentName, 'it');
+      return scadDateSortDirection === 'asc' ? byStudent : -byStudent;
     });
 
     const map = new Map<string, ScadenzarioGroup>();
     sortedItems.forEach(item => {
-      const meta = getScadGroupMeta(item.dueDate, scadenzarioPeriod);
+      const meta = getScadGroupMeta(item.dueDate);
+      const aliquotaAmount = Math.max(0, roundToCents(item.amountLordo - item.amountNetto));
       const existing = map.get(meta.key);
       if (existing) {
         existing.items.push(item);
         if (item.cashflow === 'entrata') {
           existing.totalEntrateLordo += item.amountLordo;
           existing.totalEntrateNetto += item.amountNetto;
+          existing.totalAliquote += aliquotaAmount;
         } else {
           existing.totalUsciteLordo += item.amountLordo;
           existing.totalUsciteNetto += item.amountNetto;
-          existing.totalAliquote += Math.max(0, roundToCents(item.amountLordo - item.amountNetto));
+          existing.totalAliquote += aliquotaAmount;
         }
         existing.saldoLordo = existing.totalEntrateLordo - existing.totalUsciteLordo;
         existing.saldoNetto = existing.totalEntrateNetto - existing.totalUsciteNetto;
@@ -1515,7 +1559,7 @@ export function ServiziStudentiPage() {
           totalEntrateNetto: item.cashflow === 'entrata' ? item.amountNetto : 0,
           totalUsciteLordo: item.cashflow === 'uscita' ? item.amountLordo : 0,
           totalUsciteNetto: item.cashflow === 'uscita' ? item.amountNetto : 0,
-          totalAliquote: item.cashflow === 'uscita' ? Math.max(0, roundToCents(item.amountLordo - item.amountNetto)) : 0,
+          totalAliquote: aliquotaAmount,
           saldoLordo: item.cashflow === 'entrata' ? item.amountLordo : -item.amountLordo,
           saldoNetto: item.cashflow === 'entrata' ? item.amountNetto : -item.amountNetto,
           sortValue: meta.sortValue,
@@ -1524,10 +1568,10 @@ export function ServiziStudentiPage() {
     });
 
     groups.push(...Array.from(map.values()).sort((a, b) => (
-      scadDueSortDirection === 'asc' ? a.sortValue - b.sortValue : b.sortValue - a.sortValue
+      scadDateSortDirection === 'asc' ? a.sortValue - b.sortValue : b.sortValue - a.sortValue
     )));
     return groups;
-  }, [filteredScadenzarioItems, scadDueSortDirection, scadenzarioPeriod]);
+  }, [filteredScadenzarioItems, scadDateSortDirection]);
 
   const scadenzarioTotals = useMemo(() => {
     const entrateLordo = filteredScadenzarioItems.filter(i => i.cashflow === 'entrata').reduce((sum, i) => sum + i.amountLordo, 0);
@@ -1542,6 +1586,44 @@ export function ServiziStudentiPage() {
       saldoLordo: entrateLordo - usciteLordo,
       saldoNetto: entrateNetto - usciteNetto,
     };
+  }, [filteredScadenzarioItems]);
+
+  const scadPaymentOverview = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = {
+      overdueCount: 0,
+      overdueAmount: 0,
+      todayCount: 0,
+      todayAmount: 0,
+      tomorrowCount: 0,
+      tomorrowAmount: 0,
+      next7Count: 0,
+      next7Amount: 0,
+    };
+
+    filteredScadenzarioItems.forEach(item => {
+      if (item.cashflow !== 'uscita' || item.status === 'pagato') return;
+      const due = toDayDate(item.dueDate);
+      if (!due) return;
+
+      const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
+      if (diffDays < 0) {
+        result.overdueCount += 1;
+        result.overdueAmount += item.amountLordo;
+      } else if (diffDays === 0) {
+        result.todayCount += 1;
+        result.todayAmount += item.amountLordo;
+      } else if (diffDays === 1) {
+        result.tomorrowCount += 1;
+        result.tomorrowAmount += item.amountLordo;
+      } else if (diffDays <= 7) {
+        result.next7Count += 1;
+        result.next7Amount += item.amountLordo;
+      }
+    });
+
+    return result;
   }, [filteredScadenzarioItems]);
 
   const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string) => {
@@ -1968,31 +2050,47 @@ export function ServiziStudentiPage() {
       {activeVista === 'scadenzario' && (
         <>
           <div style={{
+            marginBottom: '0.75rem',
+            padding: '0.625rem 0.75rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            background: 'var(--muted)',
+            fontFamily: 'var(--font-inter)',
+            fontSize: '12px',
+            color: 'var(--muted-foreground)',
+            lineHeight: '1.5',
+          }}>
+            {scadViewMode === 'operativo'
+              ? `Scadenzario operativo: non pagati + pagati recenti (ultimi ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni).`
+              : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni.`}
+          </div>
+
+          <div style={{
             display: 'flex',
-            gap: '0.25rem',
+            gap: '0',
             marginBottom: '1rem',
             borderBottom: '1px solid var(--border)',
           }}>
             {([
-              { key: 'oggi', label: 'Oggi' },
-              { key: 'settimana', label: 'Settimana' },
-              { key: 'mese', label: 'Mese' },
-              { key: 'anno', label: 'Anno' },
-            ] as Array<{ key: ScadenzarioPeriod; label: string }>).map(tab => {
-              const isActive = scadenzarioPeriod === tab.key;
+              { key: 'operativo', label: 'Operativo' },
+              { key: 'storico', label: 'Storico' },
+            ] as const).map(tab => {
+              const isActive = scadViewMode === tab.key;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setScadenzarioPeriod(tab.key)}
+                  onClick={() => {
+                    setScadViewMode(tab.key);
+                    setScadQuickFilter(null);
+                    setScadStatusFilter('all');
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: '0.375rem',
                     padding: '0.5rem 1rem',
-                    border: '2px solid transparent',
-                    borderTopColor: 'transparent',
-                    borderLeftColor: 'transparent',
-                    borderRightColor: 'transparent',
-                    borderBottomColor: isActive ? 'var(--primary)' : 'transparent',
+                    border: 'none',
+                    borderBottom: `2px solid ${isActive ? 'var(--primary)' : 'transparent'}`,
                     borderRadius: '0',
                     background: 'none',
                     fontFamily: 'var(--font-inter)',
@@ -2023,17 +2121,19 @@ export function ServiziStudentiPage() {
                 </select>
               </div>
 
-              <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
-                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
-                  Stato
-                </label>
-                <select className="select-dropdown" style={{ width: '100%' }} value={scadStatusFilter} onChange={(e) => setScadStatusFilter(e.target.value as 'all' | ScadenzarioStatus)}>
-                  <option value="all">Tutti</option>
-                  <option value="da_pagare">Da pagare</option>
-                  <option value="pagato">Pagato</option>
-                  <option value="in_ritardo">In ritardo</option>
-                </select>
-              </div>
+              {scadViewMode === 'operativo' && (
+                <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                    Stato
+                  </label>
+                  <select className="select-dropdown" style={{ width: '100%' }} value={scadStatusFilter} onChange={(e) => setScadStatusFilter(e.target.value as 'all' | ScadenzarioStatus)}>
+                    <option value="all">Tutti</option>
+                    <option value="da_pagare">Da pagare</option>
+                    <option value="pagato">Pagato</option>
+                    <option value="in_ritardo">In ritardo</option>
+                  </select>
+                </div>
+              )}
 
               <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
                 <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
@@ -2058,89 +2158,91 @@ export function ServiziStudentiPage() {
               </div>
           </div>
 
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '1rem',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}>
-            <span style={{
-              fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
-              fontWeight: 'var(--font-weight-medium)',
-              color: 'var(--muted-foreground)',
-              marginRight: '0.25rem',
+          {scadViewMode === 'operativo' && (
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+              alignItems: 'center',
             }}>
-              Azioni richieste:
-            </span>
-            {([
-              { key: 'scadute', label: 'Scadute', count: scadQuickFilterCounts.scadute, color: 'var(--destructive)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
-              { key: 'da_pagare', label: 'Da pagare', count: scadQuickFilterCounts.da_pagare, color: 'var(--chart-3)', bgActive: 'rgba(251, 191, 36, 0.08)', bgBadge: 'rgba(251, 191, 36, 0.15)' },
-              { key: 'compensi_aperti', label: 'Compensi aperti', count: scadQuickFilterCounts.compensi_aperti, color: 'var(--destructive)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
-              { key: 'rate_aperte', label: 'Rate aperte', count: scadQuickFilterCounts.rate_aperte, color: 'var(--primary)', bgActive: 'rgba(59, 130, 246, 0.08)', bgBadge: 'rgba(59, 130, 246, 0.15)' },
-            ] as const).map(chip => (
-              <button
-                key={chip.key}
-                onClick={() => setScadQuickFilter(scadQuickFilter === chip.key ? null : chip.key)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.25rem 0.625rem',
-                  borderRadius: 'var(--radius-badge)',
-                  border: scadQuickFilter === chip.key ? `1.5px solid ${chip.color}` : '1px solid var(--border)',
-                  background: scadQuickFilter === chip.key ? chip.bgActive : 'var(--card)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: chip.count > 0 ? chip.color : 'var(--muted-foreground)',
-                  cursor: 'pointer',
-                  opacity: chip.count === 0 ? 0.5 : 1,
-                  lineHeight: '1.5',
-                }}
-                disabled={chip.count === 0}
-              >
-                {chip.label}
-                <span style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '10px',
-                  fontWeight: 'var(--font-weight-bold)',
-                  background: chip.count > 0 ? chip.bgBadge : 'var(--muted)',
-                  color: chip.count > 0 ? chip.color : 'var(--muted-foreground)',
-                  borderRadius: '999px',
-                  padding: '0 0.375rem',
-                  minWidth: '18px',
-                  textAlign: 'center',
-                  lineHeight: '18px',
-                }}>
-                  {chip.count}
-                </span>
-              </button>
-            ))}
-            {scadQuickFilter && (
-              <button
-                onClick={() => setScadQuickFilter(null)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: 'var(--radius)',
-                  border: 'none',
-                  background: 'none',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
-                  color: 'var(--muted-foreground)',
-                  cursor: 'pointer',
-                  lineHeight: '1.5',
-                }}
-              >
-                <X size={12} />
-                Rimuovi
-              </button>
-            )}
-          </div>
+              <span style={{
+                fontFamily: 'var(--font-inter)',
+                fontSize: '12px',
+                fontWeight: 'var(--font-weight-medium)',
+                color: 'var(--muted-foreground)',
+                marginRight: '0.25rem',
+              }}>
+                Azioni richieste:
+              </span>
+              {([
+                { key: 'scadute', label: 'Scadute', count: scadQuickFilterCounts.scadute, color: 'var(--destructive)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
+                { key: 'da_pagare', label: 'Da pagare', count: scadQuickFilterCounts.da_pagare, color: 'var(--chart-3)', bgActive: 'rgba(251, 191, 36, 0.08)', bgBadge: 'rgba(251, 191, 36, 0.15)' },
+                { key: 'compensi_aperti', label: 'Compensi aperti', count: scadQuickFilterCounts.compensi_aperti, color: 'var(--destructive)', bgActive: 'rgba(239, 68, 68, 0.08)', bgBadge: 'rgba(239, 68, 68, 0.15)' },
+                { key: 'rate_aperte', label: 'Rate aperte', count: scadQuickFilterCounts.rate_aperte, color: 'var(--primary)', bgActive: 'rgba(59, 130, 246, 0.08)', bgBadge: 'rgba(59, 130, 246, 0.15)' },
+              ] as const).map(chip => (
+                <button
+                  key={chip.key}
+                  onClick={() => setScadQuickFilter(scadQuickFilter === chip.key ? null : chip.key)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.25rem 0.625rem',
+                    borderRadius: 'var(--radius-badge)',
+                    border: scadQuickFilter === chip.key ? `1.5px solid ${chip.color}` : '1px solid var(--border)',
+                    background: scadQuickFilter === chip.key ? chip.bgActive : 'var(--card)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '11px',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: chip.count > 0 ? chip.color : 'var(--muted-foreground)',
+                    cursor: 'pointer',
+                    opacity: chip.count === 0 ? 0.5 : 1,
+                    lineHeight: '1.5',
+                  }}
+                  disabled={chip.count === 0}
+                >
+                  {chip.label}
+                  <span style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '10px',
+                    fontWeight: 'var(--font-weight-bold)',
+                    background: chip.count > 0 ? chip.bgBadge : 'var(--muted)',
+                    color: chip.count > 0 ? chip.color : 'var(--muted-foreground)',
+                    borderRadius: '999px',
+                    padding: '0 0.375rem',
+                    minWidth: '18px',
+                    textAlign: 'center',
+                    lineHeight: '18px',
+                  }}>
+                    {chip.count}
+                  </span>
+                </button>
+              ))}
+              {scadQuickFilter && (
+                <button
+                  onClick={() => setScadQuickFilter(null)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: 'var(--radius)',
+                    border: 'none',
+                    background: 'none',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '11px',
+                    color: 'var(--muted-foreground)',
+                    cursor: 'pointer',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  <X size={12} />
+                  Rimuovi
+                </button>
+              )}
+            </div>
+          )}
 
           {scadActiveFilters.length > 0 && (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
@@ -2207,6 +2309,51 @@ export function ServiziStudentiPage() {
               </div>
               <div style={statVal()}>{activeVista === 'scadenzario' ? filteredScadenzarioItems.length : filteredAndSortedData.filter(s => s.status === 'active').length}</div>
             </div>
+
+            {activeVista === 'scadenzario' && scadViewMode === 'operativo' && (
+              <div style={statCard(scadPaymentOverview.overdueAmount > 0 ? 'var(--destructive)' : undefined)}>
+                <div style={statLabel}>Da pagare in ritardo</div>
+                <div style={statVal(scadPaymentOverview.overdueAmount > 0 ? 'var(--destructive)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.overdueAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.overdueCount} {scadPaymentOverview.overdueCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && scadViewMode === 'operativo' && (
+              <div style={statCard(scadPaymentOverview.todayAmount > 0 ? 'var(--chart-3)' : undefined)}>
+                <div style={statLabel}>Da pagare oggi</div>
+                <div style={statVal(scadPaymentOverview.todayAmount > 0 ? 'var(--chart-3)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.todayAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.todayCount} {scadPaymentOverview.todayCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && scadViewMode === 'operativo' && (
+              <div style={statCard(scadPaymentOverview.tomorrowAmount > 0 ? 'var(--primary)' : undefined)}>
+                <div style={statLabel}>Da pagare domani</div>
+                <div style={statVal(scadPaymentOverview.tomorrowAmount > 0 ? 'var(--primary)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.tomorrowAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.tomorrowCount} {scadPaymentOverview.tomorrowCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && scadViewMode === 'operativo' && (
+              <div style={statCard(scadPaymentOverview.next7Amount > 0 ? 'var(--primary)' : undefined)}>
+                <div style={statLabel}>Da pagare prossimi 7g</div>
+                <div style={statVal(scadPaymentOverview.next7Amount > 0 ? 'var(--primary)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.next7Amount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.next7Count} {scadPaymentOverview.next7Count === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
 
             {activeVista === 'scadenzario' && (
               <div style={statCard()}>
@@ -2317,7 +2464,7 @@ export function ServiziStudentiPage() {
             color: 'var(--muted-foreground)',
             fontSize: 'var(--text-base)',
           }}>
-            Nessuna scadenza per i filtri attivi.
+            {scadViewMode === 'storico' ? 'Nessun pagamento nello storico per i filtri attivi.' : 'Nessuna scadenza per i filtri attivi.'}
           </div>
         ) : (
         <ResponsiveTableLayout
@@ -2347,12 +2494,12 @@ export function ServiziStudentiPage() {
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell
                     style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none', cursor: 'pointer' }}
-                    onClick={() => setScadDueSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    onClick={toggleScadDateSort}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
-                      <span>Scadenza</span>
-                      {scadDueSortIcon}
-                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      Scadenza
+                      {getScadDateSortIcon()}
+                    </span>
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>
@@ -2374,7 +2521,7 @@ export function ServiziStudentiPage() {
                           {group.label}
                         </span>
                         <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {group.items.length} scadenze
+                          {group.items.length} {group.items.length === 1 ? 'scadenza' : 'scadenze'}
                         </span>
                       </div>
                     </TableCell>
@@ -2394,13 +2541,27 @@ export function ServiziStudentiPage() {
 
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
+                    const dueDate = toDayDate(item.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
+                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
+                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
+                    const rowBackground = isCriticalDue
+                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
+                      : isUrgentSoon
+                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
+                        : item.status === 'pagato'
+                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
+                          : 'var(--card)';
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
                           onClick={() => handleRowClick(item.serviceId)}
                           style={{
                             cursor: 'pointer',
-                            opacity: item.status === 'pagato' ? 0.72 : 1,
+                            backgroundColor: rowBackground,
+                            opacity: item.status === 'pagato' && scadViewMode === 'operativo' ? 0.74 : 1,
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
@@ -2411,6 +2572,9 @@ export function ServiziStudentiPage() {
                                   {scadDirectPartyLabel(item)}
                                 </div>
                                 {scadDirectPartyBadge(item)}
+                              </div>
+                              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.5', marginTop: '0.15rem' }}>
+                                {item.referenceLabel}: {item.referenceCode}
                               </div>
                             </div>
                           </TableCell>
@@ -2428,10 +2592,10 @@ export function ServiziStudentiPage() {
                             </div>
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadLordo, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                            <div>€{item.amountLordo.toLocaleString('it-IT')}</div>
+                            <div>{formatSignedCurrency(item.amountLordo, item.cashflow)}</div>
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadNetto, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                            <div>€{item.amountNetto.toLocaleString('it-IT')}</div>
+                            <div>{formatSignedCurrency(item.amountNetto, item.cashflow)}</div>
                             {item.cashflow === 'uscita' && (
                               <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.4' }}>
                                 Imponibile (netto)
@@ -2442,7 +2606,7 @@ export function ServiziStudentiPage() {
                             {item.taxRate !== undefined ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                                 <span>
-                                  €{Math.max(0, roundToCents(item.amountLordo - item.amountNetto)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}
                                 </span>
                                 <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: '1.4' }}>
                                   {item.taxRate}%
@@ -2550,15 +2714,31 @@ export function ServiziStudentiPage() {
                   </div>
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
+                    const dueDate = toDayDate(item.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
+                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
+                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
+                    const cardBackground = isCriticalDue
+                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
+                      : isUrgentSoon
+                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
+                        : item.status === 'pagato'
+                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
+                          : 'var(--card)';
                     return (
                     <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
-                    <ResponsiveMobileCard backgroundColor={item.status === 'pagato' ? 'var(--muted)' : 'var(--card)'}>
+                    <ResponsiveMobileCard backgroundColor={cardBackground}>
                       <ResponsiveMobileCardHeader>
                         <div>
                           <div style={{ marginBottom: '0.25rem' }}>{scadTypeBadge(item.cashflow)}</div>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                             <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>{scadDirectPartyLabel(item)}</div>
                             {scadDirectPartyBadge(item)}
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
+                            {item.referenceLabel}: {item.referenceCode}
                           </div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{item.serviceName}</div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
@@ -2574,18 +2754,23 @@ export function ServiziStudentiPage() {
                             Scadenza: {formatDateIT(item.dueDate)}
                           </span>
                           <span style={{ color: item.cashflow === 'entrata' ? 'var(--primary)' : 'var(--destructive)', fontWeight: 'var(--font-weight-bold)' }}>
-                            {item.cashflow === 'entrata' ? '+' : '-'}€{item.amountLordo.toLocaleString('it-IT')}
+                            {formatSignedCurrency(item.amountLordo, item.cashflow)}
                           </span>
                         </div>
                         <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '10px', color: dueUrgency.color }}>
                           {dueUrgency.label}
                         </div>
                         <div style={{ marginTop: '0.25rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                          Netto €{item.amountNetto.toLocaleString('it-IT')}
+                          Netto {formatSignedCurrency(item.amountNetto, item.cashflow)}
                         </div>
                         {item.cashflow === 'uscita' && item.taxRate !== undefined && (
                           <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                            Imponibile + aliquota {item.taxRate}% (€{Math.max(0, roundToCents(item.amountLordo - item.amountNetto)).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) = lordo da pagare
+                            Imponibile + aliquota {item.taxRate}% ({formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}) = lordo da pagare
+                          </div>
+                        )}
+                        {item.cashflow === 'entrata' && item.taxRate !== undefined && (
+                          <div style={{ marginTop: '0.2rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                            Lordo - aliquota {item.taxRate}% ({formatSignedCurrency(Math.max(0, roundToCents(item.amountLordo - item.amountNetto)), item.cashflow)}) = netto da incassare
                           </div>
                         )}
                         {item.isPaid && item.paidAt && (
@@ -2813,13 +2998,13 @@ export function ServiziStudentiPage() {
                               fontFamily: 'var(--font-inter)',
                               fontSize: '10px',
                               fontWeight: 'var(--font-weight-bold)',
-                              color: 'var(--destructive)',
+                              color: 'var(--destructive-foreground)',
                               backgroundColor: 'var(--destructive)',
                               borderRadius: '999px',
                               padding: '0 0.375rem',
                               lineHeight: '18px',
                             }}>
-                              {group.overdueCount} scadute
+                              {group.overdueCount} {group.overdueCount === 1 ? 'rata scaduta' : 'rate scadute'}
                             </span>
                           )}
                         </div>
@@ -2986,14 +3171,55 @@ export function ServiziStudentiPage() {
                             style={{ width: '120px', ...inlineInputStyle }}
                           />
                         ) : (
-                          <div
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', color: service.plan_end_date ? 'var(--foreground)' : 'var(--muted-foreground)' }}
-                            onClick={() => { setEditingExpiresAt(service.id); setExpiresAtInput(service.plan_end_date || ''); }}
-                            title="Clicca per modificare scadenza piano"
-                          >
-                            <span>{service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}</span>
-                            <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
-                          </div>
+                          (() => {
+                            const overdueDays = getActivePlanOverdueDays(service);
+                            const isOverdueActivePlan = overdueDays !== null;
+                            return (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'flex-start',
+                                  gap: '0.125rem',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    cursor: 'pointer',
+                                    color: isOverdueActivePlan
+                                      ? 'var(--destructive)'
+                                      : service.plan_end_date
+                                      ? 'var(--foreground)'
+                                      : 'var(--muted-foreground)',
+                                    fontWeight: isOverdueActivePlan ? ('var(--font-weight-semibold)' as any) : undefined,
+                                  }}
+                                  onClick={() => { setEditingExpiresAt(service.id); setExpiresAtInput(service.plan_end_date || ''); }}
+                                  title="Clicca per modificare scadenza piano"
+                                >
+                                  <span>{service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}</span>
+                                  <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+                                </div>
+                                {isOverdueActivePlan && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontFamily: 'var(--font-inter)',
+                                    fontSize: '10px',
+                                    fontWeight: 'var(--font-weight-medium)',
+                                    color: 'var(--destructive)',
+                                    lineHeight: '1.4',
+                                  }}>
+                                    <AlertTriangle size={10} />
+                                    Scaduto da {overdueDays}g
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()
                         )}
                       </TableCell>
                       <TableCell style={{ minWidth: columnWidths.servizio, fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', ...colVis('servizio') }}>
@@ -3354,7 +3580,7 @@ export function ServiziStudentiPage() {
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive)' : 'var(--muted-foreground)' }}
                             >
                               {inst.status === 'paid' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                              {inst.status === 'paid' ? 'Pagata' : inst.status === 'overdue' ? 'Scaduta' : 'In attesa'}
+                              {inst.status === 'paid' ? 'Pagata' : inst.status === 'overdue' ? 'Rata scaduta' : 'In attesa'}
                             </button>
                             {inst.payment ? (
                               editingPaymentDate === inst.id ? (
@@ -3544,6 +3770,30 @@ export function ServiziStudentiPage() {
                   </span>
                 )}
               </div>
+              {service.service_category !== 'Check plagio/AI' && (() => {
+                const overdueDays = getActivePlanOverdueDays(service);
+                const isOverdueActivePlan = overdueDays !== null;
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
+                    <span>Scadenza piano:</span>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      color: isOverdueActivePlan ? 'var(--destructive)' : service.plan_end_date ? 'var(--foreground)' : 'var(--muted-foreground)',
+                      fontWeight: isOverdueActivePlan ? ('var(--font-weight-semibold)' as any) : undefined,
+                    }}>
+                      {service.plan_end_date ? formatDateIT(service.plan_end_date) : 'N/D'}
+                      {isOverdueActivePlan && (
+                        <>
+                          <AlertTriangle size={11} />
+                          <span style={{ fontSize: '11px' }}>+{overdueDays}g</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
                 <span>Note</span>
                 {(() => {
