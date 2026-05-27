@@ -2374,7 +2374,7 @@ export function ServiziStudentiPage() {
                           {group.label}
                         </span>
                         <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-                          {group.items.length} scadenze
+                          {group.items.length} {group.items.length === 1 ? 'scadenza' : 'scadenze'}
                         </span>
                       </div>
                     </TableCell>
@@ -2813,13 +2813,13 @@ export function ServiziStudentiPage() {
                               fontFamily: 'var(--font-inter)',
                               fontSize: '10px',
                               fontWeight: 'var(--font-weight-bold)',
-                              color: 'var(--destructive)',
+                              color: 'var(--destructive-foreground)',
                               backgroundColor: 'var(--destructive)',
                               borderRadius: '999px',
                               padding: '0 0.375rem',
                               lineHeight: '18px',
                             }}>
-                              {group.overdueCount} scadute
+                              {group.overdueCount} {group.overdueCount === 1 ? 'scaduta' : 'scadute'}
                             </span>
                           )}
                         </div>
