@@ -669,6 +669,31 @@ export function ServiziStudentiPage() {
     return actions;
   };
 
+  const getScadenzarioActions = (item: ScadenzarioItem): TableAction[] => {
+    const actions: TableAction[] = [
+      {
+        label: 'Apri lavorazione',
+        icon: <ExternalLink size={14} />,
+        onClick: () => handleRowClick(item.serviceId),
+      },
+      {
+        label: 'Apri note',
+        icon: <StickyNote size={14} />,
+        onClick: () => handleOpenNotesDrawer(item.serviceId, `${scadDirectPartyLabel(item)} — ${item.serviceName}`),
+      },
+    ];
+
+    if (!item.isPaid) {
+      actions.push({
+        label: 'Segna pagato oggi',
+        icon: <CheckCircle size={14} />,
+        onClick: () => updateScadenzarioPaidAt(item, new Date().toISOString().split('T')[0]),
+      });
+    }
+
+    return actions;
+  };
+
   // Helper: get next pending/overdue installment date
   const getNextDueDate = useCallback((service: StudentService): string | null => {
     const pending = service.installments
@@ -2592,13 +2617,14 @@ export function ServiziStudentiPage() {
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>
-                    <span>Azioni</span>
+                    <span>Pagamento</span>
                     {resizeHandle('scadStato')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadNote}px`, textAlign: 'center', position: 'relative', userSelect: 'none' }}>
                     <span>Note</span>
                     {resizeHandle('scadNote')}
                   </TableHeaderBaseCell>
+                  <TableHeaderActionCell width={columnWidths.actions} />
                 </TableRow>
               </thead>
               {scadenzarioGroups.map((group) => (
@@ -2624,6 +2650,7 @@ export function ServiziStudentiPage() {
                     <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)' }}>
                       €{group.totalAliquote.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
+                    <TableCell></TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
@@ -2783,6 +2810,13 @@ export function ServiziStudentiPage() {
                               )}
                             </button>
                           </TableCell>
+                          <TableActionCell
+                            width={columnWidths.actions}
+                            backgroundColor={selectedIds.includes(item.id) || detailDrawerServiceId === item.serviceId ? 'var(--selected-row-bg)' : rowBackground}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <TableActions actions={getScadenzarioActions(item)} />
+                          </TableActionCell>
                         </TableRow>
                       </React.Fragment>
                     );
@@ -2829,7 +2863,12 @@ export function ServiziStudentiPage() {
                           </div>
                           </div>
                         </div>
-                        {scadStatusBadge(item.status)}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                          {scadStatusBadge(item.status)}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <TableActions actions={getScadenzarioActions(item)} />
+                          </div>
+                        </div>
                       </ResponsiveMobileCardHeader>
                       <ResponsiveMobileCardSection marginBottom="0">
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>
