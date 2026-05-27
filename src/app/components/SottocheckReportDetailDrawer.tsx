@@ -10,6 +10,7 @@ export interface SottocheckReportDetailDrawerProps {
   formatNumber: (n: number) => string;
   statusMap: Record<string, any>;
   statusLabels: Record<string, string>;
+  onOpenProfile?: (job: SelectedJob) => void;
 }
 
 export interface SelectedJob {
@@ -23,7 +24,7 @@ export interface SelectedJob {
   service_id?: string;
   document_name?: string;
   startedAt?: string;
-  completedAt?: string;
+  completedAt?: string | null;
   payment?: {
     amount: number;
     paidAt: string;
@@ -33,6 +34,20 @@ export interface SelectedJob {
 }
 
 export interface SottocheckReport {
+  // Compatibilità con payload legacy flat già usato nel componente.
+  scanId?: string;
+  creationTime?: string;
+  totalWords?: number;
+  totalExcluded?: number;
+  credits?: number;
+  expectedCredits?: number;
+  detectedLanguage?: string;
+  score?: {
+    identicalWords: number;
+    minorChangedWords: number;
+    relatedMeaningWords: number;
+    aggregatedScore: number;
+  };
   scannedDocument?: {
     scanId: string;
     totalWords: number;
@@ -102,6 +117,8 @@ const valueBoldStyle: React.CSSProperties = {
 };
 
 import React from 'react';
+import { useNavigate } from 'react-router';
+import { DrawerLinkedServiceCard } from './DrawerPrimitives';
 import { X, ExternalLink, Download } from 'lucide-react';
 import { StatusBadge, type StatusType } from '@/app/components/StatusBadge';
 
@@ -118,7 +135,9 @@ export function SottocheckReportDetailDrawer({
   formatNumber,
   statusMap,
   statusLabels,
+  onOpenProfile,
 }: SottocheckReportDetailDrawerProps) {
+  const navigate = useNavigate();
   if (!selectedJob) return null;
 
   return (
@@ -167,11 +186,45 @@ export function SottocheckReportDetailDrawer({
                 <div style={labelStyle}>Stato</div>
                 <StatusBadge status={statusMap[selectedJob.status]} label={statusLabels[selectedJob.status]} />
               </div>
-              {/* Lavorazione (solo se presente) */}
+              {/* Collegamenti contestuali */}
               {selectedJob.service_id && (
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={labelStyle}>Lavorazione</div>
-                  <div style={valueStyle}>{getLavorazioneLabel(selectedJob.service_id)}</div>
+                <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
+                  <div style={labelStyle}>Lavorazione collegata</div>
+                  <DrawerLinkedServiceCard
+                    id={selectedJob.service_id}
+                    serviceName={getLavorazioneLabel(selectedJob.service_id)}
+                    status={selectedJob.status}
+                    coachName={selectedJob.coach_name}
+                    onNavigate={() => navigate(`/lavorazioni?highlight=${selectedJob.service_id}`)}
+                  />
+                </div>
+              )}
+
+              {/* Collegamento timeline per coach */}
+              {selectedJob.initiator_role === 'coach' && selectedJob.service_id && (
+                <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
+                  <div style={labelStyle}>Timeline lavorazione</div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '11px', marginTop: '0.25rem' }}
+                    onClick={() => navigate(`/coaching/timeline?lavorazioneId=${selectedJob.service_id}&studentId=${selectedJob.student_id}`)}
+                  >
+                    Apri timeline <ExternalLink size={11} style={{ marginLeft: '3px' }} />
+                  </button>
+                </div>
+              )}
+
+              {/* Collegamento profilo (lead/studente) */}
+              {(selectedJob.student_id || selectedJob.student) && (
+                <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
+                  <div style={labelStyle}>Profilo</div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '11px', marginTop: '0.25rem' }}
+                    onClick={() => onOpenProfile?.(selectedJob)}
+                  >
+                    Apri profilo <ExternalLink size={11} style={{ marginLeft: '3px' }} />
+                  </button>
                 </div>
               )}
               {/* Documento */}
