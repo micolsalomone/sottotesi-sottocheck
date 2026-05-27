@@ -2846,7 +2846,7 @@ export function ServiziStudentiPage() {
                               padding: '0 0.375rem',
                               lineHeight: '18px',
                             }}>
-                              {group.overdueCount} {group.overdueCount === 1 ? 'scaduta' : 'scadute'}
+                              {group.overdueCount} {group.overdueCount === 1 ? 'rata scaduta' : 'rate scadute'}
                             </span>
                           )}
                         </div>
@@ -3422,7 +3422,7 @@ export function ServiziStudentiPage() {
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', cursor: 'pointer', background: inst.status === 'paid' ? 'rgba(11, 182, 63, 0.1)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary)' : inst.status === 'overdue' ? 'var(--destructive)' : 'var(--muted-foreground)' }}
                             >
                               {inst.status === 'paid' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                              {inst.status === 'paid' ? 'Pagata' : inst.status === 'overdue' ? 'Scaduta' : 'In attesa'}
+                              {inst.status === 'paid' ? 'Pagata' : inst.status === 'overdue' ? 'Rata scaduta' : 'In attesa'}
                             </button>
                             {inst.payment ? (
                               editingPaymentDate === inst.id ? (
