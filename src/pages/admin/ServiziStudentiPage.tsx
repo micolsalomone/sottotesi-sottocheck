@@ -52,7 +52,6 @@ const VISTA_LABELS: Record<Vista, string> = {
   scadenzario: 'Scadenzario',
 };
 
-type ScadenzarioPeriod = 'oggi' | 'settimana' | 'mese' | 'anno';
 type ScadenzarioItemType = 'rata' | 'compenso';
 type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
@@ -100,28 +99,12 @@ interface ScadenzarioGroup {
 type NotulaWorkflowStatus = 'da_programmare' | 'creata' | 'da_pagare' | 'pagata';
 
 const MONTH_NAMES_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-const WEEKDAY_NAMES_IT = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato'];
 const toDayDate = (dateStr?: string): Date | null => {
   if (!dateStr) return null;
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
   return d;
-};
-
-const formatLongDateIT = (dateStr: string): string => {
-  const d = toDayDate(dateStr);
-  if (!d) return dateStr;
-  return `${WEEKDAY_NAMES_IT[d.getDay()]} ${d.getDate()} ${MONTH_NAMES_IT[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const getISOWeekInfo = (date: Date): { week: number; year: number } => {
-  const d = new Date(date.getTime());
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  const week = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-  return { week, year: d.getFullYear() };
 };
 
 interface MonthGroup {
@@ -268,7 +251,6 @@ export function ServiziStudentiPage() {
 
   // ─── Vista state ──────────────────────────────────────────
   const [activeVista, setActiveVista] = useState<Vista>('lavorazioni');
-  const [scadenzarioPeriod, setScadenzarioPeriod] = useState<ScadenzarioPeriod>('oggi');
 
   // ─── Scadenzario filters ───────────────────────────────────
   const [scadenzarioSearchQuery, setScadenzarioSearchQuery] = useState('');
@@ -276,7 +258,6 @@ export function ServiziStudentiPage() {
   const [scadStatusFilter, setScadStatusFilter] = useState<'all' | ScadenzarioStatus>('all');
   const [scadCoachFilter, setScadCoachFilter] = useState('all');
   const [scadQuickFilter, setScadQuickFilter] = useState<null | 'scadute' | 'da_pagare' | 'compensi_aperti' | 'rate_aperte'>(null);
-  const [scadDueSortDirection, setScadDueSortDirection] = useState<'asc' | 'desc'>('desc');
   const [editingScadPaidAt, setEditingScadPaidAt] = useState<string | null>(null);
   const [scadPaidAtInput, setScadPaidAtInput] = useState('');
   const [editingScadPaymentMethod, setEditingScadPaymentMethod] = useState<string | null>(null);
@@ -1344,21 +1325,8 @@ export function ServiziStudentiPage() {
     [scadenzarioItems]
   );
 
-  const scadQuickFilterCounts = useMemo(() => {
-    return {
-      scadute: scadenzarioItems.filter(i => i.status === 'in_ritardo').length,
-      da_pagare: scadenzarioItems.filter(i => i.status === 'da_pagare').length,
-      compensi_aperti: scadenzarioItems.filter(i => i.type === 'compenso' && i.status !== 'pagato').length,
-      rate_aperte: scadenzarioItems.filter(i => i.type === 'rata' && i.status !== 'pagato').length,
-    };
-  }, [scadenzarioItems]);
-
-  const filteredScadenzarioItems = useMemo(() => {
+  const scadenzarioCoreItems = useMemo(() => {
     return scadenzarioItems.filter(item => {
-      if (scadQuickFilter === 'scadute' && item.status !== 'in_ritardo') return false;
-      if (scadQuickFilter === 'da_pagare' && item.status !== 'da_pagare') return false;
-      if (scadQuickFilter === 'compensi_aperti' && !(item.type === 'compenso' && item.status !== 'pagato')) return false;
-      if (scadQuickFilter === 'rate_aperte' && !(item.type === 'rata' && item.status !== 'pagato')) return false;
       if (scadTypeFilter !== 'all' && item.type !== scadTypeFilter) return false;
       if (scadStatusFilter !== 'all' && item.status !== scadStatusFilter) return false;
       if (scadCoachFilter !== 'all' && (item.coachName || '—') !== scadCoachFilter) return false;
@@ -1369,7 +1337,26 @@ export function ServiziStudentiPage() {
       }
       return true;
     });
-  }, [scadCoachFilter, scadQuickFilter, scadStatusFilter, scadTypeFilter, scadenzarioItems, scadenzarioSearchQuery]);
+  }, [scadCoachFilter, scadStatusFilter, scadTypeFilter, scadenzarioItems, scadenzarioSearchQuery]);
+
+  const scadQuickFilterCounts = useMemo(() => {
+    return {
+      scadute: scadenzarioCoreItems.filter(i => i.status === 'in_ritardo').length,
+      da_pagare: scadenzarioCoreItems.filter(i => i.status === 'da_pagare').length,
+      compensi_aperti: scadenzarioCoreItems.filter(i => i.type === 'compenso' && i.status !== 'pagato').length,
+      rate_aperte: scadenzarioCoreItems.filter(i => i.type === 'rata' && i.status !== 'pagato').length,
+    };
+  }, [scadenzarioCoreItems]);
+
+  const filteredScadenzarioItems = useMemo(() => {
+    return scadenzarioCoreItems.filter(item => {
+      if (scadQuickFilter === 'scadute' && item.status !== 'in_ritardo') return false;
+      if (scadQuickFilter === 'da_pagare' && item.status !== 'da_pagare') return false;
+      if (scadQuickFilter === 'compensi_aperti' && !(item.type === 'compenso' && item.status !== 'pagato')) return false;
+      if (scadQuickFilter === 'rate_aperte' && !(item.type === 'rata' && item.status !== 'pagato')) return false;
+      return true;
+    });
+  }, [scadQuickFilter, scadenzarioCoreItems]);
 
   const scadStatusBadge = (status: ScadenzarioStatus) => {
     if (status === 'pagato') return <StatusBadge status="inactive" label="Pagato" />;
@@ -1390,10 +1377,6 @@ export function ServiziStudentiPage() {
     if (item.cashflow === 'entrata') return <StatusBadge status="in-progress" label="Studente" />;
     return <StatusBadge status="pending" label="Coach" />;
   };
-
-  const scadDueSortIcon = scadDueSortDirection === 'asc'
-    ? <ChevronUp size={14} style={{ color: 'var(--primary)' }} />
-    : <ChevronDown size={14} style={{ color: 'var(--primary)' }} />;
 
   const scadProgressLabel = (item: ScadenzarioItem) => {
     const paid = item.progressPaidLordo.toLocaleString('it-IT');
@@ -1431,7 +1414,7 @@ export function ServiziStudentiPage() {
     }
 
     const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
-    if (diffDays <= 5) {
+    if (diffDays <= 30) {
       return {
         icon: <Clock size={13} style={{ color: 'var(--chart-3)' }} />,
         color: 'var(--chart-3)',
@@ -1446,53 +1429,38 @@ export function ServiziStudentiPage() {
     };
   };
 
-  const getScadGroupMeta = (dateStr: string, period: ScadenzarioPeriod): { key: string; label: string; sortValue: number } => {
+  const getScadGroupMeta = (dateStr: string): { key: string; label: string; sortValue: number } => {
     const d = toDayDate(dateStr);
     if (!d) return { key: dateStr, label: dateStr, sortValue: Number.MAX_SAFE_INTEGER };
 
-    if (period === 'oggi') {
-      return {
-        key: dateStr,
-        label: formatLongDateIT(dateStr),
-        sortValue: d.getTime(),
-      };
-    }
-    if (period === 'settimana') {
-      const info = getISOWeekInfo(d);
-      const day = (d.getDay() + 6) % 7;
-      const weekStart = new Date(d.getTime());
-      weekStart.setDate(d.getDate() - day);
-      return {
-        key: `${info.year}-W${String(info.week).padStart(2, '0')}`,
-        label: `Settimana ${info.week} · ${info.year}`,
-        sortValue: weekStart.getTime(),
-      };
-    }
-    if (period === 'mese') {
-      return {
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: `${MONTH_NAMES_IT[d.getMonth()]} ${d.getFullYear()}`,
-        sortValue: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-      };
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((d.getTime() - today.getTime()) / 86400000);
+
+    if (diffDays < 0) return { key: 'overdue', label: 'Scaduto', sortValue: 0 };
+    if (diffDays === 0) return { key: 'today', label: 'Oggi', sortValue: 1 };
+    if (diffDays === 1) return { key: 'tomorrow', label: 'Domani', sortValue: 2 };
+    if (diffDays <= 7) return { key: 'next-7', label: 'Prossimi 7 giorni', sortValue: 3 };
+    if (diffDays <= 30) return { key: 'next-30', label: 'Prossimi 30 giorni', sortValue: 4 };
     return {
-      key: String(d.getFullYear()),
-      label: `Anno ${d.getFullYear()}`,
-      sortValue: new Date(d.getFullYear(), 0, 1).getTime(),
+      key: 'future',
+      label: 'Oltre 30 giorni',
+      sortValue: 5,
     };
   };
 
   const scadenzarioGroups = useMemo((): ScadenzarioGroup[] => {
     const groups: ScadenzarioGroup[] = [];
     const sortedItems = [...filteredScadenzarioItems].sort((a, b) => {
-      if (a.dueDate < b.dueDate) return scadDueSortDirection === 'asc' ? -1 : 1;
-      if (a.dueDate > b.dueDate) return scadDueSortDirection === 'asc' ? 1 : -1;
+      const aDue = toDayDate(a.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const bDue = toDayDate(b.dueDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (aDue !== bDue) return aDue - bDue;
       return a.studentName.localeCompare(b.studentName, 'it');
     });
 
     const map = new Map<string, ScadenzarioGroup>();
     sortedItems.forEach(item => {
-      const meta = getScadGroupMeta(item.dueDate, scadenzarioPeriod);
+      const meta = getScadGroupMeta(item.dueDate);
       const existing = map.get(meta.key);
       if (existing) {
         existing.items.push(item);
@@ -1523,11 +1491,9 @@ export function ServiziStudentiPage() {
       }
     });
 
-    groups.push(...Array.from(map.values()).sort((a, b) => (
-      scadDueSortDirection === 'asc' ? a.sortValue - b.sortValue : b.sortValue - a.sortValue
-    )));
+    groups.push(...Array.from(map.values()).sort((a, b) => a.sortValue - b.sortValue));
     return groups;
-  }, [filteredScadenzarioItems, scadDueSortDirection, scadenzarioPeriod]);
+  }, [filteredScadenzarioItems]);
 
   const scadenzarioTotals = useMemo(() => {
     const entrateLordo = filteredScadenzarioItems.filter(i => i.cashflow === 'entrata').reduce((sum, i) => sum + i.amountLordo, 0);
@@ -1542,6 +1508,44 @@ export function ServiziStudentiPage() {
       saldoLordo: entrateLordo - usciteLordo,
       saldoNetto: entrateNetto - usciteNetto,
     };
+  }, [filteredScadenzarioItems]);
+
+  const scadPaymentOverview = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = {
+      overdueCount: 0,
+      overdueAmount: 0,
+      todayCount: 0,
+      todayAmount: 0,
+      tomorrowCount: 0,
+      tomorrowAmount: 0,
+      next7Count: 0,
+      next7Amount: 0,
+    };
+
+    filteredScadenzarioItems.forEach(item => {
+      if (item.cashflow !== 'uscita' || item.status === 'pagato') return;
+      const due = toDayDate(item.dueDate);
+      if (!due) return;
+
+      const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
+      if (diffDays < 0) {
+        result.overdueCount += 1;
+        result.overdueAmount += item.amountLordo;
+      } else if (diffDays === 0) {
+        result.todayCount += 1;
+        result.todayAmount += item.amountLordo;
+      } else if (diffDays === 1) {
+        result.tomorrowCount += 1;
+        result.tomorrowAmount += item.amountLordo;
+      } else if (diffDays <= 7) {
+        result.next7Count += 1;
+        result.next7Amount += item.amountLordo;
+      }
+    });
+
+    return result;
   }, [filteredScadenzarioItems]);
 
   const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string) => {
@@ -1968,47 +1972,17 @@ export function ServiziStudentiPage() {
       {activeVista === 'scadenzario' && (
         <>
           <div style={{
-            display: 'flex',
-            gap: '0.25rem',
-            marginBottom: '1rem',
-            borderBottom: '1px solid var(--border)',
+            marginBottom: '0.75rem',
+            padding: '0.625rem 0.75rem',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            background: 'var(--muted)',
+            fontFamily: 'var(--font-inter)',
+            fontSize: '12px',
+            color: 'var(--muted-foreground)',
+            lineHeight: '1.5',
           }}>
-            {([
-              { key: 'oggi', label: 'Oggi' },
-              { key: 'settimana', label: 'Settimana' },
-              { key: 'mese', label: 'Mese' },
-              { key: 'anno', label: 'Anno' },
-            ] as Array<{ key: ScadenzarioPeriod; label: string }>).map(tab => {
-              const isActive = scadenzarioPeriod === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setScadenzarioPeriod(tab.key)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '0.5rem 1rem',
-                    border: '2px solid transparent',
-                    borderTopColor: 'transparent',
-                    borderLeftColor: 'transparent',
-                    borderRightColor: 'transparent',
-                    borderBottomColor: isActive ? 'var(--primary)' : 'transparent',
-                    borderRadius: '0',
-                    background: 'none',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: isActive ? 'var(--font-weight-bold)' : 'var(--font-weight-medium)',
-                    color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)',
-                    cursor: 'pointer',
-                    lineHeight: '1.5',
-                    transition: 'border-color 0.15s ease, color 0.15s ease',
-                    marginBottom: '-1px',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+            Scadenzario timeline: vista unica completa per leggere arretrati, oggi, domani e futuro. "In scadenza" copre fino a 30 giorni.
           </div>
 
           <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1rem', flexWrap: 'wrap' }} className="filter-container">
@@ -2209,6 +2183,51 @@ export function ServiziStudentiPage() {
             </div>
 
             {activeVista === 'scadenzario' && (
+              <div style={statCard(scadPaymentOverview.overdueAmount > 0 ? 'var(--destructive)' : undefined)}>
+                <div style={statLabel}>Da pagare in ritardo</div>
+                <div style={statVal(scadPaymentOverview.overdueAmount > 0 ? 'var(--destructive)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.overdueAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.overdueCount} {scadPaymentOverview.overdueCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && (
+              <div style={statCard(scadPaymentOverview.todayAmount > 0 ? 'var(--chart-3)' : undefined)}>
+                <div style={statLabel}>Da pagare oggi</div>
+                <div style={statVal(scadPaymentOverview.todayAmount > 0 ? 'var(--chart-3)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.todayAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.todayCount} {scadPaymentOverview.todayCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && (
+              <div style={statCard(scadPaymentOverview.tomorrowAmount > 0 ? 'var(--primary)' : undefined)}>
+                <div style={statLabel}>Da pagare domani</div>
+                <div style={statVal(scadPaymentOverview.tomorrowAmount > 0 ? 'var(--primary)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.tomorrowAmount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.tomorrowCount} {scadPaymentOverview.tomorrowCount === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+            {activeVista === 'scadenzario' && (
+              <div style={statCard(scadPaymentOverview.next7Amount > 0 ? 'var(--primary)' : undefined)}>
+                <div style={statLabel}>Da pagare prossimi 7g</div>
+                <div style={statVal(scadPaymentOverview.next7Amount > 0 ? 'var(--primary)' : 'var(--muted-foreground)')}>
+                  €{scadPaymentOverview.next7Amount.toLocaleString('it-IT')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {scadPaymentOverview.next7Count} {scadPaymentOverview.next7Count === 1 ? 'voce' : 'voci'}
+                </div>
+              </div>
+            )}
+
+            {activeVista === 'scadenzario' && (
               <div style={statCard()}>
                 <div style={statLabel}>Entrate (L/N)</div>
                 <div style={statVal('var(--primary)')}>€{scadenzarioTotals.entrateLordo.toLocaleString('it-IT')}</div>
@@ -2346,12 +2365,11 @@ export function ServiziStudentiPage() {
                     {resizeHandle('scadAliquota')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell
-                    style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none', cursor: 'pointer' }}
-                    onClick={() => setScadDueSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
                       <span>Scadenza</span>
-                      {scadDueSortIcon}
+                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 'var(--font-weight-medium)' }}>Timeline</span>
                     </div>
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
