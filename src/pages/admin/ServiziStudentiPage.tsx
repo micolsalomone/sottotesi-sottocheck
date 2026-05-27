@@ -64,6 +64,7 @@ interface ScadenzarioItem {
   id: string;
   serviceId: string;
   installmentId?: string;
+  serviceStatus: ServiceStatus;
   type: ScadenzarioItemType;
   cashflow: ScadenzarioCashflow;
   studentName: string;
@@ -1284,6 +1285,7 @@ export function ServiziStudentiPage() {
           id: `rata-${service.id}-${inst.id}`,
           serviceId: service.id,
           installmentId: inst.id,
+          serviceStatus: service.status,
           type: 'rata',
           cashflow: 'entrata',
           studentName: service.student_name,
@@ -1321,6 +1323,7 @@ export function ServiziStudentiPage() {
         items.push({
           id: `compenso-${service.id}`,
           serviceId: service.id,
+          serviceStatus: service.status,
           type: 'compenso',
           cashflow: 'uscita',
           studentName: service.student_name,
@@ -1448,6 +1451,12 @@ export function ServiziStudentiPage() {
     const remaining = formatSignedCurrency(item.progressRemainingLordo, item.cashflow);
     if (item.cashflow === 'entrata') return `Pagato studente ${paid} · Residuo ${remaining}`;
     return `Pagato coach ${paid} · Residuo ${remaining}`;
+  };
+
+  const scadServiceImpactBadge = (item: ScadenzarioItem) => {
+    if (item.serviceStatus === 'paused') return <StatusBadge status="warning" label="In pausa" />;
+    if (item.serviceStatus === 'cancelled') return <StatusBadge status="inactive" label="Annullato" />;
+    return null;
   };
 
   const scadDueUrgencyMeta = (item: ScadenzarioItem): { icon: React.ReactNode; color: string; label: string } => {
@@ -2503,7 +2512,7 @@ export function ServiziStudentiPage() {
                     {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>
-                    <span>Stato</span>
+                    <span>Azioni</span>
                     {resizeHandle('scadStato')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadNote}px`, textAlign: 'center', position: 'relative', userSelect: 'none' }}>
@@ -2541,19 +2550,7 @@ export function ServiziStudentiPage() {
 
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
-                    const dueDate = toDayDate(item.dueDate);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
-                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
-                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
-                    const rowBackground = isCriticalDue
-                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
-                      : isUrgentSoon
-                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
-                        : item.status === 'pagato'
-                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
-                          : 'var(--card)';
+                    const rowBackground = 'var(--card)';
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
@@ -2561,7 +2558,7 @@ export function ServiziStudentiPage() {
                           style={{
                             cursor: 'pointer',
                             backgroundColor: rowBackground,
-                            opacity: item.status === 'pagato' && scadViewMode === 'operativo' ? 0.74 : 1,
+                            opacity: 1,
                             ...(detailDrawerServiceId === item.serviceId ? { backgroundColor: 'var(--selected-row-bg)' } : undefined),
                           }}
                         >
@@ -2580,8 +2577,11 @@ export function ServiziStudentiPage() {
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadLavorazione }}>
                             <div style={{ fontFamily: 'var(--font-inter)' }}>
-                              <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
-                                {item.serviceName}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', lineHeight: '1.5' }}>
+                                  {item.serviceName}
+                                </div>
+                                {scadServiceImpactBadge(item)}
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                                 {item.detailLabel}
@@ -2625,7 +2625,6 @@ export function ServiziStudentiPage() {
                           </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadStato }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              {scadStatusBadge(item.status)}
                               {editingScadPaidAt === item.id ? (
                                 <input
                                   type="date"
@@ -2714,19 +2713,7 @@ export function ServiziStudentiPage() {
                   </div>
                   {group.items.map(item => {
                     const dueUrgency = scadDueUrgencyMeta(item);
-                    const dueDate = toDayDate(item.dueDate);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const diffDays = dueDate ? Math.floor((dueDate.getTime() - today.getTime()) / 86400000) : null;
-                    const isUrgentSoon = !item.isPaid && diffDays !== null && diffDays > 0 && diffDays <= 7;
-                    const isCriticalDue = !item.isPaid && diffDays !== null && diffDays <= 0;
-                    const cardBackground = isCriticalDue
-                      ? 'color-mix(in srgb, var(--destructive) 10%, var(--card))'
-                      : isUrgentSoon
-                        ? 'color-mix(in srgb, var(--chart-3) 12%, var(--card))'
-                        : item.status === 'pagato'
-                          ? (scadViewMode === 'storico' ? 'var(--card)' : 'var(--muted)')
-                          : 'var(--card)';
+                    const cardBackground = 'var(--card)';
                     return (
                     <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
                     <ResponsiveMobileCard backgroundColor={cardBackground}>
@@ -2740,7 +2727,12 @@ export function ServiziStudentiPage() {
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>
                             {item.referenceLabel}: {item.referenceCode}
                           </div>
-                          <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}>{item.serviceName}</div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <div style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                              {item.serviceName}
+                            </div>
+                            {scadServiceImpactBadge(item)}
+                          </div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
                             {scadProgressLabel(item)}
                           </div>
