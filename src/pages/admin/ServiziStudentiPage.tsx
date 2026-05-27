@@ -1519,6 +1519,10 @@ export function ServiziStudentiPage() {
     const d = toDayDate(dateStr);
     if (!d) return { key: dateStr, label: dateStr, sortValue: Number.MAX_SAFE_INTEGER };
 
+    if (scadViewMode === 'storico') {
+      return { key: 'paid-history', label: 'Pagati', sortValue: 0 };
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((d.getTime() - today.getTime()) / 86400000);
