@@ -14,6 +14,10 @@ Oggi il progetto espone **tre viste** separate: Admin, Coach e Student.
 - Navigazione: sidebar con accesso a tutte le sezioni admin
 - Pagine: `src/pages/admin/`
 - La pagina `/coach` in questa vista è **gestione coach lato admin**, non la vista coach utente
+- La route `/lavorazioni` usa `src/pages/admin/ServiziStudentiPage.tsx` come hub operativo unico per:
+  - Lavorazioni
+  - Compensi Coach
+  - Scadenzario
 
 ### Vista Coach (`/coach-view`)
 - Layout: `src/app/components/coach/CoachLayout.tsx`
@@ -54,17 +58,41 @@ Oggi il progetto espone **tre viste** separate: Admin, Coach e Student.
 | Path | Vista | Layout | Note |
 |------|-------|--------|------|
 | `/` | Admin | AdminLayout | Dashboard admin |
+| `/pipelines` | Admin | AdminLayout | Gestione pipeline |
+| `/lavorazioni` | Admin | AdminLayout | Hub operativo servizi studenti (`ServiziStudentiPage`) con viste Lavorazioni / Compensi Coach / Scadenzario |
+| `/finanza/compensi-coach` | Admin | AdminLayout | Redirect a `/lavorazioni` |
+| `/finanza/incassi` | Admin | AdminLayout | Redirect a `/lavorazioni` |
+| `/sottocheck/pagamenti-fatture` | Admin | AdminLayout | Gestione pagamenti e fatture Sottocheck |
 | `/studenti` | Admin | AdminLayout | Gestione studenti |
+| `/documenti` | Admin | AdminLayout | Gestione documenti |
 | `/coach` | Admin | AdminLayout | Gestione coach (admin) |
+| `/coaching/timeline` | Admin | AdminLayout | Timeline coaching lato admin |
+| `/coaching/ticket` | Admin | AdminLayout | Ticket coaching lato admin |
+| `/sottocheck/job` | Admin | AdminLayout | Job Sottocheck (coach) lato admin |
+| `/aree-tematiche` | Admin | AdminLayout | Gestione aree tematiche |
+| `/sottocheck/check` | Admin | AdminLayout | Check Sottocheck lato admin |
+| `/sottocheck/output-preview` | Admin | AdminLayout | Anteprima output Sottocheck |
+| `/sottocheck/lavorazioni` | Admin | AdminLayout | Lavorazioni Sottocheck |
+| `/sottocheck/impostazioni` | Admin | AdminLayout | Impostazioni Sottocheck |
+| `/servizi/catalogo` | Admin | AdminLayout | Catalogo servizi |
+| `/sistema/kpi` | Admin | AdminLayout | KPI e monitoraggio sistema |
+| `/sistema/eventi` | Admin | AdminLayout | Log eventi sistema |
+| `/impostazioni/profili` | Admin | AdminLayout | Profili admin |
+| `/impostazioni/account` | Admin | AdminLayout | Info account admin |
+| `*` | Admin | AdminLayout | Fallback a Dashboard |
 | `/coach-view` | Coach | CoachLayout | Vista utente coach — solo URL diretto |
 | `/coach-view/studenti` | Coach | CoachLayout | Studenti vista coach |
 | `/coach-view/studenti/:studentId` | Coach | CoachLayout | Timeline studente |
 | `/coach-view/sottocheck` | Coach | CoachLayout | Sottocheck vista coach |
+| `/coach-view/history` | Coach | CoachLayout | Alias cronologia coach (stessa pagina archivio) |
 | `/coach-view/archivio` | Coach | CoachLayout | Archivio vista coach |
+| `/coach-view/profilo` | Coach | CoachLayout | Profilo coach |
 | `/coach-view/*` | Coach | CoachLayout | NotFound coach |
 | `/student-view` | Student | StudentLayout | Vista utente student — solo URL diretto |
 | `/student-view/studenti` | Student | StudentLayout | Studenti vista student (riuso pagine coach) |
 | `/student-view/studenti/:studentId` | Student | StudentLayout | Timeline studente (riuso pagine coach) |
 | `/student-view/sottocheck` | Student | StudentLayout | Sottocheck vista student (riuso pagine coach) |
+| `/student-view/history` | Student | StudentLayout | Cronologia vista student |
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
+| `/student-view/profilo` | Student | StudentLayout | Profilo student |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
