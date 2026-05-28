@@ -57,7 +57,7 @@ type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
 type ScadenzarioViewMode = 'operativo' | 'storico';
 type ScadenzarioPaymentMethod = 'Manuale' | 'Bonifico' | 'Carta' | 'Contanti' | 'PayPal' | 'Satispay' | 'Altro';
-const SCAD_RECENT_PAID_WINDOW_DAYS = 7;
+const SCAD_RECENT_PAID_WINDOW_HOURS = 24;
 
 interface ScadenzarioItem {
   id: string;
@@ -108,6 +108,16 @@ const toDayDate = (dateStr?: string): Date | null => {
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
+  return d;
+};
+const toDateTime = (dateStr?: string): Date | null => {
+  if (!dateStr) return null;
+  const normalized = dateStr.includes(' ') && !dateStr.includes('T')
+    ? dateStr.replace(' ', 'T')
+    : dateStr;
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(normalized);
+  const d = new Date(isDateOnly ? `${normalized}T00:00:00` : normalized);
+  if (Number.isNaN(d.getTime())) return null;
   return d;
 };
 
@@ -266,6 +276,8 @@ export function ServiziStudentiPage() {
   const [scadTypeFilter, setScadTypeFilter] = useState<'all' | ScadenzarioItemType>('all');
   const [scadStatusFilter, setScadStatusFilter] = useState<'all' | ScadenzarioStatus>('all');
   const [scadCoachFilter, setScadCoachFilter] = useState('all');
+  const [scadDateFromFilter, setScadDateFromFilter] = useState('');
+  const [scadDateToFilter, setScadDateToFilter] = useState('');
   const [scadQuickFilter, setScadQuickFilter] = useState<null | 'scadute' | 'da_pagare' | 'compensi_aperti' | 'rate_aperte'>(null);
 
   // ─── Column visibility per vista ─────────────────────────
@@ -521,11 +533,11 @@ export function ServiziStudentiPage() {
         if (i.status === 'paid') {
           return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
         } else {
-          const today = new Date().toISOString().split('T')[0];
+          const paidAt = new Date().toISOString();
           return {
             ...i,
             status: 'paid' as InstallmentStatus,
-            payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Manuale' }
+            payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt, method: 'Manuale' }
           };
         }
       })
@@ -682,9 +694,9 @@ export function ServiziStudentiPage() {
 
     if (!item.isPaid) {
       actions.push({
-        label: 'Segna pagato oggi',
+        label: 'Segna pagato adesso',
         icon: <CheckCircle size={14} />,
-        onClick: () => updateScadenzarioPaidAt(item, new Date().toISOString().split('T')[0]),
+        onClick: () => updateScadenzarioPaidAt(item, new Date().toISOString()),
       });
     }
 
@@ -999,6 +1011,28 @@ export function ServiziStudentiPage() {
       onRemove: () => setScadCoachFilter('all'),
     });
   }
+  if (scadDateFromFilter || scadDateToFilter) {
+    const formatFilterDate = (dateStr: string) => {
+      const d = toDayDate(dateStr);
+      return d
+        ? d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : dateStr;
+    };
+
+    const dateLabel = scadDateFromFilter && scadDateToFilter
+      ? `Scadenza: ${formatFilterDate(scadDateFromFilter)} - ${formatFilterDate(scadDateToFilter)}`
+      : scadDateFromFilter
+        ? `Scadenza da: ${formatFilterDate(scadDateFromFilter)}`
+        : `Scadenza a: ${formatFilterDate(scadDateToFilter)}`;
+
+    scadActiveFilters.push({
+      label: dateLabel,
+      onRemove: () => {
+        setScadDateFromFilter('');
+        setScadDateToFilter('');
+      },
+    });
+  }
   if (scadViewMode === 'operativo' && scadQuickFilter) {
     const quickLabels: Record<NonNullable<typeof scadQuickFilter>, string> = {
       scadute: 'Azione: Scadute',
@@ -1016,6 +1050,8 @@ export function ServiziStudentiPage() {
     setScadTypeFilter('all');
     setScadStatusFilter('all');
     setScadCoachFilter('all');
+    setScadDateFromFilter('');
+    setScadDateToFilter('');
     setScadQuickFilter(null);
     setScadenzarioSearchQuery('');
   };
@@ -1384,22 +1420,20 @@ export function ServiziStudentiPage() {
     return items;
   }, [getInstallmentNet, getNotesCount, getPrimaryCoachPayout, scadenzarioBaseServices]);
 
-  const getScadPaidAgeDays = useCallback((item: ScadenzarioItem): number | null => {
-    if (!item.isPaid) return null;
+  const getScadPaidAgeHours = useCallback((item: ScadenzarioItem): number | null => {
+    if (!item.isPaid || !item.paidAt) return null;
 
-    const referenceDate = toDayDate(item.paidAt || item.dueDate);
-    if (!referenceDate) return null;
+    const paymentDateTime = toDateTime(item.paidAt);
+    if (!paymentDateTime) return null;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Math.floor((today.getTime() - referenceDate.getTime()) / 86400000);
+    return (Date.now() - paymentDateTime.getTime()) / 3600000;
   }, []);
 
   const isScadStoricoItem = useCallback((item: ScadenzarioItem): boolean => {
-    const paidAgeDays = getScadPaidAgeDays(item);
-    if (paidAgeDays === null) return false;
-    return paidAgeDays > SCAD_RECENT_PAID_WINDOW_DAYS;
-  }, [getScadPaidAgeDays]);
+    const paidAgeHours = getScadPaidAgeHours(item);
+    if (paidAgeHours === null) return false;
+    return paidAgeHours > SCAD_RECENT_PAID_WINDOW_HOURS;
+  }, [getScadPaidAgeHours]);
 
   const scadVisibleItems = useMemo(() => {
     if (scadViewMode === 'storico') {
@@ -1415,11 +1449,21 @@ export function ServiziStudentiPage() {
   );
 
   const scadenzarioCoreItems = useMemo(() => {
+    const rawFromDate = toDayDate(scadDateFromFilter);
+    const rawToDate = toDayDate(scadDateToFilter);
+    const fromDate = rawFromDate && rawToDate && rawFromDate.getTime() > rawToDate.getTime() ? rawToDate : rawFromDate;
+    const toDate = rawFromDate && rawToDate && rawFromDate.getTime() > rawToDate.getTime() ? rawFromDate : rawToDate;
+
     return scadVisibleItems.filter(item => {
       if (scadTypeFilter !== 'all' && item.type !== scadTypeFilter) return false;
       if (scadViewMode === 'storico' && item.status !== 'pagato') return false;
       if (scadViewMode === 'operativo' && scadStatusFilter !== 'all' && item.status !== scadStatusFilter) return false;
       if (scadCoachFilter !== 'all' && (item.coachName || '—') !== scadCoachFilter) return false;
+
+      const itemDueDate = toDayDate(item.dueDate);
+      if (fromDate && (!itemDueDate || itemDueDate.getTime() < fromDate.getTime())) return false;
+      if (toDate && (!itemDueDate || itemDueDate.getTime() > toDate.getTime())) return false;
+
       if (scadenzarioSearchQuery) {
         const q = scadenzarioSearchQuery.toLowerCase();
         const text = `${item.studentName} ${item.coachName || ''} ${item.serviceName}`.toLowerCase();
@@ -1427,7 +1471,7 @@ export function ServiziStudentiPage() {
       }
       return true;
     });
-  }, [scadCoachFilter, scadStatusFilter, scadTypeFilter, scadViewMode, scadVisibleItems, scadenzarioSearchQuery]);
+  }, [scadCoachFilter, scadDateFromFilter, scadDateToFilter, scadStatusFilter, scadTypeFilter, scadViewMode, scadVisibleItems, scadenzarioSearchQuery]);
 
   const scadQuickFilterCounts = useMemo(() => {
     return {
@@ -1565,10 +1609,10 @@ export function ServiziStudentiPage() {
     if (diffDays === 0) return { key: 'today', label: 'Oggi', sortValue: 1 };
     if (diffDays === 1) return { key: 'tomorrow', label: 'Domani', sortValue: 2 };
     if (diffDays <= 7) return { key: 'next-7', label: 'Prossimi 7 giorni', sortValue: 3 };
-    if (diffDays <= 30) return { key: 'next-30', label: 'Prossimi 30 giorni', sortValue: 4 };
+    if (diffDays <= 45) return { key: 'next-45', label: 'Prossimi 45 giorni', sortValue: 4 };
     return {
       key: 'future',
-      label: 'Oltre 30 giorni',
+      label: 'Oltre 45 giorni',
       sortValue: 5,
     };
   };
@@ -1713,13 +1757,13 @@ export function ServiziStudentiPage() {
 
   const scadBulkActions: BulkAction[] = [
     {
-      label: 'Segna pagato oggi',
+      label: 'Segna pagato adesso',
       icon: <CheckCircle size={16} />,
       onClick: (ids) => {
         const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
         if (selectedItems.length === 0) return;
-        const today = new Date().toISOString().split('T')[0];
-        selectedItems.forEach(item => updateScadenzarioPaidAt(item, today, { silent: true }));
+        const nowIso = new Date().toISOString();
+        selectedItems.forEach(item => updateScadenzarioPaidAt(item, nowIso, { silent: true }));
         toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce aggiornata' : 'voci aggiornate'} come pagate`);
         setSelectedIds([]);
       },
@@ -2139,8 +2183,8 @@ export function ServiziStudentiPage() {
             lineHeight: '1.5',
           }}>
             {scadViewMode === 'operativo'
-              ? `Scadenzario operativo: non pagati + pagati recenti (ultimi ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni).`
-              : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni.`}
+              ? `Scadenzario operativo: non pagati (entro 45 giorni) + pagati recenti visibili fino a ${SCAD_RECENT_PAID_WINDOW_HOURS} ore dalla marcatura pagamento.`
+              : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_HOURS} ore dalla marcatura pagamento.`}
           </div>
 
           <div style={{
@@ -2223,6 +2267,52 @@ export function ServiziStudentiPage() {
                     <option key={coach} value={coach}>{coach}</option>
                   ))}
                 </select>
+              </div>
+
+              <div style={{ flex: '1 1 170px', minWidth: '170px' }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                  Data da
+                </label>
+                <input
+                  type="date"
+                  value={scadDateFromFilter}
+                  onChange={(e) => setScadDateFromFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.625rem',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--foreground)',
+                    lineHeight: '1.5',
+                    minHeight: '36px',
+                  }}
+                />
+              </div>
+
+              <div style={{ flex: '1 1 170px', minWidth: '170px' }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                  Data a
+                </label>
+                <input
+                  type="date"
+                  value={scadDateToFilter}
+                  onChange={(e) => setScadDateToFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.625rem',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--foreground)',
+                    lineHeight: '1.5',
+                    minHeight: '36px',
+                  }}
+                />
               </div>
 
               <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-end' }}>
