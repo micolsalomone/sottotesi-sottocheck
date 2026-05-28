@@ -2646,7 +2646,7 @@ export function ServiziStudentiPage() {
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
-                          onClick={() => handleRowClick(item.serviceId)}
+                          onClick={() => handleRowClick(item.serviceId, item.type === 'rata' ? 'pagamenti' : 'payout')}
                           style={{
                             cursor: 'pointer',
                             backgroundColor: rowBackground,
@@ -2776,7 +2776,7 @@ export function ServiziStudentiPage() {
                     const dueUrgency = scadDueUrgencyMeta(item);
                     const cardBackground = selectedIds.includes(item.id) ? 'var(--selected-row-bg)' : 'var(--card)';
                     return (
-                    <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId)} style={{ cursor: 'pointer' }}>
+                    <div key={`mobile-${item.id}`} onClick={() => handleRowClick(item.serviceId, item.type === 'rata' ? 'pagamenti' : 'payout')} style={{ cursor: 'pointer' }}>
                     <ResponsiveMobileCard backgroundColor={cardBackground}>
                       <ResponsiveMobileCardHeader>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
