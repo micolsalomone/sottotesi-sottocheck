@@ -44,6 +44,7 @@ import {
 interface LavorazioneDetailDrawerProps {
   service: StudentService;
   isOpen: boolean;
+  initialOpenSection?: 'pagamenti' | 'payout' | null;
   onClose: () => void;
   onUpdateService: (id: string, updater: (s: StudentService) => StudentService) => void;
   currentAdmin: string;
@@ -218,6 +219,7 @@ const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 export function LavorazioneDetailDrawer({
   service,
   isOpen,
+  initialOpenSection = null,
   onClose,
   onUpdateService,
   currentAdmin,
@@ -230,13 +232,7 @@ export function LavorazioneDetailDrawer({
 }: LavorazioneDetailDrawerProps) {
   const navigate = useNavigate();
 
-  const [isStale, setIsStale] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeletePayoutId, setConfirmDeletePayoutId] = useState<string | null>(null);
-  const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
-  const lastKnownUpdate = useRef(service.updated_at || '');
-
-  const [sections, setSections] = useState({
+  const getDefaultSections = () => ({
     operativi: true,
     contratto: false,
     pagamenti: false,
@@ -245,8 +241,42 @@ export function LavorazioneDetailDrawer({
     riferimenti: false,
   });
 
+  const [isStale, setIsStale] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeletePayoutId, setConfirmDeletePayoutId] = useState<string | null>(null);
+  const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
+  const lastKnownUpdate = useRef(service.updated_at || '');
+  const pagamentiSectionRef = useRef<HTMLDivElement | null>(null);
+  const payoutSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const [sections, setSections] = useState(getDefaultSections);
+
   const toggleSection = (key: keyof typeof sections) =>
     setSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  useEffect(() => {
+    if (!isOpen || !initialOpenSection) return;
+
+    setSections({
+      operativi: false,
+      contratto: false,
+      pagamenti: initialOpenSection === 'pagamenti',
+      payout: initialOpenSection === 'payout',
+      preventivi: false,
+      riferimenti: false,
+    });
+  }, [initialOpenSection, isOpen, service.id]);
+
+  useEffect(() => {
+    if (!isOpen || !initialOpenSection) return;
+
+    const sectionRef = initialOpenSection === 'pagamenti' ? pagamentiSectionRef : payoutSectionRef;
+    const timer = window.setTimeout(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [initialOpenSection, isOpen, service.id]);
 
   useEffect(() => {
     if (service.updated_at && service.updated_at !== lastKnownUpdate.current) {
@@ -706,6 +736,7 @@ export function LavorazioneDetailDrawer({
           </DrawerCollapsibleSection>
 
           {/* ═══ 3. PAGAMENTI ══════════════════════════════════ */}
+          <div ref={pagamentiSectionRef}>
           <DrawerCollapsibleSection
             icon={CreditCard}
             title="Pagamenti"
@@ -1030,8 +1061,10 @@ export function LavorazioneDetailDrawer({
                 <Plus size={14} /> Aggiungi rata
               </DrawerAddButton>
           </DrawerCollapsibleSection>
+          </div>
 
           {/* ═══ 4. COMPENSO COACH (PAYOUT) ════════════════════ */}
+          <div ref={payoutSectionRef}>
           <DrawerCollapsibleSection
             icon={Briefcase}
             title="Compenso Coach (Payout)"
@@ -1193,7 +1226,7 @@ export function LavorazioneDetailDrawer({
                               setLocalCoachPayouts(prev => prev.map(p => {
                                 if (p.id !== payout.id) return p;
                                 const nextValue = e.target.value || undefined;
-                                const next = isFattura
+                                const next: CoachPayout = isFattura
                                   ? {
                                     ...p,
                                     invoice_date: nextValue,
@@ -1328,6 +1361,7 @@ export function LavorazioneDetailDrawer({
               <Plus size={14} /> Aggiungi payout coach
             </DrawerAddButton>
           </DrawerCollapsibleSection>
+          </div>
 
           {/* ═══ 5. PREVENTIVI ════════════════════════════════ */}
           <DrawerCollapsibleSection

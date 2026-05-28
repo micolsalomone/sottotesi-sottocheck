@@ -57,7 +57,6 @@ type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
 type ScadenzarioViewMode = 'operativo' | 'storico';
 type ScadenzarioPaymentMethod = 'Manuale' | 'Bonifico' | 'Carta' | 'Contanti' | 'PayPal' | 'Satispay' | 'Altro';
-const SCAD_PAYMENT_METHOD_OPTIONS: ScadenzarioPaymentMethod[] = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'];
 const SCAD_RECENT_PAID_WINDOW_DAYS = 7;
 
 interface ScadenzarioItem {
@@ -268,10 +267,6 @@ export function ServiziStudentiPage() {
   const [scadStatusFilter, setScadStatusFilter] = useState<'all' | ScadenzarioStatus>('all');
   const [scadCoachFilter, setScadCoachFilter] = useState('all');
   const [scadQuickFilter, setScadQuickFilter] = useState<null | 'scadute' | 'da_pagare' | 'compensi_aperti' | 'rate_aperte'>(null);
-  const [editingScadPaidAt, setEditingScadPaidAt] = useState<string | null>(null);
-  const [scadPaidAtInput, setScadPaidAtInput] = useState('');
-  const [editingScadPaymentMethod, setEditingScadPaymentMethod] = useState<string | null>(null);
-  const [scadPaymentMethodInput, setScadPaymentMethodInput] = useState<ScadenzarioPaymentMethod>('Manuale');
 
   // ─── Column visibility per vista ─────────────────────────
   const VISTA_COLUMNS: Record<Vista, Set<string>> = {
@@ -328,10 +323,12 @@ export function ServiziStudentiPage() {
   // ─── Detail drawer state ──────────────────────────────────
   const [detailDrawerServiceId, setDetailDrawerServiceId] = useState<string | null>(null);
   const [detailDrawerOpenedAt, setDetailDrawerOpenedAt] = useState<number>(0);
+  const [detailDrawerInitialSection, setDetailDrawerInitialSection] = useState<'pagamenti' | 'payout' | null>(null);
 
   const detailDrawerService = detailDrawerServiceId ? localData.find(s => s.id === detailDrawerServiceId) : null;
 
-  const handleRowClick = (serviceId: string) => {
+  const handleRowClick = (serviceId: string, initialSection?: 'pagamenti' | 'payout') => {
+    setDetailDrawerInitialSection(initialSection || null);
     setDetailDrawerServiceId(serviceId);
     setDetailDrawerOpenedAt(Date.now());
   };
@@ -674,7 +671,7 @@ export function ServiziStudentiPage() {
       {
         label: 'Apri lavorazione',
         icon: <ExternalLink size={14} />,
-        onClick: () => handleRowClick(item.serviceId),
+        onClick: () => handleRowClick(item.serviceId, item.type === 'rata' ? 'pagamenti' : 'payout'),
       },
       {
         label: 'Apri note',
@@ -1455,10 +1452,21 @@ export function ServiziStudentiPage() {
     });
   }, [scadQuickFilter, scadViewMode, scadenzarioCoreItems]);
 
-  const scadStatusBadge = (status: ScadenzarioStatus) => {
-    if (status === 'pagato') return <StatusBadge status="inactive" label="Pagato" />;
-    if (status === 'in_ritardo') return <StatusBadge status="overdue" label="In ritardo" />;
-    return <StatusBadge status="active" label="Da pagare" />;
+  const scadStatusBadge = (item: ScadenzarioItem) => {
+    if (item.status === 'pagato') return <StatusBadge status="active" label="Pagato" />;
+    if (item.status === 'in_ritardo') return <StatusBadge status="error" label="In ritardo" />;
+
+    const due = toDayDate(item.dueDate);
+    if (due) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
+      if (diffDays >= 0 && diffDays <= 7) {
+        return <StatusBadge status="warning" label="In scadenza" />;
+      }
+    }
+
+    return <StatusBadge status="inactive" label="Da pagare" />;
   };
 
   const scadTypeBadge = (cashflow: ScadenzarioCashflow) => {
@@ -1497,14 +1505,6 @@ export function ServiziStudentiPage() {
       };
     }
 
-    if (item.status === 'in_ritardo') {
-      return {
-        icon: <AlertTriangle size={13} style={{ color: 'var(--destructive)' }} />,
-        color: 'var(--destructive)',
-        label: 'Scaduta',
-      };
-    }
-
     const due = toDayDate(item.dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1512,16 +1512,25 @@ export function ServiziStudentiPage() {
       return {
         icon: <Calendar size={13} style={{ color: 'var(--muted-foreground)' }} />,
         color: 'var(--muted-foreground)',
-        label: 'Senza scadenza',
+        label: item.status === 'in_ritardo' ? 'Scaduta' : 'Senza scadenza',
       };
     }
 
     const diffDays = Math.floor((due.getTime() - today.getTime()) / 86400000);
-    if (diffDays <= 0) {
+    if (diffDays < 0) {
+      const overdueDays = Math.abs(diffDays);
       return {
         icon: <AlertTriangle size={13} style={{ color: 'var(--destructive)' }} />,
         color: 'var(--destructive)',
-        label: diffDays === 0 ? 'Scade oggi' : 'Scaduta',
+        label: `Scaduto da ${overdueDays} ${overdueDays === 1 ? 'giorno' : 'giorni'}`,
+      };
+    }
+
+    if (diffDays === 0) {
+      return {
+        icon: <AlertTriangle size={13} style={{ color: 'var(--destructive)' }} />,
+        color: 'var(--destructive)',
+        label: 'Scade oggi',
       };
     }
 
@@ -1529,7 +1538,7 @@ export function ServiziStudentiPage() {
       return {
         icon: <Clock size={13} style={{ color: 'var(--chart-3)' }} />,
         color: 'var(--chart-3)',
-        label: 'In scadenza',
+        label: `Scade tra ${diffDays} ${diffDays === 1 ? 'giorno' : 'giorni'}`,
       };
     }
 
@@ -1670,7 +1679,6 @@ export function ServiziStudentiPage() {
 
   const updateScadenzarioPaidAt = (item: ScadenzarioItem, paidAt: string, options?: { silent?: boolean }) => {
     if (!paidAt) {
-      setEditingScadPaidAt(null);
       return;
     }
     if (item.type === 'rata' && item.installmentId) {
@@ -1701,30 +1709,6 @@ export function ServiziStudentiPage() {
       updatePayoutField(item.serviceId, { paid_at: paidAt, status: 'paid', payment_method: selectedMethod });
       if (!options?.silent) toast.success('Data pagamento compenso aggiornata');
     }
-    setEditingScadPaidAt(null);
-  };
-
-  const updateScadenzarioPaymentMethod = (item: ScadenzarioItem, method: ScadenzarioPaymentMethod) => {
-    if (item.type === 'rata' && item.installmentId) {
-      updateService(item.serviceId, s => ({
-        ...s,
-        updated_by: CURRENT_ADMIN,
-        updated_at: new Date().toISOString(),
-        installments: s.installments.map(inst => {
-          if (inst.id !== item.installmentId) return inst;
-          return {
-            ...inst,
-            payment_method: method,
-            payment: inst.payment ? { ...inst.payment, method } : inst.payment,
-          };
-        }),
-      }));
-    } else {
-      updatePayoutField(item.serviceId, { payment_method: method });
-    }
-
-    setEditingScadPaymentMethod(null);
-    toast.success('Metodo pagamento aggiornato');
   };
 
   const scadBulkActions: BulkAction[] = [
@@ -2594,6 +2578,16 @@ export function ServiziStudentiPage() {
                     <span>Lavorazione</span>
                     {resizeHandle('scadLavorazione')}
                   </TableHeaderBaseCell>
+                  <TableHeaderBaseCell
+                    style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none', cursor: 'pointer' }}
+                    onClick={toggleScadDateSort}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      Scadenza
+                      {getScadDateSortIcon()}
+                    </span>
+                    {resizeHandle('scadScadenza')}
+                  </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadLordo}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Lordo</span>
                     {resizeHandle('scadLordo')}
@@ -2605,16 +2599,6 @@ export function ServiziStudentiPage() {
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadAliquota}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Aliquota</span>
                     {resizeHandle('scadAliquota')}
-                  </TableHeaderBaseCell>
-                  <TableHeaderBaseCell
-                    style={{ width: `${columnWidths.scadScadenza}px`, position: 'relative', userSelect: 'none', cursor: 'pointer' }}
-                    onClick={toggleScadDateSort}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                      Scadenza
-                      {getScadDateSortIcon()}
-                    </span>
-                    {resizeHandle('scadScadenza')}
                   </TableHeaderBaseCell>
                   <TableHeaderBaseCell style={{ width: `${columnWidths.scadStato}px`, position: 'relative', userSelect: 'none' }}>
                     <span>Pagamento</span>
@@ -2641,6 +2625,7 @@ export function ServiziStudentiPage() {
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell></TableCell>
                     <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-bold)', color: group.saldoLordo >= 0 ? 'var(--primary)' : 'var(--destructive)' }}>
                       €{group.saldoLordo.toLocaleString('it-IT')}
                     </TableCell>
@@ -2650,7 +2635,6 @@ export function ServiziStudentiPage() {
                     <TableCell style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)' }}>
                       €{group.totalAliquote.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
-                    <TableCell></TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
@@ -2705,6 +2689,15 @@ export function ServiziStudentiPage() {
                               </div>
                             </div>
                           </TableCell>
+                          <TableCell style={{ minWidth: columnWidths.scadScadenza, fontFamily: 'var(--font-inter)' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: dueUrgency.color, fontWeight: 'var(--font-weight-medium)' }}>
+                              {dueUrgency.icon}
+                              <span>{formatDateIT(item.dueDate)}</span>
+                            </div>
+                            <div style={{ fontSize: '10px', lineHeight: '1.4', color: dueUrgency.color, marginTop: '0.15rem' }}>
+                              {dueUrgency.label}
+                            </div>
+                          </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadLordo, fontFamily: 'var(--font-inter)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
                             <div>{formatSignedCurrency(item.amountLordo, item.cashflow)}</div>
                           </TableCell>
@@ -2728,70 +2721,17 @@ export function ServiziStudentiPage() {
                               </div>
                             ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                           </TableCell>
-                          <TableCell style={{ minWidth: columnWidths.scadScadenza, fontFamily: 'var(--font-inter)' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: dueUrgency.color, fontWeight: 'var(--font-weight-medium)' }}>
-                              {dueUrgency.icon}
-                              <span>{formatDateIT(item.dueDate)}</span>
-                            </div>
-                            <div style={{ fontSize: '10px', lineHeight: '1.4', color: dueUrgency.color, marginTop: '0.15rem' }}>
-                              {dueUrgency.label}
-                            </div>
-                          </TableCell>
                           <TableCell style={{ minWidth: columnWidths.scadStato }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              {editingScadPaidAt === item.id ? (
-                                <input
-                                  type="date"
-                                  value={scadPaidAtInput}
-                                  onChange={(e) => setScadPaidAtInput(e.target.value)}
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') updateScadenzarioPaidAt(item, scadPaidAtInput);
-                                    if (e.key === 'Escape') setEditingScadPaidAt(null);
-                                  }}
-                                  onBlur={() => updateScadenzarioPaidAt(item, scadPaidAtInput)}
-                                  style={{ width: '125px', ...inlineInputStyle, fontSize: '11px' }}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              ) : (
-                                <span
-                                  style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingScadPaidAt(item.id);
-                                    setScadPaidAtInput(item.paidAt || new Date().toISOString().split('T')[0]);
-                                  }}
-                                  title="Clicca per inserire/modificare data pagamento"
-                                >
-                                  {item.paidAt ? formatDateIT(item.paidAt) : 'Inserisci data'}
-                                  <Pencil size={10} style={{ opacity: 0.45 }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                              <div>{scadStatusBadge(item)}</div>
+                              {item.status === 'pagato' && item.paidAt && (
+                                <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                                  {`Data: ${formatDateIT(item.paidAt)}`}
                                 </span>
                               )}
-                              {editingScadPaymentMethod === item.id ? (
-                                <select
-                                  value={scadPaymentMethodInput}
-                                  onChange={(e) => setScadPaymentMethodInput(e.target.value as ScadenzarioPaymentMethod)}
-                                  autoFocus
-                                  onBlur={() => updateScadenzarioPaymentMethod(item, scadPaymentMethodInput)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{ width: '125px', ...inlineInputStyle, fontSize: '11px' }}
-                                >
-                                  {SCAD_PAYMENT_METHOD_OPTIONS.map(method => (
-                                    <option key={method} value={method}>{method}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span
-                                  style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingScadPaymentMethod(item.id);
-                                    setScadPaymentMethodInput((item.paymentMethod as ScadenzarioPaymentMethod | undefined) || 'Manuale');
-                                  }}
-                                  title="Clicca per modificare metodo pagamento"
-                                >
-                                  {item.paymentMethod || 'Metodo pagamento'}
-                                  <Pencil size={10} style={{ opacity: 0.45 }} />
+                              {item.status === 'pagato' && item.paymentMethod && (
+                                <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                                  {`Metodo: ${item.paymentMethod}`}
                                 </span>
                               )}
                             </div>
@@ -2864,7 +2804,7 @@ export function ServiziStudentiPage() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                          {scadStatusBadge(item.status)}
+                          {scadStatusBadge(item)}
                           <div onClick={(e) => e.stopPropagation()}>
                             <TableActions actions={getScadenzarioActions(item)} />
                           </div>
@@ -2899,6 +2839,11 @@ export function ServiziStudentiPage() {
                         {item.isPaid && item.paidAt && (
                           <div style={{ marginTop: '0.375rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                             Pagata il {formatDateIT(item.paidAt)}{item.paymentMethod ? ` · ${item.paymentMethod}` : ''}
+                          </div>
+                        )}
+                        {!item.isPaid && (
+                          <div style={{ marginTop: '0.375rem', fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
+                            Gestisci pagamento dal dettaglio lavorazione
                           </div>
                         )}
                         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
@@ -4008,7 +3953,11 @@ export function ServiziStudentiPage() {
         <LavorazioneDetailDrawer
           service={detailDrawerService}
           isOpen={!!detailDrawerServiceId}
-          onClose={() => setDetailDrawerServiceId(null)}
+          initialOpenSection={detailDrawerInitialSection}
+          onClose={() => {
+            setDetailDrawerServiceId(null);
+            setDetailDrawerInitialSection(null);
+          }}
           onUpdateService={updateService}
           currentAdmin={CURRENT_ADMIN}
           taxPercent={taxPercent}
@@ -4018,6 +3967,7 @@ export function ServiziStudentiPage() {
           availableAree={getActiveAree().map(a => a.name)}
           onEditStudent={(studentId) => {
             setDetailDrawerServiceId(null);
+            setDetailDrawerInitialSection(null);
             setTimeout(() => setSelectedStudentId(studentId), 200);
           }}
         />
