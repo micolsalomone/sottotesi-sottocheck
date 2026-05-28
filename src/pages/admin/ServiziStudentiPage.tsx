@@ -57,7 +57,7 @@ type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
 type ScadenzarioViewMode = 'operativo' | 'storico';
 type ScadenzarioPaymentMethod = 'Manuale' | 'Bonifico' | 'Carta' | 'Contanti' | 'PayPal' | 'Satispay' | 'Altro';
-const SCAD_RECENT_PAID_WINDOW_DAYS = 7;
+const SCAD_RECENT_PAID_WINDOW_HOURS = 24;
 
 interface ScadenzarioItem {
   id: string;
@@ -108,6 +108,16 @@ const toDayDate = (dateStr?: string): Date | null => {
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
+  return d;
+};
+const toDateTime = (dateStr?: string): Date | null => {
+  if (!dateStr) return null;
+  const normalized = dateStr.includes(' ') && !dateStr.includes('T')
+    ? dateStr.replace(' ', 'T')
+    : dateStr;
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(normalized);
+  const d = new Date(isDateOnly ? `${normalized}T00:00:00` : normalized);
+  if (Number.isNaN(d.getTime())) return null;
   return d;
 };
 
@@ -523,11 +533,11 @@ export function ServiziStudentiPage() {
         if (i.status === 'paid') {
           return { ...i, status: 'pending' as InstallmentStatus, payment: undefined };
         } else {
-          const today = new Date().toISOString().split('T')[0];
+          const paidAt = new Date().toISOString();
           return {
             ...i,
             status: 'paid' as InstallmentStatus,
-            payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt: today, method: 'Manuale' }
+            payment: { id: `PAY-${Date.now()}`, amount: i.amount, paidAt, method: 'Manuale' }
           };
         }
       })
@@ -684,9 +694,9 @@ export function ServiziStudentiPage() {
 
     if (!item.isPaid) {
       actions.push({
-        label: 'Segna pagato oggi',
+        label: 'Segna pagato adesso',
         icon: <CheckCircle size={14} />,
-        onClick: () => updateScadenzarioPaidAt(item, new Date().toISOString().split('T')[0]),
+        onClick: () => updateScadenzarioPaidAt(item, new Date().toISOString()),
       });
     }
 
@@ -1410,22 +1420,20 @@ export function ServiziStudentiPage() {
     return items;
   }, [getInstallmentNet, getNotesCount, getPrimaryCoachPayout, scadenzarioBaseServices]);
 
-  const getScadPaidAgeDays = useCallback((item: ScadenzarioItem): number | null => {
-    if (!item.isPaid) return null;
+  const getScadPaidAgeHours = useCallback((item: ScadenzarioItem): number | null => {
+    if (!item.isPaid || !item.paidAt) return null;
 
-    const referenceDate = toDayDate(item.paidAt || item.dueDate);
-    if (!referenceDate) return null;
+    const paymentDateTime = toDateTime(item.paidAt);
+    if (!paymentDateTime) return null;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Math.floor((today.getTime() - referenceDate.getTime()) / 86400000);
+    return (Date.now() - paymentDateTime.getTime()) / 3600000;
   }, []);
 
   const isScadStoricoItem = useCallback((item: ScadenzarioItem): boolean => {
-    const paidAgeDays = getScadPaidAgeDays(item);
-    if (paidAgeDays === null) return false;
-    return paidAgeDays > SCAD_RECENT_PAID_WINDOW_DAYS;
-  }, [getScadPaidAgeDays]);
+    const paidAgeHours = getScadPaidAgeHours(item);
+    if (paidAgeHours === null) return false;
+    return paidAgeHours > SCAD_RECENT_PAID_WINDOW_HOURS;
+  }, [getScadPaidAgeHours]);
 
   const scadVisibleItems = useMemo(() => {
     if (scadViewMode === 'storico') {
@@ -1749,13 +1757,13 @@ export function ServiziStudentiPage() {
 
   const scadBulkActions: BulkAction[] = [
     {
-      label: 'Segna pagato oggi',
+      label: 'Segna pagato adesso',
       icon: <CheckCircle size={16} />,
       onClick: (ids) => {
         const selectedItems = filteredScadenzarioItems.filter(item => ids.includes(item.id));
         if (selectedItems.length === 0) return;
-        const today = new Date().toISOString().split('T')[0];
-        selectedItems.forEach(item => updateScadenzarioPaidAt(item, today, { silent: true }));
+        const nowIso = new Date().toISOString();
+        selectedItems.forEach(item => updateScadenzarioPaidAt(item, nowIso, { silent: true }));
         toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'voce aggiornata' : 'voci aggiornate'} come pagate`);
         setSelectedIds([]);
       },
@@ -2175,8 +2183,8 @@ export function ServiziStudentiPage() {
             lineHeight: '1.5',
           }}>
             {scadViewMode === 'operativo'
-              ? `Scadenzario operativo: non pagati (entro 45 giorni) + pagati recenti (ultimi ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni).`
-              : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni.`}
+              ? `Scadenzario operativo: non pagati (entro 45 giorni) + pagati recenti visibili fino a ${SCAD_RECENT_PAID_WINDOW_HOURS} ore dalla marcatura pagamento.`
+              : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_HOURS} ore dalla marcatura pagamento.`}
           </div>
 
           <div style={{
