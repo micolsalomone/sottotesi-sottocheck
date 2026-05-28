@@ -67,6 +67,13 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
 
 const PAYMENT_METHOD_OPTIONS = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'] as const;
 
+const SERVICE_LINK_LABELS: Record<string, string> = {
+  coaching: 'Coaching',
+  coaching_plus: 'Coaching Plus',
+  starter_pack: 'Starter Pack',
+  sottocheck: 'Sottocheck',
+};
+
 type NotulaWorkflowStatus = 'da_programmare' | 'da_pagare' | 'pagata';
 
 const createDefaultCoachPayout = (serviceId: string, idSuffix = `${Date.now()}`): CoachPayout => ({
@@ -214,6 +221,17 @@ const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLef
 
 const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
+
+const getQuoteServiceLabel = (
+  quote?: { service_link?: string },
+  pipelineServiceLink?: string,
+  serviceNameFallback?: string,
+): string => {
+  const serviceLink = quote?.service_link || pipelineServiceLink;
+  if (serviceLink) return SERVICE_LINK_LABELS[serviceLink] ?? serviceLink;
+  if (serviceNameFallback) return serviceNameFallback;
+  return 'Servizio non definito';
+};
 
 // ─── Component ───────────────────────────────────────────────
 export function LavorazioneDetailDrawer({
@@ -1366,79 +1384,96 @@ export function LavorazioneDetailDrawer({
           {/* ═══ 5. PREVENTIVI ════════════════════════════════ */}
           <DrawerCollapsibleSection
             icon={FileText}
-            title="Preventivi"
+            title="Preventivo collegato"
             isOpen={sections.preventivi}
             onToggle={() => toggleSection('preventivi')}
           >
             {pipeline && pipeline.quotes && pipeline.quotes.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {pipeline.quotes.map(q => {
-                  const lifecycleLabel = getQuoteLifecycleLabel(q);
-                  const quoteGrossAmount = resolveQuoteGrossAmount(q);
-                  return (
-                  <div key={q.id} style={{ 
-                    padding: '0.625rem', 
-                    borderRadius: 'var(--radius)', 
-                    border: '1px solid var(--border)',
-                    background: q.id === service.quote_id
-                      ? 'color-mix(in srgb, var(--primary) 6%, transparent)'
-                      : 'var(--muted)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>{q.number}</span>
-                        {q.id === service.quote_id && (
-                          <span style={{ 
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: '9px', 
-                            backgroundColor: 'var(--primary)', 
-                            color: 'var(--primary-foreground)', 
-                            padding: '1px 5px', 
-                            borderRadius: 'var(--radius-badge)',
-                            fontWeight: 'var(--font-weight-semibold)',
-                            letterSpacing: '0.025em',
-                            lineHeight: '1.6',
-                          }}>COLLEGATO</span>
-                        )}
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {pipeline.quotes.map(q => {
+                    const lifecycleLabel = getQuoteLifecycleLabel(q);
+                    const quoteGrossAmount = resolveQuoteGrossAmount(q);
+                    const quoteServiceLabel = getQuoteServiceLabel(q, pipeline.service_link, service.service_name);
+                    return (
+                    <div key={q.id} style={{ 
+                      padding: '0.625rem', 
+                      borderRadius: 'var(--radius)', 
+                      border: '1px solid var(--border)',
+                      background: q.id === service.quote_id
+                        ? 'color-mix(in srgb, var(--primary) 6%, transparent)'
+                        : 'var(--muted)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>{q.number}</span>
+                          {q.id === service.quote_id && (
+                            <span style={{ 
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '9px', 
+                              backgroundColor: 'var(--primary)', 
+                              color: 'var(--primary-foreground)', 
+                              padding: '1px 5px', 
+                              borderRadius: 'var(--radius-badge)',
+                              fontWeight: 'var(--font-weight-semibold)',
+                              letterSpacing: '0.025em',
+                              lineHeight: '1.6',
+                            }}>COLLEGATO</span>
+                          )}
+                        </div>
+                        <span style={{ 
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: '10px', 
+                          padding: '2px 6px', 
+                          borderRadius: 'var(--radius-badge)', 
+                          border: '1px solid var(--border)',
+                          backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
+                            ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
+                            : lifecycleLabel === 'Scaduto'
+                              ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
+                              : lifecycleLabel === 'In scadenza'
+                                ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
+                              : 'var(--muted)',
+                          color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
+                            ? 'var(--primary)'
+                            : lifecycleLabel === 'Scaduto'
+                              ? 'var(--destructive)'
+                              : lifecycleLabel === 'In scadenza'
+                                ? 'var(--chart-3)'
+                              : 'var(--muted-foreground)',
+                          fontWeight: 'var(--font-weight-semibold)',
+                          textTransform: 'uppercase',
+                          lineHeight: '1.6',
+                        }}>
+                          {lifecycleLabel.toUpperCase()}
+                        </span>
                       </div>
-                      <span style={{ 
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '10px', 
-                        padding: '2px 6px', 
-                        borderRadius: 'var(--radius-badge)', 
-                        border: '1px solid var(--border)',
-                        backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
-                          ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
-                          : lifecycleLabel === 'Scaduto'
-                            ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
-                            : lifecycleLabel === 'In scadenza'
-                              ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
-                            : 'var(--muted)',
-                        color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
-                          ? 'var(--primary)'
-                          : lifecycleLabel === 'Scaduto'
-                            ? 'var(--destructive)'
-                            : lifecycleLabel === 'In scadenza'
-                              ? 'var(--chart-3)'
-                            : 'var(--muted-foreground)',
-                        fontWeight: 'var(--font-weight-semibold)',
-                        textTransform: 'uppercase',
-                        lineHeight: '1.6',
-                      }}>
-                        {lifecycleLabel.toUpperCase()}
-                      </span>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                        Servizio: {quoteServiceLabel}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.125rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                        {quoteGrossAmount !== null
+                          ? `Lordo €${quoteGrossAmount.toLocaleString('it-IT')} · `
+                          : 'Lordo non definito in pipeline · '}
+                        {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
+                        {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
+                      </div>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
-                      {quoteGrossAmount !== null
-                        ? `Lordo €${quoteGrossAmount.toLocaleString('it-IT')} · `
-                        : 'Lordo non definito in pipeline · '}
-                      {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
-                      {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '11px' }}
+                    onClick={() => toast.info('Destinazione vista preventivi studente da definire')}
+                  >
+                    Vedi tutti i preventivi dello studente
+                  </button>
+                </div>
+              </>
             ) : (
               <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                 Nessun preventivo associato a questa lavorazione.
