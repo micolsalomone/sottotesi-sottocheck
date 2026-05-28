@@ -19,6 +19,7 @@ export interface Quote {
   created_at?: string; // ISO date
   sent_at?: string; // ISO date
   accepted_at?: string; // ISO date
+  paid_at?: string; // ISO date
   expires_at?: string; // ISO date
   status: QuoteStatus;
   service_link?: string; // Servizio specifico del preventivo (coaching, coaching_plus, starter_pack, ...)
@@ -589,7 +590,9 @@ const INITIAL_PIPELINES: Pipeline[] = [
     id: 'PIP-001', student_id: 'STU-445', student_name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', sources: ['Form Coaching'], created_at: '2025-10-10', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-101'],
     service_link: 'coaching',
     quotes: [
-      { id: 'Q-001', number: '124/2025', status: 'paid', sent_at: '2025-10-15', expires_at: '2025-11-15', service_link: 'coaching', amount_gross: 1200 }
+      { id: 'Q-001-A', number: '118/2025', status: 'sent', sent_at: '2025-10-12', expires_at: '2025-10-22', service_link: 'coaching', amount_gross: 1400, notes: 'Prima proposta inviata, non accettata' },
+      { id: 'Q-001-B', number: '121/2025', status: 'sent', sent_at: '2025-10-14', expires_at: '2025-10-29', service_link: 'coaching_plus', amount_gross: 1800, notes: 'Alternativa premium inviata, non accettata' },
+      { id: 'Q-001', number: '124/2025', status: 'paid', sent_at: '2025-10-15', accepted_at: '2025-10-17', paid_at: '2025-10-19', expires_at: '2025-11-15', service_link: 'coaching', amount_gross: 1200, notes: 'Preventivo collegato alla lavorazione SS-101' }
     ]
   },
   { 
@@ -632,7 +635,9 @@ const INITIAL_PIPELINES: Pipeline[] = [
     id: 'PIP-007', student_id: 'STU-520', student_name: 'Marco De Luca', first_name: 'Marco', last_name: 'De Luca', email: 'marco.deluca@email.com', phone: '+39 331 6667788', sources: ['Form Coaching'], created_at: '2025-10-15', updated_at: '2026-02-28T08:45:00', updated_by: 'Francesca', lavorazioni_ids: ['SS-114', 'SS-165'],
     service_link: 'coaching',
     quotes: [
-      { id: 'Q-007', number: '005/2025', status: 'paid', sent_at: '2025-10-20', expires_at: '2025-11-20' }
+      { id: 'Q-007-A', number: '199/2025', status: 'sent', sent_at: '2025-10-16', expires_at: '2025-10-26', service_link: 'coaching_plus', amount_gross: 1800, notes: 'Offerta iniziale non confermata' },
+      { id: 'Q-007-B', number: '201/2025', status: 'sent', sent_at: '2025-10-18', expires_at: '2025-10-30', service_link: 'coaching', amount_gross: 1500, notes: 'Seconda proposta non confermata' },
+      { id: 'Q-007', number: '005/2025', status: 'paid', sent_at: '2025-10-20', accepted_at: '2025-10-21', paid_at: '2025-10-24', expires_at: '2025-11-20', service_link: 'coaching', amount_gross: 1200, notes: 'Unico preventivo accettato e pagato (collegato a SS-114/SS-165)' }
     ]
   },
   { 
@@ -667,8 +672,9 @@ const INITIAL_PIPELINES: Pipeline[] = [
     id: 'PIP-022', student_id: 'STU-558', student_name: 'Andrea Pellegrini', first_name: 'Andrea', last_name: 'Pellegrini', email: 'andrea.pellegrini@email.com', phone: '+39 348 8889900', sources: ['IG'], created_at: '2025-10-01', updated_at: '2025-11-12T13:00:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-143', 'SS-145'],
     service_link: 'coaching',
     quotes: [
-      { id: 'Q-022-1', number: '142/2025', status: 'paid', sent_at: '2025-10-15', expires_at: '2025-11-15' },
-      { id: 'Q-022-2', number: '168/2025', status: 'paid', sent_at: '2025-11-10', expires_at: '2025-12-10' }
+      { id: 'Q-022-1', number: '142/2025', status: 'paid', sent_at: '2025-10-15', accepted_at: '2025-10-18', paid_at: '2025-10-24', expires_at: '2025-11-15', service_link: 'starter_pack', amount_gross: 99, notes: 'Preventivo collegato alla lavorazione SS-143' },
+      { id: 'Q-022-2', number: '168/2025', status: 'paid', sent_at: '2025-11-10', accepted_at: '2025-11-16', paid_at: '2025-11-29', expires_at: '2025-12-10', service_link: 'coaching', amount_gross: 1200, notes: 'Upgrade collegato alla lavorazione SS-145' },
+      { id: 'Q-022-3', number: '009/2026', status: 'sent', sent_at: '2026-01-12', expires_at: '2026-01-26', service_link: 'coaching_plus', amount_gross: 1800, notes: 'Nuovo preventivo richiesto dopo pagamento per aggiungere servizi extra' }
     ]
   },
   { 
@@ -721,7 +727,8 @@ const INITIAL_PIPELINES: Pipeline[] = [
     service_link: 'coaching_plus',
     linked_existing_student: true,
     quotes: [
-      { id: 'Q-029', number: '013/2026', status: 'paid', sent_at: '2026-02-05', expires_at: '2026-03-05' }
+      { id: 'Q-029', number: '013/2026', status: 'paid', sent_at: '2026-02-05', accepted_at: '2026-02-07', paid_at: '2026-02-12', expires_at: '2026-03-05', service_link: 'coaching_plus', amount_gross: 1800, notes: 'Preventivo collegato alla lavorazione SS-163' },
+      { id: 'Q-029-B', number: '034/2026', status: 'draft', created_at: '2026-03-01', service_link: 'coaching', amount_gross: 600, notes: 'Richiesta successiva di modulo aggiuntivo dopo il servizio già pagato' }
     ],
     assigned_to: ['Team Torino', 'Fornitore Esterno']
   },
@@ -736,8 +743,9 @@ const INITIAL_PIPELINES: Pipeline[] = [
   },
   { 
     id: 'PIP-031', student_id: 'STU-596', student_name: 'Simone Caruso', first_name: 'Simone', last_name: 'Caruso', email: 'simone.caruso@email.com', phone: '+39 341 4445500', sources: ['Modulo meta ads'], created_at: '2026-03-05', updated_at: '2026-03-06T10:15:00', updated_by: 'Claudia', lavorazioni_ids: ['SS-167'],
+    service_link: 'starter_pack',
     quotes: [
-      { id: 'Q-031', number: '028/2026', status: 'paid' }
+      { id: 'Q-031', number: '028/2026', status: 'paid', sent_at: '2026-03-06', accepted_at: '2026-03-10', paid_at: '2026-03-13', expires_at: '2026-03-20', service_link: 'starter_pack', amount_gross: 99 }
     ],
     assigned_to: ['Operazioni Interne']
   },
