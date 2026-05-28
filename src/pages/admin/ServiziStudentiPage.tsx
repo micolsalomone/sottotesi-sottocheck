@@ -1601,10 +1601,10 @@ export function ServiziStudentiPage() {
     if (diffDays === 0) return { key: 'today', label: 'Oggi', sortValue: 1 };
     if (diffDays === 1) return { key: 'tomorrow', label: 'Domani', sortValue: 2 };
     if (diffDays <= 7) return { key: 'next-7', label: 'Prossimi 7 giorni', sortValue: 3 };
-    if (diffDays <= 30) return { key: 'next-30', label: 'Prossimi 30 giorni', sortValue: 4 };
+    if (diffDays <= 45) return { key: 'next-45', label: 'Prossimi 45 giorni', sortValue: 4 };
     return {
       key: 'future',
-      label: 'Oltre 30 giorni',
+      label: 'Oltre 45 giorni',
       sortValue: 5,
     };
   };
@@ -2175,7 +2175,7 @@ export function ServiziStudentiPage() {
             lineHeight: '1.5',
           }}>
             {scadViewMode === 'operativo'
-              ? `Scadenzario operativo: non pagati + pagati recenti (ultimi ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni).`
+              ? `Scadenzario operativo: non pagati (entro 45 giorni) + pagati recenti (ultimi ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni).`
               : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_DAYS} giorni.`}
           </div>
 
