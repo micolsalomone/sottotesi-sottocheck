@@ -266,6 +266,8 @@ export function ServiziStudentiPage() {
   const [scadTypeFilter, setScadTypeFilter] = useState<'all' | ScadenzarioItemType>('all');
   const [scadStatusFilter, setScadStatusFilter] = useState<'all' | ScadenzarioStatus>('all');
   const [scadCoachFilter, setScadCoachFilter] = useState('all');
+  const [scadDateFromFilter, setScadDateFromFilter] = useState('');
+  const [scadDateToFilter, setScadDateToFilter] = useState('');
   const [scadQuickFilter, setScadQuickFilter] = useState<null | 'scadute' | 'da_pagare' | 'compensi_aperti' | 'rate_aperte'>(null);
 
   // ─── Column visibility per vista ─────────────────────────
@@ -999,6 +1001,28 @@ export function ServiziStudentiPage() {
       onRemove: () => setScadCoachFilter('all'),
     });
   }
+  if (scadDateFromFilter || scadDateToFilter) {
+    const formatFilterDate = (dateStr: string) => {
+      const d = toDayDate(dateStr);
+      return d
+        ? d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : dateStr;
+    };
+
+    const dateLabel = scadDateFromFilter && scadDateToFilter
+      ? `Scadenza: ${formatFilterDate(scadDateFromFilter)} - ${formatFilterDate(scadDateToFilter)}`
+      : scadDateFromFilter
+        ? `Scadenza da: ${formatFilterDate(scadDateFromFilter)}`
+        : `Scadenza a: ${formatFilterDate(scadDateToFilter)}`;
+
+    scadActiveFilters.push({
+      label: dateLabel,
+      onRemove: () => {
+        setScadDateFromFilter('');
+        setScadDateToFilter('');
+      },
+    });
+  }
   if (scadViewMode === 'operativo' && scadQuickFilter) {
     const quickLabels: Record<NonNullable<typeof scadQuickFilter>, string> = {
       scadute: 'Azione: Scadute',
@@ -1016,6 +1040,8 @@ export function ServiziStudentiPage() {
     setScadTypeFilter('all');
     setScadStatusFilter('all');
     setScadCoachFilter('all');
+    setScadDateFromFilter('');
+    setScadDateToFilter('');
     setScadQuickFilter(null);
     setScadenzarioSearchQuery('');
   };
@@ -1415,11 +1441,21 @@ export function ServiziStudentiPage() {
   );
 
   const scadenzarioCoreItems = useMemo(() => {
+    const rawFromDate = toDayDate(scadDateFromFilter);
+    const rawToDate = toDayDate(scadDateToFilter);
+    const fromDate = rawFromDate && rawToDate && rawFromDate.getTime() > rawToDate.getTime() ? rawToDate : rawFromDate;
+    const toDate = rawFromDate && rawToDate && rawFromDate.getTime() > rawToDate.getTime() ? rawFromDate : rawToDate;
+
     return scadVisibleItems.filter(item => {
       if (scadTypeFilter !== 'all' && item.type !== scadTypeFilter) return false;
       if (scadViewMode === 'storico' && item.status !== 'pagato') return false;
       if (scadViewMode === 'operativo' && scadStatusFilter !== 'all' && item.status !== scadStatusFilter) return false;
       if (scadCoachFilter !== 'all' && (item.coachName || '—') !== scadCoachFilter) return false;
+
+      const itemDueDate = toDayDate(item.dueDate);
+      if (fromDate && (!itemDueDate || itemDueDate.getTime() < fromDate.getTime())) return false;
+      if (toDate && (!itemDueDate || itemDueDate.getTime() > toDate.getTime())) return false;
+
       if (scadenzarioSearchQuery) {
         const q = scadenzarioSearchQuery.toLowerCase();
         const text = `${item.studentName} ${item.coachName || ''} ${item.serviceName}`.toLowerCase();
@@ -1427,7 +1463,7 @@ export function ServiziStudentiPage() {
       }
       return true;
     });
-  }, [scadCoachFilter, scadStatusFilter, scadTypeFilter, scadViewMode, scadVisibleItems, scadenzarioSearchQuery]);
+  }, [scadCoachFilter, scadDateFromFilter, scadDateToFilter, scadStatusFilter, scadTypeFilter, scadViewMode, scadVisibleItems, scadenzarioSearchQuery]);
 
   const scadQuickFilterCounts = useMemo(() => {
     return {
@@ -2223,6 +2259,52 @@ export function ServiziStudentiPage() {
                     <option key={coach} value={coach}>{coach}</option>
                   ))}
                 </select>
+              </div>
+
+              <div style={{ flex: '1 1 170px', minWidth: '170px' }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                  Data da
+                </label>
+                <input
+                  type="date"
+                  value={scadDateFromFilter}
+                  onChange={(e) => setScadDateFromFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.625rem',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--foreground)',
+                    lineHeight: '1.5',
+                    minHeight: '36px',
+                  }}
+                />
+              </div>
+
+              <div style={{ flex: '1 1 170px', minWidth: '170px' }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                  Data a
+                </label>
+                <input
+                  type="date"
+                  value={scadDateToFilter}
+                  onChange={(e) => setScadDateToFilter(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.625rem',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--foreground)',
+                    lineHeight: '1.5',
+                    minHeight: '36px',
+                  }}
+                />
               </div>
 
               <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-end' }}>
