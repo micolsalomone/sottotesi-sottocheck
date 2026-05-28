@@ -833,7 +833,7 @@ export function LavorazioneDetailDrawer({
                       style={{
                         padding: '1rem',
                         backgroundColor: inst.status === 'overdue'
-                          ? 'color-mix(in srgb, var(--destructive-foreground) 4%, var(--muted))'
+                          ? 'color-mix(in srgb, var(--destructive) 8%, var(--muted))'
                           : 'var(--muted)',
                         borderRadius: 'var(--radius)',
                         border: '1px solid var(--border)',
@@ -882,7 +882,7 @@ export function LavorazioneDetailDrawer({
                               setLocalInstallments(updated);
                               markInstDirty(inst.id);
                             }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive-foreground)' : 'var(--foreground)', cursor: 'pointer' }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)', border: inst.status === 'overdue' ? '1px solid color-mix(in srgb, var(--destructive) 40%, var(--border))' : '1px solid var(--border)', fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', background: inst.status === 'paid' ? 'var(--primary)' : 'var(--card)', color: inst.status === 'paid' ? 'var(--primary-foreground)' : inst.status === 'overdue' ? 'var(--destructive)' : 'var(--foreground)', cursor: 'pointer' }}
                           >
                             {inst.status === 'paid' ? <><Check size={10} /> Pagata</> : inst.status === 'overdue' ? <><AlertTriangle size={10} /> Scaduta</> : <><Calendar size={10} /> Pending</>}
                           </button>
@@ -1120,7 +1120,7 @@ export function LavorazioneDetailDrawer({
                     <div key={payout.id} style={{
                       padding: '1rem',
                       backgroundColor: status === 'da_pagare' && scad && scad.daysLeft <= 0
-                        ? 'color-mix(in srgb, var(--destructive-foreground) 4%, var(--muted))'
+                        ? 'color-mix(in srgb, var(--destructive) 8%, var(--muted))'
                         : 'var(--muted)',
                       borderRadius: 'var(--radius)',
                       border: '1px solid var(--border)',
