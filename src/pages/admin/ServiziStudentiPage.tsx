@@ -3120,7 +3120,7 @@ export function ServiziStudentiPage() {
                     <TableRow
                       rowRef={isHighlighted ? highlightRef : undefined}
                       className={isHighlighted ? 'row-highlight' : undefined}
-                      onClick={() => handleRowClick(service.id)}
+                      onClick={() => handleRowClick(service.id, activeVista === 'compensi' ? 'payout' : undefined)}
                       style={{
                         cursor: 'pointer',
                         ...(!isHighlighted && selectedIds.includes(service.id) ? {
@@ -3791,7 +3791,7 @@ export function ServiziStudentiPage() {
             key={service.id}
             backgroundColor={isMobileSelected ? 'var(--selected-row-bg)' : 'var(--card)'}
           >
-            <div onClick={() => handleRowClick(service.id)} style={{ cursor: 'pointer' }}>
+            <div onClick={() => handleRowClick(service.id, activeVista === 'compensi' ? 'payout' : undefined)} style={{ cursor: 'pointer' }}>
             <ResponsiveMobileCardHeader>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                 <div onClick={(e) => e.stopPropagation()} style={{ paddingTop: '0.125rem' }}>
