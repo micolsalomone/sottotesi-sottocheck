@@ -1395,6 +1395,22 @@ export function LavorazioneDetailDrawer({
                     const lifecycleLabel = getQuoteLifecycleLabel(q);
                     const quoteGrossAmount = resolveQuoteGrossAmount(q);
                     const quoteServiceLabel = getQuoteServiceLabel(q, pipeline.service_link, service.service_name);
+                    const directPaymentDate = (q as { paid_at?: string }).paid_at;
+                    const linkedInstallmentPaidDates = q.id === service.quote_id
+                      ? service.installments
+                        .map(inst => inst.payment?.paidAt)
+                        .filter((value): value is string => Boolean(value))
+                        .sort()
+                      : [];
+                    const paymentLabel = directPaymentDate
+                      ? `Pagato il ${formatDateIT(directPaymentDate)}`
+                      : linkedInstallmentPaidDates.length > 1
+                        ? `Pagamenti dal ${formatDateIT(linkedInstallmentPaidDates[0])} al ${formatDateIT(linkedInstallmentPaidDates[linkedInstallmentPaidDates.length - 1])}`
+                        : linkedInstallmentPaidDates.length === 1
+                          ? `Pagato il ${formatDateIT(linkedInstallmentPaidDates[0])}`
+                          : q.status === 'paid'
+                            ? 'Pagato (data non disponibile)'
+                            : 'Pagamento non registrato';
                     return (
                     <div key={q.id} style={{ 
                       padding: '0.625rem', 
@@ -1457,6 +1473,9 @@ export function LavorazioneDetailDrawer({
                           : 'Lordo non definito in pipeline · '}
                         {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
                         {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '0.125rem', lineHeight: '1.5' }}>
+                        Pagamento: {paymentLabel}
                       </div>
                     </div>
                     );
