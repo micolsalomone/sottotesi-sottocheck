@@ -135,3 +135,13 @@ npm run preview
 - Usare alias `@` per gli import (evitare path relativi lunghi).
 - Mantenere isolamento tra le viste (Admin, Coach, Student).
 - Implementare solo feature richieste esplicitamente (approccio MVP).
+
+## Licenza
+
+Questo progetto e distribuito con licenza proprietaria (non MIT).
+
+- Software e codice: uso, copia, modifica e distribuzione solo previa autorizzazione scritta.
+- Nome, logo e asset di brand Sottotesi: non riutilizzabili senza consenso scritto.
+- Richieste di autorizzazione: https://sottotesi.it
+
+Dettagli completi in `LICENSE`.

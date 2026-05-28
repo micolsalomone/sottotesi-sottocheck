@@ -44,6 +44,7 @@ import {
 interface LavorazioneDetailDrawerProps {
   service: StudentService;
   isOpen: boolean;
+  initialOpenSection?: 'pagamenti' | 'payout' | null;
   onClose: () => void;
   onUpdateService: (id: string, updater: (s: StudentService) => StudentService) => void;
   currentAdmin: string;
@@ -65,6 +66,13 @@ const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
 };
 
 const PAYMENT_METHOD_OPTIONS = ['Manuale', 'Bonifico', 'Carta', 'Contanti', 'PayPal', 'Satispay', 'Altro'] as const;
+
+const SERVICE_LINK_LABELS: Record<string, string> = {
+  coaching: 'Coaching',
+  coaching_plus: 'Coaching Plus',
+  starter_pack: 'Starter Pack',
+  sottocheck: 'Sottocheck',
+};
 
 type NotulaWorkflowStatus = 'da_programmare' | 'da_pagare' | 'pagata';
 
@@ -214,10 +222,22 @@ const computeScad45gg = (payout?: Partial<CoachPayout>): { date: string; daysLef
 const normalizeTaxRate = (value?: number): TaxRate => (value === 0 || value === 4 || value === 22 ? value : 22);
 const roundToCents = (value: number): number => Math.round(value * 100) / 100;
 
+const getQuoteServiceLabel = (
+  quote?: { service_link?: string },
+  pipelineServiceLink?: string,
+  serviceNameFallback?: string,
+): string => {
+  const serviceLink = quote?.service_link || pipelineServiceLink;
+  if (serviceLink) return SERVICE_LINK_LABELS[serviceLink] ?? serviceLink;
+  if (serviceNameFallback) return serviceNameFallback;
+  return 'Servizio non definito';
+};
+
 // ─── Component ───────────────────────────────────────────────
 export function LavorazioneDetailDrawer({
   service,
   isOpen,
+  initialOpenSection = null,
   onClose,
   onUpdateService,
   currentAdmin,
@@ -230,13 +250,7 @@ export function LavorazioneDetailDrawer({
 }: LavorazioneDetailDrawerProps) {
   const navigate = useNavigate();
 
-  const [isStale, setIsStale] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeletePayoutId, setConfirmDeletePayoutId] = useState<string | null>(null);
-  const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
-  const lastKnownUpdate = useRef(service.updated_at || '');
-
-  const [sections, setSections] = useState({
+  const getDefaultSections = () => ({
     operativi: true,
     contratto: false,
     pagamenti: false,
@@ -245,8 +259,42 @@ export function LavorazioneDetailDrawer({
     riferimenti: false,
   });
 
+  const [isStale, setIsStale] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeletePayoutId, setConfirmDeletePayoutId] = useState<string | null>(null);
+  const [confirmTimelineToggle, setConfirmTimelineToggle] = useState(false);
+  const lastKnownUpdate = useRef(service.updated_at || '');
+  const pagamentiSectionRef = useRef<HTMLDivElement | null>(null);
+  const payoutSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const [sections, setSections] = useState(getDefaultSections);
+
   const toggleSection = (key: keyof typeof sections) =>
     setSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  useEffect(() => {
+    if (!isOpen || !initialOpenSection) return;
+
+    setSections({
+      operativi: false,
+      contratto: false,
+      pagamenti: initialOpenSection === 'pagamenti',
+      payout: initialOpenSection === 'payout',
+      preventivi: false,
+      riferimenti: false,
+    });
+  }, [initialOpenSection, isOpen, service.id]);
+
+  useEffect(() => {
+    if (!isOpen || !initialOpenSection) return;
+
+    const sectionRef = initialOpenSection === 'pagamenti' ? pagamentiSectionRef : payoutSectionRef;
+    const timer = window.setTimeout(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [initialOpenSection, isOpen, service.id]);
 
   useEffect(() => {
     if (service.updated_at && service.updated_at !== lastKnownUpdate.current) {
@@ -706,6 +754,7 @@ export function LavorazioneDetailDrawer({
           </DrawerCollapsibleSection>
 
           {/* ═══ 3. PAGAMENTI ══════════════════════════════════ */}
+          <div ref={pagamentiSectionRef}>
           <DrawerCollapsibleSection
             icon={CreditCard}
             title="Pagamenti"
@@ -1030,8 +1079,10 @@ export function LavorazioneDetailDrawer({
                 <Plus size={14} /> Aggiungi rata
               </DrawerAddButton>
           </DrawerCollapsibleSection>
+          </div>
 
           {/* ═══ 4. COMPENSO COACH (PAYOUT) ════════════════════ */}
+          <div ref={payoutSectionRef}>
           <DrawerCollapsibleSection
             icon={Briefcase}
             title="Compenso Coach (Payout)"
@@ -1193,7 +1244,7 @@ export function LavorazioneDetailDrawer({
                               setLocalCoachPayouts(prev => prev.map(p => {
                                 if (p.id !== payout.id) return p;
                                 const nextValue = e.target.value || undefined;
-                                const next = isFattura
+                                const next: CoachPayout = isFattura
                                   ? {
                                     ...p,
                                     invoice_date: nextValue,
@@ -1328,83 +1379,120 @@ export function LavorazioneDetailDrawer({
               <Plus size={14} /> Aggiungi payout coach
             </DrawerAddButton>
           </DrawerCollapsibleSection>
+          </div>
 
           {/* ═══ 5. PREVENTIVI ════════════════════════════════ */}
           <DrawerCollapsibleSection
             icon={FileText}
-            title="Preventivi"
+            title="Preventivo collegato"
             isOpen={sections.preventivi}
             onToggle={() => toggleSection('preventivi')}
           >
             {pipeline && pipeline.quotes && pipeline.quotes.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {pipeline.quotes.map(q => {
-                  const lifecycleLabel = getQuoteLifecycleLabel(q);
-                  const quoteGrossAmount = resolveQuoteGrossAmount(q);
-                  return (
-                  <div key={q.id} style={{ 
-                    padding: '0.625rem', 
-                    borderRadius: 'var(--radius)', 
-                    border: '1px solid var(--border)',
-                    background: q.id === service.quote_id
-                      ? 'color-mix(in srgb, var(--primary) 6%, transparent)'
-                      : 'var(--muted)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>{q.number}</span>
-                        {q.id === service.quote_id && (
-                          <span style={{ 
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: '9px', 
-                            backgroundColor: 'var(--primary)', 
-                            color: 'var(--primary-foreground)', 
-                            padding: '1px 5px', 
-                            borderRadius: 'var(--radius-badge)',
-                            fontWeight: 'var(--font-weight-semibold)',
-                            letterSpacing: '0.025em',
-                            lineHeight: '1.6',
-                          }}>COLLEGATO</span>
-                        )}
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {pipeline.quotes.map(q => {
+                    const lifecycleLabel = getQuoteLifecycleLabel(q);
+                    const quoteGrossAmount = resolveQuoteGrossAmount(q);
+                    const quoteServiceLabel = getQuoteServiceLabel(q, pipeline.service_link, service.service_name);
+                    const directPaymentDate = (q as { paid_at?: string }).paid_at;
+                    const linkedInstallmentPaidDates = q.id === service.quote_id
+                      ? service.installments
+                        .map(inst => inst.payment?.paidAt)
+                        .filter((value): value is string => Boolean(value))
+                        .sort()
+                      : [];
+                    const paymentLabel = directPaymentDate
+                      ? `Pagato il ${formatDateIT(directPaymentDate)}`
+                      : linkedInstallmentPaidDates.length > 1
+                        ? `Pagamenti dal ${formatDateIT(linkedInstallmentPaidDates[0])} al ${formatDateIT(linkedInstallmentPaidDates[linkedInstallmentPaidDates.length - 1])}`
+                        : linkedInstallmentPaidDates.length === 1
+                          ? `Pagato il ${formatDateIT(linkedInstallmentPaidDates[0])}`
+                          : q.status === 'paid'
+                            ? 'Pagato (data non disponibile)'
+                            : 'Pagamento non registrato';
+                    return (
+                    <div key={q.id} style={{ 
+                      padding: '0.625rem', 
+                      borderRadius: 'var(--radius)', 
+                      border: '1px solid var(--border)',
+                      background: q.id === service.quote_id
+                        ? 'color-mix(in srgb, var(--primary) 6%, transparent)'
+                        : 'var(--muted)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', lineHeight: '1.5' }}>{q.number}</span>
+                          {q.id === service.quote_id && (
+                            <span style={{ 
+                              fontFamily: 'var(--font-inter)',
+                              fontSize: '9px', 
+                              backgroundColor: 'var(--primary)', 
+                              color: 'var(--primary-foreground)', 
+                              padding: '1px 5px', 
+                              borderRadius: 'var(--radius-badge)',
+                              fontWeight: 'var(--font-weight-semibold)',
+                              letterSpacing: '0.025em',
+                              lineHeight: '1.6',
+                            }}>COLLEGATO</span>
+                          )}
+                        </div>
+                        <span style={{ 
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: '10px', 
+                          padding: '2px 6px', 
+                          borderRadius: 'var(--radius-badge)', 
+                          border: '1px solid var(--border)',
+                          backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
+                            ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
+                            : lifecycleLabel === 'Scaduto'
+                              ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
+                              : lifecycleLabel === 'In scadenza'
+                                ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
+                              : 'var(--muted)',
+                          color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
+                            ? 'var(--primary)'
+                            : lifecycleLabel === 'Scaduto'
+                              ? 'var(--destructive)'
+                              : lifecycleLabel === 'In scadenza'
+                                ? 'var(--chart-3)'
+                              : 'var(--muted-foreground)',
+                          fontWeight: 'var(--font-weight-semibold)',
+                          textTransform: 'uppercase',
+                          lineHeight: '1.6',
+                        }}>
+                          {lifecycleLabel.toUpperCase()}
+                        </span>
                       </div>
-                      <span style={{ 
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '10px', 
-                        padding: '2px 6px', 
-                        borderRadius: 'var(--radius-badge)', 
-                        border: '1px solid var(--border)',
-                        backgroundColor: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
-                          ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
-                          : lifecycleLabel === 'Scaduto'
-                            ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
-                            : lifecycleLabel === 'In scadenza'
-                              ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
-                            : 'var(--muted)',
-                        color: lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
-                          ? 'var(--primary)'
-                          : lifecycleLabel === 'Scaduto'
-                            ? 'var(--destructive)'
-                            : lifecycleLabel === 'In scadenza'
-                              ? 'var(--chart-3)'
-                            : 'var(--muted-foreground)',
-                        fontWeight: 'var(--font-weight-semibold)',
-                        textTransform: 'uppercase',
-                        lineHeight: '1.6',
-                      }}>
-                        {lifecycleLabel.toUpperCase()}
-                      </span>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                        Servizio: {quoteServiceLabel}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.125rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
+                        {quoteGrossAmount !== null
+                          ? `Lordo €${quoteGrossAmount.toLocaleString('it-IT')} · `
+                          : 'Lordo non definito in pipeline · '}
+                        {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
+                        {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '0.125rem', lineHeight: '1.5' }}>
+                        Pagamento: {paymentLabel}
+                      </div>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-inter)', fontSize: '13px', color: 'var(--foreground)', marginTop: '0.25rem', lineHeight: '1.5', fontWeight: 'var(--font-weight-semibold)' }}>
-                      {quoteGrossAmount !== null
-                        ? `Lordo €${quoteGrossAmount.toLocaleString('it-IT')} · `
-                        : 'Lordo non definito in pipeline · '}
-                      {q.sent_at ? `Inviato il ${formatDateIT(q.sent_at)}` : 'Non ancora inviato'}
-                      {q.expires_at && ` · Scad. ${formatDateIT(q.expires_at)}`}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '11px' }}
+                    onClick={() => toast.info('Destinazione vista preventivi studente da definire')}
+                  >
+                    Vedi tutti i preventivi dello studente
+                  </button>
+                </div>
+              </>
             ) : (
               <span style={{ fontFamily: 'var(--font-inter)', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
                 Nessun preventivo associato a questa lavorazione.
