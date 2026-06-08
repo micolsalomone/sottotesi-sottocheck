@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import {
   FileText,
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
+import { getViewBasePath } from '@/pages/coach/viewBasePath';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed';
@@ -25,6 +26,7 @@ interface UploadedDocument {
 
 export function SottocheckPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [pagesSelected, setPagesSelected] = useState<number>(0);
@@ -34,6 +36,7 @@ export function SottocheckPage() {
 
   const pricePerPage = 0.5;
   const totalPrice = pagesSelected * pricePerPage;
+  const historyPath = `${getViewBasePath(location.pathname)}/history`;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -191,7 +194,7 @@ export function SottocheckPage() {
                 Il report di verifica plagio è pronto
               </p>
               <button
-                onClick={() => navigate('/student-view/history')}
+                onClick={() => navigate(historyPath)}
                 className="w-full px-[24px] py-[12px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
                 style={{
                   borderRadius: 'var(--radius)',

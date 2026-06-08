@@ -5,7 +5,7 @@ Questo progetto nasce dall'unione di due prototipi Figma Make separati:
 - **src1** — Dashboard Admin (vista amministratore)
 - **src2** — Vista Coach (vista utente con restrizioni)
 
-Oggi il progetto espone **tre viste** separate: Admin, Coach e Student.
+Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Public.
 
 ## Tre viste, un unico progetto
 
@@ -35,24 +35,38 @@ Oggi il progetto espone **tre viste** separate: Admin, Coach e Student.
 - Per ora le pagine contenuto sono condivise con `src/pages/coach/` (stessa UX della coach view)
 - Accessibile solo tramite URL diretto (non dalla sidebar admin)
 
+### Vista Public (`/public-view`)
+- Layout: `src/app/components/public/PublicLayout.tsx`
+- Navigazione: separata, focalizzata solo su Sottocheck
+- Componenti custom dedicati:
+  - `src/app/components/public/PublicHeader.tsx`
+  - `src/app/components/public/PublicSidebar.tsx`
+  - `src/app/components/public/PublicLayout.tsx`
+- Pensata per utenti che usano solo Sottocheck e non hanno un percorso coaching attivo
+- Accessibile solo tramite URL diretto (non dalla sidebar admin)
+
 ## Struttura cartelle
 - Pagine admin: `src/pages/admin/`
 - Pagine coach (riusate anche da student-view): `src/pages/coach/`
+- Pagine public: `src/pages/public/`
 - Componenti admin/shared root: `src/app/components/`
 - Componenti esclusivi coach: `src/app/components/coach/`
 - Componenti esclusivi student: `src/app/components/student/`
+- Componenti esclusivi public: `src/app/components/public/`
 
 ## Layout e isolamento
 - Vista admin usa solo `AdminLayout`
 - Vista coach usa solo `CoachLayout`
 - Vista student usa solo `StudentLayout`
+- Vista public usa solo `PublicLayout`
 - Non fare riferimenti incrociati tra layout di viste diverse
 
 ## Regole invarianti
 1. Non aggiungere route coach/student alla sidebar admin
 2. Non spostare componenti coach in admin e viceversa senza verifica
 3. I componenti `Header`, `Sidebar` e `Layout` di student-view devono restare custom e indipendenti
-4. Le variabili CSS condivise restano in `src/styles/theme.css`
+4. I componenti `Header`, `Sidebar` e `Layout` di public-view devono restare custom e indipendenti
+5. Le variabili CSS condivise restano in `src/styles/theme.css`
 
 ## Route map completa
 | Path | Vista | Layout | Note |
@@ -96,3 +110,8 @@ Oggi il progetto espone **tre viste** separate: Admin, Coach e Student.
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
 | `/student-view/profilo` | Student | StudentLayout | Profilo student |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
+| `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck |
+| `/public-view/sottocheck` | Public | PublicLayout | Sottocheck vista public |
+| `/public-view/history` | Public | PublicLayout | Storico Sottocheck vista public |
+| `/public-view/profilo` | Public | PublicLayout | Profilo public |
+| `/public-view/*` | Public | PublicLayout | NotFound public |
