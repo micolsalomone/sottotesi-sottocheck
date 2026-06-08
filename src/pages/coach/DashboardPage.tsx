@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import {
   Users,
   ChevronRight,
@@ -10,8 +10,6 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { STUDENTS_DATA, STATUS_LABELS, STATUS_STYLES } from './studentsData';
-import { getViewBasePath } from './viewBasePath';
-import { getStudentViewStudent, getStudentViewTimelinePath, isStudentViewPath } from '@/app/utils/studentView';
 
 /* ── Availability types ── */
 type CoachAvailability = 'disponibile' | 'limitata' | 'pieno' | 'non_disponibile';
@@ -103,41 +101,13 @@ const MOCK_TICKETS: Ticket[] = [
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const viewBasePath = getViewBasePath(location.pathname);
-  const isStudentView = isStudentViewPath(location.pathname);
-  const currentStudent = isStudentView ? getStudentViewStudent() : null;
   const [dashboardTab, setDashboardTab] = useState<'tickets' | 'unassigned'>('tickets');
 
   const assigned = STUDENTS_DATA.filter(s => s.assigned);
-  const activeCount = isStudentView
-    ? (currentStudent?.status === 'active' ? 1 : 0)
-    : assigned.filter(s => s.status === 'active').length;
-  const totalCount = isStudentView ? (currentStudent ? 1 : 0) : assigned.length;
   const pendingStudents = STUDENTS_DATA.filter(s => !s.assigned);
-  const studentTickets: Ticket[] = currentStudent
-    ? [
-        {
-          id: 'ST-001',
-          subject: `Aggiornamento percorso ${currentStudent.id}`,
-          from: 'Coach · Teresa P.',
-          fromRole: 'coach',
-          date: '26 feb 2026',
-          status: 'open',
-          snippet: `La tua timeline è aggiornata fino a ${currentStudent.currentPhase}. Controlla la prossima consegna prevista.`,
-        },
-        {
-          id: 'ST-002',
-          subject: 'Nuovo documento disponibile in archivio',
-          from: 'Admin · Laura Ricci',
-          fromRole: 'admin',
-          date: '24 feb 2026',
-          status: 'closed',
-          snippet: 'Sono stati caricati nuovi materiali utili per il tuo percorso attivo.',
-        },
-      ]
-    : [];
-  const visibleTickets = isStudentView ? studentTickets : MOCK_TICKETS;
+  const activeCount = assigned.filter(s => s.status === 'active').length;
+  const totalCount = assigned.length;
+  const visibleTickets = MOCK_TICKETS;
   const openTickets = visibleTickets.filter(t => t.status === 'open');
 
   return (
@@ -163,9 +133,7 @@ export function DashboardPage() {
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          {isStudentView
-            ? 'Panoramica del tuo percorso attivo e delle attività recenti'
-            : 'Panoramica e gestione della tua attività di coaching'}
+          Panoramica e gestione della tua attività di coaching
         </p>
       </div>
 
@@ -175,7 +143,7 @@ export function DashboardPage() {
         <div
           className="border border-[var(--border)] bg-[var(--card)] p-6 flex flex-col justify-between cursor-pointer hover:border-[var(--primary)] transition-colors"
           style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
-          onClick={() => navigate(isStudentView ? getStudentViewTimelinePath() : `${viewBasePath}/studenti`)}
+          onClick={() => navigate('/coach-view/studenti')}
         >
           <div className="flex items-center justify-between mb-4">
             <span
@@ -188,7 +156,7 @@ export function DashboardPage() {
                 letterSpacing: '0.05em',
               }}
             >
-              {isStudentView ? 'Percorso attivo' : 'Studenti attivi'}
+              Studenti attivi
             </span>
             <Users className="w-5 h-5 text-[var(--primary)]" />
           </div>
@@ -211,9 +179,7 @@ export function DashboardPage() {
               fontWeight: 'var(--font-weight-regular)',
             }}
           >
-            {isStudentView
-              ? `${currentStudent?.currentPhase || 'Percorso in corso'} · scadenza ${currentStudent?.nextDeadlineDate || '-'}`
-              : `su ${totalCount} percorsi totali`}
+            {`su ${totalCount} percorsi totali`}
           </p>
         </div>
 
@@ -285,45 +251,43 @@ export function DashboardPage() {
             )}
           </button>
 
-          {!isStudentView && (
-            <button
-              onClick={() => setDashboardTab('unassigned')}
-              className="relative px-1 py-4 transition-colors"
-              style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: dashboardTab === 'unassigned' ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
-                color: dashboardTab === 'unassigned' ? 'var(--foreground)' : 'var(--muted-foreground)',
-              }}
-            >
-              <span className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4" />
-                Senza assegnazione
-                {pendingStudents.length > 0 && (
-                  <span
-                    className="inline-flex items-center justify-center px-[7px]"
-                    style={{
-                      background: 'var(--accent)',
-                      color: 'var(--accent-foreground)',
-                      borderRadius: 'var(--radius-badge)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '11px',
-                      fontWeight: 'var(--font-weight-medium)',
-                      height: '20px',
-                    }}
-                  >
-                    {pendingStudents.length}
-                  </span>
-                )}
-              </span>
-              {dashboardTab === 'unassigned' && (
+          <button
+            onClick={() => setDashboardTab('unassigned')}
+            className="relative px-1 py-4 transition-colors"
+            style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: 'var(--text-label)',
+              fontWeight: dashboardTab === 'unassigned' ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+              color: dashboardTab === 'unassigned' ? 'var(--foreground)' : 'var(--muted-foreground)',
+            }}
+          >
+            <span className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              Senza assegnazione
+              {pendingStudents.length > 0 && (
                 <span
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--foreground)]"
-                  style={{ borderRadius: '1px' }}
-                />
+                  className="inline-flex items-center justify-center px-[7px]"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'var(--accent-foreground)',
+                    borderRadius: 'var(--radius-badge)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '11px',
+                    fontWeight: 'var(--font-weight-medium)',
+                    height: '20px',
+                  }}
+                >
+                  {pendingStudents.length}
+                </span>
               )}
-            </button>
-          )}
+            </span>
+            {dashboardTab === 'unassigned' && (
+              <span
+                className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--foreground)]"
+                style={{ borderRadius: '1px' }}
+              />
+            )}
+          </button>
         </div>
 
         {/* Tab content */}
@@ -506,10 +470,6 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* ── Quick link ── */}
-      <div className="mt-10">
-        
-      </div>
     </div>
   );
 }

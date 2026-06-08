@@ -33,6 +33,8 @@ import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
+import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
+import { StudentTimelinePage as StudentTimelinePageView } from '@/pages/student/StudentTimelinePage';
 import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
@@ -91,7 +93,7 @@ export const router = createBrowserRouter([
     path: '/student-view',
     Component: StudentLayout,
     children: [
-      { index: true, Component: DashboardPage },
+      { index: true, Component: StudentDashboardPage },
       { path: 'studenti', loader: () => redirect(getStudentViewTimelinePath()) },
       {
         path: 'studenti/:studentId',
@@ -101,7 +103,7 @@ export const router = createBrowserRouter([
           }
           return null;
         },
-        Component: StudentTimelinePage,
+        Component: StudentTimelinePageView,
       },
       { path: 'sottocheck', Component: StudentSottocheckPage },
       { path: 'history', Component: StudentHistoryPage },
