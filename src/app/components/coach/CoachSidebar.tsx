@@ -82,6 +82,7 @@ export function CoachSidebar({ collapsed, onToggleCollapse }: CoachSidebarProps)
               );
             })}
           </nav>
+
         </div>
       </aside>
     </>

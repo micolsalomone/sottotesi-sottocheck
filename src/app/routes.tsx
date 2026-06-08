@@ -25,6 +25,7 @@ import { SottocheckOutputPreviewPage } from '@/pages/admin/SottocheckOutputPrevi
 
 // Coach View (vista utente — accesso solo tramite URL diretto)
 import { CoachLayout } from './components/coach/CoachLayout';
+import { PublicLayout } from './components/public/PublicLayout';
 import { StudentLayout } from './components/student/StudentLayout';
 import { DashboardPage } from '../pages/coach/DashboardPage';
 import { StudentiPage as CoachStudentiPage } from '../pages/coach/StudentiPage';
@@ -32,6 +33,9 @@ import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
+import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
+import { StudentTimelinePage as StudentTimelinePageView } from '@/pages/student/StudentTimelinePage';
+import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
@@ -88,7 +92,7 @@ export const router = createHashRouter([  // Vista Admin
     path: '/student-view',
     Component: StudentLayout,
     children: [
-      { index: true, Component: DashboardPage },
+      { index: true, Component: StudentDashboardPage },
       { path: 'studenti', loader: () => redirect(getStudentViewTimelinePath()) },
       {
         path: 'studenti/:studentId',
@@ -98,11 +102,23 @@ export const router = createHashRouter([  // Vista Admin
           }
           return null;
         },
-        Component: StudentTimelinePage,
+        Component: StudentTimelinePageView,
       },
       { path: 'sottocheck', Component: StudentSottocheckPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
+      { path: 'profilo', Component: StudentProfilePage },
+      { path: '*', Component: NotFoundPage },
+    ],
+  },
+  // Vista Public — solo URL diretto, per utenti solo Sottocheck
+  {
+    path: '/public-view',
+    Component: PublicLayout,
+    children: [
+      { index: true, Component: PublicDashboardPage },
+      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'history', Component: StudentHistoryPage },
       { path: 'profilo', Component: StudentProfilePage },
       { path: '*', Component: NotFoundPage },
     ],

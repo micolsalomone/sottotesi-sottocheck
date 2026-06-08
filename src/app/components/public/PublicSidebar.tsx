@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { LayoutDashboard, Users, ClipboardCheck, History, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStudentViewTimelinePath } from '@/app/utils/studentView';
+import { LayoutDashboard, ClipboardCheck, History, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -12,40 +11,35 @@ const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     icon: <LayoutDashboard size={20} />,
-    path: '/student-view',
-  },
-  {
-    label: 'Il mio percorso',
-    icon: <Users size={20} />,
-    path: getStudentViewTimelinePath(),
+    path: '/public-view',
   },
   {
     label: 'Sottocheck',
     icon: <ClipboardCheck size={20} />,
-    path: '/student-view/sottocheck',
+    path: '/public-view/sottocheck',
   },
   {
     label: 'Storico',
     icon: <History size={20} />,
-    path: '/student-view/history',
+    path: '/public-view/history',
   },
   {
-    label: 'Archivio',
-    icon: <Archive size={20} />,
-    path: '/student-view/archivio',
+    label: 'Profilo',
+    icon: <User size={20} />,
+    path: '/public-view/profilo',
   },
 ];
 
-interface StudentSidebarProps {
+interface PublicSidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
 
-export function StudentSidebar({ collapsed, onToggleCollapse }: StudentSidebarProps) {
+export function PublicSidebar({ collapsed, onToggleCollapse }: PublicSidebarProps) {
   const location = useLocation();
 
   function isActive(path: string) {
-    if (path === '/student-view') return location.pathname === '/student-view';
+    if (path === '/public-view') return location.pathname === '/public-view';
     return location.pathname.startsWith(path);
   }
 
@@ -60,18 +54,22 @@ export function StudentSidebar({ collapsed, onToggleCollapse }: StudentSidebarPr
       </button>
 
       <aside className={`admin-sidebar ${collapsed ? 'collapsed' : 'expanded'}`}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-        }}>
-          <nav style={{
-            flex: 1,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            padding: '8px',
-            paddingTop: '8px',
-          }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          }}
+        >
+          <nav
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: '8px',
+              paddingTop: '8px',
+            }}
+          >
             {navItems.map((item) => {
               const active = isActive(item.path);
               return (
@@ -88,7 +86,6 @@ export function StudentSidebar({ collapsed, onToggleCollapse }: StudentSidebarPr
               );
             })}
           </nav>
-
         </div>
       </aside>
     </>

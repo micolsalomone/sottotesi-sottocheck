@@ -76,6 +76,10 @@
   --chart-4: rgba(238, 70, 188, 1.00);
   /* The color for another chart element, such as a bar or line in a chart. */
   --chart-5: rgba(122, 90, 248, 1.00);
+  /* Soft background tint derived from chart-2 for hover surfaces. */
+  --surface-chart-2-soft: rgba(46, 144, 250, 0.06);
+  /* Soft background tint derived from chart-5 for hover surfaces. */
+  --surface-chart-5-soft: rgba(122, 90, 248, 0.06);
   /* The default border radius for elements such as buttons, cards, and other containers. */
   --radius: 8px;
   /* The border radius for badge components. */
@@ -131,6 +135,8 @@
   --chart-3: rgba(247, 144, 9, 1.00);
   --chart-4: rgba(238, 70, 188, 1.00);
   --chart-5: rgba(122, 90, 248, 1.00);
+  --surface-chart-2-soft: rgba(46, 144, 250, 0.14);
+  --surface-chart-5-soft: rgba(122, 90, 248, 0.14);
   --sidebar: rgba(83, 88, 98, 1.00);
   --sidebar-foreground: rgba(255, 255, 255, 1.00);
   --sidebar-primary: rgba(10, 10, 10, 1.00);

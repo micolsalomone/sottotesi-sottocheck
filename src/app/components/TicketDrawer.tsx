@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
-import { X, Send, Ticket } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
-import { Button } from './ui/button';
+import React, { useEffect, useState } from 'react';
+import { Send, Ticket, Save } from 'lucide-react';
+import {
+  DrawerOverlay,
+  DrawerShell,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+  DrawerSection,
+  DrawerFieldGroup,
+  DrawerLabel,
+  DrawerMetaRow,
+  DrawerChip,
+  DRAWER_WIDTH_DEFAULT,
+  drawerInputStyle,
+  drawerSelectStyle,
+} from './DrawerPrimitives';
 import { Textarea } from './ui/textarea';
-import { StatusBadge, StatusType } from './StatusBadge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Button } from './ui/button';
 
 export interface TicketMessage {
   id: string;
@@ -16,12 +28,15 @@ export interface TicketMessage {
 
 export interface TicketData {
   id: string;
-  title: string;
-  status: 'active' | 'completed' | 'pending';
+  subject: string;
+  status: 'aperto' | 'in_lavorazione' | 'risolto';
+  priority: 'alta' | 'media' | 'bassa';
+  source: 'coach' | 'studente';
+  category: string;
+  createdAt: string;
+  requesterName: string;
   assignedTo?: string;
   messages: TicketMessage[];
-  entityType: string;
-  entityName: string;
 }
 
 interface TicketDrawerProps {
@@ -29,10 +44,11 @@ interface TicketDrawerProps {
   onClose: () => void;
   ticket: TicketData | null;
   onSendMessage: (ticketId: string, content: string) => void;
-  onChangeStatus: (ticketId: string, status: 'active' | 'completed' | 'pending') => void;
-  onAssign: (ticketId: string, adminId: string) => void;
+  onSaveChanges: (ticketId: string, changes: { status: TicketData['status']; assignedTo?: string }) => void;
   currentAdmin: string;
   availableAdmins?: { id: string; name: string }[];
+  hideManagement?: boolean;
+  composerLabel?: string;
 }
 
 export function TicketDrawer({
@@ -40,20 +56,54 @@ export function TicketDrawer({
   onClose,
   ticket,
   onSendMessage,
-  onChangeStatus,
-  onAssign,
+  onSaveChanges,
   currentAdmin,
-  availableAdmins = []
+  availableAdmins = [],
+  hideManagement = false,
+  composerLabel,
 }: TicketDrawerProps) {
   const [newMessage, setNewMessage] = useState('');
+  const [draftStatus, setDraftStatus] = useState<TicketData['status']>('aperto');
+  const [draftAssignedTo, setDraftAssignedTo] = useState<string>('unassigned');
+  const statusLabels: Record<TicketData['status'], string> = {
+    aperto: 'Aperto',
+    in_lavorazione: 'Preso in carico',
+    risolto: 'Risolto',
+  };
 
-  if (!ticket) return null;
+  const sourceLabels: Record<TicketData['source'], string> = {
+    coach: 'Da coach',
+    studente: 'Da studente',
+  };
+
+  useEffect(() => {
+    if (!isOpen || !ticket) return;
+    setDraftStatus(ticket.status);
+    setDraftAssignedTo(ticket.assignedTo || 'unassigned');
+  }, [isOpen, ticket]);
+
+  if (!isOpen || !ticket) return null;
+
+  const formattedDate = new Date(ticket.createdAt).toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
       onSendMessage(ticket.id, newMessage.trim());
       setNewMessage('');
     }
+  };
+
+  const hasPendingChanges = draftStatus !== ticket.status || draftAssignedTo !== (ticket.assignedTo || 'unassigned');
+
+  const handleSaveChanges = () => {
+    onSaveChanges(ticket.id, {
+      status: draftStatus,
+      assignedTo: draftAssignedTo === 'unassigned' ? undefined : draftAssignedTo,
+    });
   };
 
   const getAuthorLabel = (authorType: string) => {
@@ -70,113 +120,174 @@ export function TicketDrawer({
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:w-[600px] flex flex-col">
-        <SheetHeader className="border-b border-border pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <Ticket className="h-5 w-5 text-primary" />
-                <SheetTitle>{ticket.title}</SheetTitle>
-              </div>
-              <SheetDescription>
-                {ticket.entityType}: {ticket.entityName}
-              </SheetDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+    <>
+      <DrawerOverlay onClose={onClose} />
 
-          {/* Controlli ticket */}
-          <div className="flex items-center gap-3 pt-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Stato:</span>
-              <Select
-                value={ticket.status}
-                onValueChange={(value) => onChangeStatus(ticket.id, value as any)}
-              >
-                <SelectTrigger className="w-32 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">In attesa</SelectItem>
-                  <SelectItem value="active">Attivo</SelectItem>
-                  <SelectItem value="completed">Completato</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <DrawerShell width={DRAWER_WIDTH_DEFAULT}>
+        <DrawerHeader
+          icon={<Ticket size={20} />}
+          title={ticket.subject}
+          subtitle={`${ticket.id} · ${ticket.requesterName}`}
+          onClose={onClose}
+        />
 
-            {availableAdmins.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Assegnato a:</span>
-                <Select
-                  value={ticket.assignedTo || 'unassigned'}
-                  onValueChange={(value) => onAssign(ticket.id, value)}
+        <DrawerMetaRow>
+          Fonte: {sourceLabels[ticket.source]} · Priorita: {ticket.priority} · Stato: {statusLabels[ticket.status]} · Data: {formattedDate}
+        </DrawerMetaRow>
+
+        <DrawerBody>
+          <DrawerSection title="Dettaglio ticket" bordered={false}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <DrawerChip label={sourceLabels[ticket.source]} />
+              <DrawerChip label={`Priorita: ${ticket.priority}`} />
+              <DrawerChip label={`Categoria: ${ticket.category}`} />
+              <DrawerChip label={`Data: ${formattedDate}`} />
+            </div>
+          </DrawerSection>
+
+          {!hideManagement && (
+            <DrawerSection title="Gestione ticket">
+              <DrawerFieldGroup>
+                <DrawerLabel htmlFor="ticket-status">Stato</DrawerLabel>
+                <select
+                  id="ticket-status"
+                  value={draftStatus}
+                  onChange={(e) => setDraftStatus(e.target.value as TicketData['status'])}
+                  style={drawerSelectStyle}
                 >
-                  <SelectTrigger className="w-40 h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Non assegnato</SelectItem>
+                  <option value="aperto">Aperto</option>
+                  <option value="in_lavorazione">Preso in carico</option>
+                  <option value="risolto">Risolto</option>
+                </select>
+              </DrawerFieldGroup>
+
+              {availableAdmins.length > 0 && (
+                <DrawerFieldGroup style={{ marginBottom: 0 }}>
+                  <DrawerLabel htmlFor="ticket-assignee">Assegnato a</DrawerLabel>
+                  <select
+                    id="ticket-assignee"
+                    value={draftAssignedTo}
+                    onChange={(e) => setDraftAssignedTo(e.target.value)}
+                    style={drawerSelectStyle}
+                  >
+                    <option value="unassigned">Non assegnato</option>
                     {availableAdmins.map((admin) => (
-                      <SelectItem key={admin.id} value={admin.id}>
-                        {admin.name}
-                      </SelectItem>
+                      <option key={admin.id} value={admin.id}>{admin.name}</option>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </SheetHeader>
+                  </select>
+                </DrawerFieldGroup>
+              )}
 
-        {/* Messaggi */}
-        <div className="flex-1 overflow-y-auto py-6 space-y-4">
-          {ticket.messages.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nessun messaggio. Inizia la conversazione.
-            </div>
-          ) : (
-            ticket.messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.authorType === 'admin' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] space-y-2 ${
-                    message.authorType === 'admin'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  } rounded-lg p-3`}
-                >
-                  <div className="flex items-center gap-2 text-xs opacity-75">
-                    <span className="font-medium">{message.author}</span>
-                    <span>({getAuthorLabel(message.authorType)})</span>
-                    <span>•</span>
-                    <span>{message.timestamp}</span>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {hasPendingChanges && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--chart-3)',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    Hai modifiche non salvate
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveChanges}
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    title="Salva modifiche ticket"
+                  >
+                    <Save size={16} /> Salva modifiche
+                  </button>
                 </div>
-              </div>
-            ))
+              )}
+            </DrawerSection>
           )}
-        </div>
 
-        {/* Form risposta */}
-        <div className="border-t border-border pt-4 space-y-3">
+          <DrawerSection title="Conversazione">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {ticket.messages.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '1rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    backgroundColor: 'var(--muted)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    color: 'var(--muted-foreground)',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  Nessun messaggio. Inizia la conversazione.
+                </div>
+              ) : (
+                ticket.messages.map((message) => {
+                  const isAdminMessage = message.authorType === 'admin';
+                  return (
+                    <div
+                      key={message.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: isAdminMessage ? 'flex-end' : 'flex-start',
+                      }}
+                    >
+                      <div
+                        style={{
+                          maxWidth: '85%',
+                          borderRadius: 'var(--radius)',
+                          padding: '0.625rem 0.75rem',
+                          backgroundColor: isAdminMessage ? 'var(--primary)' : 'var(--muted)',
+                          color: isAdminMessage ? 'var(--primary-foreground)' : 'var(--foreground)',
+                          border: isAdminMessage ? 'none' : '1px solid var(--border)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 'var(--text-xs)',
+                            lineHeight: '1.5',
+                            opacity: 0.85,
+                            marginBottom: '0.25rem',
+                          }}
+                        >
+                          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>{message.author}</span>
+                          <span>({getAuthorLabel(message.authorType)})</span>
+                          <span>•</span>
+                          <span>{message.timestamp}</span>
+                        </div>
+                        <p
+                          style={{
+                            margin: 0,
+                            whiteSpace: 'pre-wrap',
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 'var(--text-label)',
+                            lineHeight: '1.5',
+                          }}
+                        >
+                          {message.content}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DrawerSection>
+        </DrawerBody>
+
+        <DrawerFooter direction="column">
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Scrivi un messaggio..."
-            className="min-h-20"
+            placeholder={`Scrivi un messaggio come ${composerLabel || currentAdmin}...`}
+            style={{ ...drawerInputStyle, minHeight: '5rem', resize: 'vertical' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -184,21 +295,25 @@ export function TicketDrawer({
               }
             }}
           />
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-inter)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--muted-foreground)',
+                lineHeight: '1.5',
+              }}
+            >
               Premi Invio per inviare, Shift+Invio per andare a capo
             </p>
-            <Button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
-              className="gap-2"
-            >
-              <Send className="h-4 w-4" />
+            <Button onClick={handleSendMessage} disabled={!newMessage.trim()} className="gap-2">
+              <Send size={16} />
               Invia
             </Button>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </DrawerShell>
+    </>
   );
 }

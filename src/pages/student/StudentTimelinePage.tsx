@@ -4,8 +4,8 @@ import {
   STATUS_LABELS,
   STATUS_STYLES,
   THESIS_TYPE_LABELS
-} from './studentsData';
-import { useParams, useNavigate } from 'react-router';
+} from '../coach/studentsData';
+import { useLocation, useParams, useNavigate } from 'react-router';
 import { InfoCoachingCard, ShareWithStudentCard } from '../../app/components/StudentProfile';
 import { DocumentArchiveDrawer, Document } from '../../app/components/coach/DocumentArchiveDrawer';
 import { TimelineEditDrawer, TimelineStepEdit, TimelineOverview } from '../../app/components/coach/TimelineEditDrawer';
@@ -15,15 +15,18 @@ import { TimelineControls } from '../../app/components/coach/TimelineControls';
 import { PlagiarismCheckDrawer } from '../../app/components/coach/PlagiarismCheckDrawer';
 import { StepOption } from '../../app/components/coach/AssignStepModal';
 import { TimelineSupportLabel } from '@/app/components/TimelineSupportLabel';
-import { CoachSupportTicketDrawer } from '@/app/components/coach/CoachSupportTicketDrawer';
+import { StudentSupportTicketDrawer } from '@/app/components/student/StudentSupportTicketDrawer';
 import { Calendar, Plus, ClipboardList, ListPlus } from 'lucide-react';
-import { getStudentTimeline } from './studentTimelines';
+import { getStudentTimeline } from '../coach/studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
+import { getViewBasePath } from '../coach/viewBasePath';
+import { getStudentViewStudent, getStudentViewTimelinePath, isStudentViewPath } from '@/app/utils/studentView';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
 
 export function StudentTimelinePage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     data: services,
     students: realStudents,
@@ -32,14 +35,24 @@ export function StudentTimelinePage() {
     getServiceTimelineSteps,
     getServiceArchiveDocuments,
   } = useLavorazioni();
+  const viewBasePath = getViewBasePath(location.pathname);
+  const isStudentView = isStudentViewPath(location.pathname);
+  const currentStudent = isStudentView ? getStudentViewStudent() : null;
+  const effectiveStudentId = isStudentView ? currentStudent?.id : studentId;
   const legacyStudent = useMemo(
-    () => (studentId ? STUDENTS_DATA.find(entry => entry.id === studentId) || null : null),
-    [studentId]
+    () => (effectiveStudentId ? STUDENTS_DATA.find(entry => entry.id === effectiveStudentId) || null : null),
+    [effectiveStudentId]
   );
 
   const matchedService = useMemo(() => {
     const candidates = services.filter(service => {
-      if (studentId && (service.id === studentId || service.student_id === studentId)) {
+      if (effectiveStudentId && (service.id === effectiveStudentId || service.student_id === effectiveStudentId)) {
+        return true;
+      }
+      if (currentStudent?.id && service.student_id === currentStudent.id) {
+        return true;
+      }
+      if (currentStudent?.name && service.student_name === currentStudent.name) {
         return true;
       }
       if (legacyStudent?.name && service.student_name === legacyStudent.name) {
@@ -54,20 +67,23 @@ export function StudentTimelinePage() {
       if (leftIsOpen !== rightIsOpen) return leftIsOpen ? -1 : 1;
       return (right.updated_at || right.created_at).localeCompare(left.updated_at || left.created_at);
     })[0];
-  }, [services, studentId, legacyStudent?.name]);
+  }, [services, effectiveStudentId, currentStudent?.id, currentStudent?.name, legacyStudent?.name]);
 
   const realStudent = useMemo(() => {
     if (matchedService?.student_id) {
       return realStudents.find(entry => entry.id === matchedService.student_id) || null;
     }
-    if (studentId) {
-      return realStudents.find(entry => entry.id === studentId) || null;
+    if (currentStudent?.id) {
+      return realStudents.find(entry => entry.id === currentStudent.id) || null;
+    }
+    if (effectiveStudentId) {
+      return realStudents.find(entry => entry.id === effectiveStudentId) || null;
     }
     if (legacyStudent?.name) {
       return realStudents.find(entry => entry.name === legacyStudent.name) || null;
     }
     return null;
-  }, [matchedService?.student_id, studentId, legacyStudent?.name, realStudents]);
+  }, [matchedService?.student_id, currentStudent?.id, effectiveStudentId, legacyStudent?.name, realStudents]);
 
   const currentAcademicRecord = useMemo(() => {
     if (!realStudent) return null;
@@ -77,7 +93,7 @@ export function StudentTimelinePage() {
       || null;
   }, [realStudent, matchedService?.academic_record_id]);
 
-  const studentName = matchedService?.student_name || realStudent?.name || legacyStudent?.name || 'Studente';
+  const studentName = matchedService?.student_name || realStudent?.name || legacyStudent?.name || currentStudent?.name || 'Studente';
   const initialThesisSubject = currentAcademicRecord?.thesis_topic || currentAcademicRecord?.thesis_subject || '';
 
   const [thesisSubject, setThesisSubject] = useState(initialThesisSubject);
@@ -92,8 +108,8 @@ export function StudentTimelinePage() {
   const [isSupportTicketDrawerOpen, setIsSupportTicketDrawerOpen] = useState(false);
   
   const initialTimeline = useMemo(() => {
-    const legacyTimeline = studentId
-      ? getStudentTimeline(studentId, studentName)
+    const legacyTimeline = effectiveStudentId
+      ? getStudentTimeline(effectiveStudentId, studentName)
       : { steps: [], documents: [] as Document[] };
 
     if (!matchedService) {
@@ -121,7 +137,7 @@ export function StudentTimelinePage() {
       steps: [] as TimelineStepData[],
       documents: [] as Document[],
     };
-  }, [matchedService, studentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments]);
+  }, [matchedService, effectiveStudentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments]);
 
   const [timelineSteps, setTimelineSteps] = useState<TimelineStepData[]>(initialTimeline.steps);
 
@@ -155,21 +171,26 @@ export function StudentTimelinePage() {
 
   // Reset state when navigating to a different student
   useEffect(() => {
+    if (isStudentView && studentId !== currentStudent?.id) {
+      navigate(getStudentViewTimelinePath(), { replace: true });
+      return;
+    }
+
     setTimelineSteps(initialTimeline.steps);
     setDocuments(initialTimeline.documents);
     setFilterMode('all');
     setStepArchiveId(null);
     setThesisSubject(initialThesisSubject);
-  }, [studentId, initialTimeline, initialThesisSubject]);
+  }, [studentId, currentStudent?.id, initialTimeline, initialThesisSubject, isStudentView, navigate]);
 
   useEffect(() => {
-    if (!matchedService || !studentId) return;
+    if (!matchedService || !effectiveStudentId) return;
 
     const sharedSteps = getServiceTimelineSteps(matchedService.id);
     const sharedDocuments = getServiceArchiveDocuments(matchedService.id);
     if (sharedSteps.length > 0 || sharedDocuments.length > 0) return;
 
-    const legacyTimeline = getStudentTimeline(studentId, studentName);
+    const legacyTimeline = getStudentTimeline(effectiveStudentId, studentName);
     if (legacyTimeline.steps.length === 0 && legacyTimeline.documents.length === 0) return;
 
     updateService(matchedService.id, service => ({
@@ -177,7 +198,7 @@ export function StudentTimelinePage() {
       coaching_timeline_full: legacyTimeline.steps as any,
       shared_documents: legacyTimeline.documents as any,
     }));
-  }, [matchedService, studentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments, updateService]);
+  }, [matchedService, effectiveStudentId, studentName, getServiceTimelineSteps, getServiceArchiveDocuments, updateService]);
 
   function handleOpenArchive() { setIsArchiveDrawerOpen(true); }
   function handleOpenStudentProfile() {
@@ -490,7 +511,32 @@ export function StudentTimelinePage() {
     }));
   }, [timelineSteps]);
 
-  const visibleTimelineSteps = useMemo(() => computedTimelineSteps, [computedTimelineSteps]);
+  const visibleTimelineSteps = useMemo(() => {
+    if (!isStudentView) {
+      return computedTimelineSteps;
+    }
+
+    const visibleSteps = computedTimelineSteps.filter((step) => step.isVisibleToStudent);
+
+    if (visibleSteps.length === 0) {
+      return [];
+    }
+
+    if (visibleSteps.some((step) => step.status === 'active')) {
+      return visibleSteps;
+    }
+
+    let activeAssigned = false;
+
+    return visibleSteps.map((step) => {
+      if (!activeAssigned && step.status !== 'completed') {
+        activeAssigned = true;
+        return { ...step, status: 'active' as const };
+      }
+
+      return step;
+    });
+  }, [computedTimelineSteps, isStudentView]);
 
   const stepOptions: StepOption[] = visibleTimelineSteps.map(step => ({ id: step.id, phaseNumber: step.phaseNumber, title: step.title }));
 
@@ -516,7 +562,7 @@ export function StudentTimelinePage() {
     return parts.map(p => p[0]?.toUpperCase() || '').join('').slice(0, 2);
   }, [studentName]);
 
-  const effectiveStatus = matchedService?.status || 'active';
+  const effectiveStatus = isStudentView ? 'active' : (matchedService?.status || 'active');
   const statusStyle = STATUS_STYLES[effectiveStatus];
 
   const activePhaseLabel = computedTimelineSteps.length > 0
@@ -546,7 +592,7 @@ export function StudentTimelinePage() {
         >
           <span
             className="hover:text-[var(--foreground)] cursor-pointer transition-colors"
-            onClick={() => navigate('/coach-view/studenti')}
+            onClick={() => navigate(`${viewBasePath}/studenti`)}
           >
             Studenti
           </span>
@@ -829,7 +875,7 @@ export function StudentTimelinePage() {
               <CoachTimelineList 
                 steps={visibleTimelineSteps} 
                 filterMode={filterMode} 
-                canManageSteps={true}
+                canManageSteps={!isStudentView}
                 onAddStep={handleAddStep}
                 onRemoveStep={handleRemoveStep}
                 onToggleStepStatus={handleToggleStepStatus}
@@ -882,6 +928,7 @@ export function StudentTimelinePage() {
             }}
           />
           <ShareWithStudentCard
+            title="Condividi con il coach"
             archiveCount={documents.length}
             newDocCount={documents.filter(d => d.plagiarismStatus === 'none' || !d.plagiarismStatus).length}
             onOpenArchive={handleOpenArchive}
@@ -978,7 +1025,7 @@ export function StudentTimelinePage() {
         onClose={() => setIsBulkImportOpen(false)}
         onImport={handleBulkImport}
       />
-      <CoachSupportTicketDrawer
+      <StudentSupportTicketDrawer
         isOpen={isSupportTicketDrawerOpen}
         onClose={() => setIsSupportTicketDrawerOpen(false)}
         studentName={studentName}
