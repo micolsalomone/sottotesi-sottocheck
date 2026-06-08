@@ -47,6 +47,8 @@ interface TicketDrawerProps {
   onSaveChanges: (ticketId: string, changes: { status: TicketData['status']; assignedTo?: string }) => void;
   currentAdmin: string;
   availableAdmins?: { id: string; name: string }[];
+  hideManagement?: boolean;
+  composerLabel?: string;
 }
 
 export function TicketDrawer({
@@ -56,7 +58,9 @@ export function TicketDrawer({
   onSendMessage,
   onSaveChanges,
   currentAdmin,
-  availableAdmins = []
+  availableAdmins = [],
+  hideManagement = false,
+  composerLabel,
 }: TicketDrawerProps) {
   const [newMessage, setNewMessage] = useState('');
   const [draftStatus, setDraftStatus] = useState<TicketData['status']>('aperto');
@@ -141,63 +145,65 @@ export function TicketDrawer({
             </div>
           </DrawerSection>
 
-          <DrawerSection title="Gestione ticket">
-            <DrawerFieldGroup>
-              <DrawerLabel htmlFor="ticket-status">Stato</DrawerLabel>
-              <select
-                id="ticket-status"
-                value={draftStatus}
-                onChange={(e) => setDraftStatus(e.target.value as TicketData['status'])}
-                style={drawerSelectStyle}
-              >
-                <option value="aperto">Aperto</option>
-                <option value="in_lavorazione">Preso in carico</option>
-                <option value="risolto">Risolto</option>
-              </select>
-            </DrawerFieldGroup>
-
-            {availableAdmins.length > 0 && (
-              <DrawerFieldGroup style={{ marginBottom: 0 }}>
-                <DrawerLabel htmlFor="ticket-assignee">Assegnato a</DrawerLabel>
+          {!hideManagement && (
+            <DrawerSection title="Gestione ticket">
+              <DrawerFieldGroup>
+                <DrawerLabel htmlFor="ticket-status">Stato</DrawerLabel>
                 <select
-                  id="ticket-assignee"
-                  value={draftAssignedTo}
-                  onChange={(e) => setDraftAssignedTo(e.target.value)}
+                  id="ticket-status"
+                  value={draftStatus}
+                  onChange={(e) => setDraftStatus(e.target.value as TicketData['status'])}
                   style={drawerSelectStyle}
                 >
-                  <option value="unassigned">Non assegnato</option>
-                  {availableAdmins.map((admin) => (
-                    <option key={admin.id} value={admin.id}>{admin.name}</option>
-                  ))}
+                  <option value="aperto">Aperto</option>
+                  <option value="in_lavorazione">Preso in carico</option>
+                  <option value="risolto">Risolto</option>
                 </select>
               </DrawerFieldGroup>
-            )}
 
-            {hasPendingChanges && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--chart-3)',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  Hai modifiche non salvate
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  className="btn btn-primary"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  title="Salva modifiche ticket"
-                >
-                  <Save size={16} /> Salva modifiche
-                </button>
-              </div>
-            )}
-          </DrawerSection>
+              {availableAdmins.length > 0 && (
+                <DrawerFieldGroup style={{ marginBottom: 0 }}>
+                  <DrawerLabel htmlFor="ticket-assignee">Assegnato a</DrawerLabel>
+                  <select
+                    id="ticket-assignee"
+                    value={draftAssignedTo}
+                    onChange={(e) => setDraftAssignedTo(e.target.value)}
+                    style={drawerSelectStyle}
+                  >
+                    <option value="unassigned">Non assegnato</option>
+                    {availableAdmins.map((admin) => (
+                      <option key={admin.id} value={admin.id}>{admin.name}</option>
+                    ))}
+                  </select>
+                </DrawerFieldGroup>
+              )}
+
+              {hasPendingChanges && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--chart-3)',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    Hai modifiche non salvate
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveChanges}
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    title="Salva modifiche ticket"
+                  >
+                    <Save size={16} /> Salva modifiche
+                  </button>
+                </div>
+              )}
+            </DrawerSection>
+          )}
 
           <DrawerSection title="Conversazione">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -280,7 +286,7 @@ export function TicketDrawer({
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={`Scrivi un messaggio come ${currentAdmin}...`}
+            placeholder={`Scrivi un messaggio come ${composerLabel || currentAdmin}...`}
             style={{ ...drawerInputStyle, minHeight: '5rem', resize: 'vertical' }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

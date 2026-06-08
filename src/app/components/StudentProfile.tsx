@@ -370,6 +370,7 @@ function ContactRow({ value, actions }: { value: string; actions: ContactAction[
 /* ─── Share With Student Card ─── */
 
 interface ShareWithStudentCardProps {
+  title?: string;
   archiveCount?: number;
   newDocCount?: number;
   onOpenArchive: () => void;
@@ -380,6 +381,7 @@ interface ShareWithStudentCardProps {
 }
 
 export function ShareWithStudentCard({
+  title = 'Condividi con lo studente',
   archiveCount,
   newDocCount,
   onOpenArchive,
@@ -490,7 +492,7 @@ export function ShareWithStudentCard({
             letterSpacing: '-0.44px',
           }}
         >
-          Condividi con lo studente
+          {title}
         </p>
       </div>
 

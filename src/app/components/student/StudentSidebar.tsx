@@ -88,6 +88,7 @@ export function StudentSidebar({ collapsed, onToggleCollapse }: StudentSidebarPr
               );
             })}
           </nav>
+
         </div>
       </aside>
     </>

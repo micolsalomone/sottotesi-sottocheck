@@ -14,6 +14,8 @@ import { StepArchiveDrawer, StepDocument } from '../../app/components/coach/Step
 import { TimelineControls } from '../../app/components/coach/TimelineControls';
 import { PlagiarismCheckDrawer } from '../../app/components/coach/PlagiarismCheckDrawer';
 import { StepOption } from '../../app/components/coach/AssignStepModal';
+import { TimelineSupportLabel } from '@/app/components/TimelineSupportLabel';
+import { StudentSupportTicketDrawer } from '@/app/components/student/StudentSupportTicketDrawer';
 import { Calendar, Plus, ClipboardList, ListPlus } from 'lucide-react';
 import { getStudentTimeline } from '../coach/studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
@@ -103,6 +105,7 @@ export function StudentTimelinePage() {
   const [isPlagiarismDrawerOpen, setIsPlagiarismDrawerOpen] = useState(false);
   const [stepArchiveId, setStepArchiveId] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isSupportTicketDrawerOpen, setIsSupportTicketDrawerOpen] = useState(false);
   
   const initialTimeline = useMemo(() => {
     const legacyTimeline = effectiveStudentId
@@ -925,6 +928,7 @@ export function StudentTimelinePage() {
             }}
           />
           <ShareWithStudentCard
+            title="Condividi con il coach"
             archiveCount={documents.length}
             newDocCount={documents.filter(d => d.plagiarismStatus === 'none' || !d.plagiarismStatus).length}
             onOpenArchive={handleOpenArchive}
@@ -948,6 +952,7 @@ export function StudentTimelinePage() {
               });
             }}
           />
+          <TimelineSupportLabel onClick={() => setIsSupportTicketDrawerOpen(true)} />
         </div>
       </div>
 
@@ -1019,6 +1024,11 @@ export function StudentTimelinePage() {
         isOpen={isBulkImportOpen}
         onClose={() => setIsBulkImportOpen(false)}
         onImport={handleBulkImport}
+      />
+      <StudentSupportTicketDrawer
+        isOpen={isSupportTicketDrawerOpen}
+        onClose={() => setIsSupportTicketDrawerOpen(false)}
+        studentName={studentName}
       />
     </div>
   );
