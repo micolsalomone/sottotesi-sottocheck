@@ -1,14 +1,19 @@
 import * as React from 'react';
 import { useMemo, useState, MouseEvent } from 'react';
-import { Search, ChevronRight, MessageSquare, GraduationCap, Wrench, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, GraduationCap, Wrench, CheckCircle2, Edit } from 'lucide-react';
 import {
   ResponsiveTableLayout,
   ResponsiveMobileCards,
   ResponsiveMobileCard,
+  ResponsiveMobileCardHeader,
+  ResponsiveMobileCardSection,
+  ResponsiveMobileCardFooter,
   TableRoot,
   TableHeaderCell,
+  TableHeaderActionCell,
   TableRow,
   TableCell,
+  TableActionCell,
   TableEmptyState,
   CellTextPrimary,
   CellTextSecondary,
@@ -16,6 +21,8 @@ import {
   StatusPill,
 } from '@/app/components/TablePrimitives';
 import { Checkbox } from '@/app/components/ui/checkbox';
+import { TicketDrawer, TicketMessage, TicketData } from '@/app/components/TicketDrawer';
+import { TableActions, type TableAction } from '@/app/components/TableActions';
 
 type TicketPriority = 'alta' | 'media' | 'bassa';
 type TicketStatus = 'aperto' | 'in_lavorazione' | 'risolto';
@@ -33,7 +40,17 @@ interface Ticket {
   status: TicketStatus;
   createdAt: string;
   category: string;
+  messages: TicketMessage[];
+  assignedTo?: string;
 }
+
+const CURRENT_ADMIN = 'Francesca';
+
+const AVAILABLE_ADMINS = [
+  { id: 'admin-1', name: 'Francesca' },
+  { id: 'admin-2', name: 'Giulia' },
+  { id: 'admin-3', name: 'Marco' },
+];
 
 const MOCK_TICKETS: Ticket[] = [
   {
@@ -46,6 +63,16 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'aperto',
     createdAt: '2026-03-07',
     category: 'Timeline bloccata',
+    assignedTo: 'admin-1',
+    messages: [
+      {
+        id: 'TK-001-MSG-1',
+        content: 'La timeline resta bloccata allo step 3 anche dopo il refresh.',
+        author: 'Marco Bianchi',
+        authorType: 'coach',
+        timestamp: '07/03/2026 09:10',
+      },
+    ],
   },
   {
     id: 'TK-002',
@@ -56,6 +83,15 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'aperto',
     createdAt: '2026-03-06',
     category: 'Upload documento',
+    messages: [
+      {
+        id: 'TK-002-MSG-1',
+        content: 'Il PDF viene rifiutato, ricevo errore formato non valido.',
+        author: 'Giulia Neri',
+        authorType: 'student',
+        timestamp: '06/03/2026 14:32',
+      },
+    ],
   },
   {
     id: 'TK-003',
@@ -67,6 +103,16 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'in_lavorazione',
     createdAt: '2026-03-05',
     category: 'Assegnazione coach',
+    assignedTo: 'admin-2',
+    messages: [
+      {
+        id: 'TK-003-MSG-1',
+        content: 'Richiesto cambio coach per maggiore aderenza area tematica.',
+        author: 'Anna Verdi',
+        authorType: 'coach',
+        timestamp: '05/03/2026 11:05',
+      },
+    ],
   },
   {
     id: 'TK-004',
@@ -78,6 +124,7 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'aperto',
     createdAt: '2026-03-05',
     category: 'Timeline bloccata',
+    messages: [],
   },
   {
     id: 'TK-005',
@@ -88,6 +135,16 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'risolto',
     createdAt: '2026-03-04',
     category: 'Accesso piattaforma',
+    assignedTo: 'admin-3',
+    messages: [
+      {
+        id: 'TK-005-MSG-1',
+        content: 'Ho resettato password e ora riesco ad accedere.',
+        author: 'Matteo Ricci',
+        authorType: 'student',
+        timestamp: '04/03/2026 17:20',
+      },
+    ],
   },
   {
     id: 'TK-006',
@@ -98,6 +155,16 @@ const MOCK_TICKETS: Ticket[] = [
     status: 'in_lavorazione',
     createdAt: '2026-03-04',
     category: 'Pagamenti',
+    assignedTo: 'admin-1',
+    messages: [
+      {
+        id: 'TK-006-MSG-1',
+        content: 'Il totale rate non coincide con il piano concordato.',
+        author: 'Elena Galli',
+        authorType: 'student',
+        timestamp: '04/03/2026 10:48',
+      },
+    ],
   },
 ];
 
@@ -125,6 +192,7 @@ const statusPillVariant: Record<TicketStatus, 'warning' | 'info' | 'success'> = 
 };
 
 export function TicketPage() {
+  const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS);
   const [activeTab, setActiveTab] = useState<TicketTab>('aperti');
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'all' | TicketSource>('all');
@@ -132,6 +200,8 @@ export function TicketPage() {
   const [sortColumn, setSortColumn] = useState<SortKey>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState(false);
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
     checkbox: 52,
@@ -145,17 +215,17 @@ export function TicketPage() {
   });
 
   const stats = useMemo(() => {
-    const aperti = MOCK_TICKETS.filter(t => t.status !== 'risolto');
+    const aperti = tickets.filter(t => t.status !== 'risolto');
     return {
       totalAperti: aperti.length,
       apertiCoach: aperti.filter(t => t.source === 'coach').length,
       apertiStudente: aperti.filter(t => t.source === 'studente').length,
-      chiusi: MOCK_TICKETS.filter(t => t.status === 'risolto').length,
+      chiusi: tickets.filter(t => t.status === 'risolto').length,
     };
-  }, []);
+  }, [tickets]);
 
   const filteredData = useMemo(() => {
-    const openOrClosedFiltered = MOCK_TICKETS.filter(ticket =>
+    const openOrClosedFiltered = tickets.filter(ticket =>
       activeTab === 'aperti' ? ticket.status !== 'risolto' : ticket.status === 'risolto'
     );
 
@@ -204,7 +274,30 @@ export function TicketPage() {
     }
 
     return data;
-  }, [activeTab, searchQuery, sourceFilter, priorityFilter, sortColumn, sortDirection]);
+  }, [activeTab, searchQuery, sourceFilter, priorityFilter, sortColumn, sortDirection, tickets]);
+
+  const selectedTicket = useMemo(
+    () => tickets.find(ticket => ticket.id === selectedTicketId) ?? null,
+    [tickets, selectedTicketId]
+  );
+
+  const selectedTicketData = useMemo<TicketData | null>(() => {
+    if (!selectedTicket) return null;
+    return {
+      id: selectedTicket.id,
+      subject: selectedTicket.subject,
+      source: selectedTicket.source,
+      priority: selectedTicket.priority,
+      status: selectedTicket.status,
+      category: selectedTicket.category,
+      createdAt: selectedTicket.createdAt,
+      requesterName: selectedTicket.source === 'coach'
+        ? (selectedTicket.coachName || selectedTicket.studentName || '-')
+        : (selectedTicket.studentName || selectedTicket.coachName || '-'),
+      assignedTo: selectedTicket.assignedTo,
+      messages: selectedTicket.messages,
+    };
+  }, [selectedTicket]);
 
   const handleSort = (column: SortKey) => {
     if (sortColumn === column) {
@@ -253,6 +346,83 @@ export function TicketPage() {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  const handleOpenTicket = (id: string) => {
+    setSelectedTicketId(id);
+    setIsTicketDrawerOpen(true);
+  };
+
+  const handleSaveTicketChanges = (
+    ticketId: string,
+    changes: { status: TicketStatus; assignedTo?: string }
+  ) => {
+    setTickets(prev => prev.map(ticket => (
+      ticket.id === ticketId
+        ? { ...ticket, status: changes.status, assignedTo: changes.assignedTo }
+        : ticket
+    )));
+  };
+
+  const handleSendTicketMessage = (ticketId: string, content: string) => {
+    const now = new Date();
+    const timestamp = now.toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    setTickets(prev => prev.map(ticket => {
+      if (ticket.id !== ticketId) return ticket;
+      const newMessage: TicketMessage = {
+        id: `${ticketId}-MSG-${ticket.messages.length + 1}`,
+        content,
+        author: CURRENT_ADMIN,
+        authorType: 'admin',
+        timestamp,
+      };
+      return { ...ticket, messages: [...ticket.messages, newMessage] };
+    }));
+  };
+
+  const getTableActions = (ticket: Ticket): TableAction[] => {
+    return [
+      {
+        label: 'Apri dettaglio',
+        icon: <Edit size={16} />,
+        onClick: () => handleOpenTicket(ticket.id),
+        divider: true,
+      },
+      {
+        label: 'Segna preso in carico',
+        icon: <Wrench size={16} />,
+        onClick: () => handleSaveTicketChanges(ticket.id, {
+          status: 'in_lavorazione',
+          assignedTo: ticket.assignedTo,
+        }),
+        hidden: ticket.status === 'in_lavorazione' || ticket.status === 'risolto',
+      },
+      {
+        label: 'Segna risolto',
+        icon: <CheckCircle2 size={16} />,
+        onClick: () => handleSaveTicketChanges(ticket.id, {
+          status: 'risolto',
+          assignedTo: ticket.assignedTo,
+        }),
+        hidden: ticket.status === 'risolto',
+      },
+      {
+        label: 'Riapri ticket',
+        icon: <MessageSquare size={16} />,
+        onClick: () => handleSaveTicketChanges(ticket.id, {
+          status: 'aperto',
+          assignedTo: ticket.assignedTo,
+        }),
+        hidden: ticket.status !== 'risolto',
+      },
+    ];
   };
 
   const resetFilters = () => {
@@ -447,7 +617,7 @@ export function TicketPage() {
                   onResize={handleMouseDown}
                 />
 
-                <TableHeaderCell id="actions" label="" width={columnWidths.actions} sticky="right" align="center" />
+                <TableHeaderActionCell width={columnWidths.actions} />
               </tr>
             </thead>
             <tbody>
@@ -455,8 +625,8 @@ export function TicketPage() {
                 <TableEmptyState message="Nessun ticket trovato" colSpan={8} />
               ) : (
                 filteredData.map(ticket => (
-                  <TableRow key={ticket.id}>
-                    <TableCell width={columnWidths.checkbox} align="center">
+                  <TableRow key={ticket.id} onClick={() => handleOpenTicket(ticket.id)}>
+                    <TableCell width={columnWidths.checkbox} align="center" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.includes(ticket.id)}
                         onCheckedChange={() => handleSelectRow(ticket.id)}
@@ -492,23 +662,9 @@ export function TicketPage() {
                       <CellTextSecondary>{formatDate(ticket.createdAt)}</CellTextSecondary>
                     </TableCell>
 
-                    <TableCell width={columnWidths.actions} sticky="right" align="center">
-                      <button
-                        type="button"
-                        aria-label={`Apri ticket ${ticket.id}`}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          color: 'var(--muted-foreground)',
-                        }}
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </TableCell>
+                    <TableActionCell width={columnWidths.actions} onClick={(e) => e.stopPropagation()}>
+                      <TableActions actions={getTableActions(ticket)} label={`Azioni ticket ${ticket.id}`} />
+                    </TableActionCell>
                   </TableRow>
                 ))
               )}
@@ -532,60 +688,65 @@ export function TicketPage() {
               </ResponsiveMobileCard>
             ) : (
               filteredData.map(ticket => (
-                <ResponsiveMobileCard key={ticket.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.625rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', minWidth: 0 }}>
-                      <div style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-base)',
-                        fontWeight: 'var(--font-weight-medium)',
-                        color: 'var(--foreground)',
-                        lineHeight: '1.5',
-                      }}>
-                        {ticket.subject}
+                <div key={ticket.id} onClick={() => handleOpenTicket(ticket.id)} style={{ cursor: 'pointer' }}>
+                  <ResponsiveMobileCard>
+                    <ResponsiveMobileCardHeader>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', minWidth: 0 }}>
+                        <CellTextPrimary>{ticket.subject}</CellTextPrimary>
+                        <CellTextSecondary>{ticket.id}</CellTextSecondary>
                       </div>
-                      <CellTextSecondary>{ticket.id}</CellTextSecondary>
-                    </div>
-                    <Checkbox
-                      checked={selectedIds.includes(ticket.id)}
-                      onCheckedChange={() => handleSelectRow(ticket.id)}
-                    />
-                  </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.includes(ticket.id)}
+                            onCheckedChange={() => handleSelectRow(ticket.id)}
+                          />
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <TableActions actions={getTableActions(ticket)} label={`Azioni ticket ${ticket.id}`} />
+                        </div>
+                      </div>
+                    </ResponsiveMobileCardHeader>
 
-                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
-                    <StatusPill label={sourceLabels[ticket.source]} variant="neutral" />
-                    <StatusPill label={ticket.priority} variant={priorityPillVariant[ticket.priority]} />
-                    <StatusPill label={statusLabels[ticket.status]} variant={statusPillVariant[ticket.status]} />
-                  </div>
+                    <ResponsiveMobileCardSection marginBottom="0.625rem">
+                      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                        <StatusPill label={sourceLabels[ticket.source]} variant="neutral" />
+                        <StatusPill label={ticket.priority} variant={priorityPillVariant[ticket.priority]} />
+                        <StatusPill label={statusLabels[ticket.status]} variant={statusPillVariant[ticket.status]} />
+                      </div>
+                    </ResponsiveMobileCardSection>
 
-                  <div style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    color: 'var(--muted-foreground)',
-                    lineHeight: '1.5',
-                    marginBottom: '0.375rem',
-                  }}>
-                    {ticket.category}
-                  </div>
+                    <ResponsiveMobileCardSection marginBottom="0.375rem">
+                      <CellTextSecondary>{ticket.category}</CellTextSecondary>
+                    </ResponsiveMobileCardSection>
 
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    color: 'var(--muted-foreground)',
-                    lineHeight: '1.5',
-                  }}>
-                    <span>{ticket.source === 'coach' ? ticket.coachName : ticket.studentName}</span>
-                    <span>{formatDate(ticket.createdAt)}</span>
-                  </div>
-                </ResponsiveMobileCard>
+                    <ResponsiveMobileCardFooter>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}>
+                        <span>{ticket.source === 'coach' ? ticket.coachName : ticket.studentName}</span>
+                        <span>{formatDate(ticket.createdAt)}</span>
+                      </div>
+                    </ResponsiveMobileCardFooter>
+                  </ResponsiveMobileCard>
+                </div>
               ))
             )}
           </ResponsiveMobileCards>
         )}
+      />
+
+      <TicketDrawer
+        isOpen={isTicketDrawerOpen}
+        onClose={() => setIsTicketDrawerOpen(false)}
+        ticket={selectedTicketData}
+        onSendMessage={handleSendTicketMessage}
+        onSaveChanges={handleSaveTicketChanges}
+        currentAdmin={CURRENT_ADMIN}
+        availableAdmins={AVAILABLE_ADMINS}
       />
     </div>
   );
