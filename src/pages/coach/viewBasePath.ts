@@ -1,4 +1,7 @@
 export function getViewBasePath(pathname: string) {
+  if (pathname.startsWith('/public')) {
+    return '/public';
+  }
   if (pathname.startsWith('/public-view')) {
     return '/public-view';
   }

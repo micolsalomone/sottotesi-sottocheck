@@ -36,6 +36,7 @@ import { NotFoundPage } from '../pages/coach/NotFoundPage';
 import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
 import { StudentTimelinePage as StudentTimelinePageView } from '@/pages/student/StudentTimelinePage';
 import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPage';
+import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
@@ -43,6 +44,23 @@ import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
 
 export const router = createBrowserRouter([
+  // Public non-authenticated landing page
+  {
+    path: '/public',
+    Component: PublicLandingPage,
+  },
+  {
+    path: '/public/sottocheck',
+    Component: StudentSottocheckPage,
+  },
+  {
+    path: '/public/history',
+    Component: StudentHistoryPage,
+  },
+  {
+    path: '/public/output-preview',
+    Component: SottocheckOutputPreviewPage,
+  },
   // Vista Admin
   {
     path: '/',

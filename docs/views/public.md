@@ -6,13 +6,17 @@ Utenti che acquistano e usano solo Sottocheck, senza un percorso coaching attivo
 
 ## Path
 
-`/public-view` — Layout: `src/app/components/public/PublicLayout.tsx`
+`/public` - Landing pubblica non loggata (standalone)
+
+`/public-view` - Layout: `src/app/components/public/PublicLayout.tsx` (prototipo loggato mantenuto per retrocompatibilita')
 Pagine: `src/pages/public/` e contenuti Sottocheck riusabili da `src/pages/student/`
 
 ## Scopo
 
 Consentire di caricare un documento, pagare il controllo, seguire lo stato di elaborazione e scaricare i report precedenti.
 Promuovere inoltre i servizi coaching come upsell commerciale verso utenti che oggi usano solo Sottocheck.
+
+Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spiegare il servizio, rassicurare sulla gestione dei file e guidare al check.
 
 ## Principi
 
@@ -21,6 +25,7 @@ Promuovere inoltre i servizi coaching come upsell commerciale verso utenti che o
 - Navigazione minima e focalizzata solo su Sottocheck
 - Stato del controllo sempre evidente
 - Tono informativo e operativo, con blocchi marketing dedicati all'upsell
+- Messaggio trust esplicito: i file non vengono archiviati e non sono visibili a Sottotesi
 
 ## Navigazione
 
