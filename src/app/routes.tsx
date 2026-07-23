@@ -36,13 +36,38 @@ import { NotFoundPage } from '../pages/coach/NotFoundPage';
 import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
 import { StudentTimelinePage as StudentTimelinePageView } from '@/pages/student/StudentTimelinePage';
 import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPage';
+import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
+import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage';
+import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
 
-export const router = createHashRouter([  // Vista Admin
+export const router = createHashRouter([
+  // Public non-authenticated landing page
+  {
+    path: '/public',
+    Component: PublicLandingPage,
+  },
+  {
+    path: '/public/sottocheck',
+    Component: StudentSottocheckPage,
+  },
+  {
+    path: '/public/history',
+    Component: StudentHistoryPage,
+  },
+  {
+    path: '/public/output-preview',
+    Component: PublicOutputPreviewPage,
+  },
+  {
+    path: '/public/success',
+    Component: PublicSuccessPage,
+  },
+  // Vista Admin
   {
     path: '/',
     Component: AdminLayout,
@@ -81,6 +106,7 @@ export const router = createHashRouter([  // Vista Admin
       { path: 'studenti', Component: CoachStudentiPage },
       { path: 'studenti/:studentId', Component: StudentTimelinePage },
       { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: CoachProfilePage },
@@ -105,6 +131,7 @@ export const router = createHashRouter([  // Vista Admin
         Component: StudentTimelinePageView,
       },
       { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: StudentProfilePage },
@@ -118,6 +145,7 @@ export const router = createHashRouter([  // Vista Admin
     children: [
       { index: true, Component: PublicDashboardPage },
       { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'profilo', Component: StudentProfilePage },
       { path: '*', Component: NotFoundPage },

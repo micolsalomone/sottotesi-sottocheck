@@ -7,7 +7,7 @@ Questo progetto nasce dall'unione di due prototipi Figma Make separati:
 - **src1** — Dashboard Admin (vista amministratore)
 - **src2** — Vista Coach (vista utente con restrizioni)
 
-Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Public.
+Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Public, piu' una landing pubblica non loggata.
 
 ## Tre viste, un unico progetto
 
@@ -51,6 +51,13 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
   - `src/app/components/public/PublicLayout.tsx`
 - Pensata per utenti che usano solo Sottocheck e non hanno un percorso coaching attivo
 - Accessibile solo tramite URL diretto (non dalla sidebar admin)
+
+### Landing Public non loggata (`/public`)
+
+- Pagina standalone senza shell loggata
+- Pensata come landing commerciale/informativa del servizio Sottocheck
+- Include ancore informative e accesso al flusso check pubblico
+- Aggiunta in modalita' routing-safe per non impattare le route esistenti
 
 ## Struttura cartelle
 
@@ -127,3 +134,7 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/public-view/history` | Public | PublicLayout | Storico Sottocheck vista public |
 | `/public-view/profilo` | Public | PublicLayout | Profilo public |
 | `/public-view/*` | Public | PublicLayout | NotFound public |
+| `/public` | Public Landing | Standalone | Landing pubblica non loggata |
+| `/public/sottocheck` | Public Landing | Standalone | Flusso check pubblico |
+| `/public/history` | Public Landing | Standalone | Storico pubblico |
+| `/public/output-preview` | Public Landing | Standalone | Anteprima output Sottocheck |

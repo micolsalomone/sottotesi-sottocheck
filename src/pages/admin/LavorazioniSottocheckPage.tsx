@@ -1180,7 +1180,7 @@ export function LavorazioniSottocheckPage() {
                 >
                   <option value="">Seleziona studente...</option>
                   {editableStudentOptions.map(student => (
-                    <option key={student.id} value={student.id}>{student.name}</option>
+                    <option key={student.id} value={student.id}>{`${student.name} · ID ${student.id}`}</option>
                   ))}
                 </select>
               </div>
