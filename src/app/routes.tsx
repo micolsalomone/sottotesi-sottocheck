@@ -37,6 +37,7 @@ import { DashboardPage as StudentDashboardPage } from '@/pages/student/Dashboard
 import { StudentTimelinePage as StudentTimelinePageView } from '@/pages/student/StudentTimelinePage';
 import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPage';
 import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
+import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
@@ -59,7 +60,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/public/output-preview',
-    Component: SottocheckOutputPreviewPage,
+    Component: PublicOutputPreviewPage,
   },
   // Vista Admin
   {
