@@ -352,9 +352,19 @@ export function SottocheckAdminPage() {
                   >
                     <option value="">Seleziona studente...</option>
                     {studentOptions.map(student => (
-                      <option key={student.id} value={student.id}>{student.name}</option>
+                      <option key={student.id} value={student.id}>{`${student.name} · ID ${student.id}`}</option>
                     ))}
                   </select>
+                  <p
+                    className="mt-2 text-[var(--muted-foreground)]"
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: '11px',
+                      fontWeight: 'var(--font-weight-regular)',
+                    }}
+                  >
+                    Dopo aver selezionato lo studente si attiva il menu della lavorazione.
+                  </p>
                 </div>
 
                 <div>
@@ -372,20 +382,33 @@ export function SottocheckAdminPage() {
                     value={selectedServiceId}
                     onChange={(e) => setSelectedServiceId(e.target.value)}
                     disabled={!selectedStudentId}
-                    className="mt-2 w-full h-[40px] px-[10px] border border-[var(--border)] bg-[var(--card)]"
+                    className="mt-2 w-full h-[40px] px-[10px] border border-[var(--border)] bg-[var(--card)] disabled:bg-[var(--muted)] disabled:text-[var(--muted-foreground)] disabled:cursor-not-allowed"
                     style={{
                       borderRadius: 'var(--radius)',
                       fontFamily: 'var(--font-inter)',
                       fontSize: 'var(--text-label)',
                       fontWeight: 'var(--font-weight-regular)',
                       color: 'var(--foreground)',
+                      opacity: !selectedStudentId ? 0.75 : 1,
                     }}
                   >
-                    <option value="">Seleziona lavorazione...</option>
+                    <option value="">{selectedStudentId ? 'Seleziona lavorazione...' : 'Seleziona prima uno studente'}</option>
                     {serviceOptions.map(service => (
                       <option key={service.id} value={service.id}>{`${service.id} - ${service.service_name}`}</option>
                     ))}
                   </select>
+                  {!selectedStudentId && (
+                    <p
+                      className="mt-2 text-[var(--muted-foreground)]"
+                      style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: '11px',
+                        fontWeight: 'var(--font-weight-regular)',
+                      }}
+                    >
+                      Il selettore lavorazione resta bloccato finché non scegli uno studente.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

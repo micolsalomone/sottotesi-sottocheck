@@ -263,10 +263,23 @@ export function SottocheckPage() {
                 <option value="">Seleziona una lavorazione/timeline...</option>
                 {eligibleTimelinePaths.map((path) => (
                   <option key={path.id} value={path.id}>
-                    {`${path.studentName} · ${path.serviceName} · ${path.timelineLabel}`}
+                    {`${path.studentName} · ID ${path.id} · ${path.serviceName} · ${path.timelineLabel}`}
                   </option>
                 ))}
               </select>
+
+              {!selectedPath && (
+                <p
+                  className="mt-2 text-[var(--muted-foreground)]"
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '11px',
+                    fontWeight: 'var(--font-weight-regular)',
+                  }}
+                >
+                  Seleziona prima una lavorazione/timeline per attivare il caricamento del documento.
+                </p>
+              )}
 
               {selectedPath && (
                 <div
@@ -278,7 +291,7 @@ export function SottocheckPage() {
                   }}
                 >
                   <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
-                    {`${selectedPath.studentName} · ${selectedPath.timelineLabel}`}
+                    {`${selectedPath.studentName} · ID ${selectedPath.id} · ${selectedPath.timelineLabel}`}
                   </p>
                   <p className="mt-1" style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-regular)', color: 'var(--muted-foreground)' }}>
                     Piano: {PLAN_LABELS[selectedPath.planType]}
