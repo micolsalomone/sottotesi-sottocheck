@@ -20,11 +20,6 @@ export function PublicOutputPreviewPage() {
   const previewUrl = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL);
   previewUrl.searchParams.set('mode', previewMode);
   previewUrl.searchParams.set('back', backTarget);
-        ? '/#/student-view/sottocheck'
-        : '/#/public-view/sottocheck';
-  const previewUrl = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL);
-  previewUrl.searchParams.set('mode', previewMode);
-  previewUrl.searchParams.set('back', backTarget);
 
   const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
     .map((link) => link.getAttribute('href') || '')
