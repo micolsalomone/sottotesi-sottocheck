@@ -1,6 +1,23 @@
-import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
+import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
+import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 
 export function PublicLandingPage() {
+  const navigate = useNavigate();
+  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const canProceedToPayment = !!uploadedDocument && uploadStatus === 'valid';
+
+  const handlePayment = () => {
+    if (!canProceedToPayment || isPaymentProcessing) return;
+    setIsPaymentProcessing(true);
+    setTimeout(() => {
+      navigate('/public/success');
+    }, 900);
+  };
+
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <section className="mx-auto w-full max-w-[1160px] px-[20px] py-[56px] md:px-[40px] md:py-[72px]">
@@ -245,7 +262,58 @@ export function PublicLandingPage() {
             </a>
           </div>
 
-          <StudentSottocheckPage />
+          <div className="mt-6 space-y-6">
+            <SottocheckUploadForm
+              onFileSelected={setUploadedDocument}
+              onStatusChange={setUploadStatus}
+              disabled={false}
+            />
+
+            {uploadedDocument && uploadStatus === 'valid' && (
+              <div
+                className="border-t border-[var(--border)] pt-6"
+                style={{ marginTop: '24px' }}
+              >
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-alegreya)',
+                    fontSize: 'var(--text-h3)',
+                    fontWeight: 'var(--font-weight-medium)',
+                  }}
+                >
+                  Procedi al pagamento
+                </h3>
+                <p
+                  className="mt-2 max-w-[600px] text-[var(--muted-foreground)]"
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-regular)',
+                  }}
+                >
+                  Il documento e pronto. Dopo il check potrai scegliere se salvare il report via email.
+                </p>
+
+                <SottocheckPricingPreview className="mt-4" />
+
+                <button
+                  type="button"
+                  onClick={handlePayment}
+                  disabled={isPaymentProcessing || !canProceedToPayment}
+                  className="mt-4 px-[16px] py-[11px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity disabled:cursor-not-allowed"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    opacity: isPaymentProcessing || !canProceedToPayment ? 0.7 : 1,
+                  }}
+                >
+                  {isPaymentProcessing ? 'Reindirizzamento al pagamento...' : 'Procedi al pagamento'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

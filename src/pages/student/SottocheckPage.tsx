@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
 import { getViewBasePath } from '@/pages/coach/viewBasePath';
+import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed';
@@ -29,14 +30,19 @@ export function SottocheckPage() {
   const location = useLocation();
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
-  const [pagesSelected, setPagesSelected] = useState<number>(0);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
   const [isDragging, setIsDragging] = useState(false);
+  const [reportEmail, setReportEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
 
-  const pricePerPage = 0.5;
-  const totalPrice = pagesSelected * pricePerPage;
   const historyPath = `${getViewBasePath(location.pathname)}/history`;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reportEmail.trim());
+
+  const handleSendEmail = () => {
+    if (!isEmailValid) return;
+    setEmailSent(true);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -68,7 +74,6 @@ export function SottocheckPage() {
     const validFormats = ['pdf', 'docx'];
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
     const isValid = validFormats.includes(extension);
-
     const mockPages = Math.floor(Math.random() * 50) + 10;
 
     setDocument({
@@ -79,10 +84,6 @@ export function SottocheckPage() {
     });
 
     setDocumentStatus(isValid ? 'valid' : 'invalid');
-
-    if (isValid) {
-      setPagesSelected(mockPages);
-    }
   };
 
   const handlePayment = async () => {
@@ -98,7 +99,7 @@ export function SottocheckPage() {
     }, 2000);
   };
 
-  const canProceedToPayment = document && documentStatus === 'valid' && pagesSelected > 0;
+  const canProceedToPayment = document && documentStatus === 'valid';
 
   if (paymentStatus === 'paid') {
     return (
@@ -193,6 +194,106 @@ export function SottocheckPage() {
               >
                 Il report di verifica plagio è pronto
               </p>
+
+              <div
+                className="mb-6 border border-[var(--border)] bg-[var(--background)] p-4 text-left"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  Salva l accesso al report via email (facoltativo)
+                </p>
+                <p
+                  className="mt-1 text-[var(--muted-foreground)]"
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: '12px',
+                    fontWeight: 'var(--font-weight-regular)',
+                  }}
+                >
+                  Se chiudi il browser senza salvare l accesso via email, alla prossima sessione potresti non ritrovare il report.
+                </p>
+
+                <label
+                  htmlFor="completed-check-email"
+                  className="mt-3 block"
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  Email per conferma e link report
+                </label>
+                <input
+                  id="completed-check-email"
+                  type="email"
+                  value={reportEmail}
+                  onChange={(e) => {
+                    setReportEmail(e.target.value);
+                    setEmailSent(false);
+                  }}
+                  placeholder="nome@dominio.it"
+                  className="mt-2 w-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 outline-none focus:border-[var(--foreground)]"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-regular)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+
+                {!!reportEmail && !isEmailValid && (
+                  <p
+                    className="mt-2 text-[var(--destructive)]"
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: '12px',
+                      fontWeight: 'var(--font-weight-regular)',
+                    }}
+                  >
+                    Inserisci un indirizzo email valido.
+                  </p>
+                )}
+
+                {emailSent && (
+                  <p
+                    className="mt-2 text-[var(--primary)]"
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: '12px',
+                      fontWeight: 'var(--font-weight-medium)',
+                    }}
+                  >
+                    Conferma inviata correttamente a {reportEmail.trim()}.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={!isEmailValid}
+                  className="mt-3 inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  Invia conferma via email
+                </button>
+              </div>
+
               <button
                 onClick={() => navigate(historyPath)}
                 className="w-full px-[24px] py-[12px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
@@ -525,7 +626,6 @@ export function SottocheckPage() {
                     onClick={() => {
                       setDocument(null);
                       setDocumentStatus('idle');
-                      setPagesSelected(0);
                     }}
                     className="self-start px-4 py-2 border border-[var(--border)] hover:bg-[var(--muted)] transition-colors"
                     style={{
@@ -576,44 +676,12 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il prezzo è calcolato automaticamente in base al numero di pagine selezionate
+                Conferma i dettagli e avvia il pagamento. Potrai salvare il link del report via email dopo il completamento del check.
               </p>
 
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p
-                      className="text-[var(--muted-foreground)]"
-                      style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: 'var(--font-weight-regular)',
-                      }}
-                    >
-                      Totale da pagare
-                    </p>
-                    <p
-                      className="text-[var(--foreground)]"
-                      style={{
-                        fontFamily: 'var(--font-alegreya)',
-                        fontSize: 'var(--text-h2)',
-                        fontWeight: 'var(--font-weight-bold)',
-                      }}
-                    >
-                      €{totalPrice.toFixed(2)}
-                    </p>
-                    <p
-                      className="text-[var(--muted-foreground)]"
-                      style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '11px',
-                        fontWeight: 'var(--font-weight-regular)',
-                      }}
-                    >
-                      {pagesSelected} pagine × €{pricePerPage.toFixed(2)}
-                    </p>
-                  </div>
-
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <SottocheckPricingPreview />
                   <button
                     onClick={handlePayment}
                     disabled={!canProceedToPayment || paymentStatus === 'processing'}
