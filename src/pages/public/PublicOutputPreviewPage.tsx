@@ -17,7 +17,20 @@ export function PublicOutputPreviewPage() {
       : location.pathname.startsWith('/student-view/')
         ? '/student-view/sottocheck'
         : '/public-view/sottocheck';
-  const previewSrc = `/sottocheck-output-preview.html?mode=${encodeURIComponent(previewMode)}&back=${encodeURIComponent(backTarget)}`;
+  const previewUrl = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL);
+  previewUrl.searchParams.set('mode', previewMode);
+  previewUrl.searchParams.set('back', backTarget);
+
+  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+    .map((link) => link.getAttribute('href') || '')
+    .filter((href) => href.endsWith('.css'));
+
+  cssLinks.forEach((href) => {
+    const absoluteHref = new URL(href, window.location.origin).toString();
+    previewUrl.searchParams.append('css', absoluteHref);
+  });
+
+  const previewSrc = previewUrl.toString();
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reportEmail.trim());
 
   useEffect(() => {
