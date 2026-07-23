@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  FileText,
   CheckCircle,
-  XCircle,
-  Upload,
   Loader2,
   ShieldCheck,
 } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
+import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { SottocheckSuccessPanel } from '@/app/components/SottocheckSuccessPanel';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type CheckStatus = 'created' | 'processing' | 'completed';
-
-interface UploadedDocument {
-  name: string;
-  size: number;
-  pages: number;
-  format: string;
-}
 
 const MOCK_CREDIT_COST_PER_CHECK = 8;
 const ADMIN_SOTTOCHECK_STORAGE_KEY = 'admin-sottocheck-jobs-v1';
@@ -62,6 +55,15 @@ const toDateTimeLabel = (date: Date) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 };
 
+const getStoredAdminChecks = (): PersistedAdminCheck[] => {
+  try {
+    const raw = localStorage.getItem(ADMIN_SOTTOCHECK_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedAdminCheck[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 export function SottocheckAdminPage() {
   const navigate = useNavigate();
   const { data: serviziStudenti, students } = useLavorazioni();
@@ -70,8 +72,10 @@ export function SottocheckAdminPage() {
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [pagesSelected, setPagesSelected] = useState<number>(0);
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
-  const [isDragging, setIsDragging] = useState(false);
   const [usedCredits, setUsedCredits] = useState<number>(0);
+  const [totalConsumedCredits, setTotalConsumedCredits] = useState<number>(() =>
+    getStoredAdminChecks().reduce((sum, job) => sum + (job.copyleaks_credits || 0), 0)
+  );
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
@@ -101,67 +105,13 @@ export function SottocheckAdminPage() {
     }
   }, [selectedServiceId, serviceOptions]);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      processFile(files[0]);
-    }
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      processFile(files[0]);
-    }
-  };
-
-  const processFile = (file: File) => {
-    const validFormats = ['pdf', 'docx'];
-    const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    const isValid = validFormats.includes(extension);
-
-    const mockPages = Math.floor(Math.random() * 50) + 10;
-
-    setDocument({
-      name: file.name,
-      size: file.size,
-      pages: mockPages,
-      format: extension.toUpperCase(),
-    });
-
-    setDocumentStatus(isValid ? 'valid' : 'invalid');
-
-    if (isValid) {
-      setPagesSelected(mockPages);
-    }
-  };
-
   const handleStartCheck = () => {
     if (!selectedStudentId || !selectedServiceId || !document || documentStatus !== 'valid' || pagesSelected <= 0) {
       return;
     }
 
     const now = new Date();
-    const existing: PersistedAdminCheck[] = (() => {
-      try {
-        const raw = localStorage.getItem(ADMIN_SOTTOCHECK_STORAGE_KEY);
-        return raw ? (JSON.parse(raw) as PersistedAdminCheck[]) : [];
-      } catch {
-        return [];
-      }
-    })();
+    const existing = getStoredAdminChecks();
 
     const newId = `ADM-CHK-${Date.now().toString().slice(-6)}`;
     const selectedService = serviziStudenti.find(service => service.id === selectedServiceId);
@@ -188,7 +138,9 @@ export function SottocheckAdminPage() {
     };
 
     try {
-      localStorage.setItem(ADMIN_SOTTOCHECK_STORAGE_KEY, JSON.stringify([nextJob, ...existing]));
+      const updatedJobs = [nextJob, ...existing];
+      localStorage.setItem(ADMIN_SOTTOCHECK_STORAGE_KEY, JSON.stringify(updatedJobs));
+      setTotalConsumedCredits(updatedJobs.reduce((sum, job) => sum + (job.copyleaks_credits || 0), 0));
     } catch {
       // Ignore localStorage errors.
     }
@@ -295,47 +247,14 @@ export function SottocheckAdminPage() {
               <Progress value={60} className="w-full" />
             </>
           ) : (
-            <>
-              <div
-                className="w-[92px] h-[92px] mx-auto mb-6 flex items-center justify-center"
-                style={{ borderRadius: '50%', background: 'rgba(11,182,63,0.10)' }}
-              >
-                <CheckCircle className="w-12 h-12 text-[var(--primary)]" />
-              </div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontFamily: 'var(--font-alegreya)',
-                  fontSize: 'var(--text-h3)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: 'var(--foreground)',
-                }}
-              >
-                Controllo completato
-              </h3>
-              <p
-                className="mb-6 text-[var(--muted-foreground)]"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-regular)',
-                }}
-              >
-                Il report e stato generato correttamente.
-              </p>
-              <button
-                onClick={() => navigate('/sottocheck/lavorazioni')}
-                className="w-full px-[24px] py-[12px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-                style={{
-                  borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: 'var(--font-weight-medium)',
-                }}
-              >
-                Vai a Lavorazioni sottocheck
-              </button>
-            </>
+            <SottocheckSuccessPanel
+              description="Il report è stato generato correttamente e associato alla lavorazione selezionata."
+              primaryActionLabel="Visualizza il report"
+              onPrimaryAction={() => navigate('/sottocheck/output-preview')}
+              secondaryActionLabel="Vai a Lavorazioni sottocheck"
+              onSecondaryAction={() => navigate('/sottocheck/lavorazioni')}
+              footerNote="Il report è tracciato nello storico Sottocheck amministrativo."
+            />
           )}
         </div>
       </div>
@@ -518,174 +437,24 @@ export function SottocheckAdminPage() {
                 Dimensione massima file: 50MB
               </p>
 
-              {!document ? (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className="mt-4 p-8 text-center"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border)'}`,
-                    background: isDragging ? 'rgba(11,182,63,0.06)' : 'var(--background)',
-                  }}
-                >
-                  <div
-                    className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-[var(--muted)]"
-                    style={{ borderRadius: '50%' }}
-                  >
-                    <Upload className="w-8 h-8 text-[var(--muted-foreground)]" />
-                  </div>
-                  <p
-                    className="text-[var(--foreground)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    Trascina qui il documento o
-                  </p>
-                  <label
-                    className="inline-block mt-1 text-[var(--primary)] hover:opacity-80 cursor-pointer"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-regular)',
-                    }}
-                  >
-                    <input
-                      type="file"
-                      accept=".pdf,.docx"
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                    seleziona dal computer
-                  </label>
-                  <p
-                    className="mt-2 text-[var(--muted-foreground)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 'var(--font-weight-regular)',
-                    }}
-                  >
-                    PDF o DOCX (max 50MB)
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-                    <div className="flex items-start gap-4">
-                      <FileText className="w-5 h-5 text-[var(--muted-foreground)] shrink-0 mt-[2px]" />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="truncate text-[var(--foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                          }}
-                        >
-                          {document.name}
-                        </p>
-                        <p
-                          className="text-[var(--muted-foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                          }}
-                        >
-                          {(document.size / 1024 / 1024).toFixed(2)} MB • {document.pages} pagine rilevate
-                        </p>
-                      </div>
-                      {documentStatus === 'valid' && <CheckCircle className="w-5 h-5 text-[var(--primary)] shrink-0" />}
-                      {documentStatus === 'invalid' && <XCircle className="w-5 h-5 text-[var(--destructive)] shrink-0" />}
-                    </div>
-                  </div>
-
-                  {documentStatus === 'valid' && (
-                    <div
-                      className="p-3"
-                      style={{
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid rgba(11,182,63,0.25)',
-                        background: 'rgba(11,182,63,0.08)',
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        <CheckCircle className="w-4 h-4 text-[var(--primary)] shrink-0 mt-[2px]" />
-                        <p
-                          className="text-[var(--foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                          }}
-                        >
-                          Formato valido - Puoi procedere
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {documentStatus === 'invalid' && (
-                    <div
-                      className="p-4"
-                      style={{
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid rgba(220,38,38,0.25)',
-                        background: 'rgba(220,38,38,0.08)',
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        <XCircle className="w-4 h-4 text-[var(--destructive)] shrink-0 mt-[2px]" />
-                        <div>
-                          <p
-                            className="text-[var(--foreground)]"
-                            style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-medium)',
-                            }}
-                          >
-                            Formato non valido
-                          </p>
-                          <p
-                            className="mt-1 text-[var(--muted-foreground)]"
-                            style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-regular)',
-                            }}
-                          >
-                            Il file caricato non e in un formato supportato. Carica un file PDF o DOCX.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setDocument(null);
-                      setDocumentStatus('idle');
+              <div className="mt-4">
+                <SottocheckUploadForm
+                  onFileSelected={setDocument}
+                  onStatusChange={(status) => {
+                    setDocumentStatus(status);
+                    if (status === 'valid') {
+                      setPagesSelected(Math.floor(Math.random() * 50) + 10);
+                    } else {
                       setPagesSelected(0);
-                    }}
-                    className="self-start px-4 py-2 border border-[var(--border)] hover:bg-[var(--muted)] transition-colors"
-                    style={{
-                      borderRadius: 'var(--radius)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 'var(--font-weight-regular)',
-                      color: 'var(--foreground)',
-                    }}
-                  >
-                    Cambia documento
-                  </button>
-                </div>
-              )}
+                    }
+                  }}
+                  onFileCleared={() => {
+                    setDocument(null);
+                    setPagesSelected(0);
+                  }}
+                  showHeading={false}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -722,7 +491,7 @@ export function SottocheckAdminPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Nessun limite crediti per admin. Viene tracciato solo il totale usato.
+                Nessun limite crediti per admin. Il consumo viene monitorato su tutto lo storico controlli.
               </p>
 
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
@@ -736,17 +505,27 @@ export function SottocheckAdminPage() {
                         fontWeight: 'var(--font-weight-regular)',
                       }}
                     >
-                      Crediti utilizzati (sessione)
+                      Crediti consumati complessivamente
                     </p>
                     <p
                       className="text-[var(--foreground)]"
                       style={{
                         fontFamily: 'var(--font-alegreya)',
-                        fontSize: 'var(--text-h2)',
+                        fontSize: 'var(--text-h1)',
                         fontWeight: 'var(--font-weight-bold)',
                       }}
                     >
-                      {usedCredits}
+                      {totalConsumedCredits}
+                    </p>
+                    <p
+                      className="text-[var(--muted-foreground)]"
+                      style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-label)',
+                        fontWeight: 'var(--font-weight-regular)',
+                      }}
+                    >
+                      Sessione corrente: {usedCredits} crediti
                     </p>
                     <p
                       className="text-[var(--muted-foreground)]"
@@ -756,30 +535,17 @@ export function SottocheckAdminPage() {
                         fontWeight: 'var(--font-weight-regular)',
                       }}
                     >
-                      Costo esempio per check: {MOCK_CREDIT_COST_PER_CHECK} crediti
+                      Costo operativo per check: {MOCK_CREDIT_COST_PER_CHECK} crediti
                     </p>
                   </div>
 
-                  <button
+                  <SottocheckActionButton
                     onClick={handleStartCheck}
                     disabled={!canStartCheck}
-                    className={`inline-flex items-center gap-2 px-6 py-3 transition-opacity ${
-                      canStartCheck
-                        ? 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 cursor-pointer'
-                        : 'bg-[var(--muted)] text-[var(--muted-foreground)] cursor-not-allowed'
-                    }`}
-                    style={{
-                      borderRadius: 'var(--radius)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
+                    icon={<ShieldCheck className="w-4 h-4" />}
                   >
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      Avvia controllo
-                    </>
-                  </button>
+                    Avvia controllo
+                  </SottocheckActionButton>
                 </div>
               </div>
 

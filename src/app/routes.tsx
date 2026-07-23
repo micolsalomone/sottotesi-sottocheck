@@ -106,6 +106,7 @@ export const router = createBrowserRouter([
       { path: 'studenti', Component: CoachStudentiPage },
       { path: 'studenti/:studentId', Component: StudentTimelinePage },
       { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: ArchivioPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: CoachProfilePage },
@@ -130,6 +131,7 @@ export const router = createBrowserRouter([
         Component: StudentTimelinePageView,
       },
       { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: StudentProfilePage },
@@ -143,6 +145,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: PublicDashboardPage },
       { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'profilo', Component: StudentProfilePage },
       { path: '*', Component: NotFoundPage },

@@ -1,5 +1,6 @@
 import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -263,9 +264,26 @@ export function PublicLandingPage() {
           </div>
 
           <div className="mt-6 space-y-6">
+            <div
+              className="border border-[var(--border)] bg-[var(--background)] p-4"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <p
+                className="text-[var(--muted-foreground)]"
+                style={{
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-label)',
+                  fontWeight: 'var(--font-weight-regular)',
+                }}
+              >
+                Prima di caricare: i file non vengono archiviati. Vengono processati solo per eseguire il check e generare il report.
+              </p>
+            </div>
+
             <SottocheckUploadForm
               onFileSelected={setUploadedDocument}
               onStatusChange={setUploadStatus}
+              onFileCleared={() => setUploadedDocument(null)}
               disabled={false}
             />
 
@@ -296,21 +314,15 @@ export function PublicLandingPage() {
 
                 <SottocheckPricingPreview className="mt-4" />
 
-                <button
+                <SottocheckActionButton
                   type="button"
                   onClick={handlePayment}
-                  disabled={isPaymentProcessing || !canProceedToPayment}
-                  className="mt-4 px-[16px] py-[11px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity disabled:cursor-not-allowed"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    opacity: isPaymentProcessing || !canProceedToPayment ? 0.7 : 1,
-                  }}
+                  disabled={!canProceedToPayment}
+                  loading={isPaymentProcessing}
+                  className="mt-4 px-[16px] py-[11px]"
                 >
                   {isPaymentProcessing ? 'Reindirizzamento al pagamento...' : 'Procedi al pagamento'}
-                </button>
+                </SottocheckActionButton>
               </div>
             )}
           </div>

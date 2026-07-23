@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
-  FileText,
   AlertCircle,
   CheckCircle,
-  XCircle,
-  Upload,
   Loader2,
   ExternalLink,
   CreditCard,
@@ -13,17 +10,13 @@ import {
 import { Progress } from '@/app/components/ui/progress';
 import { getViewBasePath } from '@/pages/coach/viewBasePath';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
+import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { SottocheckSuccessPanel } from '@/app/components/SottocheckSuccessPanel';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed';
 type CheckStatus = 'created' | 'processing' | 'completed' | 'error';
-
-interface UploadedDocument {
-  name: string;
-  size: number;
-  pages: number;
-  format: string;
-}
 
 export function SottocheckPage() {
   const navigate = useNavigate();
@@ -32,59 +25,8 @@ export function SottocheckPage() {
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
-  const [isDragging, setIsDragging] = useState(false);
-  const [reportEmail, setReportEmail] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
 
   const historyPath = `${getViewBasePath(location.pathname)}/history`;
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reportEmail.trim());
-
-  const handleSendEmail = () => {
-    if (!isEmailValid) return;
-    setEmailSent(true);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      processFile(files[0]);
-    }
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      processFile(files[0]);
-    }
-  };
-
-  const processFile = (file: File) => {
-    const validFormats = ['pdf', 'docx'];
-    const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    const isValid = validFormats.includes(extension);
-    const mockPages = Math.floor(Math.random() * 50) + 10;
-
-    setDocument({
-      name: file.name,
-      size: file.size,
-      pages: mockPages,
-      format: extension.toUpperCase(),
-    });
-
-    setDocumentStatus(isValid ? 'valid' : 'invalid');
-  };
 
   const handlePayment = async () => {
     setPaymentStatus('processing');
@@ -166,147 +108,14 @@ export function SottocheckPage() {
           )}
 
           {checkStatus === 'completed' && (
-            <>
-              <div
-                className="w-[92px] h-[92px] mx-auto mb-6 flex items-center justify-center"
-                style={{ borderRadius: '50%', background: 'rgba(11,182,63,0.10)' }}
-              >
-                <CheckCircle className="w-12 h-12 text-[var(--primary)]" />
-              </div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontFamily: 'var(--font-alegreya)',
-                  fontSize: 'var(--text-h3)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: 'var(--foreground)',
-                }}
-              >
-                Controllo completato
-              </h3>
-              <p
-                className="mb-6 text-[var(--muted-foreground)]"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-regular)',
-                }}
-              >
-                Il report di verifica plagio è pronto
-              </p>
-
-              <div
-                className="mb-6 border border-[var(--border)] bg-[var(--background)] p-4 text-left"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <p
-                  style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  Salva l accesso al report via email (facoltativo)
-                </p>
-                <p
-                  className="mt-1 text-[var(--muted-foreground)]"
-                  style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
-                    fontWeight: 'var(--font-weight-regular)',
-                  }}
-                >
-                  Se chiudi il browser senza salvare l accesso via email, alla prossima sessione potresti non ritrovare il report.
-                </p>
-
-                <label
-                  htmlFor="completed-check-email"
-                  className="mt-3 block"
-                  style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  Email per conferma e link report
-                </label>
-                <input
-                  id="completed-check-email"
-                  type="email"
-                  value={reportEmail}
-                  onChange={(e) => {
-                    setReportEmail(e.target.value);
-                    setEmailSent(false);
-                  }}
-                  placeholder="nome@dominio.it"
-                  className="mt-2 w-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 outline-none focus:border-[var(--foreground)]"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)',
-                    color: 'var(--foreground)',
-                  }}
-                />
-
-                {!!reportEmail && !isEmailValid && (
-                  <p
-                    className="mt-2 text-[var(--destructive)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
-                      fontWeight: 'var(--font-weight-regular)',
-                    }}
-                  >
-                    Inserisci un indirizzo email valido.
-                  </p>
-                )}
-
-                {emailSent && (
-                  <p
-                    className="mt-2 text-[var(--primary)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    Conferma inviata correttamente a {reportEmail.trim()}.
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleSendEmail}
-                  disabled={!isEmailValid}
-                  className="mt-3 inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  Invia conferma via email
-                </button>
-              </div>
-
-              <button
-                onClick={() => navigate(historyPath)}
-                className="w-full px-[24px] py-[12px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-                style={{
-                  borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: 'var(--font-weight-medium)',
-                }}
-              >
-                Vai allo storico Sottocheck
-              </button>
-            </>
+            <SottocheckSuccessPanel
+              description="Il report di verifica plagio è pronto."
+              primaryActionLabel="Visualizza il report"
+              onPrimaryAction={() => navigate(`${getViewBasePath(location.pathname)}/output-preview`)}
+              secondaryActionLabel="Vai allo storico Sottocheck"
+              onSecondaryAction={() => navigate(historyPath)}
+              footerNote="Il report resta disponibile nel tuo storico utente."
+            />
           )}
         </div>
       </div>
@@ -472,174 +281,14 @@ export function SottocheckPage() {
               >
                 Trascina il file o selezionalo dal tuo computer
               </p>
-
-              {!document ? (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className="mt-4 p-8 text-center"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border)'}`,
-                    background: isDragging ? 'rgba(11,182,63,0.06)' : 'var(--background)',
-                  }}
-                >
-                  <div
-                    className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-[var(--muted)]"
-                    style={{ borderRadius: '50%' }}
-                  >
-                    <Upload className="w-8 h-8 text-[var(--muted-foreground)]" />
-                  </div>
-                  <p
-                    className="text-[var(--foreground)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    Trascina qui il documento o
-                  </p>
-                  <label
-                    className="inline-block mt-1 text-[var(--primary)] hover:opacity-80 cursor-pointer"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-regular)',
-                    }}
-                  >
-                    <input
-                      type="file"
-                      accept=".pdf,.docx"
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                    seleziona dal computer
-                  </label>
-                  <p
-                    className="mt-2 text-[var(--muted-foreground)]"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 'var(--font-weight-regular)',
-                    }}
-                  >
-                    PDF o DOCX (max 50MB)
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-                    <div className="flex items-start gap-4">
-                      <FileText className="w-5 h-5 text-[var(--muted-foreground)] shrink-0 mt-[2px]" />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="truncate text-[var(--foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-medium)',
-                          }}
-                        >
-                          {document.name}
-                        </p>
-                        <p
-                          className="text-[var(--muted-foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                          }}
-                        >
-                          {(document.size / 1024 / 1024).toFixed(2)} MB • {document.pages} pagine rilevate
-                        </p>
-                      </div>
-                      {documentStatus === 'valid' && <CheckCircle className="w-5 h-5 text-[var(--primary)] shrink-0" />}
-                      {documentStatus === 'invalid' && <XCircle className="w-5 h-5 text-[var(--destructive)] shrink-0" />}
-                    </div>
-                  </div>
-
-                  {documentStatus === 'valid' && (
-                    <div
-                      className="p-3"
-                      style={{
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid rgba(11,182,63,0.25)',
-                        background: 'rgba(11,182,63,0.08)',
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        <CheckCircle className="w-4 h-4 text-[var(--primary)] shrink-0 mt-[2px]" />
-                        <p
-                          className="text-[var(--foreground)]"
-                          style={{
-                            fontFamily: 'var(--font-inter)',
-                            fontSize: 'var(--text-label)',
-                            fontWeight: 'var(--font-weight-regular)',
-                          }}
-                        >
-                          Formato valido – Puoi procedere
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {documentStatus === 'invalid' && (
-                    <div
-                      className="p-4"
-                      style={{
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid rgba(220,38,38,0.25)',
-                        background: 'rgba(220,38,38,0.08)',
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        <XCircle className="w-4 h-4 text-[var(--destructive)] shrink-0 mt-[2px]" />
-                        <div>
-                          <p
-                            className="text-[var(--foreground)]"
-                            style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-medium)',
-                            }}
-                          >
-                            Formato non valido
-                          </p>
-                          <p
-                            className="mt-1 text-[var(--muted-foreground)]"
-                            style={{
-                              fontFamily: 'var(--font-inter)',
-                              fontSize: 'var(--text-label)',
-                              fontWeight: 'var(--font-weight-regular)',
-                            }}
-                          >
-                            Il file caricato non è in un formato supportato. Carica un file PDF o DOCX.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setDocument(null);
-                      setDocumentStatus('idle');
-                    }}
-                    className="self-start px-4 py-2 border border-[var(--border)] hover:bg-[var(--muted)] transition-colors"
-                    style={{
-                      borderRadius: 'var(--radius)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 'var(--font-weight-regular)',
-                      color: 'var(--foreground)',
-                    }}
-                  >
-                    Cambia documento
-                  </button>
-                </div>
-              )}
+              <div className="mt-4">
+                <SottocheckUploadForm
+                  onFileSelected={setDocument}
+                  onStatusChange={setDocumentStatus}
+                  onFileCleared={() => setDocument(null)}
+                  showHeading={false}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -682,33 +331,14 @@ export function SottocheckPage() {
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <SottocheckPricingPreview />
-                  <button
+                  <SottocheckActionButton
                     onClick={handlePayment}
                     disabled={!canProceedToPayment || paymentStatus === 'processing'}
-                    className={`inline-flex items-center gap-2 px-6 py-3 transition-opacity ${
-                      canProceedToPayment && paymentStatus !== 'processing'
-                        ? 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 cursor-pointer'
-                        : 'bg-[var(--muted)] text-[var(--muted-foreground)] cursor-not-allowed'
-                    }`}
-                    style={{
-                      borderRadius: 'var(--radius)',
-                      fontFamily: 'var(--font-inter)',
-                      fontSize: 'var(--text-base)',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
+                    loading={paymentStatus === 'processing'}
+                    icon={<CreditCard className="w-4 h-4" />}
                   >
-                    {paymentStatus === 'processing' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Elaborazione...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        Procedi al pagamento
-                      </>
-                    )}
-                  </button>
+                    {paymentStatus === 'processing' ? 'Elaborazione...' : 'Procedi al pagamento'}
+                  </SottocheckActionButton>
                 </div>
               </div>
 

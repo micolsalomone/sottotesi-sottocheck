@@ -6,6 +6,7 @@ import {
   XCircle,
   Upload,
 } from 'lucide-react';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 
@@ -18,13 +19,17 @@ export interface UploadedDocument {
 interface SottocheckUploadFormProps {
   onFileSelected: (document: UploadedDocument) => void;
   onStatusChange: (status: DocumentStatus) => void;
+  onFileCleared?: () => void;
   disabled?: boolean;
+  showHeading?: boolean;
 }
 
 export function SottocheckUploadForm({
   onFileSelected,
   onStatusChange,
+  onFileCleared,
   disabled = false,
+  showHeading = true,
 }: SottocheckUploadFormProps) {
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
@@ -79,32 +84,35 @@ export function SottocheckUploadForm({
     setDocument(null);
     setDocumentStatus('idle');
     onStatusChange('idle');
+    onFileCleared?.();
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h3
-          style={{
-            fontFamily: 'var(--font-alegreya)',
-            fontSize: 'var(--text-h3)',
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--foreground)',
-          }}
-        >
-          Carica documento
-        </h3>
-        <p
-          className="mt-1 text-[var(--muted-foreground)]"
-          style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-label)',
-            fontWeight: 'var(--font-weight-regular)',
-          }}
-        >
-          Carica il tuo documento in modo sicuro per avviare la verifica.
-        </p>
-      </div>
+      {showHeading && (
+        <div>
+          <h3
+            style={{
+              fontFamily: 'var(--font-alegreya)',
+              fontSize: 'var(--text-h3)',
+              fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--foreground)',
+            }}
+          >
+            Carica documento
+          </h3>
+          <p
+            className="mt-1 text-[var(--muted-foreground)]"
+            style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: 'var(--text-label)',
+              fontWeight: 'var(--font-weight-regular)',
+            }}
+          >
+            Carica il tuo documento in modo sicuro per avviare la verifica.
+          </p>
+        </div>
+      )}
 
       {!document ? (
         <div
@@ -259,20 +267,14 @@ export function SottocheckUploadForm({
             </div>
           )}
 
-          <button
+          <SottocheckActionButton
             onClick={handleReset}
             disabled={disabled}
-            className="self-start px-4 py-2 border border-[var(--border)] hover:bg-[var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              borderRadius: 'var(--radius)',
-              fontFamily: 'var(--font-inter)',
-              fontSize: 'var(--text-label)',
-              fontWeight: 'var(--font-weight-regular)',
-              color: 'var(--foreground)',
-            }}
+            variant="secondary"
+            className="self-start px-4 py-2"
           >
             Cambia documento
-          </button>
+          </SottocheckActionButton>
         </div>
       )}
     </div>
