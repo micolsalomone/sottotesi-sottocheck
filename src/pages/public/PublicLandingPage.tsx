@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Music2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 export function PublicLandingPage() {
@@ -26,8 +26,46 @@ export function PublicLandingPage() {
   const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-  const canProceedToPayment = !!uploadedDocument && uploadStatus === 'valid';
-  const isPricingUpdated = !!uploadedDocument && uploadStatus === 'valid';
+  const [isPriceCalculating, setIsPriceCalculating] = useState(false);
+  const pricingTimerRef = useRef<number | null>(null);
+  const canProceedToPayment = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
+  const isPricingUpdated = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
+
+  const clearPricingTimer = () => {
+    if (pricingTimerRef.current) {
+      window.clearTimeout(pricingTimerRef.current);
+      pricingTimerRef.current = null;
+    }
+  };
+
+  const runPriceCalculationLoader = () => {
+    clearPricingTimer();
+    setIsPriceCalculating(true);
+    pricingTimerRef.current = window.setTimeout(() => {
+      setIsPriceCalculating(false);
+      pricingTimerRef.current = null;
+    }, 700);
+  };
+
+  const handleUploadStatusChange = (status: 'idle' | 'valid' | 'invalid') => {
+    setUploadStatus(status);
+    if (status === 'valid') {
+      runPriceCalculationLoader();
+      return;
+    }
+    clearPricingTimer();
+    setIsPriceCalculating(false);
+  };
+
+  const handleUploadedDocument = (document: UploadedDocument) => {
+    setUploadedDocument(document);
+  };
+
+  const handleFileCleared = () => {
+    setUploadedDocument(null);
+    clearPricingTimer();
+    setIsPriceCalculating(false);
+  };
 
   const handlePayment = () => {
     if (!canProceedToPayment || isPaymentProcessing) return;
@@ -353,9 +391,9 @@ export function PublicLandingPage() {
             </div>
 
             <SottocheckUploadForm
-              onFileSelected={setUploadedDocument}
-              onStatusChange={setUploadStatus}
-              onFileCleared={() => setUploadedDocument(null)}
+              onFileSelected={handleUploadedDocument}
+              onStatusChange={handleUploadStatusChange}
+              onFileCleared={handleFileCleared}
               disabled={false}
             />
 
@@ -368,7 +406,7 @@ export function PublicLandingPage() {
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-[760px] space-y-4">
-                  <SottocheckPricingPreview isUpdated={isPricingUpdated} />
+                  <SottocheckPricingPreview isUpdated={isPricingUpdated} isLoading={isPriceCalculating} />
                   {isPricingUpdated && (
                     <p
                       className="text-[var(--primary)]"

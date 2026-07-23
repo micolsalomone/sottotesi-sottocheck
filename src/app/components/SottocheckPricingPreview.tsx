@@ -1,9 +1,12 @@
+import { Loader2 } from 'lucide-react';
+
 interface SottocheckPricingPreviewProps {
   className?: string;
   isUpdated?: boolean;
+  isLoading?: boolean;
 }
 
-export function SottocheckPricingPreview({ className, isUpdated = false }: SottocheckPricingPreviewProps) {
+export function SottocheckPricingPreview({ className, isUpdated = false, isLoading = false }: SottocheckPricingPreviewProps) {
   return (
     <div className={className}>
       <div
@@ -35,7 +38,7 @@ export function SottocheckPricingPreview({ className, isUpdated = false }: Sotto
               color: 'var(--foreground)',
             }}
           >
-            {isUpdated ? '28.500 caratteri' : 'Calcolo automatico'}
+            {isLoading ? 'Calcolo in corso...' : isUpdated ? '28.500 caratteri' : 'Calcolo automatico'}
           </p>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -78,7 +81,12 @@ export function SottocheckPricingPreview({ className, isUpdated = false }: Sotto
               color: isUpdated ? 'var(--foreground)' : 'var(--muted-foreground)',
             }}
           >
-            {isUpdated ? 'EUR 14.90' : 'Il prezzo sara mostrato qui'}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2 text-[var(--muted-foreground)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Calcolo in corso...
+              </span>
+            ) : isUpdated ? 'EUR 14.90' : 'Il prezzo sara mostrato qui'}
           </p>
         </div>
       </div>
