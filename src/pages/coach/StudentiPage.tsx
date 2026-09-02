@@ -278,6 +278,7 @@ export function StudentiPage() {
 
         <div className="relative">
           <select
+            aria-label="Filtra studenti per stato"
             value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="appearance-none bg-[var(--input-background)] border border-[var(--border)] text-[var(--foreground)] pr-8 pl-4 h-[46px] min-w-[200px] cursor-pointer"
             style={{ borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}
