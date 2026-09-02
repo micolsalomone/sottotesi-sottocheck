@@ -710,28 +710,6 @@ export function CoachPage() {
             Nuovo Coach
           </button>
         </div>
-
-        <style>{`
-          @media (max-width: 768px) {
-            .action-toolbar {
-              margin-left: var(--spacing-4) !important;
-              margin-right: var(--spacing-4) !important;
-              flex-direction: column !important;
-              align-items: stretch !important;
-            }
-            .action-toolbar > div {
-              width: 100% !important;
-            }
-            .action-toolbar-right {
-              width: 100% !important;
-              justify-content: stretch !important;
-            }
-            .action-toolbar-right .btn {
-              width: 100% !important;
-              justify-content: center !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Filtri multipli */}
