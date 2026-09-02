@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Users,
@@ -13,6 +13,8 @@ import { STUDENTS_DATA, STATUS_LABELS, STATUS_STYLES } from './studentsData';
 
 /* ── Availability types ── */
 type CoachAvailability = 'disponibile' | 'limitata' | 'pieno' | 'non_disponibile';
+type DashboardTab = 'tickets' | 'unassigned';
+const DASHBOARD_TABS: DashboardTab[] = ['tickets', 'unassigned'];
 
 const AVAILABILITY_CONFIG: Record<
   CoachAvailability,
@@ -101,7 +103,38 @@ const MOCK_TICKETS: Ticket[] = [
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const [dashboardTab, setDashboardTab] = useState<'tickets' | 'unassigned'>('tickets');
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('tickets');
+  const dashboardTabRefs = useRef<Partial<Record<DashboardTab, HTMLButtonElement>>>({});
+
+  const handleDashboardTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: DashboardTab,
+  ) => {
+    let nextIndex: number;
+    const currentIndex = DASHBOARD_TABS.indexOf(currentTab);
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + DASHBOARD_TABS.length) % DASHBOARD_TABS.length;
+        break;
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % DASHBOARD_TABS.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = DASHBOARD_TABS.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    const nextTab = DASHBOARD_TABS[nextIndex];
+    setDashboardTab(nextTab);
+    dashboardTabRefs.current[nextTab]?.focus();
+  };
 
   const assigned = STUDENTS_DATA.filter(s => s.assigned);
   const pendingStudents = STUDENTS_DATA.filter(s => !s.assigned);
@@ -212,10 +245,21 @@ export function DashboardPage() {
         style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
       >
         {/* Tab bar */}
-        <div className="flex items-center gap-0 border-b border-[var(--border)] px-6">
+        <div
+          role="tablist"
+          aria-label="Riepilogo operativo"
+          className="flex items-center gap-0 border-b border-[var(--border)] px-6"
+        >
           <button
             onClick={() => setDashboardTab('tickets')}
             className="control-focus-ring relative px-1 py-4 mr-6 transition-colors"
+            ref={(element) => { dashboardTabRefs.current.tickets = element; }}
+            role="tab"
+            id="coach-dashboard-tab-tickets"
+            aria-selected={dashboardTab === 'tickets'}
+            aria-controls="coach-dashboard-panel-tickets"
+            tabIndex={dashboardTab === 'tickets' ? 0 : -1}
+            onKeyDown={(event) => handleDashboardTabKeyDown(event, 'tickets')}
             style={{
               fontFamily: 'var(--font-inter)',
               fontSize: 'var(--text-label)',
@@ -224,7 +268,7 @@ export function DashboardPage() {
             }}
           >
             <span className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare aria-hidden="true" className="w-4 h-4" />
               Ticket recenti
               {openTickets.length > 0 && (
                 <span
@@ -254,6 +298,13 @@ export function DashboardPage() {
           <button
             onClick={() => setDashboardTab('unassigned')}
             className="control-focus-ring relative px-1 py-4 transition-colors"
+            ref={(element) => { dashboardTabRefs.current.unassigned = element; }}
+            role="tab"
+            id="coach-dashboard-tab-unassigned"
+            aria-selected={dashboardTab === 'unassigned'}
+            aria-controls="coach-dashboard-panel-unassigned"
+            tabIndex={dashboardTab === 'unassigned' ? 0 : -1}
+            onKeyDown={(event) => handleDashboardTabKeyDown(event, 'unassigned')}
             style={{
               fontFamily: 'var(--font-inter)',
               fontSize: 'var(--text-label)',
@@ -262,7 +313,7 @@ export function DashboardPage() {
             }}
           >
             <span className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
+              <UserPlus aria-hidden="true" className="w-4 h-4" />
               Senza assegnazione
               {pendingStudents.length > 0 && (
                 <span
@@ -291,6 +342,12 @@ export function DashboardPage() {
         </div>
 
         {/* Tab content */}
+        <div
+          role="tabpanel"
+          id={`coach-dashboard-panel-${dashboardTab}`}
+          aria-labelledby={`coach-dashboard-tab-${dashboardTab}`}
+          tabIndex={0}
+        >
         {dashboardTab === 'tickets' ? (
           <div className="px-3 py-3">
             {visibleTickets.length === 0 ? (
@@ -468,6 +525,7 @@ export function DashboardPage() {
             )}
           </div>
         )}
+        </div>
       </div>
 
     </div>

@@ -79,6 +79,12 @@ Valori tipografici eccezionali gia' presenti non vanno normalizzati automaticame
 - Hover, active, selected, disabled e destructive devono essere distinguibili senza affidarsi al solo colore.
 - Il primary high-emphasis button e' near-black con foreground bianco; gli altri controlli mantengono gerarchie neutre o responsabilita' semantiche esplicite.
 
+## Handoff accessibility
+
+Questo repository e' un prototipo replicato in un ambiente production separato: il suo markup/JSX non e' necessariamente il DOM finale da copiare. Le decisioni di interaction e accessibility documentate qui restano invece requisiti di comportamento: accessible naming, tipo semantico corretto del controllo, keyboard interaction, `:focus-visible`, distinzione fra navigation, tabs, filter e view switcher, e uso di controlli nativi quando appropriato.
+
+L'implementazione production deve verificare sul DOM finale i dettagli specifici, inclusi test completi con screen reader, browser edge case, live region e integrazione con l'ambiente production.
+
 ## Consolidamento e contesti
 
 - Il cleanup deve ridurre duplicazioni accidentali, preservando differenze necessarie di significato, stato, gerarchia, comportamento o contesto.

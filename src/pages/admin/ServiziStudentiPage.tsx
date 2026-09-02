@@ -51,11 +51,13 @@ const VISTA_LABELS: Record<Vista, string> = {
   compensi: 'Compensi Coach',
   scadenzario: 'Scadenzario',
 };
+const VISTA_TABS = ['lavorazioni', 'compensi', 'scadenzario'] as const;
 
 type ScadenzarioItemType = 'rata' | 'compenso';
 type ScadenzarioCashflow = 'entrata' | 'uscita';
 type ScadenzarioStatus = 'da_pagare' | 'pagato' | 'in_ritardo';
 type ScadenzarioViewMode = 'operativo' | 'storico';
+const SCAD_VIEW_TABS = ['operativo', 'storico'] as const;
 type ScadenzarioPaymentMethod = 'Manuale' | 'Bonifico' | 'Carta' | 'Contanti' | 'PayPal' | 'Satispay' | 'Altro';
 const SCAD_RECENT_PAID_WINDOW_HOURS = 24;
 
@@ -269,6 +271,38 @@ export function ServiziStudentiPage() {
 
   // ─── Vista state ──────────────────────────────────────────
   const [activeVista, setActiveVista] = useState<Vista>('lavorazioni');
+  const vistaTabRefs = useRef<Partial<Record<Vista, HTMLButtonElement>>>({});
+  const scadViewTabRefs = useRef<Partial<Record<ScadenzarioViewMode, HTMLButtonElement>>>({});
+
+  const moveTabFocus = <T extends string>(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tabs: readonly T[],
+    currentTab: T,
+    refs: { current: Partial<Record<T, HTMLButtonElement>> },
+  ) => {
+    let nextIndex: number;
+    const currentIndex = tabs.indexOf(currentTab);
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        break;
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % tabs.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = tabs.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    refs.current[tabs[nextIndex]]?.focus();
+  };
 
   // ─── Scadenzario filters ───────────────────────────────────
   const [scadenzarioSearchQuery, setScadenzarioSearchQuery] = useState('');
@@ -1818,19 +1852,29 @@ export function ServiziStudentiPage() {
       </div>
 
       {/* ─── Vista Tabs ──────────────────────────────────────────── */}
-      <div style={{
+      <div
+        role="tablist"
+        aria-label="Vista lavorazioni"
+        style={{
         display: 'flex',
         gap: '0',
         marginBottom: '1.25rem',
         borderBottom: '2px solid var(--border)',
       }}>
-        {(['lavorazioni', 'compensi', 'scadenzario'] as Vista[]).map(vista => {
+        {VISTA_TABS.map(vista => {
           const isActive = activeVista === vista;
           return (
             <button
               key={vista}
               className="control-focus-ring"
+              ref={(element) => { vistaTabRefs.current[vista] = element; }}
+              role="tab"
+              id={`services-tab-${vista}`}
+              aria-selected={isActive}
+              aria-controls={`services-panel-${vista}`}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => { setActiveVista(vista); setSelectedIds([]); }}
+              onKeyDown={(event) => moveTabFocus(event, VISTA_TABS, vista, vistaTabRefs)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1856,6 +1900,11 @@ export function ServiziStudentiPage() {
         })}
       </div>
 
+      <div
+        role="tabpanel"
+        id={`services-panel-${activeVista}`}
+        aria-labelledby={`services-tab-${activeVista}`}
+      >
       <div className="action-toolbar" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, width: '100%' }}>
           <input
@@ -2188,26 +2237,34 @@ export function ServiziStudentiPage() {
               : `Scadenzario storico: pagamenti completati da oltre ${SCAD_RECENT_PAID_WINDOW_HOURS} ore dalla marcatura pagamento.`}
           </div>
 
-          <div style={{
+          <div
+            role="tablist"
+            aria-label="Vista scadenzario"
+            style={{
             display: 'flex',
             gap: '0',
             marginBottom: '1rem',
             borderBottom: '1px solid var(--border)',
           }}>
-            {([
-              { key: 'operativo', label: 'Operativo' },
-              { key: 'storico', label: 'Storico' },
-            ] as const).map(tab => {
+            {SCAD_VIEW_TABS.map(tabKey => {
+              const tab = { key: tabKey, label: tabKey === 'operativo' ? 'Operativo' : 'Storico' };
               const isActive = scadViewMode === tab.key;
               return (
                 <button
                   key={tab.key}
                   className="control-focus-ring"
+                  ref={(element) => { scadViewTabRefs.current[tab.key] = element; }}
+                  role="tab"
+                  id={`services-schedule-tab-${tab.key}`}
+                  aria-selected={isActive}
+                  aria-controls={`services-schedule-panel-${tab.key}`}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => {
                     setScadViewMode(tab.key);
                     setScadQuickFilter(null);
                     setScadStatusFilter('all');
                   }}
+                  onKeyDown={(event) => moveTabFocus(event, SCAD_VIEW_TABS, tab.key, scadViewTabRefs)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2233,6 +2290,11 @@ export function ServiziStudentiPage() {
             })}
           </div>
 
+          <div
+            role="tabpanel"
+            id={`services-schedule-panel-${scadViewMode}`}
+            aria-labelledby={`services-schedule-tab-${scadViewMode}`}
+          >
           <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1rem', flexWrap: 'wrap' }} className="filter-container">
               <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
                 <label style={{ display: 'block', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
@@ -2434,6 +2496,7 @@ export function ServiziStudentiPage() {
               </button>
             </div>
           )}
+          </div>
         </>
       )}
 
@@ -3978,6 +4041,7 @@ export function ServiziStudentiPage() {
         )}
       />
       )}
+      </div>
 
       <style>{`
         @media (max-width: 768px) {
