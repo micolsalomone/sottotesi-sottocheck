@@ -945,7 +945,7 @@ export function PipelineDetailDrawer({
                         {email}
                       </span>
                       <button onClick={() => window.open(`mailto:${email}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Invia email"><Mail size={14} /></button>
-                      <button onClick={() => handleRemoveEmail(email)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive-foreground)' }} title="Rimuovi email"><Trash2 size={14} /></button>
+                      <button onClick={() => handleRemoveEmail(email)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive)' }} title="Rimuovi email"><Trash2 size={14} /></button>
                     </div>
                     <ConsentRow contactKey={email} />
                   </div>
@@ -1029,7 +1029,7 @@ export function PipelineDetailDrawer({
                       <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>{phone}</span>
                       <button onClick={() => window.open(`https://wa.me/${phone.replace(/[^\d+]/g, '')}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Apri WhatsApp"><MessageCircle size={14} /></button>
                       <button onClick={() => window.open(`tel:${phone}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Chiama"><Phone size={14} /></button>
-                      <button onClick={() => handleRemovePhone(phone)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive-foreground)' }} title="Rimuovi telefono"><Trash2 size={14} /></button>
+                      <button onClick={() => handleRemovePhone(phone)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive)' }} title="Rimuovi telefono"><Trash2 size={14} /></button>
                     </div>
                     <ConsentRow contactKey={phone} />
                   </div>
@@ -1308,7 +1308,7 @@ export function PipelineDetailDrawer({
                           clearQuoteDirty(quote.id);
                           toast.success('Preventivo rimosso');
                         }}
-                        style={{ background: 'none', border: 'none', color: 'var(--destructive-foreground)', cursor: 'pointer', padding: '0.25rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.25rem' }}
                         title="Rimuovi preventivo"
                       >
                         <Trash2 size={14} />

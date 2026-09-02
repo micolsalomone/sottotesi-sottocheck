@@ -734,7 +734,7 @@ export function LavorazioneDetailDrawer({
                       if (!s.contract) return { ...s, contract: { id: `CTR-${s.id}`, status: newStatus, signedAt: newStatus === 'signed' ? now.split('T')[0] : undefined, documentUrl: '' } };
                       return { ...s, contract: { ...s.contract, status: newStatus, signedAt: newStatus === 'signed' ? now.split('T')[0] : s.contract.signedAt } };
                     }, `Contratto → ${newStatus === 'signed' ? 'Firmato' : newStatus === 'draft' ? 'Bozza' : 'Annullato'}`);
-                  }} style={{ ...drawerInputStyle, color: service.contract?.status === 'signed' ? 'var(--primary)' : service.contract?.status === 'draft' ? 'var(--chart-5)' : 'var(--destructive-foreground)' }}>
+                  }} style={{ ...drawerInputStyle, color: service.contract?.status === 'signed' ? 'var(--primary)' : service.contract?.status === 'draft' ? 'var(--chart-5)' : 'var(--destructive)' }}>
                     <option value="">—</option>
                     <option value="draft">Bozza</option>
                     <option value="signed">Firmato</option>

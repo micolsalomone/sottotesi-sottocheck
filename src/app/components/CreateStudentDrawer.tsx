@@ -372,7 +372,7 @@ function AcademicRecordPanel({
                     fontFamily: 'var(--font-inter)',
                     fontSize: '11px',
                     fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--destructive-foreground)',
+                    color: 'var(--destructive)',
                     padding: '0.25rem 0',
                     lineHeight: '1.5',
                   }}
@@ -748,11 +748,11 @@ export function CreateStudentDrawer({
                     onChange={e => { setFirstName(e.target.value); setErrors(prev => ({ ...prev, firstName: '' })); }}
                     style={{
                       ...drawerInputStyle,
-                      borderColor: errors.firstName ? 'var(--destructive-foreground)' : 'var(--border)',
+                      borderColor: errors.firstName ? 'var(--destructive)' : 'var(--border)',
                     }}
                   />
                   {errors.firstName && (
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive)', lineHeight: '1.5' }}>
                       {errors.firstName}
                     </span>
                   )}
@@ -766,11 +766,11 @@ export function CreateStudentDrawer({
                     onChange={e => { setLastName(e.target.value); setErrors(prev => ({ ...prev, lastName: '' })); }}
                     style={{
                       ...drawerInputStyle,
-                      borderColor: errors.lastName ? 'var(--destructive-foreground)' : 'var(--border)',
+                      borderColor: errors.lastName ? 'var(--destructive)' : 'var(--border)',
                     }}
                   />
                   {errors.lastName && (
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive)', lineHeight: '1.5' }}>
                       {errors.lastName}
                     </span>
                   )}
@@ -1019,7 +1019,7 @@ export function CreateStudentDrawer({
                       ...(editStudent.status === 'active'
                         ? { color: 'var(--primary)', borderColor: 'var(--primary)', backgroundColor: 'color-mix(in srgb, var(--primary) 8%, transparent)' }
                         : editStudent.status === 'blocked'
-                          ? { color: 'var(--destructive-foreground)', borderColor: 'var(--destructive-foreground)', backgroundColor: 'color-mix(in srgb, var(--destructive-foreground) 8%, transparent)' }
+                          ? { color: 'var(--destructive)', borderColor: 'var(--destructive)', backgroundColor: 'color-mix(in srgb, var(--destructive) 8%, transparent)' }
                           : { color: 'var(--muted-foreground)', borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }
                       ),
                     }}>

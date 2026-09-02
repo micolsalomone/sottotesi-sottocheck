@@ -268,7 +268,7 @@ function InfoField({
           fontWeight: 'var(--font-weight-medium)',
           lineHeight: '20px',
           letterSpacing: '-0.14px',
-          color: isMissing ? 'var(--destructive-foreground)' : 'var(--foreground)',
+          color: isMissing ? 'var(--destructive)' : 'var(--foreground)',
         }}
       >
         {isMissing ? '(mancante)' : value}

@@ -130,7 +130,7 @@ export const SERVICE_STATUS_COLORS: Record<string, string> = {
   active: 'var(--primary)',
   paused: 'var(--chart-2)',
   completed: 'var(--muted-foreground)',
-  cancelled: 'var(--destructive-foreground)',
+  cancelled: 'var(--destructive)',
   expired: 'var(--muted-foreground)',
 };
 

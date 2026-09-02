@@ -185,7 +185,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
   const statusBg = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
     : lifecycleLabel === 'Scaduto'
-      ? 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)'
+      ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
       : lifecycleLabel === 'In scadenza'
         ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
         : 'var(--muted)';
@@ -193,7 +193,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
   const statusColor = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'var(--primary)'
     : lifecycleLabel === 'Scaduto'
-      ? 'var(--destructive-foreground)'
+      ? 'var(--destructive)'
       : lifecycleLabel === 'In scadenza'
         ? 'var(--chart-3)'
         : 'var(--muted-foreground)';
@@ -239,7 +239,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
           fontSize: '10px',
           padding: '2px 6px',
           borderRadius: 'var(--radius-badge)',
-          border: '1px solid var(--border)',
+          border: lifecycleLabel === 'Scaduto' ? '1px solid var(--destructive)' : '1px solid var(--border)',
           backgroundColor: statusBg,
           color: statusColor,
           fontWeight: 'var(--font-weight-semibold)',

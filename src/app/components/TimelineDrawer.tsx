@@ -36,7 +36,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   active: 'var(--primary)',
   paused: 'var(--muted-foreground)',
   completed: 'var(--chart-2)',
-  cancelled: 'var(--destructive-foreground)',
+  cancelled: 'var(--destructive)',
   expired: 'var(--muted-foreground)',
 };
 const SERVICE_TYPE_LABELS: Record<string, string> = {
@@ -276,7 +276,7 @@ export function TimelineDrawer({
           }}>
             <QuickActionBtn icon={<UserPlus size={14} />} label="Riassegna" onClick={onReassignCoach} color="var(--chart-2)" />
             <QuickActionBtn icon={<CheckCircle2 size={14} />} label="Completa" onClick={onMarkComplete} color="var(--primary)" />
-            <QuickActionBtn icon={<UserMinus size={14} />} label="Rimuovi" onClick={onRemove} color="var(--destructive-foreground)" />
+            <QuickActionBtn icon={<UserMinus size={14} />} label="Rimuovi" onClick={onRemove} color="var(--destructive)" />
             <div style={{ width: '1px', height: '20px', background: 'var(--border)', flexShrink: 0 }} />
             <QuickActionBtn
               icon={<Eye size={13} />}

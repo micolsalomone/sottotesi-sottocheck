@@ -930,7 +930,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                       type="button"
                       onClick={() => handleRemoveEmail(email)}
                       className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive-foreground)' }}
+                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive)' }}
                       title="Rimuovi email"
                     >
                       <Trash2 size={14} />
@@ -1053,7 +1053,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                       type="button"
                       onClick={() => handleRemovePhone(phone)}
                       className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive-foreground)' }}
+                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive)' }}
                       title="Rimuovi telefono"
                     >
                       <Trash2 size={14} />
