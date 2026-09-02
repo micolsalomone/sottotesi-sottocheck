@@ -212,7 +212,7 @@ export function DocumentiPage() {
       </div>
 
       <div className="action-toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', flex: 1 }}>
+        <div className="action-toolbar-left" style={{ gap: 'var(--spacing-2)' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
             <input 

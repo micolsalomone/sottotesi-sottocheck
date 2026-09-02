@@ -682,11 +682,8 @@ export function CoachPage() {
 
       {/* Action toolbar */}
       <div className="action-toolbar" style={{ position: 'relative' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
+        <div className="action-toolbar-left" style={{
           gap: 'var(--spacing-2)',
-          flex: 1,
           width: '100%',
         }}>
           <input

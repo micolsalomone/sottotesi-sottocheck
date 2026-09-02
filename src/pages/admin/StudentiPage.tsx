@@ -529,7 +529,7 @@ export function StudentiPage() {
 
       {/* Action toolbar */}
       <div className="action-toolbar" style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', flex: 1, width: '100%' }}>
+        <div className="action-toolbar-left" style={{ gap: 'var(--spacing-2)', width: '100%' }}>
           <input
             type="text"
             placeholder="Cerca per nome, ID o email..."
