@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { ArrowRight, ClipboardCheck, ExternalLink } from 'lucide-react';
 import PlanningSticker from '@/imports/Planning.png';
 import MatchSticker from '@/imports/Match.png';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -142,21 +143,14 @@ export function DashboardPage() {
 
         <div className="mt-5 pt-4 border-t border-[var(--border)]">
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+            <SottocheckActionButton
               onClick={() => navigate('/public-view/sottocheck')}
-              className="inline-flex items-center gap-2 px-[16px] py-[11px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-              }}
+              icon={<ClipboardCheck className="w-4 h-4" />}
+              className="px-[16px] py-[11px]"
             >
-              <ClipboardCheck className="w-4 h-4" />
               Vai al check plagio
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </SottocheckActionButton>
 
             <a
               href="https://sottotesi.it"
