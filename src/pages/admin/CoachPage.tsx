@@ -1052,6 +1052,7 @@ export function CoachPage() {
                                     return (
                                       <button
                                         key={tab}
+                                        className="control-focus-ring"
                                         onClick={(e) => { e.stopPropagation(); setLavorazioniTabForCoach(coach.id, tab); }}
                                         style={{
                                           padding: '0.25rem 0.75rem',
@@ -1394,6 +1395,7 @@ export function CoachPage() {
                           return (
                             <button
                               key={tab}
+                              className="control-focus-ring"
                               onClick={() => setLavorazioniTabForCoach(coach.id, tab)}
                               style={{
                                 padding: '0.2rem 0.625rem',

@@ -215,7 +215,7 @@ export function DashboardPage() {
         <div className="flex items-center gap-0 border-b border-[var(--border)] px-6">
           <button
             onClick={() => setDashboardTab('tickets')}
-            className="relative px-1 py-4 mr-6 transition-colors"
+            className="control-focus-ring relative px-1 py-4 mr-6 transition-colors"
             style={{
               fontFamily: 'var(--font-inter)',
               fontSize: 'var(--text-label)',
@@ -253,7 +253,7 @@ export function DashboardPage() {
 
           <button
             onClick={() => setDashboardTab('unassigned')}
-            className="relative px-1 py-4 transition-colors"
+            className="control-focus-ring relative px-1 py-4 transition-colors"
             style={{
               fontFamily: 'var(--font-inter)',
               fontSize: 'var(--text-label)',

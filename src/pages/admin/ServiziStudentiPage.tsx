@@ -1829,6 +1829,7 @@ export function ServiziStudentiPage() {
           return (
             <button
               key={vista}
+              className="control-focus-ring"
               onClick={() => { setActiveVista(vista); setSelectedIds([]); }}
               style={{
                 display: 'inline-flex',
@@ -2201,6 +2202,7 @@ export function ServiziStudentiPage() {
               return (
                 <button
                   key={tab.key}
+                  className="control-focus-ring"
                   onClick={() => {
                     setScadViewMode(tab.key);
                     setScadQuickFilter(null);

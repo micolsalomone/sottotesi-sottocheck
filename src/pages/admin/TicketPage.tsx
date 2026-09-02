@@ -492,6 +492,7 @@ export function TicketPage() {
           return (
             <button
               key={tab.key}
+              className="control-focus-ring"
               onClick={() => {
                 setActiveTab(tab.key);
                 setSelectedIds([]);

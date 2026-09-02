@@ -791,6 +791,7 @@ export function PipelinesPage() {
           return (
             <button
               key={tab.key}
+              className="control-focus-ring"
               onClick={() => {
                 setGroupingPeriod(tab.key);
                 setSelectedIds([]);
