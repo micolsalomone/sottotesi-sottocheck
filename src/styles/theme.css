@@ -75,6 +75,10 @@
   --ring:  rgba(10, 10, 10, 1.00);
   /* Shadow for small elevations, such as cards or modals. */
   --elevation-sm: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
+  --elevation-md: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --elevation-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
   /* The color for chart elements, such as a bar or line in a chart. */
   --chart-1: rgba(11, 182, 63, 1.00);
   /* The color for another chart element, such as a bar or line in a chart. */

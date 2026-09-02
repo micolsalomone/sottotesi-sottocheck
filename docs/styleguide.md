@@ -71,7 +71,7 @@ Valori tipografici eccezionali gia' presenti non vanno normalizzati automaticame
 - Il radius predefinito e' 8px (`--radius`) per controlli, card e contenitori.
 - Badge e pill possono usare 16px (`--radius-badge`) quando la forma comunica correttamente un elemento compatto o categoriale.
 - Superfici di card, popover e input fanno riferimento ai token neutri esistenti, in particolare `--card`, `--popover`, `--input-background` e `--border`.
-- `--elevation-sm` è l'unico token di elevation attualmente formalizzato. Popover, modal, drawer e sticky elements possono richiedere livelli differenti; questi ruoli vanno consolidati separatamente e non ricondotti automaticamente a `--elevation-sm`.
+- `--elevation-sm`, `--elevation-md` e `--elevation-lg` sono nomi legacy/compatibility, non una scala visiva automaticamente crescente. Popover, modal, drawer e sticky elements hanno responsabilita' differenti; una futura revisione dedicata potra' sostituire i nomi dimensionali con ruoli semantici, ma non durante il cleanup corrente.
 
 ## Interazione e accessibilita'
 
