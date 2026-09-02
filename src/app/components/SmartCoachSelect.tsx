@@ -7,6 +7,7 @@ interface SmartCoachSelectProps {
   value: string;
   onChange: (value: string) => void;
   areaTematica?: string;
+  className?: string;
   style?: React.CSSProperties;
   title?: string;
   emptyLabel?: string;
@@ -22,6 +23,7 @@ export function SmartCoachSelect({
   value,
   onChange,
   areaTematica,
+  className,
   style,
   title,
   emptyLabel = 'Nessuno',
@@ -58,6 +60,7 @@ export function SmartCoachSelect({
 
   return (
     <select
+      className={className}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={style}

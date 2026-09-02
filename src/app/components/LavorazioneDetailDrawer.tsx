@@ -687,7 +687,7 @@ export function LavorazioneDetailDrawer({
 
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Coach</label>
-              <SmartCoachSelect value={service.coach_name || ''} onChange={(val) => doUpdate(s => ({ ...s, coach_name: val || undefined }), val ? `Coach assegnato: ${val}` : 'Coach rimosso')} areaTematica={service.area_tematica} style={drawerInputStyle} />
+              <SmartCoachSelect className="drawer-control-focus" value={service.coach_name || ''} onChange={(val) => doUpdate(s => ({ ...s, coach_name: val || undefined }), val ? `Coach assegnato: ${val}` : 'Coach rimosso')} areaTematica={service.area_tematica} style={drawerInputStyle} />
               {service.area_tematica && !service.coach_name && (
                 <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--chart-3)', marginTop: '0.25rem', lineHeight: '1.5' }}>
                   Seleziona un coach — i consigliati per l'area sono in evidenza
