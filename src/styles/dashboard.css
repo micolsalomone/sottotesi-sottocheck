@@ -378,6 +378,19 @@
   color: var(--muted-foreground);
 }
 
+.search-input:focus-visible,
+.select-dropdown:focus-visible,
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+.actions-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
 /* Row highlight animation — used when navigating to a specific row via ?highlight= */
 @keyframes row-highlight-pulse {
   0% {

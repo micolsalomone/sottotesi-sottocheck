@@ -42,7 +42,7 @@ export function SottocheckActionButton({
       type={type}
       onClick={onClick}
       disabled={isDisabled}
-      className={`inline-flex items-center justify-center gap-2 px-6 py-3 transition-opacity disabled:opacity-70 ${baseClass} ${variantClass} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-6 py-3 transition-opacity disabled:opacity-70 focus-visible:outline-none focus-visible:border-[var(--ring)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--ring)_50%,transparent)] ${baseClass} ${variantClass} ${className}`}
       style={{
         borderRadius: 'var(--radius)',
         fontFamily: 'var(--font-inter)',
