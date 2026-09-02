@@ -284,6 +284,7 @@ export function TicketDrawer({
 
         <DrawerFooter direction="column">
           <Textarea
+            className="drawer-control-focus"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder={`Scrivi un messaggio come ${composerLabel || currentAdmin}...`}

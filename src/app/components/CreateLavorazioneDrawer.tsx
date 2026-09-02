@@ -589,6 +589,7 @@ export function CreateLavorazioneDrawer({
                         }}
                       />
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         value={pipelineSearch}
                         onChange={e => setPipelineSearch(e.target.value)}
@@ -807,6 +808,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel required>Servizio</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.service_id}
                       onChange={e => setFormData(prev => ({ ...prev, service_id: e.target.value }))}
                       required
@@ -824,6 +826,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel required>Referente Sottotesi</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.referente}
                       onChange={e => setFormData(prev => ({ ...prev, referente: e.target.value }))}
                       required
@@ -839,6 +842,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel>Area tematica</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.area_tematica}
                       onChange={e => setFormData(prev => ({ ...prev, area_tematica: e.target.value }))}
                       style={drawerSelectStyle}
@@ -854,6 +858,7 @@ export function CreateLavorazioneDrawer({
                     <DrawerFieldGroup style={{ marginBottom: 0 }}>
                       <DrawerLabel>Inizio piano</DrawerLabel>
                       <input
+                        className="drawer-control-focus"
                         type="date"
                         value={formData.plan_start_date}
                         onChange={e => setFormData(prev => ({ ...prev, plan_start_date: e.target.value }))}
@@ -863,6 +868,7 @@ export function CreateLavorazioneDrawer({
                     <DrawerFieldGroup style={{ marginBottom: 0 }}>
                       <DrawerLabel>Scadenza piano</DrawerLabel>
                       <input
+                        className="drawer-control-focus"
                         type="date"
                         value={formData.plan_end_date}
                         onChange={e => setFormData(prev => ({ ...prev, plan_end_date: e.target.value }))}

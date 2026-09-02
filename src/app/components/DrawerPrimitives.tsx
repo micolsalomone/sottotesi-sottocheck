@@ -1419,6 +1419,7 @@ export function DrawerSearchSelect({
         />
         <input
           type="text"
+          className="drawer-control-focus"
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}

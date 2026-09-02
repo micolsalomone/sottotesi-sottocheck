@@ -102,6 +102,7 @@ export function NotesDrawer({
                 }}
               >
                 <textarea
+                  className="drawer-control-focus"
                   value={newNote}
                   onChange={e => setNewNote(e.target.value)}
                   onKeyDown={handleKeyDown}

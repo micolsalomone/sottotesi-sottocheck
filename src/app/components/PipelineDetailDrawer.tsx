@@ -534,6 +534,7 @@ export function PipelineDetailDrawer({
                 {editingField === 'first_name' ? (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -563,6 +564,7 @@ export function PipelineDetailDrawer({
                 {editingField === 'last_name' ? (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -720,6 +722,7 @@ export function PipelineDetailDrawer({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Livello</label>
                         <select
+                          className="drawer-control-focus"
                           value={academicData.degree_level ?? ''}
                           onChange={e => handleAcademicChange('degree_level', e.target.value as DegreeLevel)}
                           style={drawerSelectStyle}
@@ -733,6 +736,7 @@ export function PipelineDetailDrawer({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Tipo tesi</label>
                         <select
+                          className="drawer-control-focus"
                           value={academicData.thesis_type ?? ''}
                           onChange={e => handleAcademicChange('thesis_type', e.target.value as ThesisType)}
                           style={drawerSelectStyle}
@@ -749,6 +753,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Corso di studi</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Economia Aziendale"
                         value={academicData.course_name ?? ''}
@@ -761,6 +766,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Università</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Università di Bologna"
                         value={academicData.university_name ?? ''}
@@ -773,6 +779,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Relatore tesi</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Prof. Rossi"
                         value={academicData.thesis_professor ?? ''}
@@ -785,6 +792,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Oggetto tesi</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. L'impatto dell'AI nel marketing digitale"
                         value={academicData.thesis_topic ?? ''}
@@ -797,6 +805,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Materia di tesi</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Marketing Strategico"
                         value={academicData.thesis_subject ?? ''}
@@ -829,6 +838,7 @@ export function PipelineDetailDrawer({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Lingua tesi</label>
                         <input
+                          className="drawer-control-focus"
                           type="text"
                           placeholder="es. Inglese"
                           value={academicData.thesis_language ?? ''}
@@ -903,6 +913,7 @@ export function PipelineDetailDrawer({
               {editingField === 'primary_email' ? (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="email"
                     value={primaryEmail}
                     onChange={(e) => setPrimaryEmail(e.target.value)}
@@ -956,6 +967,7 @@ export function PipelineDetailDrawer({
             {/* Aggiungi email */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                className="drawer-control-focus"
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
@@ -983,6 +995,7 @@ export function PipelineDetailDrawer({
               {editingField === 'primary_phone' ? (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="tel"
                     value={primaryPhone}
                     onChange={(e) => setPrimaryPhone(e.target.value)}
@@ -1040,6 +1053,7 @@ export function PipelineDetailDrawer({
             {/* Aggiungi telefono */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                className="drawer-control-focus"
                 type="tel"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
@@ -1130,6 +1144,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Collegamento a servizio</label>
                   <select
+                    className="drawer-control-focus"
                     value={serviceLink}
                     onChange={(e) => setServiceLink(e.target.value)}
                     style={drawerSelectStyle}
@@ -1145,6 +1160,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Link esterno</label>
                   <input
+                    className="drawer-control-focus"
                     type="url"
                     placeholder="https://docs.google.com/..."
                     value={externalLink}
@@ -1156,6 +1172,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Data acquisizione</label>
                   <input
+                    className="drawer-control-focus"
                     type="date"
                     value={createdAt}
                     onChange={(e) => setCreatedAt(e.target.value)}
@@ -1320,6 +1337,7 @@ export function PipelineDetailDrawer({
                         <div style={microLabelStyle}>N. Preventivo</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={{ ...drawerInputStyle, flex: 1 }}
                             value={quote.number.split('/')[0] || ''}
@@ -1335,6 +1353,7 @@ export function PipelineDetailDrawer({
                           />
 
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={{ ...drawerInputStyle, width: '65px' }}
                             value={quote.number.split('/')[1] || new Date().getFullYear().toString()}
@@ -1353,6 +1372,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Stato</div>
                         <select
+                          className="drawer-control-focus"
                           style={drawerSelectStyle}
                           value={quote.status}
                           onChange={e => {
@@ -1388,6 +1408,7 @@ export function PipelineDetailDrawer({
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={microLabelStyle}>Importo lordo preventivo</div>
                       <input
+                        className="drawer-control-focus"
                         type="number"
                         min="0"
                         step="0.01"
@@ -1411,6 +1432,7 @@ export function PipelineDetailDrawer({
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={microLabelStyle}>Servizio preventivo</div>
                       <select
+                        className="drawer-control-focus"
                         style={drawerSelectStyle}
                         value={quote.service_link || ''}
                         onChange={e => {
@@ -1501,6 +1523,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Inviato il</div>
                         <input
+                          className="drawer-control-focus"
                           type="date"
                           style={drawerInputStyle}
                           value={quote.sent_at || ''}
@@ -1516,6 +1539,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Scadenza</div>
                         <input
+                          className="drawer-control-focus"
                           type="date"
                           style={drawerInputStyle}
                           value={quote.expires_at || ''}
@@ -1576,6 +1600,7 @@ export function PipelineDetailDrawer({
             {editingField === 'notes' ? (
               <div>
                 <textarea
+                  className="drawer-control-focus"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   autoFocus

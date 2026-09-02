@@ -228,6 +228,7 @@ function PipelineAcademicCard({
         <div style={drawerFieldGroupStyle}>
           <label style={drawerLabelStyle}>Livello</label>
           <select
+            className="drawer-control-focus"
             value={data.degree_level}
             onChange={e => onChange('degree_level', e.target.value)}
             style={drawerSelectStyle}
@@ -241,6 +242,7 @@ function PipelineAcademicCard({
         <div style={drawerFieldGroupStyle}>
           <label style={drawerLabelStyle}>Tipo tesi</label>
           <select
+            className="drawer-control-focus"
             value={data.thesis_type}
             onChange={e => onChange('thesis_type', e.target.value)}
             style={drawerSelectStyle}
@@ -256,6 +258,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Corso di studi</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Economia Aziendale"
           value={data.course_name}
@@ -267,6 +270,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Università (opzionale)</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Università di Bologna"
           value={data.university_name}
@@ -278,6 +282,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Relatore tesi</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Prof. Rossi"
           value={data.thesis_professor}
@@ -289,6 +294,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Oggetto tesi</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. L'impatto dell'AI nel marketing digitale"
           value={data.thesis_topic}
@@ -300,6 +306,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Materia di tesi</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Marketing Strategico"
           value={data.thesis_subject}
@@ -332,8 +339,9 @@ function PipelineAcademicCard({
       {data.foreign_language && (
         <div style={drawerFieldGroupStyle}>
           <label style={drawerLabelStyle}>Lingua tesi</label>
-          <input
-            type="text"
+        <input
+          className="drawer-control-focus"
+          type="text"
             placeholder="es. Inglese"
             value={data.thesis_language}
             onChange={e => onChange('thesis_language', e.target.value)}
@@ -744,6 +752,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <div style={{ position: 'relative' }}>
                     <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={{ ...drawerInputStyle, paddingLeft: '2.25rem' }}
                       placeholder="Cerca per nome, email o ID..."
@@ -797,6 +806,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
                     <DrawerLabel>Nome</DrawerLabel>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={drawerInputStyle}
                       value={formData.first_name}
@@ -807,6 +817,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
                     <DrawerLabel>Cognome</DrawerLabel>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={drawerInputStyle}
                       value={formData.last_name}
@@ -867,6 +878,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                 <DrawerMicroLabel>Email principale</DrawerMicroLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="email"
                     style={{ ...drawerInputStyle, flex: 1 }}
                     value={formData.email}
@@ -950,6 +962,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               {/* Aggiungi email */}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
+                  className="drawer-control-focus"
                   type="email"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
@@ -976,6 +989,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                 <DrawerMicroLabel>Telefono principale</DrawerMicroLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="tel"
                     style={{ ...drawerInputStyle, flex: 1 }}
                     value={formData.phone}
@@ -1073,6 +1087,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               {/* Aggiungi telefono */}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
+                  className="drawer-control-focus"
                   type="tel"
                   value={newPhone}
                   onChange={e => setNewPhone(e.target.value)}
@@ -1123,6 +1138,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── IN CARICO A ── */}
             <DrawerSection title="In carico a" icon={<User size={16} />}>
               <select
+                className="drawer-control-focus"
                 style={drawerSelectStyle}
                 value={formData.assigned_to}
                 onChange={e => setFormData(prev => ({ ...prev, assigned_to: e.target.value }))}
@@ -1137,6 +1153,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── SERVIZIO ── */}
             <DrawerSection title="Servizio" icon={<TrendingUp size={16} />}>
               <select
+                className="drawer-control-focus"
                 style={drawerSelectStyle}
                 value={formData.service_link}
                 onChange={e => setFormData(prev => ({ ...prev, service_link: e.target.value }))}
@@ -1153,6 +1170,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               <DrawerFieldGroup style={{ marginBottom: 0 }}>
                 <DrawerLabel>Data di acquisizione</DrawerLabel>
                 <input
+                  className="drawer-control-focus"
                   type="date"
                   style={drawerInputStyle}
                   value={formData.created_at}
@@ -1164,6 +1182,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── NOTE ── */}
             <DrawerSection title="Note" icon={<FileText size={16} />} bordered={false}>
               <textarea
+                className="drawer-control-focus"
                 style={{ ...drawerInputStyle, minHeight: '100px', resize: 'vertical' }}
                 placeholder="Aggiungi note sulla pipeline..."
                 value={formData.notes}

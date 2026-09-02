@@ -539,11 +539,11 @@ export function LavorazioneDetailDrawer({
           }}>
             <div>
               <label style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.25rem', display: 'block', lineHeight: '1.5' }}>Inizio pausa</label>
-              <input type="date" value={service.pause_start_date || ''} onChange={(e) => doUpdate(s => ({ ...s, pause_start_date: e.target.value || undefined }), e.target.value ? `Inizio pausa: ${e.target.value}` : 'Inizio pausa rimosso')} style={drawerInputStyle} />
+              <input className="drawer-control-focus" type="date" value={service.pause_start_date || ''} onChange={(e) => doUpdate(s => ({ ...s, pause_start_date: e.target.value || undefined }), e.target.value ? `Inizio pausa: ${e.target.value}` : 'Inizio pausa rimosso')} style={drawerInputStyle} />
             </div>
             <div>
               <label style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)', marginBottom: '0.25rem', display: 'block', lineHeight: '1.5' }}>Fine pausa</label>
-              <input type="date" value={service.pause_end_date || ''} onChange={(e) => doUpdate(s => ({ ...s, pause_end_date: e.target.value || undefined }), e.target.value ? `Fine pausa: ${e.target.value}` : 'Fine pausa rimossa')} style={drawerInputStyle} />
+              <input className="drawer-control-focus" type="date" value={service.pause_end_date || ''} onChange={(e) => doUpdate(s => ({ ...s, pause_end_date: e.target.value || undefined }), e.target.value ? `Fine pausa: ${e.target.value}` : 'Fine pausa rimossa')} style={drawerInputStyle} />
             </div>
           </div>
         )}
@@ -623,7 +623,7 @@ export function LavorazioneDetailDrawer({
           >
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Servizio</label>
-              <select value={service.service_id || ''} onChange={(e) => {
+              <select className="drawer-control-focus" value={service.service_id || ''} onChange={(e) => {
                 const svc = SERVICE_CATALOG.find(s => s.id === e.target.value);
                 if (svc) { doUpdate(s => ({ ...s, service_id: svc.id, service_name: svc.name, service_category: svc.category }), `Servizio: ${svc.name}`); }
                 else { doUpdate(s => ({ ...s, service_id: '', service_name: 'Da definire', service_category: 'Coaching' }), 'Servizio rimosso'); }
@@ -637,7 +637,7 @@ export function LavorazioneDetailDrawer({
 
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Note servizio</label>
-              <textarea value={service.service_notes || ''} onChange={(e) => doUpdate(s => ({ ...s, service_notes: e.target.value || undefined }), 'Note servizio aggiornate')} placeholder="Es. richiesta speciale, dettagli aggiuntivi..." rows={2} style={{ ...drawerInputStyle, resize: 'vertical', minHeight: '3rem' }} />
+              <textarea className="drawer-control-focus" value={service.service_notes || ''} onChange={(e) => doUpdate(s => ({ ...s, service_notes: e.target.value || undefined }), 'Note servizio aggiornate')} placeholder="Es. richiesta speciale, dettagli aggiuntivi..." rows={2} style={{ ...drawerInputStyle, resize: 'vertical', minHeight: '3rem' }} />
             </div>
 
             <div style={{ ...drawerFieldGroupStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
@@ -655,11 +655,11 @@ export function LavorazioneDetailDrawer({
             <div style={{ ...drawerFieldGroupStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
                 <label style={drawerLabelStyle}>Data inizio</label>
-                <input type="date" value={service.plan_start_date || service.start_date || ''} onChange={(e) => doUpdate(s => ({ ...s, plan_start_date: e.target.value || undefined, start_date: e.target.value || s.start_date }), e.target.value ? `Data inizio: ${e.target.value}` : 'Data inizio rimossa')} style={drawerInputStyle} />
+                <input className="drawer-control-focus" type="date" value={service.plan_start_date || service.start_date || ''} onChange={(e) => doUpdate(s => ({ ...s, plan_start_date: e.target.value || undefined, start_date: e.target.value || s.start_date }), e.target.value ? `Data inizio: ${e.target.value}` : 'Data inizio rimossa')} style={drawerInputStyle} />
               </div>
               <div>
                 <label style={drawerLabelStyle}>Data fine (scadenza piano)</label>
-                <input type="date" value={service.plan_end_date || service.end_date || ''} onChange={(e) => doUpdate(s => ({ ...s, plan_end_date: e.target.value || undefined }), e.target.value ? `Data fine: ${e.target.value}` : 'Data fine rimossa')} style={drawerInputStyle} />
+                <input className="drawer-control-focus" type="date" value={service.plan_end_date || service.end_date || ''} onChange={(e) => doUpdate(s => ({ ...s, plan_end_date: e.target.value || undefined }), e.target.value ? `Data fine: ${e.target.value}` : 'Data fine rimossa')} style={drawerInputStyle} />
               </div>
             </div>
 
@@ -679,7 +679,7 @@ export function LavorazioneDetailDrawer({
 
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Area tematica</label>
-              <select value={service.area_tematica || ''} onChange={(e) => doUpdate(s => ({ ...s, area_tematica: e.target.value || undefined }), e.target.value ? `Area tematica: ${e.target.value}` : 'Area tematica rimossa')} style={drawerInputStyle}>
+              <select className="drawer-control-focus" value={service.area_tematica || ''} onChange={(e) => doUpdate(s => ({ ...s, area_tematica: e.target.value || undefined }), e.target.value ? `Area tematica: ${e.target.value}` : 'Area tematica rimossa')} style={drawerInputStyle}>
                 <option value="">Seleziona...</option>
                 {(availableAree || []).map(area => <option key={area} value={area}>{area}</option>)}
               </select>
@@ -698,7 +698,7 @@ export function LavorazioneDetailDrawer({
 
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Referente Sottotesi</label>
-              <select value={service.referente || ''} onChange={(e) => doUpdate(s => ({ ...s, referente: e.target.value || undefined }), e.target.value ? `Referente: ${e.target.value}` : 'Referente rimosso')} style={drawerInputStyle}>
+              <select className="drawer-control-focus" value={service.referente || ''} onChange={(e) => doUpdate(s => ({ ...s, referente: e.target.value || undefined }), e.target.value ? `Referente: ${e.target.value}` : 'Referente rimosso')} style={drawerInputStyle}>
                 <option value="">Seleziona...</option>
                 {REFERENTI_SOTTOTESI.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
               </select>
@@ -727,7 +727,7 @@ export function LavorazioneDetailDrawer({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Stato</label>
-                  <select value={service.contract?.status || ''} onChange={(e) => {
+                  <select className="drawer-control-focus" value={service.contract?.status || ''} onChange={(e) => {
                     const newStatus = e.target.value as ContractStatus;
                     doUpdate(s => {
                       const now = new Date().toISOString();
@@ -743,7 +743,7 @@ export function LavorazioneDetailDrawer({
                 </div>
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Scadenza</label>
-                  <input type="date" value={service.contract?.expiresAt || ''} onChange={(e) => doUpdate(s => { if (!s.contract) return s; return { ...s, contract: { ...s.contract, expiresAt: e.target.value } }; }, 'Scadenza aggiornata')} style={drawerInputStyle} />
+                  <input className="drawer-control-focus" type="date" value={service.contract?.expiresAt || ''} onChange={(e) => doUpdate(s => { if (!s.contract) return s; return { ...s, contract: { ...s.contract, expiresAt: e.target.value } }; }, 'Scadenza aggiornata')} style={drawerInputStyle} />
                 </div>
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Firmato il</label>
@@ -783,6 +783,7 @@ export function LavorazioneDetailDrawer({
                 Aliquota default lavorazione
               </span>
               <select
+                className="drawer-control-focus"
                 value={localServiceTaxRate}
                 onChange={(e) => {
                   const nextRate = normalizeTaxRate(Number(e.target.value));
@@ -894,6 +895,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Importo</div>
                           <input
+                            className="drawer-control-focus"
                             type="number" min="0" step="0.01"
                             style={drawerInputStyle}
                             value={inst.amount || ''}
@@ -909,6 +911,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Scadenza</div>
                           <input
+                            className="drawer-control-focus"
                             type="date"
                             style={drawerInputStyle}
                             value={inst.dueDate}
@@ -929,6 +932,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Aliquota</div>
                           <select
+                            className="drawer-control-focus"
                             style={drawerInputStyle}
                             value={inst.net_tax_rate ? String(inst.net_tax_rate) : 'default'}
                             onChange={(e) => {
@@ -961,6 +965,7 @@ export function LavorazioneDetailDrawer({
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>N. Fattura</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             <input
+                              className="drawer-control-focus"
                               type="text"
                               style={{ ...drawerInputStyle, flex: 1 }}
                               value={(inst.invoice_number || '').split('/')[0] || ''}
@@ -974,6 +979,7 @@ export function LavorazioneDetailDrawer({
                               }}
                             />
                             <input
+                              className="drawer-control-focus"
                               type="text"
                               style={{ ...drawerInputStyle, width: '65px' }}
                               value={(inst.invoice_number || '').split('/')[1] || new Date().getFullYear().toString()}
@@ -991,6 +997,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Pagato il</div>
                           <input
+                            className="drawer-control-focus"
                             type="date"
                             style={{ ...drawerInputStyle, color: inst.status === 'paid' ? 'var(--primary)' : undefined }}
                             value={inst.payment?.paidAt || ''}
@@ -1014,6 +1021,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Metodo pagamento</div>
                           <select
+                            className="drawer-control-focus"
                             style={drawerInputStyle}
                             value={inst.payment_method || inst.payment?.method || 'Manuale'}
                             onChange={(e) => {
@@ -1038,6 +1046,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Rif. pagamento</div>
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={drawerInputStyle}
                             value={inst.payment_reference || ''}
@@ -1166,6 +1175,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Imponibile coach (netto)</div>
                           <input
+                            className="drawer-control-focus"
                             type="number" min="0" step="0.01"
                             style={drawerInputStyle}
                             value={payout.notula_amount || ''}
@@ -1180,6 +1190,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Aliquota coach</div>
                           <select
+                            className="drawer-control-focus"
                             style={drawerInputStyle}
                             value={normalizeTaxRate(payout.tax_rate ?? 0)}
                             onChange={(e) => {
@@ -1202,6 +1213,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Tipo documento</div>
                           <select
+                            className="drawer-control-focus"
                             style={drawerInputStyle}
                             value={payout.document_type || 'notula'}
                             onChange={(e) => {
@@ -1237,6 +1249,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Data emissione {documentLabel.toLowerCase()}</div>
                           <input
+                            className="drawer-control-focus"
                             type="date"
                             style={drawerInputStyle}
                             value={issueDate || ''}
@@ -1283,6 +1296,7 @@ export function LavorazioneDetailDrawer({
                           <div>
                             <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Fattura</div>
                             <select
+                              className="drawer-control-focus"
                               style={drawerInputStyle}
                               value={payout.invoice_status || 'da_ricevere'}
                               onChange={(e) => {
@@ -1300,6 +1314,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Pagato il</div>
                           <input
+                            className="drawer-control-focus"
                             type="date"
                             style={drawerInputStyle}
                             value={payout.paid_at || ''}
@@ -1312,6 +1327,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Metodo pagamento</div>
                           <select
+                            className="drawer-control-focus"
                             style={drawerInputStyle}
                             value={payout.payment_method || 'Manuale'}
                             onChange={(e) => {
@@ -1328,6 +1344,7 @@ export function LavorazioneDetailDrawer({
                         <div>
                           <div style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', fontWeight: 'var(--font-weight-medium)', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', lineHeight: '1.5' }}>Rif. pagamento</div>
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={drawerInputStyle}
                             value={payout.payment_reference || ''}
@@ -1651,6 +1668,7 @@ function EditableField({ value, placeholder, displayPrefix, type = 'text', onSav
   if (editing) {
     return (
       <input type={type} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
+        className="drawer-control-focus"
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setDraft(value); setEditing(false); } }}
         onBlur={save}
         style={{ ...drawerInputStyle, fontSize: '12px', padding: '0.25rem 0.5rem' }}

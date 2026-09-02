@@ -198,6 +198,7 @@ function AcademicRecordPanel({
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Livello</label>
                 <select
+                  className="drawer-control-focus"
                   value={record.degree_level}
                   onChange={e => onChange({ ...record, degree_level: e.target.value as DegreeLevel | '' })}
                   style={drawerSelectStyle}
@@ -211,6 +212,7 @@ function AcademicRecordPanel({
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Tipo tesi</label>
                 <select
+                  className="drawer-control-focus"
                   value={record.thesis_type}
                   onChange={e => onChange({ ...record, thesis_type: e.target.value as ThesisType | '' })}
                   style={drawerSelectStyle}
@@ -226,6 +228,7 @@ function AcademicRecordPanel({
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Corso di studi</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Economia Aziendale"
                 value={record.course_name}
@@ -237,6 +240,7 @@ function AcademicRecordPanel({
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Università (opzionale)</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Università di Bologna"
                 value={record.university_name}
@@ -248,6 +252,7 @@ function AcademicRecordPanel({
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Relatore tesi</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Prof. Rossi"
                 value={record.thesis_professor}
@@ -259,6 +264,7 @@ function AcademicRecordPanel({
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Oggetto tesi</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. L'impatto dell'AI nel marketing digitale"
                 value={record.thesis_topic}
@@ -270,6 +276,7 @@ function AcademicRecordPanel({
             <div style={drawerFieldGroupStyle}>
               <label style={drawerLabelStyle}>Materia di tesi</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Marketing Strategico"
                 value={record.thesis_subject}
@@ -310,6 +317,7 @@ function AcademicRecordPanel({
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Lingua tesi</label>
                 <input
+                  className="drawer-control-focus"
                   type="text"
                   placeholder="es. Inglese"
                   value={record.thesis_language}
@@ -742,6 +750,7 @@ export function CreateStudentDrawer({
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Nome *</label>
                   <input
+                    className="drawer-control-focus"
                     type="text"
                     placeholder="Nome"
                     value={firstName}
@@ -760,6 +769,7 @@ export function CreateStudentDrawer({
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Cognome *</label>
                   <input
+                    className="drawer-control-focus"
                     type="text"
                     placeholder="Cognome"
                     value={lastName}
@@ -1053,6 +1063,7 @@ export function CreateStudentDrawer({
                         ) : (
                           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <select
+                              className="drawer-control-focus"
                               value={selectedTimelineServiceId}
                               onChange={(e) => setSelectedTimelineServiceId(e.target.value)}
                               style={{ ...drawerSelectStyle, flex: 1 }}
