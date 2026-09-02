@@ -137,3 +137,5 @@ dist
 src/app/.DS_Store
 src/.DS_Store
 .DS_Store
+/docs/audits
+/skills

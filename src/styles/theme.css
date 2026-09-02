@@ -2,12 +2,20 @@
 
 :root {
   --font-size: 16px;
+
+  /* Spacing variables */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-4: 1rem; /* 16px */
+  --spacing-6: 1.5rem; /* 24px */
+
   /* Typography variables */
   --text-h1: 36px;
   --text-h2: 30px;
   --text-h3: 24px;
   --text-h4: 20px;
+  --text-xl: 20px;
   --text-base: 16px;
+  --text-body: var(--text-base);
   --text-label: 14px;
   --text-sm: 12px;
   --text-xs: 11px;
@@ -36,6 +44,7 @@
   --popover-foreground: rgba(10, 10, 10, 1.00);
   /* The primary color used for buttons, links, and other interactive elements. */
   --primary: rgba(11, 182, 63, 1.00);
+  --primary-rgb: 11, 182, 63;
   /* The default color for text or elements that appear on top of primary colored elements. */
   --primary-foreground: rgba(255, 255, 255, 1.00);
   /* The secondary color used for secondary(but NOT-DESTRUCTIVE) buttons and interactive elements. */

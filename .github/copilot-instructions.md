@@ -1,21 +1,38 @@
-# Copilot Instructions — Sottotesi
+# GitHub Copilot Instructions — Sottotesi
 
-## Prima di qualsiasi modifica
-- Leggi `ARCHITECTURE.md` per la struttura generale e le route
-- Leggi `docs/views/[vista].md` per la vista su cui stai lavorando
+Follow the repository-wide rules defined in `/AGENTS.md`.
 
-## Viste del progetto
-| Vista | Path | File di riferimento |
-|-------|------|---------------------|
-| Admin | `/` | `docs/views/admin.md` |
-| Coach | `/coach-view` | `docs/views/coach.md` |
-| Student | `/student-view` | `docs/views/student.md` |
+Before modifying implementation:
 
-## Regole sempre valide
-- Usare sempre alias `@` per gli import, mai path relativi lunghi
-- Variabili CSS solo da `src/styles/theme.css`, nessun valore hardcoded
-- Non condividere Layout, Header, Sidebar tra viste diverse
-- Non aggiungere route coach/student alla sidebar admin
-- Non unire i Container.tsx delle viste diverse
-- Drawers solo per azioni, mai come fonte di verità
-- Nessuna feature non esplicitamente richiesta
+- Read `docs/architecture.md`.
+- When working on a specific application context, read the relevant file in `docs/views/`.
+- For UI or styling work, read `docs/styleguide.md`.
+
+Treat these documents as project context and verify them against the actual implementation when necessary.
+
+## Current phase
+
+The project is in consolidation, cleanup and UI refinement.
+
+Prefer:
+- small scoped changes;
+- existing components;
+- existing patterns;
+- existing tokens;
+- safe removal of verified dead code.
+
+Do not:
+- introduce speculative features;
+- perform repository-wide refactors unless explicitly requested;
+- change UX semantics as part of visual cleanup;
+- merge Admin, Coach, Student or Public application shells.
+
+## Technical rules
+
+- Use `@` aliases for imports.
+- Shared CSS variables belong in `src/styles/theme.css`.
+- Do not introduce arbitrary hardcoded design values when an appropriate existing token exists.
+- Preserve context-specific Layout, Header and Sidebar components.
+- Drawers are actions/interfaces, not sources of truth.
+
+For recurring audit or consolidation workflows, use the available project skills.
