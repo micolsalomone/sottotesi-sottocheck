@@ -453,6 +453,7 @@ export function StudentiPage() {
                         className="flex items-center justify-center w-[32px] h-[32px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
                         style={{ borderRadius: 'var(--radius)' }}
                         onClick={() => setOpenMenuId(prev => prev === student.id ? null : student.id)}
+                        aria-label="Azioni"
                         title="Azioni"
                       >
                         <MoreVertical className="w-[16px] h-[16px]" />
@@ -547,6 +548,7 @@ export function StudentiPage() {
                 className="flex items-center justify-center w-[28px] h-[28px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                 style={{ borderRadius: 'var(--radius)' }}
                 onClick={() => setConfirmModal(null)}
+                aria-label="Chiudi"
               >
                 <X className="w-[16px] h-[16px]" />
               </button>
@@ -841,6 +843,7 @@ function TicketModalContent({
                         style={{ borderRadius: 'calc(var(--radius) - 4px)' }}
                         onClick={() => setTicketFiles(prev => prev.filter((_, i) => i !== index))}
                         disabled={ticketSent}
+                        aria-label="Rimuovi allegato"
                         title="Rimuovi"
                       >
                         <Trash2 className="w-[13px] h-[13px]" />
@@ -1022,6 +1025,7 @@ function TicketBadgeButton({ count, onClick }: { count: number; onClick: () => v
         e.stopPropagation();
         onClick();
       }}
+      aria-label={`Richiedi assistenza (${count} ticket)`}
       title={`${count} ticket`}
       style={{
         background: 'none',

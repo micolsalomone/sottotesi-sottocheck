@@ -34,6 +34,7 @@ export function BulkActionsBar({
           variant="ghost"
           size="sm"
           onClick={onClearSelection}
+          aria-label="Deseleziona tutti"
           className="h-8 w-8 p-0 text-[var(--primary-foreground)] hover:bg-white/20"
         >
           <X className="h-4 w-4" />
