@@ -8,8 +8,6 @@ export interface SottocheckReportDetailDrawerProps {
   getLavorazioneLabel: (serviceId: string) => string;
   formatDateTimeIT: (date: string) => string;
   formatNumber: (n: number) => string;
-  statusMap: Record<string, any>;
-  statusLabels: Record<string, string>;
   onOpenProfile?: (job: SelectedJob) => void;
 }
 
@@ -20,7 +18,7 @@ export interface SelectedJob {
   student_id?: string;
   coach_name?: string;
   admin_name?: string;
-  status: string;
+  status: SottocheckJobStatus;
   service_id?: string;
   document_name?: string;
   startedAt?: string;
@@ -120,7 +118,7 @@ import React from 'react';
 import { useNavigate } from 'react-router';
 import { DrawerLinkedServiceCard } from './DrawerPrimitives';
 import { X, ExternalLink, Download } from 'lucide-react';
-import { StatusBadge, type StatusType } from '@/app/components/StatusBadge';
+import { SottocheckJobStatusBadge, type SottocheckJobStatus } from '@/app/components/SottocheckJobStatusBadge';
 
 
 
@@ -133,8 +131,6 @@ export function SottocheckReportDetailDrawer({
   getLavorazioneLabel,
   formatDateTimeIT,
   formatNumber,
-  statusMap,
-  statusLabels,
   onOpenProfile,
 }: SottocheckReportDetailDrawerProps) {
   const navigate = useNavigate();
@@ -184,7 +180,7 @@ export function SottocheckReportDetailDrawer({
               {/* Stato */}
               <div>
                 <div style={labelStyle}>Stato</div>
-                <StatusBadge status={statusMap[selectedJob.status]} label={statusLabels[selectedJob.status]} />
+                <SottocheckJobStatusBadge status={selectedJob.status} />
               </div>
               {/* Collegamenti contestuali */}
               {selectedJob.service_id && (
@@ -193,7 +189,6 @@ export function SottocheckReportDetailDrawer({
                   <DrawerLinkedServiceCard
                     id={selectedJob.service_id}
                     serviceName={getLavorazioneLabel(selectedJob.service_id)}
-                    status={selectedJob.status}
                     coachName={selectedJob.coach_name}
                     onNavigate={() => navigate(`/lavorazioni?highlight=${selectedJob.service_id}`)}
                   />

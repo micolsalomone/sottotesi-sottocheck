@@ -22,6 +22,7 @@
 
 import React from 'react';
 import { X, ChevronDown, ChevronUp, ExternalLink, BookOpen, GraduationCap, User, Globe, Search, Plus } from 'lucide-react';
+import type { ServiceStatus } from '../data/LavorazioniContext';
 
 // ─── Larghezze standard drawer ────────────────────────────────
 export const DRAWER_WIDTH_DEFAULT = '520px';
@@ -947,7 +948,7 @@ export function DrawerLinkedServiceCard({
 }: {
   id: string;
   serviceName: string;
-  status: string;
+  status?: ServiceStatus;
   coachName?: string;
   referente?: string;
   onNavigate: () => void;
@@ -981,7 +982,7 @@ export function DrawerLinkedServiceCard({
           >
             {serviceName}
           </span>
-          <DrawerStatusPill status={status} />
+          {status && <DrawerStatusPill status={status} />}
         </div>
         <div
           style={{

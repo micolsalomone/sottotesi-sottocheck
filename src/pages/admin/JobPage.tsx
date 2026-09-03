@@ -21,7 +21,7 @@ import {
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
-import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { SottocheckJobStatusBadge, type SottocheckJobStatus } from '../../app/components/SottocheckJobStatusBadge';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
@@ -44,7 +44,7 @@ interface CoachingCheckJob {
   student_id: string;
   service_id: string;
   lavorazione_name: string;
-  status: 'completed' | 'running' | 'failed' | 'pending';
+  status: SottocheckJobStatus;
   startedAt: string;
   completedAt: string | null;
   document_name?: string;
@@ -60,20 +60,6 @@ interface CoachingCheckJob {
   updated_by?: string;
   updated_at?: string;
 }
-
-const STATUS_MAP: Record<string, StatusType> = {
-  completed: 'completed',
-  running: 'in-progress',
-  failed: 'error',
-  pending: 'pending',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  completed: 'Completato',
-  running: 'In corso',
-  failed: 'Fallito',
-  pending: 'In attesa',
-};
 
 const mockJobs: CoachingCheckJob[] = [
   {
@@ -689,7 +675,7 @@ export function JobPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                        <SottocheckJobStatusBadge status={job.status} />
                       </TableCell>
                       <TableCell><CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary></TableCell>
                       <TableCell align="center" onClick={(e) => e.stopPropagation()}>
@@ -750,7 +736,7 @@ export function JobPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                      <SottocheckJobStatusBadge status={job.status} />
                       <TableActions actions={getTableActions(job)} />
                     </div>
                   </ResponsiveMobileCardHeader>
@@ -831,7 +817,7 @@ export function JobPage() {
                   </div>
                   <div>
                     <div style={labelStyle}>Stato</div>
-                    <StatusBadge status={STATUS_MAP[selectedJob.status]} label={STATUS_LABELS[selectedJob.status]} />
+                    <SottocheckJobStatusBadge status={selectedJob.status} />
                   </div>
                   {selectedJob.document_name && (
                     <div>

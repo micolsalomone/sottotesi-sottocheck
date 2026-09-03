@@ -23,7 +23,7 @@ import {
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
-import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { SottocheckJobStatusBadge, type SottocheckJobStatus } from '../../app/components/SottocheckJobStatusBadge';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
@@ -74,7 +74,7 @@ interface Job {
   student: string;
   student_id: string;
   service_id?: string;
-  status: 'completed' | 'running' | 'failed' | 'pending';
+  status: SottocheckJobStatus;
   startedAt: string;
   completedAt: string | null;
   document_name?: string;
@@ -95,20 +95,6 @@ interface Job {
     method: string;
   };
 }
-
-const STATUS_MAP: Record<string, StatusType> = {
-  completed: 'completed',
-  running: 'in-progress',
-  failed: 'error',
-  pending: 'pending',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  completed: 'Completato',
-  running: 'In corso',
-  failed: 'Fallito',
-  pending: 'In attesa',
-};
 
 const formatDateTimeIT = (dateTime?: string): string => {
   if (!dateTime) return '—';
@@ -953,7 +939,7 @@ export function LavorazioniSottocheckPage() {
                         </CellTextPrimary>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                        <SottocheckJobStatusBadge status={job.status} />
                       </TableCell>
                       <TableCell><CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary></TableCell>
                       <TableCell><CellTextPrimary>{job.completedAt ? formatDateTimeIT(job.completedAt) : '-'}</CellTextPrimary></TableCell>
@@ -1023,7 +1009,7 @@ export function LavorazioniSottocheckPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                      <SottocheckJobStatusBadge status={job.status} />
                       <TableActions actions={getTableActions(job)} />
                     </div>
                   </ResponsiveMobileCardHeader>
@@ -1096,8 +1082,6 @@ export function LavorazioniSottocheckPage() {
         getLavorazioneLabel={getLavorazioneLabel}
         formatDateTimeIT={formatDateTimeIT}
         formatNumber={formatNumber}
-        statusMap={STATUS_MAP}
-        statusLabels={STATUS_LABELS}
         onOpenProfile={handleOpenProfileFromDetail}
       />
 
