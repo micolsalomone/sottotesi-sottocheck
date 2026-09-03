@@ -106,7 +106,7 @@ const mockServices: Service[] = [
   },
   {
     id: 'SRV-004',
-    name: 'Sottocheck',
+    name: 'TesiCheck',
     category: 'Check plagio/AI',
     description: 'Verifica automatica plagio e contenuto AI generato - Prezzo in base al numero di pagine',
     targetUser: 'graduating',
@@ -483,7 +483,7 @@ export function CatalogoServiziPage() {
                   <TableCell><CellTextPrimary>{service.category}</CellTextPrimary></TableCell>
                   <TableCell><CellTextPrimary>{getTargetLabel(service.targetUser)}</CellTextPrimary></TableCell>
                   <TableCell>{getStatusBadge(service.status)}</TableCell>
-                  <TableCell><CellTextPrimary>{service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary></TableCell>
+                  <TableCell><CellTextPrimary>{service.name === 'TesiCheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary></TableCell>
                   <TableCell>
                     {editingPriceId === service.id ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -528,7 +528,7 @@ export function CatalogoServiziPage() {
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <CellTextSecondary>{getTargetLabel(service.targetUser)}</CellTextSecondary>
                     <span style={{ color: 'var(--muted-foreground)' }}>•</span>
-                    <CellTextPrimary>{service.name === 'Sottocheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary>
+                    <CellTextPrimary>{service.name === 'TesiCheck' ? 'Non applicabile' : formatDuration(service.durationMinutes)}</CellTextPrimary>
                   </div>
                   <div style={{ marginTop: '0.5rem' }}><CellTextPrimary>{formatPrice(service)}</CellTextPrimary></div>
                 </ResponsiveMobileCardSection>
@@ -779,7 +779,7 @@ export function CatalogoServiziPage() {
                       fontSize: 'var(--text-base)',
                       color: 'var(--foreground)'
                     }}>
-                      {selectedService.name === 'Sottocheck' ? 'Non applicabile' : `${formatDuration(selectedService.durationMinutes)} (${selectedService.durationMinutes} minuti)`}
+                      {selectedService.name === 'TesiCheck' ? 'Non applicabile' : `${formatDuration(selectedService.durationMinutes)} (${selectedService.durationMinutes} minuti)`}
                     </div>
                   </div>
 

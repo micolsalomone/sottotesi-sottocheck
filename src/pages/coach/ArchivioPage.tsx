@@ -39,7 +39,7 @@ function formatDate(dateString: string) {
 
 function downloadReport(check: HistoryItem) {
   const reportLines = [
-    'Report Sottocheck',
+    'Report TesiCheck',
     `ID controllo: ${check.id}`,
     `Documento: ${check.documentName}`,
     `Pagine analizzate: ${check.pagesSelected}`,
@@ -51,7 +51,7 @@ function downloadReport(check: HistoryItem) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `report-sottocheck-${check.id}.txt`;
+  link.download = `report-tesicheck-${check.id}.txt`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -69,7 +69,7 @@ export function ArchivioPage() {
             color: 'var(--foreground)',
           }}
         >
-          Storico Sottocheck
+          Storico TesiCheck
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"

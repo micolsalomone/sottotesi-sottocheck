@@ -56,7 +56,7 @@ export function SottocheckPage() {
               color: 'var(--foreground)',
             }}
           >
-            Sottocheck – Verifica plagio
+            TesiCheck – Verifica plagio
           </h1>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -112,7 +112,7 @@ export function SottocheckPage() {
               description="Il report di verifica plagio è pronto."
               primaryActionLabel="Visualizza il report"
               onPrimaryAction={() => navigate(`${getViewBasePath(location.pathname)}/output-preview`)}
-              secondaryActionLabel="Vai allo storico Sottocheck"
+              secondaryActionLabel="Vai allo storico TesiCheck"
               onSecondaryAction={() => navigate(historyPath)}
               footerNote="Il report resta disponibile nel tuo storico utente."
             />
@@ -134,7 +134,7 @@ export function SottocheckPage() {
             color: 'var(--foreground)',
           }}
         >
-          Sottocheck – Verifica plagio
+          TesiCheck – Verifica plagio
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"

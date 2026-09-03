@@ -20,7 +20,7 @@ export function SottocheckOutputPreviewPage() {
       }}
     >
       <iframe
-        title="Sottocheck Output Preview"
+        title="TesiCheck Output Preview"
         src={previewSrc}
         style={{
           width: '100%',

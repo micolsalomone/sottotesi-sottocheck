@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
     path: '/public-view',
   },
   {
-    label: 'Sottocheck',
+    label: 'TesiCheck',
     icon: <ClipboardCheck size={20} />,
     path: '/public-view/sottocheck',
   },

@@ -135,7 +135,7 @@ export function PublicOutputPreviewPage() {
           }}
         >
           <iframe
-            title="Sottocheck Output Preview"
+            title="TesiCheck Output Preview"
             src={previewSrc}
             style={{
               width: '100%',
@@ -362,7 +362,7 @@ export function PublicOutputPreviewPage() {
                 Sottotesi.it
               </a>
               <a
-                href="mailto:info@sottotesi.it?subject=Richiesta%20supporto%20report%20Sottocheck&body=Ciao%2C%20vorrei%20ricevere%20supporto%20sul%20report%20Sottocheck."
+                href="mailto:info@sottotesi.it?subject=Richiesta%20supporto%20report%20TesiCheck&body=Ciao%2C%20vorrei%20ricevere%20supporto%20sul%20report%20TesiCheck."
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -393,7 +393,7 @@ export function PublicOutputPreviewPage() {
       }}
     >
       <iframe
-        title="Sottocheck Output Preview"
+        title="TesiCheck Output Preview"
         src={previewSrc}
         style={{
           width: '100%',

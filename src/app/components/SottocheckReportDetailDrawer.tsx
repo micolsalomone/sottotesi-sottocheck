@@ -306,7 +306,7 @@ export function SottocheckReportDetailDrawer({
               </div>
             </div>
             <div style={{ marginTop: '0.5rem', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)', lineHeight: '1.5' }}>
-              Dati ottenuti dal payload API del report Sottocheck.
+              Dati ottenuti dal payload API del report TesiCheck.
             </div>
           </div>
 

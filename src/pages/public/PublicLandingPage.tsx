@@ -511,7 +511,7 @@ export function PublicLandingPage() {
                 </a>
 
                 <a
-                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20Sottocheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
+                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20TesiCheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
                   className="inline-flex items-center gap-2 px-[16px] py-[11px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
                   style={{
                     borderRadius: 'var(--radius)',

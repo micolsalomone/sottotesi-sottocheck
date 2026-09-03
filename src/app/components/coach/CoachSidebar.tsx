@@ -19,7 +19,7 @@ const navItems: NavItem[] = [
     path: '/coach-view/studenti',
   },
   {
-    label: 'Sottocheck',
+    label: 'TesiCheck',
     icon: <ClipboardCheck size={20} />,
     path: '/coach-view/sottocheck',
   },

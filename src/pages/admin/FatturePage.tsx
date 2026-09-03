@@ -257,7 +257,7 @@ export function FatturePage() {
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Pagamenti e fatture</h1>
-        <p className="page-subtitle">Transazioni Sottocheck — stato pagamenti e fatture generate</p>
+        <p className="page-subtitle">Transazioni TesiCheck — stato pagamenti e fatture generate</p>
       </div>
 
       {/* Stats cards — pattern NORMALIZZAZIONE.md */}

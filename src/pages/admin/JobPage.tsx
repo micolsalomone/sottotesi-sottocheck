@@ -525,7 +525,7 @@ export function JobPage() {
   return (
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
-        <h1 className="page-title">Sottocheck Coaching</h1>
+        <h1 className="page-title">TesiCheck Coaching</h1>
         <p className="page-subtitle">Controlli Check Plagio/AI avviati dai coach durante i piani coaching</p>
       </div>
 

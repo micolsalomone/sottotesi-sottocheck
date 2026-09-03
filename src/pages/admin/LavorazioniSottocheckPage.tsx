@@ -753,7 +753,7 @@ export function LavorazioniSottocheckPage() {
   return (
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
-        <h1 className="page-title">Lavorazioni Sottocheck</h1>
+        <h1 className="page-title">Lavorazioni TesiCheck</h1>
         <p className="page-subtitle">Check Plagio/AI avviati dagli admin, con riferimento opzionale alla lavorazione</p>
       </div>
 

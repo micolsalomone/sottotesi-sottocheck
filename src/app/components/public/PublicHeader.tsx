@@ -25,7 +25,7 @@ export function PublicHeader({ sidebarCollapsed }: PublicHeaderProps) {
         <div className="admin-user">
           <span className="admin-username">utente public</span>
           <UserTopbarMenu
-            displayName="Cliente Sottocheck"
+            displayName="Cliente TesiCheck"
             profilePath="/public-view/profilo"
             logoutPath="/"
           />
