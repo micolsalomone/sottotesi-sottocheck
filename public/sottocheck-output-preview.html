@@ -386,6 +386,8 @@ Gruppo X
             var backLink = document.getElementById('sc-back');
             var jobAuthor = document.querySelector('.sc-job-author');
             var roleBadge = document.querySelector('.sc-role-badge');
+            var jobTitle = document.querySelector('.sc-job-title');
+            var jobDate = document.querySelector('.sc-job-date');
             var sourceButtons = document.querySelectorAll('.sc-source-item-btn');
             var detailTitle = document.getElementById('sc-detail-title');
             var detailLink = document.getElementById('sc-detail-link');
@@ -519,7 +521,7 @@ Gruppo X
                 reportHeight();
             }
 
-            if (previewMode === 'public-landing') {
+            if (previewMode === 'public-landing' || previewMode === 'authenticated-public') {
                 if (backLink && backLink.parentElement) {
                     backLink.parentElement.remove();
                 }
@@ -529,7 +531,20 @@ Gruppo X
                 if (roleBadge) {
                     roleBadge.remove();
                 }
-                document.body.classList.add('sc-public-landing-preview');
+                if (previewMode === 'public-landing') {
+                    document.body.classList.add('sc-public-landing-preview');
+                }
+            }
+
+            if (previewMode === 'authenticated-public') {
+                var documentName = searchParams.get('documentName');
+                var completedAt = searchParams.get('completedAt');
+                if (documentName && jobTitle) {
+                    jobTitle.textContent = documentName;
+                }
+                if (completedAt && jobDate) {
+                    jobDate.textContent = 'Completato il ' + completedAt;
+                }
             }
 
             // Back navigation via parent shell when embedded, fallback to current window when standalone

@@ -20,16 +20,28 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import {
+  clearPrecheckSession,
+  createTemporaryDocumentRef,
+  getPrecheckSession,
+  savePrecheckSession,
+  setPrecheckFlowStage,
+  type TesiCheckPrecheckSession,
+} from '@/app/data/tesicheckPrecheckSession';
+
+const DEMO_CHARACTER_COUNT = 28500;
+const DEMO_PRICE = 14.9;
 
 export function PublicLandingPage() {
   const navigate = useNavigate();
-  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
-  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(() => getPrecheckSession()?.document ?? null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>(() => getPrecheckSession()?.validationState ?? 'idle');
+  const [precheckSession, setPrecheckSession] = useState<TesiCheckPrecheckSession | null>(() => getPrecheckSession());
   const [isPriceCalculating, setIsPriceCalculating] = useState(false);
   const pricingTimerRef = useRef<number | null>(null);
-  const canProceedToPayment = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
-  const isPricingUpdated = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
+  const canProceedToPayment = !!precheckSession && !isPriceCalculating;
+  const isPricingUpdated = !!precheckSession && !isPriceCalculating;
+  const isCheckoutInProgress = !!precheckSession && precheckSession.flowStage !== 'quote_ready';
 
   const clearPricingTimer = () => {
     if (pricingTimerRef.current) {
@@ -38,10 +50,21 @@ export function PublicLandingPage() {
     }
   };
 
-  const runPriceCalculationLoader = () => {
+  const runPriceCalculationLoader = (document: UploadedDocument, temporaryDocumentRef: string) => {
     clearPricingTimer();
     setIsPriceCalculating(true);
     pricingTimerRef.current = window.setTimeout(() => {
+      const nextSession: TesiCheckPrecheckSession = {
+        document,
+        temporaryDocumentRef,
+        validationState: 'valid',
+        characterCount: DEMO_CHARACTER_COUNT,
+        price: DEMO_PRICE,
+        flowStage: 'quote_ready',
+        claim: { status: 'guest' },
+      };
+      savePrecheckSession(nextSession);
+      setPrecheckSession(nextSession);
       setIsPriceCalculating(false);
       pricingTimerRef.current = null;
     }, 700);
@@ -49,30 +72,34 @@ export function PublicLandingPage() {
 
   const handleUploadStatusChange = (status: 'idle' | 'valid' | 'invalid') => {
     setUploadStatus(status);
+  };
+
+  const handleUploadedDocument = (document: UploadedDocument, status: 'idle' | 'valid' | 'invalid') => {
+    setUploadedDocument(document);
+    clearPrecheckSession();
+    setPrecheckSession(null);
     if (status === 'valid') {
-      runPriceCalculationLoader();
+      runPriceCalculationLoader(document, createTemporaryDocumentRef());
       return;
     }
     clearPricingTimer();
     setIsPriceCalculating(false);
   };
 
-  const handleUploadedDocument = (document: UploadedDocument) => {
-    setUploadedDocument(document);
-  };
-
   const handleFileCleared = () => {
     setUploadedDocument(null);
+    setPrecheckSession(null);
+    clearPrecheckSession();
     clearPricingTimer();
     setIsPriceCalculating(false);
   };
 
   const handlePayment = () => {
-    if (!canProceedToPayment || isPaymentProcessing) return;
-    setIsPaymentProcessing(true);
-    setTimeout(() => {
-      navigate('/public/success');
-    }, 900);
+    if (!canProceedToPayment) return;
+    const checkoutSession = setPrecheckFlowStage('checkout_account');
+    if (!checkoutSession) return;
+    setPrecheckSession(checkoutSession);
+    navigate('/public/account');
   };
 
   return (
@@ -390,63 +417,72 @@ export function PublicLandingPage() {
               </p>
             </div>
 
-            <SottocheckUploadForm
-              onFileSelected={handleUploadedDocument}
-              onStatusChange={handleUploadStatusChange}
-              onFileCleared={handleFileCleared}
-              disabled={false}
-            />
-
-            <div
-              className="border border-[var(--border)] bg-[var(--background)] p-4"
-              style={{
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--elevation-sm)',
-              }}
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-[760px] space-y-4">
-                  <SottocheckPricingPreview isUpdated={isPricingUpdated} isLoading={isPriceCalculating} />
-                  {isPricingUpdated && (
-                    <p
-                      className="text-[var(--primary)]"
-                      style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: 'var(--font-weight-medium)',
-                      }}
-                    >
-                      Prezzo aggiornato in base al documento caricato.
-                    </p>
-                  )}
-                </div>
-
-                <SottocheckActionButton
-                  type="button"
-                  onClick={handlePayment}
-                  disabled={!canProceedToPayment}
-                  loading={isPaymentProcessing}
-                  icon={<CreditCard className="w-4 h-4" />}
-                  className="lg:mt-0"
-                >
-                  {isPaymentProcessing ? 'Elaborazione...' : 'Procedi al pagamento'}
+            {isCheckoutInProgress ? (
+              <div className="border border-[var(--border)] bg-[var(--background)] p-5" style={{ borderRadius: 'var(--radius)' }}>
+                <p className="uppercase tracking-[0.08em] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
+                  Hai un TesiCheck in corso
+                </p>
+                <p className="mt-3" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                  {precheckSession.document.name}
+                </p>
+                <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
+                  {precheckSession.characterCount.toLocaleString('it-IT')} caratteri · EUR {precheckSession.price.toFixed(2)}
+                </p>
+                <SottocheckActionButton className="mt-5" onClick={() => navigate('/public/account')} icon={<ArrowRight className="h-4 w-4" />}>
+                  Riprendi il checkout
                 </SottocheckActionButton>
               </div>
-            </div>
+            ) : (
+              <>
+                <SottocheckUploadForm
+                  onFileSelected={handleUploadedDocument}
+                  onStatusChange={handleUploadStatusChange}
+                  onFileCleared={handleFileCleared}
+                  disabled={false}
+                />
 
-            {uploadedDocument && uploadStatus === 'valid' && (
-              <div className="border-t border-[var(--border)] pt-6" style={{ marginTop: '24px' }}>
-                <p
-                  className="max-w-[600px] text-[var(--muted-foreground)]"
+                <div
+                  className="border border-[var(--border)] bg-[var(--background)] p-4"
                   style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)'
+                    borderRadius: 'var(--radius)',
+                    boxShadow: 'var(--elevation-sm)',
                   }}
                 >
-                  Il documento e pronto. Il box prezzo qui sopra è stato aggiornato e il pagamento è disponibile.
-                </p>
-              </div>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-[760px] space-y-4">
+                      <SottocheckPricingPreview
+                        isUpdated={isPricingUpdated}
+                        isLoading={isPriceCalculating}
+                        characterCount={precheckSession?.characterCount}
+                        price={precheckSession?.price}
+                      />
+                      {isPricingUpdated && (
+                        <p className="text-[var(--primary)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                          Prezzo aggiornato in base al documento caricato.
+                        </p>
+                      )}
+                    </div>
+
+                    <SottocheckActionButton
+                      type="button"
+                      onClick={handlePayment}
+                      disabled={!canProceedToPayment}
+                      icon={<CreditCard className="w-4 h-4" />}
+                      className="lg:mt-0"
+                    >
+                      Procedi al pagamento
+                    </SottocheckActionButton>
+                  </div>
+                </div>
+
+                {uploadedDocument && uploadStatus === 'valid' && (
+                  <div className="border-t border-[var(--border)] pt-6" style={{ marginTop: '24px' }}>
+                    <p className="max-w-[600px] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)' }}>
+                      Il documento e pronto. Il box prezzo qui sopra è stato aggiornato e il pagamento è disponibile.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

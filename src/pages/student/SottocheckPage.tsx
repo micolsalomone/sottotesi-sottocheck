@@ -27,7 +27,6 @@ export function SottocheckPage() {
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
 
   const historyPath = `${getViewBasePath(location.pathname)}/history`;
-
   const handlePayment = async () => {
     setPaymentStatus('processing');
 

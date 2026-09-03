@@ -39,11 +39,15 @@ import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPa
 import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
 import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage';
 import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
+import { PublicAccountGatePage } from '@/pages/public/PublicAccountGatePage';
+import { PublicReportPage } from '@/pages/public/PublicReportPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
+import { StudentPaidSottocheckPage } from '@/pages/student/StudentPaidSottocheckPage';
+import { StudentReportPage } from '@/pages/student/StudentReportPage';
 
 export const router = createBrowserRouter([
   // Public non-authenticated landing page
@@ -54,6 +58,10 @@ export const router = createBrowserRouter([
   {
     path: '/public/sottocheck',
     Component: StudentSottocheckPage,
+  },
+  {
+    path: '/public/account',
+    Component: PublicAccountGatePage,
   },
   {
     path: '/public/history',
@@ -130,7 +138,8 @@ export const router = createBrowserRouter([
         },
         Component: StudentTimelinePageView,
       },
-      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'sottocheck', Component: StudentPaidSottocheckPage },
+      { path: 'report/:checkId', Component: StudentReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'archivio', Component: ArchivioPage },
@@ -145,6 +154,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: PublicDashboardPage },
       { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'report/:checkId', Component: PublicReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', Component: StudentHistoryPage },
       { path: 'profilo', Component: StudentProfilePage },

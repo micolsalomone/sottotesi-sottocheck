@@ -9,6 +9,8 @@ import {
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 export interface UploadedDocument {
   name: string;
   size: number;
@@ -16,7 +18,7 @@ export interface UploadedDocument {
 }
 
 interface SottocheckUploadFormProps {
-  onFileSelected: (document: UploadedDocument) => void;
+  onFileSelected: (document: UploadedDocument, status: DocumentStatus) => void;
   onStatusChange: (status: DocumentStatus) => void;
   onFileCleared?: () => void;
   disabled?: boolean;
@@ -32,6 +34,7 @@ export function SottocheckUploadForm({
 }: SottocheckUploadFormProps) {
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
+  const [validationError, setValidationError] = useState<'format' | 'size' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -64,7 +67,9 @@ export function SottocheckUploadForm({
   const processFile = (file: File) => {
     const validFormats = ['pdf', 'docx'];
     const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    const isValid = validFormats.includes(extension);
+    const hasValidFormat = validFormats.includes(extension);
+    const exceedsMaxSize = file.size > MAX_FILE_SIZE_BYTES;
+    const isValid = hasValidFormat && !exceedsMaxSize;
 
     const uploadedDoc: UploadedDocument = {
       name: file.name,
@@ -75,13 +80,15 @@ export function SottocheckUploadForm({
     setDocument(uploadedDoc);
     const status = isValid ? 'valid' : 'invalid';
     setDocumentStatus(status);
+    setValidationError(isValid ? null : !hasValidFormat ? 'format' : 'size');
     onStatusChange(status);
-    onFileSelected(uploadedDoc);
+    onFileSelected(uploadedDoc, status);
   };
 
   const handleReset = () => {
     setDocument(null);
     setDocumentStatus('idle');
+    setValidationError(null);
     onStatusChange('idle');
     onFileCleared?.();
   };
@@ -256,9 +263,7 @@ export function SottocheckUploadForm({
                       fontSize: 'var(--text-label)',
                       fontWeight: 'var(--font-weight-medium)',
                     }}
-                  >
-                    Formato non valido
-                  </p>
+                    >{validationError === 'format' ? 'Formato non valido' : 'File troppo grande'}</p>
                   <p
                     className="mt-1 text-[var(--muted-foreground)]"
                     style={{
@@ -266,9 +271,11 @@ export function SottocheckUploadForm({
                       fontSize: 'var(--text-label)',
                       fontWeight: 'var(--font-weight-regular)',
                     }}
-                  >
-                    Il file caricato non è in un formato supportato. Carica un file PDF o DOCX.
-                  </p>
+                    >
+                      {validationError === 'format'
+                        ? 'Il file caricato non è in un formato supportato. Carica un file PDF o DOCX.'
+                        : 'Il file supera la dimensione massima di 50 MB. Carica un file più piccolo.'}
+                    </p>
                 </div>
               </div>
             </div>

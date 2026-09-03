@@ -4,9 +4,20 @@ interface SottocheckPricingPreviewProps {
   className?: string;
   isUpdated?: boolean;
   isLoading?: boolean;
+  characterCount?: number | null;
+  price?: number | null;
 }
 
-export function SottocheckPricingPreview({ className, isUpdated = false, isLoading = false }: SottocheckPricingPreviewProps) {
+export function SottocheckPricingPreview({
+  className,
+  isUpdated = false,
+  isLoading = false,
+  characterCount,
+  price,
+}: SottocheckPricingPreviewProps) {
+  const hasPrice = characterCount !== null && characterCount !== undefined && price !== null && price !== undefined;
+  const isReady = isUpdated || hasPrice;
+
   return (
     <div className={className}>
       <div
@@ -38,7 +49,7 @@ export function SottocheckPricingPreview({ className, isUpdated = false, isLoadi
               color: 'var(--foreground)',
             }}
           >
-            {isLoading ? 'Calcolo in corso...' : isUpdated ? '28.500 caratteri' : 'Calcolo automatico'}
+            {isLoading ? 'Calcolo in corso...' : isReady ? `${characterCount?.toLocaleString('it-IT') ?? '28.500'} caratteri` : 'Calcolo automatico'}
           </p>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -53,11 +64,11 @@ export function SottocheckPricingPreview({ className, isUpdated = false, isLoadi
         </div>
 
         <div
-          className={`border bg-[var(--background)] p-3 transition-all duration-300 ${isUpdated ? 'animate-[pulse_1.1s_ease-in-out_1]' : ''}`}
+          className={`border bg-[var(--background)] p-3 transition-all duration-300 ${isReady ? 'animate-[pulse_1.1s_ease-in-out_1]' : ''}`}
           style={{
             borderRadius: 'var(--radius)',
-            borderColor: isUpdated ? 'var(--primary)' : 'var(--border)',
-            boxShadow: isUpdated ? '0 0 0 2px var(--selected-row-bg)' : 'none',
+            borderColor: isReady ? 'var(--primary)' : 'var(--border)',
+            boxShadow: isReady ? '0 0 0 2px var(--selected-row-bg)' : 'none',
           }}
         >
           <p
@@ -78,7 +89,7 @@ export function SottocheckPricingPreview({ className, isUpdated = false, isLoadi
               fontFamily: 'var(--font-alegreya)',
               fontSize: 'var(--text-h3)',
               fontWeight: 'var(--font-weight-medium)',
-              color: isUpdated ? 'var(--foreground)' : 'var(--muted-foreground)',
+              color: isReady ? 'var(--foreground)' : 'var(--muted-foreground)',
             }}
           >
             {isLoading ? (
@@ -86,7 +97,7 @@ export function SottocheckPricingPreview({ className, isUpdated = false, isLoadi
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Calcolo in corso...
               </span>
-            ) : isUpdated ? 'EUR 14.90' : 'Il prezzo sara mostrato qui'}
+            ) : isReady ? `EUR ${(price ?? 14.9).toFixed(2)}` : 'Il prezzo sara mostrato qui'}
           </p>
         </div>
       </div>

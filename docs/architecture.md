@@ -124,13 +124,15 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/student-view` | Student | StudentLayout | Dashboard student dedicata — solo URL diretto |
 | `/student-view/studenti` | Student | StudentLayout | Studenti vista student (riuso pagine coach) |
 | `/student-view/studenti/:studentId` | Student | StudentLayout | Timeline studente (riuso pagine coach) |
-| `/student-view/sottocheck` | Student | StudentLayout | Sottocheck vista student (riuso pagine coach) |
+| `/student-view/sottocheck` | Student | StudentLayout | TesiCheck self-service a pagamento |
+| `/student-view/report/:checkId` | Student | StudentLayout | Report TesiCheck autenticato |
 | `/student-view/history` | Student | StudentLayout | Cronologia vista student |
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
 | `/student-view/profilo` | Student | StudentLayout | Profilo student |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
 | `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck |
 | `/public-view/sottocheck` | Public | PublicLayout | Sottocheck vista public |
+| `/public-view/report/:checkId` | Public | PublicLayout | Report TesiCheck autenticato |
 | `/public-view/history` | Public | PublicLayout | Storico Sottocheck vista public |
 | `/public-view/profilo` | Public | PublicLayout | Profilo public |
 | `/public-view/*` | Public | PublicLayout | NotFound public |
