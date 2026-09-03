@@ -41,11 +41,17 @@ Path-bound Coach TesiCheck only:
 - **Qualitative-only Coach credit UI** — no remaining / total / cumulative-used
   numbers anywhere in the Coach view.
 
+- **Coach History / Storico wired to the persistent store** —
+  `src/pages/coach/CoachHistoryPage.tsx` reads `coach-tesicheck-checks-v1`
+  filtered by the Coach owner id, renders the path-bound coaching context
+  (Student, Percorso, per-check `creditsUsed`), derives `Completato` / `Scaduto`
+  from `expiresAt` at render time, and opens the role-specific Coach report.
+  Mounted at `/coach-view/history` and `/coach-view/archivio`.
+
 ### NOT implemented (still)
 
-- Coach `Check libero` (paid, no path) — no type branch, no UI, no route.
-- Coach History / Storico — `src/pages/coach/ArchivioPage.tsx` still renders its
-  2-item `mockHistory` and is **not** connected to `coach-tesicheck-checks-v1`.
+- Coach `Check libero` (paid, no path) — no type branch, no UI, no route; Coach
+  History therefore only ever lists `binding.mode === 'coaching_path'` records.
 - Real entitlement/quota — the availability gate is mock (see §4).
 - Coach payment gateway — out of scope; path-bound mode has no payment.
 
@@ -196,11 +202,13 @@ globals. Same runtime behaviour.
 
 ## 7. Known limitations
 
-- **Coach History still mock/disconnected** — `ArchivioPage.tsx` renders
-  `mockHistory` (`{id, documentName, pagesSelected, status, createdAt}`), not the
-  persistent store. Mounted at both `/coach-view/history` and
-  `/coach-view/archivio` (and, separately, `/student-view/archivio` — a known
-  smell, out of scope).
+- **Coach History reads the persistent store** — `CoachHistoryPage.tsx` at
+  `/coach-view/history` + `/coach-view/archivio`. `ArchivioPage.tsx` (the old
+  `mockHistory` component) is no longer mounted in the Coach shell; it still
+  serves `/student-view/archivio`, which is a **different domain** (coaching
+  documents exchanged between Student and Coach) and was left untouched. The
+  read is a plain page-level call to `getCoachPersistentChecksForOwner` — no
+  `useMemo`, no storage subscription (prototype `localStorage`).
 - **`Check libero` absent** — no type branch, UI, route, or payment. The model is
   shaped so a discriminated `binding.mode` branch can be added later without
   nullable-field sprawl.
@@ -221,12 +229,14 @@ globals. Same runtime behaviour.
 
 ## 8. Next work
 
-- **Coach History** should read `coach-tesicheck-checks-v1` (a read-only
-  owner-filtered accessor, mirroring `getPersistentTesiChecksForOwner`), render
-  per canonical §19.1 (document, Student, path, `creditsUsed` for this check,
-  completed date, explicit expiry, availability, `Apri report` →
-  `/coach-view/report/:id`), and adopt `getFileTypeFromName` for the document
-  icon. Never show remaining credits. Must **not** reuse
+- **Coach History** — done. `getCoachPersistentChecksForOwner(coachId)` in
+  `tesicheckCoachCheck.ts` (read-only, runtime-guarded, exact `owner.id`, newest
+  `completedAt` first, no expiry mutation) feeds `CoachHistoryPage.tsx`, which
+  renders per canonical §19.1 (document + `getFileTypeFromName` icon, Student,
+  Percorso, per-check `creditsUsed`, `Completato il`, explicit expiry,
+  `Completato` / `Scaduto` via `SottocheckHistoryStatusBadge`, `Apri report` →
+  `/coach-view/report/:id` only while available). No remaining / total /
+  cumulative credits anywhere. Reuses `coach-tesicheck-checks-v1`, never
   `public-tesicheck-checks-v1`.
 - **`Check libero`** — a later separate slice: discriminated
   `binding.mode = 'check_libero'` (price paid, no Student/path), paid checkout

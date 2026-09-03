@@ -89,6 +89,20 @@ export function getCoachPersistentCheck(checkId: string): CoachPathBoundCheck | 
 }
 
 /**
+ * Read-only, owner-filtered list for the Coach Storico TesiCheck.
+ *
+ * Mirrors `getPersistentTesiChecksForOwner` on the consumer side: validates each
+ * record through the runtime guard, keeps only exact `owner.id` matches, and
+ * sorts newest `completedAt` first. Does not mutate anything on expiry — the
+ * History derives availability at render time from `expiresAt`.
+ */
+export function getCoachPersistentChecksForOwner(coachId: string): CoachPathBoundCheck[] {
+  return getStoredChecks()
+    .filter((item) => isCoachPathBoundCheck(item) && item.owner?.id === coachId)
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+}
+
+/**
  * Materialize one path-bound Coach check. Idempotent: a record already written
  * for the same `sourceExecutionReference` is returned instead of a duplicate, so
  * a StrictMode double-invoke or a retry never double-creates.

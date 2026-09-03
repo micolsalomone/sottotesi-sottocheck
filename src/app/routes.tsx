@@ -32,6 +32,7 @@ import { StudentiPage as CoachStudentiPage } from '../pages/coach/StudentiPage';
 import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
 import { CoachReportPage } from '../pages/coach/CoachReportPage';
+import { CoachHistoryPage } from '../pages/coach/CoachHistoryPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
 import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
@@ -117,8 +118,8 @@ export const router = createBrowserRouter([
       { path: 'sottocheck', Component: SottocheckPage },
       { path: 'report/:checkId', Component: CoachReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
-      { path: 'history', Component: ArchivioPage },
-      { path: 'archivio', Component: ArchivioPage },
+      { path: 'history', Component: CoachHistoryPage },
+      { path: 'archivio', Component: CoachHistoryPage },
       { path: 'profilo', Component: CoachProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
