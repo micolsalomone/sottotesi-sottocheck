@@ -6,6 +6,7 @@ import { SottocheckActionButton } from '@/app/components/SottocheckActionButton'
 import { getPersistentTesiChecksForOwner } from '@/app/data/tesicheckPersistentCheck';
 import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
 import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
+import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
 
 /**
  * Consumer TesiCheck History / Storico.
@@ -110,6 +111,10 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
         <div className="flex flex-col gap-4">
           {checks.map((check) => {
             const isExpired = new Date(check.expiresAt).getTime() <= now;
+            // Document identity visual: format-driven icon + colour from the shared
+            // presentation-only utility (PDF red, DOC/DOCX blue, else muted).
+            const fileInfo = getFileTypeFromName(check.document.name);
+            const DocumentIcon = fileInfo.icon;
             return (
               <div
                 key={check.id}
@@ -122,7 +127,7 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
                       className="w-11 h-11 shrink-0 flex items-center justify-center bg-[var(--muted)]"
                       style={{ borderRadius: 'var(--radius)' }}
                     >
-                      <FileText className="w-5 h-5 text-[var(--muted-foreground)]" />
+                      <DocumentIcon className={`w-5 h-5 ${fileInfo.color}`} />
                     </div>
 
                     <div className="min-w-0">
