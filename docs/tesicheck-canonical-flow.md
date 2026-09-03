@@ -209,6 +209,86 @@ La schermata account non deve essere un semplice gate con due bottoni.
 
 È direttamente il **form di autenticazione del checkout**, con il riepilogo TesiCheck sempre visibile.
 
+### Riepilogo TesiCheck persistente durante il checkout
+
+Durante tutto il funnel di acquisto il riepilogo resta il punto fermo della pagina.
+
+Deve essere visibile durante:
+
+```text
+login
+→ registrazione
+→ verifica email
+→ eventuali dati strettamente necessari
+→ pagamento
+→ redirecting
+```
+
+Il riepilogo non va chiamato “riepilogo pagamento” durante gli step precedenti al gateway.
+
+Preferire:
+
+- `Riepilogo TesiCheck`
+- oppure `Riepilogo ordine`
+
+Contenuto minimo stabile:
+
+- nome documento;
+- character count;
+- totale.
+
+La sidebar non deve cambiare responsabilità a ogni step: rappresenta sempre l'acquisto corrente.
+
+#### Desktop
+
+Pattern consigliato:
+
+```text
+┌──────────────────────────────────┬───────────────────────┐
+│ step corrente                    │ Riepilogo TesiCheck   │
+│                                  │                       │
+│ login / registration / verify    │ Documento.pdf         │
+│ / payment                        │ 28.500 caratteri      │
+│                                  │                       │
+│ azione principale                │ Totale        €14,90  │
+└──────────────────────────────────┴───────────────────────┘
+```
+
+Il riepilogo può essere sticky se compatibile con il layout.
+
+#### Mobile
+
+Non mantenere due colonne.
+
+Usare un riepilogo compatto stacked, eventualmente collassabile:
+
+```text
+Riepilogo TesiCheck · €14,90
+[Mostra dettagli]
+```
+
+#### Regola di scope
+
+Il checkout non deve diventare onboarding.
+
+Raccogliere qui solo dati necessari a:
+
+- autenticazione;
+- ownership;
+- verifica email;
+- pagamento;
+- fatturazione, se realmente richiesta.
+
+Non raccogliere durante il checkout dati di profilo non necessari all'acquisto, per esempio:
+
+- università;
+- corso di laurea;
+- interessi;
+- preferenze;
+- dati di onboarding non indispensabili.
+
+Questi appartengono al Profilo o a momenti successivi.
+
 #### Login
 
 La colonna principale mostra almeno:
@@ -259,6 +339,40 @@ Accedi
 ```
 
 Il riepilogo TesiCheck rimane invariato.
+
+#### Verifica email
+
+Per una nuova registrazione, l'email deve essere verificata prima del pagamento.
+
+La verifica avviene nello stesso checkout e mantiene il riepilogo visibile.
+
+Esempio:
+
+```text
+Verifica la tua email
+
+Abbiamo inviato un codice a
+utente@example.com
+
+[ _ _ _ _ _ _ ]
+
+[ Conferma email ]
+```
+
+Dopo verifica riuscita:
+
+```text
+account verified
+→ payment
+```
+
+Non introdurre una pagina autonoma “Account confermato”.
+
+Regola:
+
+> `payment_enabled = authenticated account + verified email`
+
+Nel prototipo invio e conferma possono essere simulati, ma il comportamento UX deve rappresentare il flow production.
 
 #### Utente già autenticato
 
@@ -1238,7 +1352,11 @@ Nei contesti coaching:
 - Account obbligatorio prima del pagamento.
 - L'autenticazione è uno step del checkout, non l'ingresso anticipato nella dashboard.
 - Login e registrazione avvengono direttamente dentro il checkout, con form dedicati e riepilogo ordine persistente.
+- Il riepilogo TesiCheck resta visibile durante login, registrazione, verifica email, payment e redirecting.
+- In desktop il riepilogo può essere sticky; in mobile diventa stacked/compatto.
 - `Crea account` cambia modalità nella stessa esperienza checkout; non manda l'utente fuori dal flow.
+- La nuova registrazione richiede verifica email prima di abilitare il pagamento.
+- Il checkout raccoglie solo dati necessari a account/ownership/payment/fatturazione, non onboarding/profile data non indispensabili.
 - Se l'utente è già autenticato, lo step account viene saltato.
 - Il riepilogo ordine resta visibile durante account → payment → redirect.
 - Nessun report guest.

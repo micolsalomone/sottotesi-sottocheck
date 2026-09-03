@@ -2,8 +2,7 @@ import { Download, Mail } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { getPersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
-
-const CURRENT_PUBLIC_ACCOUNT_ID = 'public-account-demo';
+import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('it-IT', {
@@ -21,7 +20,7 @@ export function PublicReportPage() {
   const expiresAt = check ? new Date(check.expiresAt) : null;
   const isValidCheck = check
     && check.owner.context === 'standalone'
-    && check.owner.id === CURRENT_PUBLIC_ACCOUNT_ID
+    && check.owner.id === DEMO_ACCOUNT_ID
     && check.status === 'completed'
     && check.report.availability === 'available'
     && completedAt

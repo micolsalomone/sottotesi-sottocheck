@@ -137,6 +137,8 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/public-view/profilo` | Public | PublicLayout | Profilo public |
 | `/public-view/*` | Public | PublicLayout | NotFound public |
 | `/public` | Public Landing | Standalone | Landing pubblica non loggata |
-| `/public/sottocheck` | Public Landing | Standalone | Flusso check pubblico |
+| `/public/account` | Public Landing | Standalone | Checkout standalone: stage `checkout_account` (login/registrazione) → `checkout_verify_email` (verifica OTP) → `checkout_payment` → `redirecting` → `payment_success` |
+| `/public/sottocheck` | Public Landing | Standalone | Flusso check pubblico (flow legacy, non collegato allo store persistente) |
 | `/public/history` | Public Landing | Standalone | Storico pubblico |
 | `/public/output-preview` | Public Landing | Standalone | Anteprima output Sottocheck |
+| `/public/success` | Public Landing | Standalone | Legacy: `PublicSuccessPage`, non referenziata da alcuna navigazione in-app |

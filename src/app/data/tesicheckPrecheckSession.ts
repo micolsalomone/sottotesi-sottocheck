@@ -4,6 +4,7 @@ export type PrecheckValidationState = 'valid';
 export type PrecheckFlowStage =
   | 'quote_ready'
   | 'checkout_account'
+  | 'checkout_verify_email'
   | 'checkout_payment'
   | 'redirecting'
   | 'payment_success';
@@ -54,6 +55,7 @@ export function getPrecheckSession(): TesiCheckPrecheckSession | null {
 function isPrecheckFlowStage(value: unknown): value is PrecheckFlowStage {
   return value === 'quote_ready'
     || value === 'checkout_account'
+    || value === 'checkout_verify_email'
     || value === 'checkout_payment'
     || value === 'redirecting'
     || value === 'payment_success';
