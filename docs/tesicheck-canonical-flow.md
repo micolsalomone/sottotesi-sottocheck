@@ -194,7 +194,6 @@ Il riepilogo deve rimanere visibile durante:
 ```text
 account
 → payment
-→ redirecting
 ```
 
 e mostrare almeno:
@@ -202,6 +201,8 @@ e mostrare almeno:
 - nome documento;
 - character count;
 - prezzo totale.
+
+Nello stato `redirecting` il riepilogo non è più visibile: quella schermata è una transizione di sistema minimale con brand mark Sottotesi, non un altro step del checkout.
 
 ### Account step: login e registrazione dentro il checkout
 
@@ -221,8 +222,9 @@ login
 → verifica email
 → eventuali dati strettamente necessari
 → pagamento
-→ redirecting
 ```
+
+Dopo che l'utente conferma il pagamento si entra nello stato `redirecting`: qui il riepilogo non viene più mostrato, resta solo una transizione minimale con brand mark Sottotesi verso il provider.
 
 Il riepilogo non va chiamato “riepilogo pagamento” durante gli step precedenti al gateway.
 
@@ -518,6 +520,8 @@ con:
 - provider placeholder/generico;
 - nessuna falsa UI bancaria;
 - azione secondaria per annullare e tornare a TesiCheck, se compatibile con il flow.
+
+In questo stato il riepilogo ordine non è visibile: la schermata mostra solo un brand mark Sottotesi minimale, senza topbar, come transizione di sistema.
 
 Questa schermata NON deve fingere di essere il gateway reale.
 
@@ -1352,13 +1356,13 @@ Nei contesti coaching:
 - Account obbligatorio prima del pagamento.
 - L'autenticazione è uno step del checkout, non l'ingresso anticipato nella dashboard.
 - Login e registrazione avvengono direttamente dentro il checkout, con form dedicati e riepilogo ordine persistente.
-- Il riepilogo TesiCheck resta visibile durante login, registrazione, verifica email, payment e redirecting.
+- Il riepilogo TesiCheck resta visibile durante login, registrazione, verifica email e payment; nello stato `redirecting` non è mostrato.
 - In desktop il riepilogo può essere sticky; in mobile diventa stacked/compatto.
 - `Crea account` cambia modalità nella stessa esperienza checkout; non manda l'utente fuori dal flow.
 - La nuova registrazione richiede verifica email prima di abilitare il pagamento.
 - Il checkout raccoglie solo dati necessari a account/ownership/payment/fatturazione, non onboarding/profile data non indispensabili.
 - Se l'utente è già autenticato, lo step account viene saltato.
-- Il riepilogo ordine resta visibile durante account → payment → redirect.
+- Il riepilogo ordine resta visibile durante account → payment; nello stato `redirecting` lascia il posto a una transizione minimale con brand mark Sottotesi.
 - Nessun report guest.
 - Email facoltativa post-payment eliminata come recovery.
 - Payment gateway interstitial obbligatorio nel prototipo solo quando `payment_required = true`.

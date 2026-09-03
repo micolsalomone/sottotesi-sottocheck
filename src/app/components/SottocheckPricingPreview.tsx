@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 
 interface SottocheckPricingPreviewProps {
   className?: string;
@@ -97,7 +98,7 @@ export function SottocheckPricingPreview({
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Calcolo in corso...
               </span>
-            ) : isReady ? `EUR ${(price ?? 14.9).toFixed(2)}` : 'Il prezzo sara mostrato qui'}
+            ) : isReady ? formatCheckoutPrice(price ?? 14.9) : 'Il prezzo sara mostrato qui'}
           </p>
         </div>
       </div>

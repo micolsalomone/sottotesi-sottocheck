@@ -28,6 +28,7 @@ import {
   setPrecheckFlowStage,
   type TesiCheckPrecheckSession,
 } from '@/app/data/tesicheckPrecheckSession';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 
 const DEMO_CHARACTER_COUNT = 28500;
 const DEMO_PRICE = 14.9;
@@ -426,7 +427,7 @@ export function PublicLandingPage() {
                   {precheckSession.document.name}
                 </p>
                 <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
-                  {precheckSession.characterCount.toLocaleString('it-IT')} caratteri · EUR {precheckSession.price.toFixed(2)}
+                  {precheckSession.characterCount.toLocaleString('it-IT')} caratteri · {formatCheckoutPrice(precheckSession.price)}
                 </p>
                 <SottocheckActionButton className="mt-5" onClick={() => navigate('/public/account')} icon={<ArrowRight className="h-4 w-4" />}>
                   Riprendi il checkout

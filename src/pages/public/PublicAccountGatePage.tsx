@@ -171,6 +171,22 @@ export function PublicAccountGatePage() {
   const isPaymentSuccess = precheckSession.flowStage === 'payment_success';
   const paymentEnabled = isPaymentEnabled(account);
 
+  // The redirect boundary is a system transition, not a checkout step: no card
+  // chrome, no order summary rail — just the minimal branded interstitial.
+  if (isRedirecting) {
+    return (
+      <main className="min-h-screen bg-[var(--background)] px-[20px] py-[56px] text-[var(--foreground)] md:px-[40px]">
+        <section className="mx-auto max-w-[440px] pt-[8vh]">
+          <SottocheckPaymentGatewayBoundary
+            onCancelled={() => returnFromPayment('cancelled')}
+            onFailed={() => returnFromPayment('failed')}
+            onSuccess={() => returnFromPayment('success')}
+          />
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[var(--background)] px-[20px] py-[40px] text-[var(--foreground)] md:px-[40px] md:py-[56px]">
       <div className="mx-auto grid max-w-[1040px] grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
@@ -226,14 +242,6 @@ export function PublicAccountGatePage() {
             </>
           )}
 
-          {isRedirecting && (
-            <SottocheckPaymentGatewayBoundary
-              onCancelled={() => returnFromPayment('cancelled')}
-              onFailed={() => returnFromPayment('failed')}
-              onSuccess={() => returnFromPayment('success')}
-            />
-          )}
-
           {completionError && (
             <div className="mt-5 border border-[var(--destructive)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
               <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>Non è stato possibile preparare il report.</p>
@@ -266,6 +274,7 @@ export function PublicAccountGatePage() {
         </section>
 
         <SottocheckCheckoutSummary
+          className="order-first md:order-none"
           documentName={precheckSession.document.name}
           characterCount={precheckSession.characterCount}
           price={precheckSession.price}

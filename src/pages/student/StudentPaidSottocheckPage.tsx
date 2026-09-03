@@ -7,6 +7,7 @@ import { SottocheckActionButton } from '@/app/components/SottocheckActionButton'
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckUploadForm, type UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type StudentFlowStage = 'form' | 'payment' | 'redirecting';
@@ -214,7 +215,7 @@ function PaymentPanel({ document, quote, notice, onPay }: { document: UploadedDo
       <p className="mt-3 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}>Verrai reindirizzato a un provider di pagamento esterno per completare la transazione.</p>
       <div className="mt-6 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
         <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>{document.name}</p>
-        <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>{quote.characterCount.toLocaleString('it-IT')} caratteri · EUR {quote.price.toFixed(2)}</p>
+        <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>{quote.characterCount.toLocaleString('it-IT')} caratteri · {formatCheckoutPrice(quote.price)}</p>
       </div>
       {notice === 'failed' && <PaymentNoticePanel title="Pagamento non riuscito" text="Il riepilogo è stato conservato. Puoi riprovare quando vuoi." destructive />}
       {notice === 'cancelled' && <PaymentNoticePanel title="Pagamento annullato" text="Nessun pagamento è stato effettuato. Puoi riprendere il checkout." />}

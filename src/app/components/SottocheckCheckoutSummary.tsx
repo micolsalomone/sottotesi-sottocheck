@@ -1,12 +1,10 @@
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+
 interface SottocheckCheckoutSummaryProps {
   documentName: string;
   characterCount: number;
   price: number;
   className?: string;
-}
-
-function formatPrice(price: number) {
-  return price.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
@@ -32,7 +30,7 @@ export function SottocheckCheckoutSummary({
           className="control-focus-ring flex cursor-pointer list-none items-center justify-between gap-3"
           style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}
         >
-          <span>Riepilogo TesiCheck · EUR {formatPrice(price)}</span>
+          <span>Riepilogo TesiCheck · {formatCheckoutPrice(price)}</span>
           <span className="text-[var(--muted-foreground)]" style={{ fontSize: 'var(--text-sm)' }}>Mostra dettagli</span>
         </summary>
         <div className="mt-4">
@@ -79,7 +77,7 @@ function SummaryFields({
       <div className="mt-5 border-t border-[var(--border)] pt-4">
         <p className="text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>Totale</p>
         <p className="mt-1" style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)' }}>
-          EUR {formatPrice(price)}
+          {formatCheckoutPrice(price)}
         </p>
       </div>
     </>
