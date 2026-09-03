@@ -64,6 +64,27 @@ export function getPersistentTesiCheck(checkId: string): PersistentTesiCheck | n
   return check && isPersistentTesiCheck(check) ? check : null;
 }
 
+/**
+ * Read-only view of the paid consumer checks owned by one identity, newest
+ * completed first. Consumer-paid specific: the caller passes the exact
+ * `owner.context` + `owner.id` for its context (standalone / student). No schema
+ * change, no migration, no expiry-driven mutation — availability is derived at
+ * render time from `expiresAt`.
+ */
+export function getPersistentTesiChecksForOwner(
+  context: PersistentTesiCheck['owner']['context'],
+  ownerId: string,
+): PersistentTesiCheck[] {
+  return getStoredChecks()
+    .filter(
+      (item) =>
+        isPersistentTesiCheck(item)
+        && item.owner?.context === context
+        && item.owner?.id === ownerId,
+    )
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+}
+
 export function createPersistentCheckFromPaidPrecheck(): PersistentTesiCheck | null {
   const precheck = getPrecheckSession();
   if (

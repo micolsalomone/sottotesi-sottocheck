@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 export type SottocheckHistoryStatus =
   | 'completed'
+  | 'expired'
   | 'processing'
   | 'error';
 
@@ -27,6 +28,27 @@ export function SottocheckHistoryStatusBadge({ status }: SottocheckHistoryStatus
       >
         <CheckCircle className="w-3 h-3" />
         Completato
+      </span>
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-[10px] py-[4px]"
+        style={{
+          borderRadius: 'var(--radius-badge)',
+          background: 'var(--muted)',
+          color: 'var(--muted-foreground)',
+          fontFamily: 'var(--font-inter)',
+          fontSize: '11px',
+          fontWeight: 'var(--font-weight-medium)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
+        <Clock className="w-3 h-3" />
+        Scaduto
       </span>
     );
   }
