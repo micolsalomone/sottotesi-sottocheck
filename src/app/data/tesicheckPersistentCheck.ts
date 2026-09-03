@@ -22,11 +22,23 @@ export interface PersistentTesiCheck {
     availability: 'available';
     reference: string;
   };
+  /** Standalone (guest) materialization idempotency key. */
   sourceTemporaryDocumentRef?: string;
+  /** Student self-service materialization idempotency key (no guest pre-check). */
+  sourcePaymentReference?: string;
 }
 
 const STORAGE_KEY = 'public-tesicheck-checks-v1';
 const RETENTION_DAYS = 30;
+
+/**
+ * Idempotency key for one Student self-service paid materialization. Student has
+ * no guest pre-check, so it cannot reuse `sourceTemporaryDocumentRef`. Created
+ * once when the payment succeeds and kept stable across materialization retries.
+ */
+export function createStudentPaymentReference() {
+  return `stu-pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function getStoredChecks(): PersistentTesiCheck[] {
   try {
@@ -93,17 +105,30 @@ export function createPersistentStudentCheck({
   document,
   characterCount,
   price,
+  sourcePaymentReference,
 }: {
   studentId: string;
   document: UploadedDocument;
   characterCount: number;
   price: number;
+  sourcePaymentReference: string;
 }): PersistentTesiCheck | null {
+  // Reuse an already-materialized check for this payment so a retry never
+  // duplicates. Student's dedupe key is `sourcePaymentReference`; the standalone
+  // flow keeps its own key (`sourceTemporaryDocumentRef`) untouched.
+  const existing = getStoredChecks().find(
+    (item) => item.owner?.context === 'student' && item.sourcePaymentReference === sourcePaymentReference
+  );
+  if (existing && isPersistentTesiCheck(existing)) {
+    return existing;
+  }
+
   const check = createPersistentTesiCheck({
     owner: { context: 'student', id: studentId },
     document,
     characterCount,
     price,
+    sourcePaymentReference,
   });
 
   return saveChecks([check, ...getStoredChecks()]) ? check : null;
@@ -115,12 +140,14 @@ function createPersistentTesiCheck({
   characterCount,
   price,
   sourceTemporaryDocumentRef,
+  sourcePaymentReference,
 }: {
   owner: PersistentTesiCheck['owner'];
   document: UploadedDocument;
   characterCount: number;
   price: number;
   sourceTemporaryDocumentRef?: string;
+  sourcePaymentReference?: string;
 }): PersistentTesiCheck {
   const completedAt = new Date();
   const expiresAt = new Date(completedAt);
@@ -140,6 +167,7 @@ function createPersistentTesiCheck({
     expiresAt: expiresAt.toISOString(),
     report: { availability: 'available', reference: `REP-${id.slice(-8)}` },
     sourceTemporaryDocumentRef,
+    sourcePaymentReference,
   };
 }
 

@@ -20,6 +20,7 @@
 - **Student report** at `/student-view/report/:checkId` inside `StudentLayout`.
 - Persistent **order summary** ("Riepilogo TesiCheck") visible across `checkout_account → checkout_verify_email → checkout_payment` (`SottocheckCheckoutSummary`); **not** rendered during `redirecting`. Compact summary precedes the form on mobile.
 - Shared **price formatter** `formatCheckoutPrice()` — every paid-consumer amount displays as `€14,90`.
+- **Post-payment report recovery** — if persistent-check materialization fails after a (simulated) verified payment, both guest and Student keep the paid state and show a recoverable screen (`Non siamo riusciti a generare il report` + `Riprova a generare il report`); retry re-runs **only** the materialization, never the payment. Idempotency keys differ by origin: guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference`.
 
 **Explicitly NOT part of this workstream:**
 
@@ -52,8 +53,10 @@
        ?paymentDemo=1: manual success | failed | cancelled buttons
   → success → flowStage = payment_success
   → transient "Pagamento ricevuto / Stiamo generando il report..." (no standalone success page)
-  → createPersistentCheckFromPaidPrecheck() → clearPrecheckSession()
-  → navigate('/public-view/report/:checkId')   (after ~1200 ms, inside PublicLayout)
+  → createPersistentCheckFromPaidPrecheck()  (dedupe by sourceTemporaryDocumentRef)
+       success → clearPrecheckSession() → navigate('/public-view/report/:checkId')  (~1200 ms, inside PublicLayout)
+       failure → completionError recovery screen → "Riprova a generare il report"
+                 → retries materialization only (pre-check session + paid state kept; no re-payment)
 ```
 
 **Student** — files: `StudentPaidSottocheckPage.tsx`, `StudentReportPage.tsx`, `tesicheckPersistentCheck.ts`, `studentView.ts`
@@ -64,8 +67,11 @@
   → StudentFlowStage: form → payment → redirecting   (React state, not sessionStorage)
   → SottocheckPaymentGatewayBoundary (still wrapped in the local GatewayPanel card — visual polish only, see §8)
        same 1500 ms auto-success / ?paymentDemo=1 behaviour as guest
-  → success → isProcessing → createPersistentStudentCheck({ studentId: STUDENT_VIEW_STUDENT_ID, ... })
-  → navigate('/student-view/report/:checkId')   (after ~1200 ms, inside StudentLayout)
+  → success → paymentReferenceRef = createStudentPaymentReference() (minted once) → isProcessing
+  → createPersistentStudentCheck({ studentId: STUDENT_VIEW_STUDENT_ID, ..., sourcePaymentReference })  (dedupe by sourcePaymentReference)
+       success → navigate('/student-view/report/:checkId')  (~1200 ms, inside StudentLayout)
+       failure → isProcessing = false → completionError recovery screen → "Riprova a generare il report"
+                 → retries materialization only (document / quote / payment reference kept; no re-payment)
 ```
 
 ---
@@ -74,6 +80,7 @@
 
 - **Pre-check session vs persistent check.** Two distinct objects (canonical §3). Pre-check = temporary, guest-only, `sessionStorage`, thrown away once claimed. Persistent check = paid, owned, `localStorage`, source for the report. Only the guest flow uses a pre-check session; Student creates a persistent check directly.
 - **`temporaryDocumentRef`.** Prototype token (`tmp-doc-<ts>-<rand>`) on the pre-check session standing in for a recoverable server-side temporary upload. Also used as the idempotency key (`sourceTemporaryDocumentRef`) when converting to a persistent check.
+- **`sourcePaymentReference` (Student).** Student has no guest pre-check, so it cannot reuse `sourceTemporaryDocumentRef`. `createStudentPaymentReference()` (`tesicheckPersistentCheck.ts`) mints a `stu-pay-<ts>-<rand>` token once, when the (simulated) payment succeeds; `StudentPaidSottocheckPage` holds it in `paymentReferenceRef` for the lifetime of the mounted flow so every materialization retry passes the **same** key. It is stored on the Student `PersistentTesiCheck` and is the dedupe key for `createPersistentStudentCheck()`. The two idempotency mechanisms are deliberately **not** unified: guest = `sourceTemporaryDocumentRef` (from the pre-check session), Student = `sourcePaymentReference` (from payment success).
 - **`flowStage` lifecycle** (`PrecheckFlowStage`): `quote_ready → checkout_account → checkout_verify_email → checkout_payment → redirecting → payment_success`. `checkout_verify_email` was added in this workstream and must stay in the `isPrecheckFlowStage` guard or stored sessions fail validation. `payment_success` is a latch: it means "paid but persistent check not yet created".
 - **Account session** (`tesicheckAccountSession.ts`): `{ id, email, name?, emailVerified }` in `localStorage`. `signInAccount` → `emailVerified: true` (returning user is trusted). `registerAccount` → `emailVerified: false`. `confirmAccountEmail()` flips it. `isPaymentEnabled(session)` = `authenticated && emailVerified` and gates `startRedirect`, not just the button's disabled state.
 - **`DEMO_ACCOUNT_ID`** = `'public-account-demo'`, exported from `tesicheckAccountSession.ts`. Single shared prototype identity. Used as `owner.id` for every standalone check **and** as the ownership constant in `PublicReportPage.tsx` — kept as one exported constant so the two never drift.
@@ -88,6 +95,10 @@
 - **Separate report wrappers.** `PublicReportPage` (guard: `owner.context === 'standalone'` + `DEMO_ACCOUNT_ID`, shell: `PublicLayout`) and `StudentReportPage` (guard: `owner.context === 'student'` + `STUDENT_VIEW_STUDENT_ID`, shell: `StudentLayout`) are deliberately separate wrappers around the **same** static report content (`public/sottocheck-output-preview.html`, `mode=authenticated-public`).
 - **StrictMode duplicate-creation guards.** `PublicAccountGatePage` uses `hasCreatedCheckRef` (persistent-check creation effect) and `didResolveAccountRef` (skip-authenticated effect). `StudentPaidSottocheckPage` uses `hasCreatedCheckRef`. Without these the double-invoked effect either double-creates or clears the session mid-run and shows the empty state.
 - **Payment success → persistent check conversion.** `returnFromPayment('success')` sets `isCompletingPayment` + `flowStage = payment_success`. An effect then calls `createPersistentCheckFromPaidPrecheck()`, which requires `flowStage === 'payment_success' && claim.status === 'claimed' && claim.accountId`, dedupes by `sourceTemporaryDocumentRef`, builds the `PersistentTesiCheck` (`owner.context: 'standalone'`, `status: 'completed'`, `payment.status: 'paid'`, `report.availability: 'available'`, `expiresAt`), writes it to `public-tesicheck-checks-v1`, and only then `clearPrecheckSession()`.
+- **Post-payment materialization recovery.** Materialization can fail after a verified payment (prototype: `saveChecks` / `localStorage` throwing, or `?paymentDemo=reportfail`). Both flows keep the paid state and surface a recoverable screen instead of a dead end:
+  - **Guest** (`PublicAccountGatePage`): the pre-check session stays at `flowStage = payment_success`, still claimed; `completionError` renders a full-screen early return ("Non siamo riusciti a generare il report" / "Il pagamento è stato ricevuto. Puoi riprovare senza effettuare un nuovo pagamento." + "Riprova a generare il report"). Retry calls `createPersistentCheckFromPaidPrecheck()` only — no gateway, no new session, no re-claim. `clearPrecheckSession()` still runs only on success.
+  - **Student** (`StudentPaidSottocheckPage`): previously hung forever on "Stiamo generando il report..."; on failure it now sets `isProcessing → false` and renders the same semantic recovery screen inside `StudentLayout`. Retry calls `createPersistentStudentCheck({ ..., sourcePaymentReference })` only.
+  - Guard: `hasCreatedCheckRef` is reset on a real failure so a retry can run; kept closed on the `?paymentDemo=reportfail` branch so no silent auto-retry / StrictMode re-fire — recovery is the button. `reportFailDemoRef` latches the one-shot demo failure. No path double-creates: guard + per-origin dedupe + `completedCheck` short-circuit + the button unmounts once processing / `completedCheck` takes over.
 - **Returning / already-authenticated users skip the forms.** On `/public/account`, if an account session exists: verified → jump to `checkout_payment`; unverified → jump to `checkout_verify_email`. Guarded by `didResolveAccountRef`.
 
 ---
@@ -98,7 +109,7 @@
 | --- | --- | --- |
 | `tesicheck-precheck-session-v1` | **sessionStorage** | `TesiCheckPrecheckSession`: `document` (metadata), `temporaryDocumentRef`, `validationState: 'valid'`, `characterCount`, `price`, `flowStage`, `claim: { status, accountId? }`. Disposable; cleared on claim-to-persistent, on a new upload, or on file clear. |
 | `tesicheck-account-session-v1` | **localStorage** | `TesiCheckAccountSession`: `id` (always `DEMO_ACCOUNT_ID`), `email`, `name?`, `emailVerified`. Prototype identity + verification flag. Introduced in this workstream. |
-| `public-tesicheck-checks-v1` | **localStorage** | `PersistentTesiCheck[]` (newest first). Paid, owned checks for both `standalone` and `student` contexts. Read by the two report pages via `getPersistentTesiCheck(checkId)`. |
+| `public-tesicheck-checks-v1` | **localStorage** | `PersistentTesiCheck[]` (newest first). Paid, owned checks for both `standalone` and `student` contexts. Read by the two report pages via `getPersistentTesiCheck(checkId)`. Each record carries its origin's materialization idempotency key — `sourceTemporaryDocumentRef` (standalone) **or** `sourcePaymentReference` (student); a retry looks up the existing record by that key instead of writing a duplicate. |
 
 Out of scope but adjacent (do **not** treat as part of this flow): `localStorage['admin-sottocheck-jobs-v1']` (admin only, different schema), `*-sidebar-collapsed` (shell UI state).
 
@@ -108,13 +119,13 @@ Out of scope but adjacent (do **not** treat as part of this flow): `localStorage
 
 - **`src/app/data/tesicheckPrecheckSession.ts`** — guest checkout session model + `sessionStorage` accessors; `PrecheckFlowStage` union and its guard; `claimPrecheckSession`, `setPrecheckFlowStage`, `clearPrecheckSession`.
 - **`src/app/data/tesicheckAccountSession.ts`** — prototype account identity + email-verification state in `localStorage`; `signInAccount` / `registerAccount` / `confirmAccountEmail` / `isPaymentEnabled`; exports `DEMO_ACCOUNT_ID`. New in this workstream.
-- **`src/app/data/tesicheckPersistentCheck.ts`** — `PersistentTesiCheck` model, `localStorage` array, `RETENTION_DAYS = 30`; `createPersistentCheckFromPaidPrecheck()` (guest conversion), `createPersistentStudentCheck()` (student), `getPersistentTesiCheck()`.
+- **`src/app/data/tesicheckPersistentCheck.ts`** — `PersistentTesiCheck` model (incl. optional `sourceTemporaryDocumentRef` / `sourcePaymentReference`), `localStorage` array, `RETENTION_DAYS = 30`; `createPersistentCheckFromPaidPrecheck()` (guest conversion, dedupe by `sourceTemporaryDocumentRef`), `createPersistentStudentCheck()` (student, dedupe by `sourcePaymentReference`), `createStudentPaymentReference()` (mints the Student key), `getPersistentTesiCheck()`.
 - **`src/pages/public/PublicLandingPage.tsx`** — `/public` landing + guest upload/validation/pricing; writes the pre-check session; renders the "Hai un TesiCheck in corso" resume state when `flowStage !== 'quote_ready'`.
-- **`src/pages/public/PublicAccountGatePage.tsx`** — `/public/account`; single page hosting stages `checkout_account` (inline `LoginForm` / `RegisterForm`), `checkout_verify_email` (`VerifyEmailForm` + OTP), `checkout_payment`, plus the transient success panel and the Account / Email / Pagamento checklist. `redirecting` is an **early return** — minimal branded page, no card, no summary. Owns all guest checkout transitions.
+- **`src/pages/public/PublicAccountGatePage.tsx`** — `/public/account`; single page hosting stages `checkout_account` (inline `LoginForm` / `RegisterForm`), `checkout_verify_email` (`VerifyEmailForm` + OTP), `checkout_payment`, the transient success panel, the `completionError` post-payment recovery early return (retry of `createPersistentCheckFromPaidPrecheck()` only), and the Account / Email / Pagamento checklist. `redirecting` is an **early return** — minimal branded page, no card, no summary. Owns all guest checkout transitions.
 - **`src/app/components/SottocheckCheckoutSummary.tsx`** — the persistent "Riepilogo TesiCheck": one `SummaryFields` (document, character count, total via `formatCheckoutPrice`) rendered as a desktop sticky rail and a mobile collapsible `<details>`. Forwards `className` — `PublicAccountGatePage` uses `order-first md:order-none` for mobile placement. Not rendered during `redirecting`. New in this workstream.
 - **`src/app/components/SottocheckPaymentGatewayBoundary.tsx`** — minimal Sottotesi-branded gateway interstitial (brand mark + heading + `Reindirizzamento in corso…` + spinner); props `onSuccess` / `onFailed` / `onCancelled`. Owns a single 1500 ms auto-success timer in normal mode; `?paymentDemo=1` disables it and shows manual outcome buttons. Host page owns stage transitions + navigation. Shared by guest and Student.
 - **`src/pages/public/PublicReportPage.tsx`** — standalone authenticated report wrapper inside `PublicLayout`; owner guard `standalone` + `DEMO_ACCOUNT_ID`; expired-state redirect; iframe of the demo report.
-- **`src/pages/student/StudentPaidSottocheckPage.tsx`** — `/student-view/sottocheck`; local `StudentFlowStage` machine (`form | payment | redirecting`) + `isProcessing`; reuses `SottocheckUploadForm`, `SottocheckPricingPreview`, `SottocheckPaymentGatewayBoundary`; creates a `student`-context persistent check.
+- **`src/pages/student/StudentPaidSottocheckPage.tsx`** — `/student-view/sottocheck`; local `StudentFlowStage` machine (`form | payment | redirecting`) + `isProcessing` + `completionError`; reuses `SottocheckUploadForm`, `SottocheckPricingPreview`, `SottocheckPaymentGatewayBoundary`. On payment success mints one `sourcePaymentReference` (`paymentReferenceRef`) and creates a `student`-context persistent check. On materialization failure: `isProcessing → false`, `completionError` early return ("Non siamo riusciti a generare il report" + "Riprova a generare il report"), retry re-runs `createPersistentStudentCheck({ ..., sourcePaymentReference })` only. `?paymentDemo=reportfail` forces one materialization failure for testing.
 - **`src/pages/student/StudentReportPage.tsx`** — student authenticated report wrapper inside `StudentLayout`; owner guard `student` + `STUDENT_VIEW_STUDENT_ID`; ~90% identical to `PublicReportPage` by intent (different shell + support copy).
 - **`src/app/routes.tsx`** — route table. Key rows: `/public/account` → `PublicAccountGatePage`; `/public-view/report/:checkId` → `PublicReportPage` (under `PublicLayout`); `/student-view/sottocheck` → `StudentPaidSottocheckPage`; `/student-view/report/:checkId` → `StudentReportPage` (under `StudentLayout`).
 - **`public/sottocheck-output-preview.html`** — static demo report content (~622 lines), parameterised by query string (`mode`, `back`, `documentName`, `completedAt`, repeated `css`). Embedded via `<iframe>` by both report pages with `mode=authenticated-public`.
@@ -164,6 +175,7 @@ Architectural reasons already surfaced: same domain data (a "check") does **not*
 - **Report is static.** Both report pages iframe the same fixed `sottocheck-output-preview.html`; no per-check data, scores are hard-coded in the HTML.
 - **Pricing / character count are mock.** `DEMO_CHARACTER_COUNT = 28500`, `DEMO_PRICE = 14.9`, applied after a 700 ms `setTimeout`; no real extraction.
 - **No `File` / `Blob` persistence.** Only document metadata survives a reload.
+- **Student recovery is session-scoped.** The in-progress Student checkout (document, quote, `paymentReferenceRef`, `completionError`) lives only in React state — there is no `sessionStorage` / `localStorage` for the Student flow. A full page reload while on the recovery screen returns to the upload form; the paid state and the `sourcePaymentReference` are lost. (Guest recovery survives reload because the pre-check session is in `sessionStorage`.)
 
 **BUG / OPEN ISSUE** (observed, out of scope here — log for later):
 
@@ -172,7 +184,7 @@ Architectural reasons already surfaced: same domain data (a "check") does **not*
 - `getViewBasePath` (`src/pages/coach/viewBasePath.ts`) checks `startsWith('/public')` before `/public-view`, so the `/public-view` branch is dead; success CTAs on `/public-view/sottocheck` can navigate out of `PublicLayout`.
 - Storico (`src/pages/student/HistoryPage.tsx`, mounted at `/public/history`, `/student-view/history`, `/public-view/history`) renders `mockHistory` and never reads `public-tesicheck-checks-v1` — a just-paid check does not appear in history.
 - **OPEN PRODUCT ISSUE — pricing arithmetic mismatch.** `SottocheckPricingPreview.tsx` advertises `EUR 0,52/1000cc` (→ 14.82 for 28 500 cc) which does not reconcile with the mock total `DEMO_PRICE = 14.9`. The polish pass deliberately did **not** touch this line or invent a price — it needs a product decision on the real rate/total relationship.
-- **OPEN ISSUE — `completionError` has no recovery path.** If `createPersistentCheckFromPaidPrecheck()` returns null after a successful (simulated) payment, `PublicAccountGatePage` shows the `completionError` block ("Non è stato possibile preparare il report.") with no CTA and dead-end copy ("Riprova ad aprire il checkout"). Left unresolved on purpose: wiring a retry button to the creation effect risks a double check or an accidental second charge. Needs a deliberate post-payment recovery behaviour.
+- **RESOLVED — post-payment report recovery (guest + Student).** Materialization failure after a verified (simulated) payment no longer dead-ends. Guest: `PublicAccountGatePage` keeps the paid pre-check session and shows a recoverable `completionError` screen with "Riprova a generare il report" that re-runs `createPersistentCheckFromPaidPrecheck()` only. Student: `StudentPaidSottocheckPage` previously hung forever on "Stiamo generando il report..."; it now clears `isProcessing`, shows the same recovery screen, and retries `createPersistentStudentCheck({ ..., sourcePaymentReference })` only. Neither retry re-runs payment. Idempotency is per-origin and **not** unified — guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference` — so a retry reuses an already-written record rather than duplicating. `?paymentDemo=reportfail` simulates one materialization failure in **both** flows.
 - `DEMO_CHARACTER_COUNT` / `DEMO_PRICE` duplicated in `PublicLandingPage.tsx` and `StudentPaidSottocheckPage.tsx`.
 - Legacy `/public/sottocheck` (renders `student/SottocheckPage`, fake `setTimeout` payment, writes nothing) and orphaned `/public/success` still routed.
 
@@ -186,12 +198,12 @@ Architectural reasons already surfaced: same domain data (a "check") does **not*
 - **Developer-facing outcome `<details>`** — removed from the primary UI; manual success / failed / cancelled now live behind `?paymentDemo=1` only.
 - **Mobile summary placement** — the compact `SottocheckCheckoutSummary` now precedes the form on mobile (`order-first md:order-none`).
 - **Price format inconsistency** — all paid-consumer amounts go through `formatCheckoutPrice()` → `€14,90`.
+- **Post-payment report recovery** — the guest `completionError` dead-end is now a recoverable retry screen, and the Student infinite "Stiamo generando il report..." hang is fixed with the same recovery state. Retry re-runs materialization only (guest key `sourceTemporaryDocumentRef`, Student key `sourcePaymentReference`), never re-payment. `?paymentDemo=reportfail` covers both.
 
 **Still open:**
 
 - **Checkout visual refinement** — spacing/rhythm of the left column vs the summary rail; the Account / Email / Pagamento checklist placement (sits below the form behind a `border-t`, reads like a footer) was deliberately not moved, pending visual inspection.
 - **Student gateway card wrapper** — `StudentPaidSottocheckPage`'s `GatewayPanel` still wraps the shared boundary in a bordered `max-w-[760px]` card, so the Student interstitial looks more "card-like" than the bare guest one. Visual polish only — no flow/state difference; not changed to keep the Student view out of scope.
-- **`completionError`** — unresolved post-payment recovery issue (see §7).
 - **Terse copy** — the no-session fallback ("Inizia un nuovo check") block is minimal.
 - **Landing header** — "Accedi" / "Registrati" still link to `sottotesi.it` (external marketing), not the in-app checkout; intentional for now, worth revisiting.
 
@@ -201,9 +213,9 @@ Do not resolve the open items here — they are the next workstream (§11).
 
 ## 9. Testing / verification status
 
-- **`npm run build`**: last run **succeeded** (Vite v6.4.2, 1809 modules, ~13 s, no errors) after the polish pass (branded redirect + auto-success timer + `?paymentDemo=1`, `redirecting` early-return, mobile summary order, `formatCheckoutPrice`).
-- **`tsc --noEmit`**: **47-error pre-change baseline unchanged**; the polish pass added no typed code beyond the small `formatCheckoutPrice` helper and JSX swaps.
-- **`git diff --check`**: clean (exit 0). Working tree is **not clean** — the polish-pass changes (7 files + new `src/app/utils/formatCheckoutPrice.ts`, plus `docs/tesicheck-canonical-flow.md` §5/§7.2/§29 realignment and this handoff) are **uncommitted**. The earlier inline-account-checkout work is committed as `6bf4422`.
+- **`npm run build`**: last run **succeeded** (Vite v6.4.2, 1809 modules, ~18 s, no errors) after the polish pass **and** the post-payment recovery fixes (guest `completionError` retry, Student `sourcePaymentReference` + recovery screen, `?paymentDemo=reportfail`).
+- **`tsc --noEmit`**: **47-error pre-change baseline unchanged**; no typed code added beyond the `formatCheckoutPrice` / `createStudentPaymentReference` helpers, the optional `sourcePaymentReference` field, and JSX/handler swaps.
+- **`git diff --check`**: clean (exit 0). Working tree is **not clean** — uncommitted: the polish-pass changes (+ new `src/app/utils/formatCheckoutPrice.ts`), the `docs/tesicheck-canonical-flow.md` §5/§7.2/§29 realignment, the post-payment recovery fixes (`PublicAccountGatePage.tsx`, `StudentPaidSottocheckPage.tsx`, `tesicheckPersistentCheck.ts`), and this handoff. The earlier inline-account-checkout work is committed as `6bf4422`.
 - **Runtime / browser walkthrough**: **NOT performed.** Dev server boots clean (`:5174`), `/` and `/public/account` return 200, and every changed module transforms (200), but no interactive click-through (upload, form submit, OTP, gateway, report) was executed. **No step of the flow has been confirmed PASS in a browser.**
 - **Automated browser tests**: **none in the repo** (no vitest / jest / playwright / cypress; `package.json` scripts are only `dev`, `build`, `preview`). A manual checklist exists at `.github/skills/tesicheck-checkout-smoke/SKILL.md`.
 
@@ -219,6 +231,8 @@ Do not resolve the open items here — they are the next workstream (§11).
 - During `redirecting` the checkout summary is **not** rendered; the interstitial is a minimal Sottotesi-branded system boundary (canonical §5 / §7.2 / §29).
 - Paid-consumer amounts render only via `formatCheckoutPrice()` → `€14,90`; never re-introduce ad-hoc `EUR ${n.toFixed(2)}`.
 - `SottocheckPaymentGatewayBoundary` owns exactly one timer (1500 ms auto-success, normal mode); `?paymentDemo=1` is the only way to reach failed / cancelled. Do not move stage transitions or navigation into the boundary.
+- Post-payment materialization failure must stay **recoverable without repeating payment**: keep the paid state, show the recovery screen, retry the persistent-check creation only.
+- Keep the two materialization idempotency keys separate — guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference`. Do not unify them.
 - Student self-service TesiCheck is **paid** (`payment_required = true`).
 - Student must **not** consume the coaching TesiCheck quota; that quota is Coach-only.
 - Coach / Admin rules must not be inferred from the Student / Public flow.
@@ -235,15 +249,14 @@ Do not resolve the open items here — they are the next workstream (§11).
 
 **Workstream: TesiCheck paid consumer final polish.**
 
-Done in the polish pass: payment redirect branding, mobile summary order, `?paymentDemo=1`, shared price format, `redirecting` early-return.
+Done: payment redirect branding, mobile summary order, `?paymentDemo=1`, shared price format, `redirecting` early-return, post-payment report recovery (guest + Student, `?paymentDemo=reportfail`).
 
 Priority order for what remains:
 
 1. Checkout visual / interaction polish (`PublicAccountGatePage`, `SottocheckCheckoutSummary`) — left-column spacing/rhythm vs the summary rail, Account / Email / Pagamento checklist placement, no-session fallback copy.
-2. `completionError` post-payment recovery behaviour (§7) — needs a deliberate design before wiring any retry.
-3. Pricing arithmetic decision (§7) — real rate vs total.
-4. Student `GatewayPanel` card wrapper — decide whether the Student interstitial should match the bare guest one (§8).
-5. Final paid-consumer browser walkthrough (run `.github/skills/tesicheck-checkout-smoke/SKILL.md` end to end; guest + returning + resume + responsive; verify `?paymentDemo=1` still reaches failed/cancelled).
-6. Only after the above: move to Coach entitlement flow and History redesign.
+2. Pricing arithmetic decision (§7) — real rate vs total.
+3. Student `GatewayPanel` card wrapper — decide whether the Student interstitial should match the bare guest one (§8).
+4. Final paid-consumer browser walkthrough (run `.github/skills/tesicheck-checkout-smoke/SKILL.md` end to end; guest + returning + resume + responsive; verify `?paymentDemo=1` reaches failed/cancelled and `?paymentDemo=reportfail` reaches the recovery screen in both flows).
+5. Only after the above: move to Coach entitlement flow and History redesign.
 
 Do not implement these now.

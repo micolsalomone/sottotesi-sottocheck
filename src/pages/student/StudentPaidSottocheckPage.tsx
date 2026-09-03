@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, CreditCard, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
-import { createPersistentStudentCheck, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
+import { createPersistentStudentCheck, createStudentPaymentReference, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckUploadForm, type UploadedDocument } from '@/app/components/SottocheckUploadForm';
@@ -16,6 +16,16 @@ type PaymentNotice = 'failed' | 'cancelled' | null;
 const DEMO_CHARACTER_COUNT = 28500;
 const DEMO_PRICE = 14.9;
 
+/**
+ * Prototype-only: `?paymentDemo=reportfail` makes the first automatic
+ * persistent-check materialization fail once, so the post-payment recovery
+ * state is exercisable. Same meaning as the standalone checkout flow.
+ */
+function isReportFailDemo() {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('paymentDemo') === 'reportfail';
+}
+
 export function StudentPaidSottocheckPage() {
   const navigate = useNavigate();
   const [document, setDocument] = useState<UploadedDocument | null>(null);
@@ -25,9 +35,12 @@ export function StudentPaidSottocheckPage() {
   const [flowStage, setFlowStage] = useState<StudentFlowStage>('form');
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [completionError, setCompletionError] = useState(false);
   const [completedCheck, setCompletedCheck] = useState<PersistentTesiCheck | null>(null);
   const pricingTimerRef = useRef<number | null>(null);
   const hasCreatedCheckRef = useRef(false);
+  const paymentReferenceRef = useRef<string | null>(null);
+  const reportFailDemoRef = useRef(false);
 
   useEffect(() => {
     if (!completedCheck) return;
@@ -35,21 +48,72 @@ export function StudentPaidSottocheckPage() {
     return () => window.clearTimeout(timer);
   }, [completedCheck, navigate]);
 
+  // Payment verified: materialize the persistent Student check (+ report). On
+  // failure the paid state is kept (document / quote / payment reference intact)
+  // and the recovery screen offers a retry of *only* this materialization.
   useEffect(() => {
-    if (!isProcessing || completedCheck || hasCreatedCheckRef.current || !document || !quote) return;
+    if (
+      !isProcessing ||
+      completedCheck ||
+      hasCreatedCheckRef.current ||
+      !document ||
+      !quote ||
+      !paymentReferenceRef.current
+    ) {
+      return;
+    }
     hasCreatedCheckRef.current = true;
+
+    if (isReportFailDemo() && !reportFailDemoRef.current) {
+      // Prototype: fail this first automatic attempt once; keep the guard closed
+      // so no auto-retry fires — recovery is the on-screen button.
+      reportFailDemoRef.current = true;
+      setCompletionError(true);
+      setIsProcessing(false);
+      return;
+    }
+
     const check = createPersistentStudentCheck({
       studentId: STUDENT_VIEW_STUDENT_ID,
       document,
       characterCount: quote.characterCount,
       price: quote.price,
+      sourcePaymentReference: paymentReferenceRef.current,
     });
     if (check) {
       setCompletedCheck(check);
       return;
     }
+    // Nothing was written; reopen the guard and surface a recoverable error.
     hasCreatedCheckRef.current = false;
+    setCompletionError(true);
+    setIsProcessing(false);
   }, [completedCheck, document, isProcessing, quote]);
+
+  // Retry the persistent Student check materialization, nothing else: no gateway,
+  // no new payment, no pricing change. Idempotent — `createPersistentStudentCheck`
+  // dedupes by `sourcePaymentReference`, so a check written by an earlier attempt
+  // is reused rather than duplicated.
+  const handleRetryReportCreation = () => {
+    if (completedCheck || !document || !quote || !paymentReferenceRef.current) return;
+
+    const check = createPersistentStudentCheck({
+      studentId: STUDENT_VIEW_STUDENT_ID,
+      document,
+      characterCount: quote.characterCount,
+      price: quote.price,
+      sourcePaymentReference: paymentReferenceRef.current,
+    });
+    if (!check) {
+      setCompletionError(true);
+      return;
+    }
+
+    hasCreatedCheckRef.current = true;
+    setCompletionError(false);
+    setIsProcessing(true);
+    setCompletedCheck(check);
+  };
 
   const clearPricingTimer = () => {
     if (pricingTimerRef.current) {
@@ -97,6 +161,32 @@ export function StudentPaidSottocheckPage() {
             <p className="mt-2 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)' }}>Stiamo generando il report...</p>
           </div>
           <Loader2 className="ml-auto h-5 w-5 shrink-0 animate-spin text-[var(--muted-foreground)]" aria-hidden="true" />
+        </section>
+      </div>
+    );
+  }
+
+  // Payment succeeded but the report could not be materialized. The paid state is
+  // preserved; this is a recoverable retry of the materialization only — no
+  // pricing, no payment CTA, no gateway.
+  if (completionError) {
+    return (
+      <div className="py-[32px]">
+        <section className="mx-auto max-w-[620px] border border-[var(--border)] bg-[var(--card)] p-6 md:p-8" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}>
+          <div className="flex items-start gap-4">
+            <AlertCircle className="mt-1 h-6 w-6 shrink-0 text-[var(--destructive)]" aria-hidden="true" />
+            <div>
+              <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h2)', fontWeight: 'var(--font-weight-bold)' }}>
+                Non siamo riusciti a generare il report
+              </h1>
+              <p className="mt-2 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}>
+                Il pagamento è stato ricevuto. Puoi riprovare senza effettuare un nuovo pagamento.
+              </p>
+            </div>
+          </div>
+          <SottocheckActionButton className="mt-6" onClick={handleRetryReportCreation}>
+            Riprova a generare il report
+          </SottocheckActionButton>
         </section>
       </div>
     );
@@ -185,7 +275,13 @@ export function StudentPaidSottocheckPage() {
             setPaymentNotice('failed');
             setFlowStage('payment');
           }}
-          onSuccess={() => setIsProcessing(true)}
+          onSuccess={() => {
+            // One stable idempotency key per successful payment, kept across retries.
+            if (!paymentReferenceRef.current) {
+              paymentReferenceRef.current = createStudentPaymentReference();
+            }
+            setIsProcessing(true);
+          }}
         />
       )}
     </div>
