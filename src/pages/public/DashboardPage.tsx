@@ -8,7 +8,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="px-[20px] md:px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <header className="mb-8 md:mb-10">
         <h1
           style={{
@@ -60,7 +60,7 @@ export function DashboardPage() {
                 lineHeight: 1.3,
               }}
             >
-              Tesi Check
+              TesiCheck
             </h2>
             <p
               className="mt-1 text-[var(--muted-foreground)]"
@@ -135,7 +135,7 @@ export function DashboardPage() {
           >
             <img
               src={PlanningSticker}
-              alt="Sticker mappa TESI CHECK"
+              alt="Sticker mappa TesiCheck"
               className="w-[150px] h-auto md:w-[190px]"
             />
           </div>

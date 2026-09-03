@@ -103,7 +103,7 @@ export function SottocheckPage() {
 
   if (checkStatus === 'processing' || checkStatus === 'completed') {
     return (
-      <div className="px-[40px] py-[32px]">
+      <div className="py-[32px]">
         <div className="mb-8">
           <h1
             style={{
@@ -114,7 +114,7 @@ export function SottocheckPage() {
               color: 'var(--foreground)',
             }}
           >
-            Sottocheck – Verifica plagio
+            TesiCheck – Verifica plagio
           </h1>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -170,7 +170,7 @@ export function SottocheckPage() {
               description="Il report di verifica plagio è pronto per questa lavorazione."
               primaryActionLabel="Visualizza il report"
               onPrimaryAction={() => navigate(`${viewBasePath}/output-preview`)}
-              secondaryActionLabel="Vai allo storico Sottocheck"
+              secondaryActionLabel="Vai allo storico TesiCheck"
               onSecondaryAction={() => navigate(`${viewBasePath}/archivio`)}
               footerNote="Il report è disponibile nello storico della vista coach."
             />
@@ -181,7 +181,7 @@ export function SottocheckPage() {
   }
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{
@@ -192,7 +192,7 @@ export function SottocheckPage() {
             color: 'var(--foreground)',
           }}
         >
-          Sottocheck – Verifica plagio
+          TesiCheck – Verifica plagio
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"
@@ -239,7 +239,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il Sottocheck è disponibile solo per servizi Coaching. Seleziona prima un percorso idoneo.
+                Il TesiCheck è disponibile solo per servizi Coaching. Seleziona prima un percorso idoneo.
               </p>
 
               <select
@@ -420,7 +420,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il Sottocheck gratuito è disponibile solo per piani Coaching.
+                Il TesiCheck gratuito è disponibile solo per piani Coaching.
               </p>
 
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
@@ -480,8 +480,8 @@ export function SottocheckPage() {
                 }}
               >
                 {isCoachingPlan
-                  ? 'Piano idoneo al Sottocheck incluso.'
-                  : 'Il Sottocheck incluso è disponibile solo per piani Coaching.'}
+                  ? 'Piano idoneo al TesiCheck incluso.'
+                  : 'Il TesiCheck incluso è disponibile solo per piani Coaching.'}
               </p>
 
               {!canStartCheck && (
@@ -498,7 +498,7 @@ export function SottocheckPage() {
                     : !document || documentStatus !== 'valid'
                       ? 'Carica prima un documento valido per avviare il controllo.'
                       : !isCoachingPlan
-                        ? 'Questo piano non include l’accesso al Sottocheck.'
+                        ? 'Questo piano non include l’accesso al TesiCheck.'
                         : `Crediti insufficienti su questa timeline: disponibili ${availableCredits}, utilizzati ${draftUsedCredits} su ${MAX_FREE_CHECK_CREDITS}.`}
                 </p>
               )}

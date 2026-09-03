@@ -257,8 +257,7 @@ export function FatturePage() {
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Pagamenti e fatture</h1>
-        <p className="page-subtitle">Transazioni Sottocheck — stato pagamenti e fatture generate</p>
-        <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
+        <p className="page-subtitle">Transazioni TesiCheck — stato pagamenti e fatture generate</p>
       </div>
 
       {/* Stats cards — pattern NORMALIZZAZIONE.md */}
@@ -301,7 +300,7 @@ export function FatturePage() {
           <input type="text" placeholder="Cerca per ID, lavorazione o studente..." className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }} />
           <button className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>Cerca</button>
         </div>
-        <style>{`@media (max-width: 768px) { .action-toolbar { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }`}</style>
+        <style>{`@media (max-width: 768px) { .action-toolbar { flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }`}</style>
       </div>
 
       {/* Filters */}

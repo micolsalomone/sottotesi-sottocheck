@@ -476,14 +476,6 @@ export function StudentiPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Gestione Studenti</h1>
         <p className="page-subtitle">Gestisci i profili degli studenti. Gli studenti sono creati in Lavorazioni.</p>
-        <style>{`
-          @media (max-width: 768px) {
-            .page-header {
-              margin-left: var(--spacing-4) !important;
-              margin-right: var(--spacing-4) !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Stats cards */}

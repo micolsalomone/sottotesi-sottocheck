@@ -20,7 +20,7 @@ const navItems: NavItem[] = [
     path: getStudentViewTimelinePath(),
   },
   {
-    label: 'Sottocheck',
+    label: 'TesiCheck',
     icon: <ClipboardCheck size={20} />,
     path: '/student-view/sottocheck',
   },

@@ -43,7 +43,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   starter_pack: 'Starter Pack',
   coaching: 'Coaching',
   coaching_plus: 'Coaching Plus',
-  sottocheck: 'SottoCheck',
+  sottocheck: 'TesiCheck',
 };
 
 const formatDateIT = (dateStr?: string): string => {

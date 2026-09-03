@@ -71,7 +71,7 @@ const SERVICE_LINK_LABELS: Record<string, string> = {
   coaching: 'Coaching',
   coaching_plus: 'Coaching Plus',
   starter_pack: 'Starter Pack',
-  sottocheck: 'Sottocheck',
+  sottocheck: 'TesiCheck',
 };
 
 type NotulaWorkflowStatus = 'da_programmare' | 'da_pagare' | 'pagata';

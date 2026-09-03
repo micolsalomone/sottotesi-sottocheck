@@ -239,7 +239,7 @@ export function StudentiPage() {
   /* ──────────────────────────────── RENDER ──────────────────────────────── */
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       {/* ── Page Header ── */}
       <div className="mb-6">
         <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.5, color: 'var(--foreground)' }}>

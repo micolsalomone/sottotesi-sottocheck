@@ -184,7 +184,7 @@ export function SottocheckAdminPage() {
 
   if (checkStatus === 'processing' || checkStatus === 'completed') {
     return (
-      <div className="px-[40px] py-[32px]">
+      <div className="py-[32px]">
         <div className="mb-8">
           <h1
             style={{
@@ -195,7 +195,7 @@ export function SottocheckAdminPage() {
               color: 'var(--foreground)',
             }}
           >
-            Sottocheck Admin - Verifica plagio
+            TesiCheck Admin - Verifica plagio
           </h1>
           <p
             className="mt-1 text-[var(--muted-foreground)]"
@@ -242,7 +242,7 @@ export function SottocheckAdminPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il report sara disponibile nello storico lavorazioni Sottocheck.
+                Il report sara disponibile nello storico lavorazioni TesiCheck.
               </p>
               <Progress value={60} className="w-full" />
             </>
@@ -251,9 +251,9 @@ export function SottocheckAdminPage() {
               description="Il report è stato generato correttamente e associato alla lavorazione selezionata."
               primaryActionLabel="Visualizza il report"
               onPrimaryAction={() => navigate('/sottocheck/output-preview')}
-              secondaryActionLabel="Vai a Lavorazioni sottocheck"
+              secondaryActionLabel="Vai a Lavorazioni TesiCheck"
               onSecondaryAction={() => navigate('/sottocheck/lavorazioni')}
-              footerNote="Il report è tracciato nello storico Sottocheck amministrativo."
+              footerNote="Il report è tracciato nello storico TesiCheck amministrativo."
             />
           )}
         </div>
@@ -262,7 +262,7 @@ export function SottocheckAdminPage() {
   }
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{
@@ -273,7 +273,7 @@ export function SottocheckAdminPage() {
             color: 'var(--foreground)',
           }}
         >
-          Sottocheck Admin - Verifica plagio
+          TesiCheck Admin - Verifica plagio
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"

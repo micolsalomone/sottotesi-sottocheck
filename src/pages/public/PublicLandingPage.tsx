@@ -155,7 +155,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-medium)',
               }}
             >
-              Tesicheck
+              TesiCheck
             </p>
             <h1
               className="max-w-[760px]"
@@ -217,7 +217,7 @@ export function PublicLandingPage() {
           <div className="flex justify-center lg:justify-end">
             <img
               src={PlanningSticker}
-              alt="Illustrazione mappa Tesicheck"
+              alt="Illustrazione mappa TesiCheck"
               className="w-[240px] h-auto md:w-[300px] lg:w-[320px]"
             />
           </div>
@@ -547,7 +547,7 @@ export function PublicLandingPage() {
                 </a>
 
                 <a
-                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20Sottocheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
+                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20TesiCheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
                   className="inline-flex items-center gap-2 px-[16px] py-[11px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
                   style={{
                     borderRadius: 'var(--radius)',
@@ -591,7 +591,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-regular)',
               }}
             >
-              <strong className="text-[var(--foreground)]">Tesicheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
+              <strong className="text-[var(--foreground)]">TesiCheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
             </p>
 
             <a

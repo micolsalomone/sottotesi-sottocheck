@@ -92,6 +92,14 @@ L'implementazione production deve verificare sul DOM finale i dettagli specifici
 - Admin, Coach, Student e Public mantengono shell applicative separate. Layout, Header e Sidebar non vanno fusi solo per somiglianza visuale.
 - I token condivisi restano in `src/styles/theme.css`; questa guida non introduce nuovi token o componenti.
 
+### Layout e spacing ownership
+
+* Admin, Coach, Student e authenticated `public-view` mantengono shell React distinte, pur potendo condividere primitive CSS di layout.
+* `.admin-main` gestisce viewport, relazione con sidebar, scroll, background e spacing verticale; non applica il page gutter orizzontale.
+* `.page-container` è l'unico owner del page gutter orizzontale: 40px desktop e 16px mobile. I page root gestiscono composizione verticale e spacing specifico, senza ricreare un gutter globale.
+* Card, filter panel, table, drawer e altri componenti possiedono solo il proprio spacing interno: il padding interno non è page inset.
+* Le eccezioni full-bleed, come output preview, compensano direttamente il gutter di `.page-container`, senza dipendere dalla somma storica dei padding dei wrapper.
+
 ## Strategia di evoluzione
 
 La styleguide descrive il target semantico, ma la migrazione del codice è incrementale.

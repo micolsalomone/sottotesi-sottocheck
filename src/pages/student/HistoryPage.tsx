@@ -42,7 +42,7 @@ function formatDate(dateString: string) {
 
 function downloadReport(check: HistoryItem) {
   const reportLines = [
-    'Report Sottocheck',
+    'Report TesiCheck',
     `ID controllo: ${check.id}`,
     `Documento: ${check.documentName}`,
     `Pagine analizzate: ${check.pagesSelected}`,
@@ -55,14 +55,14 @@ function downloadReport(check: HistoryItem) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `report-sottocheck-${check.id}.txt`;
+  link.download = `report-tesicheck-${check.id}.txt`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
 export function HistoryPage() {
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{
@@ -73,7 +73,7 @@ export function HistoryPage() {
             color: 'var(--foreground)',
           }}
         >
-          Storico Sottocheck
+          Storico TesiCheck
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"
@@ -132,20 +132,22 @@ export function HistoryPage() {
                   <span>{formatDate(check.createdAt)}</span>
                 </div>
 
-                <button
-                  onClick={() => downloadReport(check)}
-                  className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Scarica report
-                </button>
+                {check.status === 'completed' && (
+                  <button
+                    onClick={() => downloadReport(check)}
+                    className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Scarica report
+                  </button>
+                )}
               </div>
             </div>
           </div>

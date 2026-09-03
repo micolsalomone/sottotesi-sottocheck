@@ -502,7 +502,7 @@ export function KpiMonitoraggioPage() {
       {/* Attività Sottocheck Table */}
       <div style={{ marginBottom: 'var(--spacing-6)' }}>
         <h2 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--foreground)', marginBottom: 'var(--spacing-4)' }}>
-          Attività Sottocheck
+          Attività TesiCheck
         </h2>
         <ResponsiveTableLayout
           desktop={(

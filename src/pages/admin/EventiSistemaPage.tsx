@@ -137,7 +137,6 @@ export function EventiSistemaPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Eventi di Sistema</h1>
         <p className="page-subtitle">Log operativo eventi e azioni</p>
-        <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
       </div>
 
       <div className="action-toolbar" style={{ position: 'relative' }}>
@@ -145,7 +144,7 @@ export function EventiSistemaPage() {
           <input type="text" placeholder="Cerca evento..." className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }} />
           <button className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>Cerca</button>
         </div>
-        <style>{`@media (max-width: 768px) { .action-toolbar { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }`}</style>
+        <style>{`@media (max-width: 768px) { .action-toolbar { flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }`}</style>
       </div>
 
       <div style={{ display: 'flex', gap: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap' }}>

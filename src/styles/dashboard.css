@@ -23,7 +23,7 @@
 
 .admin-main {
   flex: 1;
-  padding: 1.5rem;
+  padding: 1.5rem 0;
   overflow-y: auto;
   transition: margin-left 0.25s ease;
 }
@@ -363,8 +363,6 @@
 
 @media (max-width: 768px) {
   .admin-layout .action-toolbar {
-    margin-left: var(--spacing-4);
-    margin-right: var(--spacing-4);
     flex-direction: column;
     align-items: stretch;
   }
@@ -769,7 +767,7 @@
 /* Responsive - small screens */
 @media (max-width: 768px) {
   .admin-main {
-    padding: 1rem !important;
+    padding: 1rem 0 !important;
   }
   .page-container {
     padding-left: 1rem !important;

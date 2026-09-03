@@ -5,8 +5,8 @@ export function ImpostazioniSottocheckPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Impostazioni Sottocheck</h1>
-        <p className="page-subtitle">Configurazione del sistema Sottocheck</p>
+        <h1 className="page-title">Impostazioni TesiCheck</h1>
+        <p className="page-subtitle">Configurazione del sistema TesiCheck</p>
       </div>
 
       <div style={{
@@ -52,7 +52,7 @@ export function ImpostazioniSottocheckPage() {
           lineHeight: '1.5',
           margin: 0,
         }}>
-          Le impostazioni del sistema Sottocheck saranno disponibili qui. Parametri di controllo, soglie e configurazioni globali.
+          Le impostazioni del sistema TesiCheck saranno disponibili qui. Parametri di controllo, soglie e configurazioni globali.
         </p>
       </div>
     </div>

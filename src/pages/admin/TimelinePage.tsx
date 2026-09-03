@@ -57,7 +57,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   starter_pack: 'Starter Pack',
   coaching: 'Coaching',
   coaching_plus: 'Coaching Plus',
-  sottocheck: 'SottoCheck',
+  sottocheck: 'TesiCheck',
 };
 
 type ThesisType = 'sperimentale' | 'compilativa';
@@ -938,7 +938,7 @@ export function TimelinePage() {
                 <option value="starter_pack">Starter Pack</option>
                 <option value="coaching">Coaching</option>
                 <option value="coaching_plus">Coaching Plus</option>
-                <option value="sottocheck">SottoCheck</option>
+                <option value="sottocheck">TesiCheck</option>
               </select>
             </div>
             <div style={{ flex: '1 1 150px', minWidth: '150px' }}>
