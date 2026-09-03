@@ -128,7 +128,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-medium)',
               }}
             >
-              Tesicheck
+              TesiCheck
             </p>
             <h1
               className="max-w-[760px]"
@@ -190,7 +190,7 @@ export function PublicLandingPage() {
           <div className="flex justify-center lg:justify-end">
             <img
               src={PlanningSticker}
-              alt="Illustrazione mappa Tesicheck"
+              alt="Illustrazione mappa TesiCheck"
               className="w-[240px] h-auto md:w-[300px] lg:w-[320px]"
             />
           </div>
@@ -555,7 +555,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-regular)',
               }}
             >
-              <strong className="text-[var(--foreground)]">Tesicheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
+              <strong className="text-[var(--foreground)]">TesiCheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
             </p>
 
             <a

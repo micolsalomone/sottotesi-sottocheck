@@ -68,7 +68,7 @@ export function ConfirmDialog({
             className={
               variant === 'destructive'
                 ? 'bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90'
-                : ''
+                : 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-90'
             }
           >
             {confirmLabel}

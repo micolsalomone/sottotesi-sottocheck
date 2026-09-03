@@ -132,20 +132,22 @@ export function HistoryPage() {
                   <span>{formatDate(check.createdAt)}</span>
                 </div>
 
-                <button
-                  onClick={() => downloadReport(check)}
-                  className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Scarica report
-                </button>
+                {check.status === 'completed' && (
+                  <button
+                    onClick={() => downloadReport(check)}
+                    className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Scarica report
+                  </button>
+                )}
               </div>
             </div>
           </div>

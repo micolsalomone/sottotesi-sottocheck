@@ -940,12 +940,12 @@ export function StudentTimelinePage() {
                 const newDoc: Document = {
                   id: `doc-upload-${Date.now()}-${Math.random()}`,
                   name: file.name,
-                  sender: 'coach',
+                  sender: 'student',
                   stepId: null,
                   stepTitle: null,
                   date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                   size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-                  uploadedBy: 'Coach',
+                  uploadedBy: 'Studente',
                   plagiarismStatus: 'none',
                 };
                 updateSharedDocuments(prev => [newDoc, ...prev]);
@@ -967,12 +967,12 @@ export function StudentTimelinePage() {
             const newDoc: Document = {
               id: `doc-archive-${Date.now()}-${Math.random()}`,
               name: file.name,
-              sender: 'coach',
+              sender: 'student',
               stepId: null,
               stepTitle: null,
               date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }),
               size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-              uploadedBy: 'Coach',
+              uploadedBy: 'Studente',
               plagiarismStatus: 'none',
               note: note,
             };
