@@ -2,7 +2,9 @@ import { FileText } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { SottocheckHistoryStatusBadge } from '@/app/components/SottocheckHistoryStatusBadge';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
-import { getCoachPersistentChecksForOwner } from '@/app/data/tesicheckCoachCheck';
+import { CoachCheckLiberoBadge } from '@/app/components/CoachCheckLiberoBadge';
+import { getCoachPersistentChecksForOwner, isCoachFreeCheck } from '@/app/data/tesicheckCoachCheck';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
 
@@ -12,12 +14,11 @@ import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
  * Reads the Coach store (`coach-tesicheck-checks-v1`) filtered by the Coach
  * owner id; never the consumer paid store. Shares the redesigned consumer
  * History visual grammar (compact card, document identity left, status/action
- * cluster right) but adds the Coach coaching context — Student, Percorso and the
- * credits consumed by THIS check. Remaining / total / cumulative credits are
- * never surfaced.
- *
- * Only `binding.mode === 'coaching_path'` records exist today: no `Check libero`,
- * no price, no payment information.
+ * cluster right). Two record contexts, branched on `binding.mode`:
+ * `coaching_path` shows Student · Percorso and the credits consumed by THIS
+ * check; `check_libero` shows the `Check libero` context badge and the price
+ * paid. Remaining / total / cumulative credits are never surfaced, and a free
+ * check never shows a Student or a path.
  */
 const REPORT_BASE_PATH = '/coach-view/report';
 const NEW_CHECK_PATH = '/coach-view/sottocheck';
@@ -57,7 +58,7 @@ export function CoachHistoryPage() {
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          I TesiCheck completati sui percorsi coaching restano disponibili qui fino alla data di scadenza del report.
+          I TesiCheck completati — sui percorsi coaching e liberi a pagamento — restano disponibili qui fino alla data di scadenza del report.
         </p>
       </div>
 
@@ -108,12 +109,25 @@ export function CoachHistoryPage() {
                           fontWeight: 'var(--font-weight-regular)',
                         }}
                       >
-                        <span className="text-[var(--foreground)]">
-                          {check.binding.studentName} · {check.binding.pathLabel}
-                        </span>
-                        <span className="text-[var(--muted-foreground)]">
-                          Crediti usati: {check.creditsUsed}
-                        </span>
+                        {isCoachFreeCheck(check) ? (
+                          <>
+                            <span className="mt-0.5 mb-0.5 self-start">
+                              <CoachCheckLiberoBadge />
+                            </span>
+                            <span className="text-[var(--muted-foreground)]">
+                              Prezzo pagato: {formatCheckoutPrice(check.price)}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[var(--foreground)]">
+                              {check.binding.studentName} · {check.binding.pathLabel}
+                            </span>
+                            <span className="text-[var(--muted-foreground)]">
+                              Crediti usati: {check.creditsUsed}
+                            </span>
+                          </>
+                        )}
                         <span className="text-[var(--muted-foreground)]">
                           Completato il {formatLongDate(check.completedAt)}
                         </span>
@@ -186,7 +200,7 @@ function HistoryEmptyState({ onNewCheck }: { onNewCheck: () => void }) {
           lineHeight: 1.6,
         }}
       >
-        I TesiCheck completati compariranno qui insieme al percorso, allo studente e alla data di disponibilità del report.
+        I TesiCheck completati compariranno qui — sui percorsi coaching con studente e percorso, quelli liberi con il prezzo pagato — insieme alla data di disponibilità del report.
       </p>
       <SottocheckActionButton className="mt-5 px-[16px] py-[10px]" onClick={onNewCheck}>
         Nuovo TesiCheck

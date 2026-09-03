@@ -1,7 +1,9 @@
 import { Download, LifeBuoy } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
-import { getCoachPersistentCheck } from '@/app/data/tesicheckCoachCheck';
+import { CoachCheckLiberoBadge } from '@/app/components/CoachCheckLiberoBadge';
+import { getCoachPersistentCheck, isCoachFreeCheck } from '@/app/data/tesicheckCoachCheck';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 
 const HISTORY_PATH = '/coach-view/archivio';
@@ -19,12 +21,15 @@ function formatDate(value: string) {
 }
 
 /**
- * Coach TesiCheck report — path-bound checks only.
+ * Coach TesiCheck report — serves both Coach record modes off one route.
  *
  * Separate wrapper from `PublicReportPage` / `StudentReportPage`: same static
  * report CONTENT, but Coach shell, Coach ownership guard and Coach support
  * semantics. Reads the Coach store (`coach-tesicheck-checks-v1`); never the
- * consumer paid store.
+ * consumer paid store. Ownership / availability / expiry are mode-agnostic; only
+ * the header + download metadata branch on `binding.mode` (via `isCoachFreeCheck`):
+ * `coaching_path` shows Student · Percorso, `check_libero` shows the
+ * `Check libero` badge + price paid and never a Student/path.
  */
 export function CoachReportPage() {
   const navigate = useNavigate();
@@ -48,15 +53,21 @@ export function CoachReportPage() {
 
   const downloadReport = () => {
     if (!check) return;
-    const content = [
+    const lines = [
       'Report TesiCheck',
       `Check ID: ${check.id}`,
       `Documento: ${check.document.name}`,
-      `Studente: ${check.binding.studentName}`,
-      `Percorso: ${check.binding.pathLabel}`,
-      `Completato: ${formatDate(check.completedAt)}`,
-      `Disponibile fino al: ${formatDate(check.expiresAt)}`,
-    ].join('\n');
+    ];
+    if (isCoachFreeCheck(check)) {
+      lines.push('Tipo: Check libero');
+      lines.push(`Prezzo pagato: ${formatCheckoutPrice(check.price)}`);
+    } else {
+      lines.push(`Studente: ${check.binding.studentName}`);
+      lines.push(`Percorso: ${check.binding.pathLabel}`);
+    }
+    lines.push(`Completato: ${formatDate(check.completedAt)}`);
+    lines.push(`Disponibile fino al: ${formatDate(check.expiresAt)}`);
+    const content = lines.join('\n');
     const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
@@ -101,11 +112,16 @@ export function CoachReportPage() {
     <div className="py-[32px]">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.3 }}>
-            Report TesiCheck
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.3 }}>
+              Report TesiCheck
+            </h1>
+            {isCoachFreeCheck(check) && <CoachCheckLiberoBadge />}
+          </div>
           <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
-            {check.document.name} · {check.binding.studentName} · {check.binding.pathLabel}
+            {isCoachFreeCheck(check)
+              ? `${check.document.name} · ${formatCheckoutPrice(check.price)}`
+              : `${check.document.name} · ${check.binding.studentName} · ${check.binding.pathLabel}`}
           </p>
           <p className="mt-0.5 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
             Completato il {formatDate(check.completedAt)}
