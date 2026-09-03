@@ -22,13 +22,20 @@
 - Shared **price formatter** `formatCheckoutPrice()` — every paid-consumer amount displays as `€14,90`.
 - **Post-payment report recovery** — if persistent-check materialization fails after a (simulated) verified payment, both guest and Student keep the paid state and show a recoverable screen (`Non siamo riusciti a generare il report` + `Riprova a generare il report`); retry re-runs **only** the materialization, never the payment. Idempotency keys differ by origin: guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference`.
 
+**Also implemented (consumer History redesign — see §12):**
+
+- `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
+- `Apri report` into the role-specific report route; expired records stay visible with no action.
+
 **Explicitly NOT part of this workstream:**
 
 - Coach entitlement / coaching-path flow.
 - Coach paid vs free "modalità" selector.
+- Coach History / Storico redesign — separate future workstream; must **not** reuse the consumer persistent store (canonical §19.1).
 - Admin TesiCheck flow.
-- History / Storico redesign (`In scadenza`, `Scaduto`, wiring lists to the persistent store).
-- Full expiry / retention redesign (only the 30-day `expiresAt` field + report-page evaluation exist).
+- `In scadenza` History condition — no threshold defined (canonical §30), not implemented.
+- Full expiry / retention redesign (only the 30-day `expiresAt` field + report-page evaluation + History read-time derivation exist).
+- Legacy `/public/history` — left on its isolated mock; not wired to the persistent store.
 - General legacy cleanup (`/public/sottocheck`, `/public/success`, `getViewBasePath` bug, duplicate report pages, etc.).
 
 ---
@@ -182,7 +189,7 @@ Architectural reasons already surfaced: same domain data (a "check") does **not*
 - `tsc --noEmit` baseline: **47 errors across 16 files** (e.g. `import.meta.env` typing in `PublicReportPage.tsx:69`, `PublicOutputPreviewPage`, `SottocheckOutputPreviewPage`; missing `figma:asset` / `*.png` module declarations; `thesis_topic` / `CoachPayout.status` in admin). Pre-existing; **not introduced by this workstream**. `vite build` does not typecheck.
 - Vite build warning: main JS chunk > 500 kB (~1.6 MB raw / ~367 kB gzip). Pre-existing.
 - `getViewBasePath` (`src/pages/coach/viewBasePath.ts`) checks `startsWith('/public')` before `/public-view`, so the `/public-view` branch is dead; success CTAs on `/public-view/sottocheck` can navigate out of `PublicLayout`.
-- Storico (`src/pages/student/HistoryPage.tsx`, mounted at `/public/history`, `/student-view/history`, `/public-view/history`) renders `mockHistory` and never reads `public-tesicheck-checks-v1` — a just-paid check does not appear in history.
+- **RESOLVED — consumer Storico wired to the persistent store (see §12).** `/public-view/history` and `/student-view/history` now read `public-tesicheck-checks-v1` filtered by owner; a just-paid check appears in History. Legacy `/public/history` still renders `mockHistory` by design (isolated, not in scope).
 - **OPEN PRODUCT ISSUE — pricing arithmetic mismatch.** `SottocheckPricingPreview.tsx` advertises `EUR 0,52/1000cc` (→ 14.82 for 28 500 cc) which does not reconcile with the mock total `DEMO_PRICE = 14.9`. The polish pass deliberately did **not** touch this line or invent a price — it needs a product decision on the real rate/total relationship.
 - **RESOLVED — post-payment report recovery (guest + Student).** Materialization failure after a verified (simulated) payment no longer dead-ends. Guest: `PublicAccountGatePage` keeps the paid pre-check session and shows a recoverable `completionError` screen with "Riprova a generare il report" that re-runs `createPersistentCheckFromPaidPrecheck()` only. Student: `StudentPaidSottocheckPage` previously hung forever on "Stiamo generando il report..."; it now clears `isProcessing`, shows the same recovery screen, and retries `createPersistentStudentCheck({ ..., sourcePaymentReference })` only. Neither retry re-runs payment. Idempotency is per-origin and **not** unified — guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference` — so a retry reuses an already-written record rather than duplicating. `?paymentDemo=reportfail` simulates one materialization failure in **both** flows.
 - `DEMO_CHARACTER_COUNT` / `DEMO_PRICE` duplicated in `PublicLandingPage.tsx` and `StudentPaidSottocheckPage.tsx`.
@@ -242,6 +249,11 @@ Do not resolve the open items here — they are the next workstream (§11).
 - Do not create a universal TesiCheck component/model without a demonstrated shared responsibility.
 - Keep `checkout_verify_email` in both the `PrecheckFlowStage` union and `isPrecheckFlowStage`.
 - Keep `DEMO_ACCOUNT_ID` a single exported constant shared by the account session and the report ownership check.
+- Consumer History reads `public-tesicheck-checks-v1` through `getPersistentTesiChecksForOwner`, filtered by the same owner guard as the matching report page; it never mutates records and derives availability from `expiresAt` at render time.
+- Consumer History primary action is `Apri report` into the role-specific report route — never `Scarica report`, no download action, no disabled button on expired records.
+- Consumer History shows no price / pages / character count / internal refs / scores; `In scadenza` stays unimplemented until a threshold is approved (canonical §30).
+- Legacy `/public/history` stays on its isolated mock (`HistoryPage` with no `context` prop) — do not wire it to the persistent store.
+- Coach History is a separate workstream and must not reuse the consumer persistent store or its report routes (canonical §19.1).
 
 ---
 
@@ -257,6 +269,43 @@ Priority order for what remains:
 2. Pricing arithmetic decision (§7) — real rate vs total.
 3. Student `GatewayPanel` card wrapper — decide whether the Student interstitial should match the bare guest one (§8).
 4. Final paid-consumer browser walkthrough (run `.github/skills/tesicheck-checkout-smoke/SKILL.md` end to end; guest + returning + resume + responsive; verify `?paymentDemo=1` reaches failed/cancelled and `?paymentDemo=reportfail` reaches the recovery screen in both flows).
-5. Only after the above: move to Coach entitlement flow and History redesign.
+5. Only after the above: move to Coach entitlement flow. (Consumer History is done — see §12. Coach History is its own workstream and is blocked on a Coach persistent-check model + Coach report route + free-check mode.)
 
 Do not implement these now.
+
+---
+
+## 12. Consumer History / Storico — implementation state
+
+**Scope:** authenticated standalone `/public-view/history` and Student `/student-view/history` only. Coach, Admin, checkout, payment, recovery, report content, retention duration, pricing and legacy-route cleanup were not touched.
+
+**Data source.** Both routes render from the real persistent paid checks in `public-tesicheck-checks-v1`, via a read-only accessor `getPersistentTesiChecksForOwner(context, ownerId)` (`tesicheckPersistentCheck.ts`): validates each record with `isPersistentTesiCheck`, exact `owner.context` + `owner.id` match, newest `completedAt` first. No schema change, no migration, no expiry-driven mutation.
+
+**Ownership filtering (mirrors the report-page guards).**
+
+- `/public-view/history` → `context="standalone"` → `owner.context === 'standalone' && owner.id === DEMO_ACCOUNT_ID`.
+- `/student-view/history` → `context="student"` → `owner.context === 'student' && owner.id === STUDENT_VIEW_STUDENT_ID`.
+- Each list requires both an exact context and an exact id match, so checks never leak between contexts.
+
+**Per-item information shown.**
+
+- Primary: document name (`document.name`); availability status badge (`Completato` / `Scaduto`); explicit expiry line — `Disponibile fino al {d MMMM yyyy}` when available, `Scaduto il {d MMMM yyyy}` when expired (Italian long date, same format as the report pages), always visible, never a tooltip.
+- Primary action (available only): `Apri report` → `/public-view/report/:checkId` or `/student-view/report/:checkId` (role-specific route; label is exactly `Apri report`, never `Scarica report`; no download action in History).
+- Secondary: `Completato il {d MMMM yyyy}` (from `completedAt`).
+- **Not shown:** price, character count, pages, internal id, `payment.reference`, `sourceTemporaryDocumentRef` / `sourcePaymentReference`, plagiarism / AI scores.
+
+**Availability / expiry.** Derived at render time: `new Date(check.expiresAt).getTime() <= Date.now()`. The stored record is never mutated. Available → `Completato` badge + `Disponibile fino al …` + `Apri report`. Expired → `Scaduto` badge + `Scaduto il …` + **no action element at all** (not a disabled button). Expired records stay in the list.
+
+**`In scadenza`.** Not implemented. No canonical threshold is defined (canonical §30). Only the explicit expiry date is shown; no “X days remaining” logic.
+
+**Empty state.** Shared structure/copy — heading `Nessun TesiCheck nello storico`, body `I TesiCheck completati compariranno qui insieme alla data di disponibilità del report.` Student CTA `Nuovo TesiCheck` → `/student-view/sottocheck`. Standalone CTA **omitted** — `/public-view/sottocheck` still renders the legacy `SottocheckPage` (fake payment, writes nothing, `getViewBasePath` bug §7), so it is not a safe entry point; not fixed here.
+
+**Legacy `/public/history`.** Unchanged. `HistoryPage` takes an optional `context` prop; with no prop it renders `LegacyPublicHistory` — the previous `mockHistory` implementation verbatim (mock price / pages / `.txt` download / `In elaborazione`). It is deliberately **not** connected to `public-tesicheck-checks-v1`. Route and component binding untouched.
+
+**Status badge.** `SottocheckHistoryStatusBadge` gained an additive `'expired'` member → `Scaduto`, restrained neutral styling (`--muted` / `--muted-foreground`, no danger colour). `processing` / `error` remain in the union but the redesigned consumer History never emits them. The component is also used by `src/pages/coach/ArchivioPage.tsx` (Coach + Student Archivio); it passes only `completed`, so that surface is unaffected. A component-reuse audit confirmed no existing generic/visual badge primitive fits without duplicating styling, and every semantic status component belongs to another domain — so `SottocheckHistoryStatusBadge` is kept.
+
+**Files changed for this piece:** `src/app/data/tesicheckPersistentCheck.ts` (accessor), `src/app/components/SottocheckHistoryStatusBadge.tsx` (`expired`), `src/pages/student/HistoryPage.tsx` (redesign + legacy split), `src/app/routes.tsx` (pass `context` to the two in-scope mounts). `npm run build` succeeds; `git diff --check` clean; `tsc --noEmit` at the unchanged 47-error baseline. Committed as `256a948` — *feat(tesicheck): connect consumer history to paid checks*.
+
+### Coach History (not done)
+
+Coach TesiCheck History (`src/pages/coach/ArchivioPage.tsx`, mounted at `/coach-view/history` and `/coach-view/archivio`) still renders a 2-item `mockHistory` (`{ id, documentName, pagesSelected, status, createdAt }`). The Coach check flow (`src/pages/coach/SottocheckPage.tsx`) persists nothing. To reach canonical Coach History (§19.1) the following do not exist yet and must be built as a separate workstream: a Coach persistent-check model (with Student, coaching path, credits-used-by-this-check, free-check price, `completedAt`, `expiresAt`, report ref, and a path-bound / `Check libero` discriminator), a `/coach-view/report/:checkId` route, and the Coach free-check mode. Coach History must **not** reuse `public-tesicheck-checks-v1`. No `TesiCheckHistoryItem` leaf was extracted — with standalone + Student already sharing one implementation and Coach having no data, extraction is not yet demonstrated duplication reduction.

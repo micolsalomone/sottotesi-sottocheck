@@ -1130,6 +1130,102 @@ Il documento e il report non sono più disponibili.
 
 ---
 
+## 19.1 Storico — Coach: due contesti di record
+
+Lo Storico TesiCheck del Coach contiene **due contesti di record distinti**. Condividono la stessa grammatica base dello Storico consumer — identità del documento, data di completamento, scadenza esplicita, stato di disponibilità `Completato` / `Scaduto`, azione `Apri report`, nessuna azione dopo la scadenza — ma il Coach ha metadati contestuali aggiuntivi.
+
+### A. Check su percorso coaching
+
+Check eseguito dal Coach per uno Student all'interno di un percorso coaching attivo.
+
+Mostrare:
+
+- nome documento;
+- Student;
+- percorso coaching;
+- crediti utilizzati **da quel singolo check**;
+- data di completamento;
+- scadenza esplicita del report;
+- stato di disponibilità;
+- `Apri report`.
+
+Regola di prodotto vincolante:
+
+> Al Coach non vanno **mai** mostrati:
+> - i crediti TesiCheck rimanenti;
+> - la quota residua totale;
+> - alcun indicatore derivato del tipo “X crediti rimasti”.
+>
+> È consentito mostrare **solo** i crediti consumati da quello specifico check, e solo se quel dato esiste realmente.
+
+### B. Check libero / esterno a pagamento
+
+Check a pagamento del Coach non associato a un percorso coaching.
+
+Deve essere visivamente distinguibile dai check legati a un percorso tramite un badge contestuale visibile:
+
+`Check libero`
+
+Per questo record mostrare:
+
+- nome documento;
+- badge `Check libero`;
+- prezzo pagato;
+- data di completamento;
+- scadenza esplicita del report;
+- stato di disponibilità;
+- `Apri report`.
+
+Non mostrare Student o percorso coaching quando il check non è associato ad alcun percorso. Non inventare un'associazione a un percorso.
+
+### Semantica
+
+- `Check libero` è un badge di **contesto/tipo**, non uno stato; non va veicolato attraverso il badge di stato disponibilità.
+- `Completato` / `Scaduto` descrivono la **disponibilità del report**, non l'esecuzione del check.
+- I record scaduti restano visibili nello Storico e non hanno azione report: nessun bottone disabilitato, azione semplicemente assente.
+- `In scadenza` resta una condizione derivata **non definita** finché non è approvata una soglia (vedi §18 e §30).
+
+### Gerarchia informativa
+
+Check su percorso:
+
+```text
+PRIMARIO
+- nome documento
+- stato disponibilità
+- scadenza
+- Apri report
+
+CONTESTO
+- Student
+- Percorso
+- Crediti usati
+
+SECONDARIO
+- data di completamento
+```
+
+Check libero:
+
+```text
+PRIMARIO
+- nome documento
+- badge Check libero
+- stato disponibilità
+- scadenza
+- Apri report
+
+CONTESTO
+- prezzo
+
+SECONDARIO
+- data di completamento
+```
+
+> **Stato prototipo (non canonico).** L'implementazione Coach attuale del prototipo **non** supporta ancora questo Storico: mancano il modello persistente dei check Coach, la route report nella shell Coach e la modalità “check libero”. Finché questi non esistono, lo Storico Coach resta un workstream separato e non deve riusare lo store persistente consumer (`public-tesicheck-checks-v1`).
+
+---
+
 ## 20. Retention
 
 Policy di prodotto corrente:
@@ -1383,6 +1479,9 @@ Nei contesti coaching:
 - Student Archivio resta separato dallo Storico TesiCheck.
 - `/public` e `/public-view` restano contesti distinti.
 - La landing distingue `quote_ready` da checkout già iniziato.
+- Lo Storico Coach ha due contesti di record: check su percorso coaching e check libero a pagamento (§19.1).
+- Al Coach non vanno mai mostrati crediti TesiCheck rimanenti o quota residua; è ammesso solo il dato dei crediti consumati dal singolo check, se esiste (§19.1).
+- `Check libero` è un badge di contesto/tipo, non uno stato di disponibilità (§19.1).
 
 ---
 
@@ -1393,6 +1492,7 @@ Nei contesti coaching:
 3. Quale visibilità dello staff Sottotesi sui file/report è consentita.
 4. Scope production delle pagine Profilo/Account incomplete.
 5. Eventuale collegamento opzionale futuro tra Coach paid free check e un percorso coaching.
+6. Soglia della condizione derivata `In scadenza` nello Storico (vale per tutti i ruoli). Finché non è approvata, mantenere solo la data di scadenza esplicita e non introdurre logiche “X giorni rimanenti”.
 
 ---
 
