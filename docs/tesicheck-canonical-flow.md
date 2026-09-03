@@ -1222,7 +1222,7 @@ SECONDARIO
 - data di completamento
 ```
 
-> **Stato prototipo (non canonico).** L'implementazione Coach attuale del prototipo **non** supporta ancora questo Storico: mancano il modello persistente dei check Coach, la route report nella shell Coach e la modalità “check libero”. Finché questi non esistono, lo Storico Coach resta un workstream separato e non deve riusare lo store persistente consumer (`public-tesicheck-checks-v1`).
+> **Stato prototipo (non canonico).** Parziale. Esistono ora: il modello persistente path-bound dei check Coach (`CoachPathBoundCheck`), lo store dedicato `coach-tesicheck-checks-v1`, la route report nella shell Coach `/coach-view/report/:checkId`, e la materializzazione di un singolo check path-bound che apre il report Coach. **Non** esistono ancora: la modalità `Check libero`, e il collegamento dello Storico Coach a questo store (l'implementazione Storico resta mock/disconnessa). L'entitlement/quota resta logica prototipo/mock. Lo Storico Coach resta un workstream separato e non deve riusare lo store persistente consumer (`public-tesicheck-checks-v1`); quando verrà implementato dovrà leggere `coach-tesicheck-checks-v1`. Dettaglio tecnico: [tesicheck-coach-handoff.md](./tesicheck-coach-handoff.md).
 
 ---
 

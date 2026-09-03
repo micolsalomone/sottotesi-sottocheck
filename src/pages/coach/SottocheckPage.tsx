@@ -1,18 +1,17 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import {
-  CheckCircle,
-  Loader2,
-  ShieldCheck,
-} from 'lucide-react';
-import { Progress } from '@/app/components/ui/progress';
-import { getViewBasePath } from './viewBasePath';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
-import { SottocheckSuccessPanel } from '@/app/components/SottocheckSuccessPanel';
+import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
+import {
+  createCoachExecutionReference,
+  createCoachPathBoundCheck,
+  type CoachPathBoundCheck,
+} from '@/app/data/tesicheckCoachCheck';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
-type CheckStatus = 'created' | 'processing' | 'completed' | 'error';
+type CheckStatus = 'created' | 'processing' | 'error';
 type PlanType = 'starter_pack' | 'coaching' | 'coaching_plus';
 
 interface TimelinePath {
@@ -21,6 +20,12 @@ interface TimelinePath {
   serviceName: string;
   timelineLabel: string;
   planType: PlanType;
+  /**
+   * Grounded Coach-view Student id (`STUDENTS_DATA` / `/coach-view/studenti/:studentId`).
+   * Optional: only a path carrying a real id can enter the persistent-check flow.
+   * Ids are never derived from `studentName` at runtime.
+   */
+  studentId?: string;
 }
 
 const MAX_FREE_CHECK_CREDITS = 100;
@@ -40,6 +45,7 @@ const MOCK_TIMELINE_PATHS: TimelinePath[] = [
     serviceName: 'Coaching',
     timelineLabel: 'Timeline Tesi Magistrale',
     planType: 'coaching',
+    studentId: 'S-034',
   },
   {
     id: 'svc-sara-martini',
@@ -63,17 +69,30 @@ const MOCK_USED_CREDITS_BY_PATH: Record<string, number> = {
   'svc-luca-neri': 8,
 };
 
+interface PendingCoachCheck {
+  studentId: string;
+  studentName: string;
+  pathId: string;
+  pathLabel: string;
+  document: UploadedDocument;
+  executionReference: string;
+}
+
 export function SottocheckPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const viewBasePath = getViewBasePath(location.pathname);
 
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [pagesSelected, setPagesSelected] = useState<number>(0);
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('created');
+  const [completedCheck, setCompletedCheck] = useState<CoachPathBoundCheck | null>(null);
   const [selectedPathId, setSelectedPathId] = useState<string>('');
+  // Quota mock: kept internal only, to decide `canStartCheck`. Never surfaced as a
+  // number — the Coach must not see remaining / total / cumulative-used credits.
   const [draftUsedCreditsByPath, setDraftUsedCreditsByPath] = useState<Record<string, number>>(MOCK_USED_CREDITS_BY_PATH);
+
+  const pendingCheckRef = useRef<PendingCoachCheck | null>(null);
+  const hasCreatedCheckRef = useRef(false);
 
   const eligibleTimelinePaths = MOCK_TIMELINE_PATHS.filter(path => path.planType === ELIGIBLE_PLAN);
   const selectedPath = eligibleTimelinePaths.find(path => path.id === selectedPathId) || null;
@@ -83,8 +102,60 @@ export function SottocheckPage() {
   const isCoachingPlan = selectedPlanType === ELIGIBLE_PLAN;
   const availableCredits = selectedPath ? Math.max(0, MAX_FREE_CHECK_CREDITS - draftUsedCredits) : 0;
 
+  const canStartCheck = Boolean(selectedPath)
+    && Boolean(selectedPath?.studentId)
+    && document
+    && documentStatus === 'valid'
+    && pagesSelected > 0
+    && isCoachingPlan
+    && availableCredits > 0
+    && checkStatus !== 'processing';
+
+  // Materialize exactly one persistent Coach check when processing starts.
+  // Guarded against the StrictMode double-invoke; `createCoachPathBoundCheck`
+  // also dedupes by `sourceExecutionReference`.
+  useEffect(() => {
+    if (checkStatus !== 'processing' || completedCheck || hasCreatedCheckRef.current) {
+      return;
+    }
+    const pending = pendingCheckRef.current;
+    if (!pending) {
+      return;
+    }
+    hasCreatedCheckRef.current = true;
+
+    const check = createCoachPathBoundCheck({
+      coachId: COACH_VIEW_COACH_ID,
+      studentId: pending.studentId,
+      studentName: pending.studentName,
+      pathId: pending.pathId,
+      pathLabel: pending.pathLabel,
+      document: pending.document,
+      creditsUsed: MOCK_CREDIT_COST_PER_CHECK,
+      sourceExecutionReference: pending.executionReference,
+    });
+
+    if (check) {
+      setCompletedCheck(check);
+    } else {
+      hasCreatedCheckRef.current = false;
+      setCheckStatus('error');
+    }
+  }, [checkStatus, completedCheck]);
+
+  // Brief, neutral transition into the report — the work is effectively instant.
+  useEffect(() => {
+    if (!completedCheck) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      navigate(`/coach-view/report/${completedCheck.id}`);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [completedCheck, navigate]);
+
   const handleStartCheck = () => {
-    if (!selectedPath || !document || documentStatus !== 'valid' || pagesSelected <= 0 || !isCoachingPlan || availableCredits <= 0) {
+    if (!canStartCheck || !selectedPath || !selectedPath.studentId || !document) {
       return;
     }
 
@@ -92,16 +163,29 @@ export function SottocheckPage() {
       ...prev,
       [selectedPath.id]: Math.min(MAX_FREE_CHECK_CREDITS, (prev[selectedPath.id] ?? 0) + MOCK_CREDIT_COST_PER_CHECK),
     }));
-    setCheckStatus('processing');
 
-    setTimeout(() => {
-      setCheckStatus('completed');
-    }, 3000);
+    pendingCheckRef.current = {
+      studentId: selectedPath.studentId,
+      studentName: selectedPath.studentName,
+      pathId: selectedPath.id,
+      pathLabel: selectedPath.timelineLabel,
+      document,
+      executionReference: createCoachExecutionReference(),
+    };
+    hasCreatedCheckRef.current = false;
+    setCheckStatus('processing');
   };
 
-  const canStartCheck = Boolean(selectedPath) && document && documentStatus === 'valid' && pagesSelected > 0 && isCoachingPlan && availableCredits > 0 && checkStatus !== 'processing';
+  const handleRetry = () => {
+    if (!pendingCheckRef.current) {
+      setCheckStatus('created');
+      return;
+    }
+    hasCreatedCheckRef.current = false;
+    setCheckStatus('processing');
+  };
 
-  if (checkStatus === 'processing' || checkStatus === 'completed') {
+  if (checkStatus === 'processing') {
     return (
       <div className="py-[32px]">
         <div className="mb-8">
@@ -126,56 +210,56 @@ export function SottocheckPage() {
           >
             {selectedPath
               ? `Percorso: ${selectedPath.studentName} · ${selectedPath.timelineLabel}`
-              : 'Il controllo è in corso'}
+              : 'Controllo in corso'}
           </p>
         </div>
 
-        <div
-          className="bg-[var(--card)] border border-[var(--border)] px-[24px] py-[44px] text-center"
-          style={{ borderRadius: 'var(--radius)' }}
+        <section
+          className="mx-auto flex max-w-[620px] items-start gap-4 border border-[var(--border)] bg-[var(--card)] p-6 md:p-8"
+          style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
         >
-          {checkStatus === 'processing' ? (
-            <>
-              <div
-                className="w-[92px] h-[92px] mx-auto mb-6 flex items-center justify-center"
-                style={{ borderRadius: '50%', background: 'rgba(11,182,63,0.10)' }}
-              >
-                <Loader2 className="w-12 h-12 text-[var(--primary)] animate-spin" />
-              </div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontFamily: 'var(--font-alegreya)',
-                  fontSize: 'var(--text-h3)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  color: 'var(--foreground)',
-                }}
-              >
-                Controllo in elaborazione
-              </h3>
+          <Loader2 className="mt-1 h-6 w-6 shrink-0 animate-spin text-[var(--primary)]" aria-hidden="true" />
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h2)', fontWeight: 'var(--font-weight-bold)' }}>
+              Stiamo preparando il report
+            </h2>
+            <p
+              className="mt-2 text-[var(--muted-foreground)]"
+              style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}
+            >
+              Tra pochi istanti verrai portato al report del controllo.
+            </p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (checkStatus === 'error') {
+    return (
+      <div className="py-[32px]">
+        <section
+          className="mx-auto max-w-[620px] border border-[var(--border)] bg-[var(--card)] p-6 md:p-8"
+          style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
+        >
+          <div className="flex items-start gap-4">
+            <AlertCircle className="mt-1 h-6 w-6 shrink-0 text-[var(--destructive)]" aria-hidden="true" />
+            <div>
+              <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h2)', fontWeight: 'var(--font-weight-bold)' }}>
+                Non siamo riusciti ad avviare il controllo
+              </h1>
               <p
-                className="mb-6 text-[var(--muted-foreground)]"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-regular)',
-                }}
+                className="mt-2 text-[var(--muted-foreground)]"
+                style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}
               >
-                Il controllo richiede alcuni minuti. Riceverai una notifica al completamento.
+                Puoi riprovare: nessun credito aggiuntivo viene consumato.
               </p>
-              <Progress value={60} className="w-full" />
-            </>
-          ) : (
-            <SottocheckSuccessPanel
-              description="Il report di verifica plagio è pronto per questa lavorazione."
-              primaryActionLabel="Visualizza il report"
-              onPrimaryAction={() => navigate(`${viewBasePath}/output-preview`)}
-              secondaryActionLabel="Vai allo storico TesiCheck"
-              onSecondaryAction={() => navigate(`${viewBasePath}/archivio`)}
-              footerNote="Il report è disponibile nello storico della vista coach."
-            />
-          )}
-        </div>
+            </div>
+          </div>
+          <SottocheckActionButton className="mt-6" onClick={handleRetry}>
+            Riprova
+          </SottocheckActionButton>
+        </section>
       </div>
     );
   }
@@ -420,7 +504,7 @@ export function SottocheckPage() {
                   fontWeight: 'var(--font-weight-regular)',
                 }}
               >
-                Il TesiCheck gratuito è disponibile solo per piani Coaching.
+                Il TesiCheck su percorso coaching usa l'entitlement del percorso, senza pagamento.
               </p>
 
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
@@ -444,7 +528,7 @@ export function SottocheckPage() {
                         fontWeight: 'var(--font-weight-bold)',
                       }}
                     >
-                      {!selectedPath ? 'Percorso non selezionato' : availableCredits > 0 ? 'Disponibile' : 'Esaurita'}
+                      {!selectedPath ? 'Percorso non selezionato' : availableCredits > 0 ? 'Disponibile' : 'Non sufficiente'}
                     </p>
                     <p
                       className="text-[var(--muted-foreground)]"
@@ -455,8 +539,8 @@ export function SottocheckPage() {
                       }}
                     >
                       {selectedPath
-                        ? 'Dettaglio numerico visibile solo in caso di crediti insufficienti.'
-                        : 'Seleziona una lavorazione per verificare lo stato crediti'}
+                        ? 'Lo stato dei crediti del percorso viene verificato automaticamente.'
+                        : 'Seleziona una lavorazione per verificare lo stato dei crediti.'}
                     </p>
                   </div>
 
@@ -480,8 +564,8 @@ export function SottocheckPage() {
                 }}
               >
                 {isCoachingPlan
-                  ? 'Piano idoneo al TesiCheck incluso.'
-                  : 'Il TesiCheck incluso è disponibile solo per piani Coaching.'}
+                  ? 'Piano idoneo al TesiCheck su percorso coaching.'
+                  : 'Il TesiCheck su percorso coaching è disponibile solo per piani Coaching.'}
               </p>
 
               {!canStartCheck && (
@@ -495,11 +579,13 @@ export function SottocheckPage() {
                 >
                   {!selectedPath
                     ? 'Seleziona prima una lavorazione/timeline.'
-                    : !document || documentStatus !== 'valid'
-                      ? 'Carica prima un documento valido per avviare il controllo.'
-                      : !isCoachingPlan
-                        ? 'Questo piano non include l’accesso al TesiCheck.'
-                        : `Crediti insufficienti su questa timeline: disponibili ${availableCredits}, utilizzati ${draftUsedCredits} su ${MAX_FREE_CHECK_CREDITS}.`}
+                    : !selectedPath.studentId
+                      ? 'Questo percorso non è ancora collegato a uno studente valido per il controllo.'
+                      : !document || documentStatus !== 'valid'
+                        ? 'Carica prima un documento valido per avviare il controllo.'
+                        : !isCoachingPlan
+                          ? 'Questo piano non include l’accesso al TesiCheck.'
+                          : 'I crediti TesiCheck disponibili per questo percorso non sono sufficienti per avviare un nuovo controllo.'}
                 </p>
               )}
             </div>
