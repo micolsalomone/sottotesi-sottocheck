@@ -755,7 +755,6 @@ export function LavorazioniSottocheckPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Lavorazioni Sottocheck</h1>
         <p className="page-subtitle">Check Plagio/AI avviati dagli admin, con riferimento opzionale alla lavorazione</p>
-        <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
       </div>
 
       {/* Mini Stats */}
@@ -802,7 +801,7 @@ export function LavorazioniSottocheckPage() {
         </div>
         <style>{`
           @media (max-width: 768px) {
-            .action-toolbar { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; flex-direction: column !important; align-items: stretch !important; }
+            .action-toolbar { flex-direction: column !important; align-items: stretch !important; }
             .action-toolbar > div { width: 100% !important; }
             .action-toolbar-right { width: 100% !important; justify-content: stretch !important; }
             .action-toolbar-right .btn { width: 100% !important; justify-content: center !important; }

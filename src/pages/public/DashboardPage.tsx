@@ -8,7 +8,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="px-[20px] md:px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <header className="mb-8 md:mb-10">
         <h1
           style={{

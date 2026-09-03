@@ -10,7 +10,7 @@ export function DashboardPage() {
   const currentStudent = getStudentViewStudent();
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-10">
         <h1
           style={{

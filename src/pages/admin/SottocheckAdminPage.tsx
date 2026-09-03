@@ -184,7 +184,7 @@ export function SottocheckAdminPage() {
 
   if (checkStatus === 'processing' || checkStatus === 'completed') {
     return (
-      <div className="px-[40px] py-[32px]">
+      <div className="py-[32px]">
         <div className="mb-8">
           <h1
             style={{
@@ -262,7 +262,7 @@ export function SottocheckAdminPage() {
   }
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{

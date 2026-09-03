@@ -527,7 +527,6 @@ export function JobPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Sottocheck Coaching</h1>
         <p className="page-subtitle">Controlli Check Plagio/AI avviati dai coach durante i piani coaching</p>
-        <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
       </div>
 
       {/* Mini Stats */}
@@ -560,7 +559,7 @@ export function JobPage() {
           <input type="text" placeholder="Cerca per ID, coach, studente o lavorazione..." className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }} />
         </div>
         <style>{`
-          @media (max-width: 768px) { .action-toolbar { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }
+          @media (max-width: 768px) { .action-toolbar { flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }
         `}</style>
       </div>
 

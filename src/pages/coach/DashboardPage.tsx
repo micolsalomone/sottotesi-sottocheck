@@ -144,7 +144,7 @@ export function DashboardPage() {
   const openTickets = visibleTickets.filter(t => t.status === 'open');
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       {/* ── Header ── */}
       <div className="mb-10">
         <h1

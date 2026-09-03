@@ -7,7 +7,7 @@ export function NotFoundPage() {
   const viewBasePath = getViewBasePath(location.pathname);
 
   return (
-    <div className="px-[40px] py-[32px] flex flex-col items-center justify-center min-h-[400px]">
+    <div className="py-[32px] flex flex-col items-center justify-center min-h-[400px]">
       <p
         className="text-[var(--muted-foreground)] mb-4"
         style={{

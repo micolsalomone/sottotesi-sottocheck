@@ -610,14 +610,6 @@ export function CoachPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Gestione Coach</h1>
         <p className="page-subtitle">Gestione coach e carico lavoro</p>
-        <style>{`
-          @media (max-width: 768px) {
-            .page-header {
-              margin-left: var(--spacing-4) !important;
-              margin-right: var(--spacing-4) !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Stats cards */}
