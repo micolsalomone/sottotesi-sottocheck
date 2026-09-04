@@ -22,6 +22,7 @@ import {
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
+  claimPrecheckSession,
   clearPrecheckSession,
   createTemporaryDocumentRef,
   getPrecheckSession,
@@ -31,7 +32,7 @@ import {
 } from '@/app/data/tesicheckPrecheckSession';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
-import { getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { getAccountSession, isPaymentEnabled } from '@/app/data/tesicheckAccountSession';
 
 const DEMO_CHARACTER_COUNT = 28500;
 const DEMO_PRICE = 14.9;
@@ -123,6 +124,24 @@ export function PublicLandingPage() {
 
   const handlePayment = () => {
     if (!canProceedToPayment) return;
+
+    // Distinction: authenticated *before* checkout entry vs *during* checkout.
+    // If a verified standalone session already exists when checkout starts, the
+    // account step and the `Completa il pagamento` recap add nothing — claim the
+    // pre-check now (ownership as usual) and go straight to the gateway. A visitor
+    // who is not authenticated, or who authenticates inside `/public/account`,
+    // keeps the recap (see `PublicAccountGatePage`). No second payment path: the
+    // gateway, idempotency and materialization recovery all stay in the gate page.
+    const session = getAccountSession();
+    if (session && isPaymentEnabled(session)) {
+      claimPrecheckSession(session.id);
+      const redirectingSession = setPrecheckFlowStage('redirecting');
+      if (!redirectingSession) return;
+      setPrecheckSession(redirectingSession);
+      navigate('/public/account');
+      return;
+    }
+
     const checkoutSession = setPrecheckFlowStage('checkout_account');
     if (!checkoutSession) return;
     setPrecheckSession(checkoutSession);

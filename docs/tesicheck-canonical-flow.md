@@ -384,15 +384,26 @@ Nel prototipo invio e conferma possono essere simulati, ma il comportamento UX d
 
 #### Utente già autenticato
 
-Se l'utente è già autenticato prima di iniziare il checkout:
+Se l'utente ha già una sessione standalone **verificata prima di iniziare il
+checkout** dalla landing:
 
 ```text
 quote
-→ checkout
-→ payment
+→ [Procedi al pagamento]
+→ gateway
 ```
 
-Lo step account viene saltato.
+Vengono saltati sia lo step account sia il recap `Completa il pagamento`: la
+pre-check viene claimed dall'account e si passa direttamente allo stato
+`redirecting` / gateway, con la stessa grammatica a CTA unica di standalone
+autenticato (`/public-view/sottocheck`), Student e Coach `Check libero`.
+
+Distinzione rilevante: **autenticato prima dell'ingresso nel checkout** vs
+**autenticato durante il checkout**. Chi si autentica dentro `/public/account`
+(login o registrazione in-checkout) **mantiene** il recap `Completa il pagamento`:
+l'autenticazione ha interrotto l'acquisto e ristabilire il contesto d'ordine
+prima di uscire verso il gateway esterno è utile. "Esiste una sessione adesso"
+da solo non basta: nei casi ambigui si mostra il recap.
 
 ### Dopo autenticazione
 
@@ -1580,12 +1591,22 @@ Nei contesti coaching:
   step corrente + riepilogo persistente. È una scelta di presentazione: la
   macchina a stati del `flowStage` resta invariata (UI di progress ≠ stato
   interno del flow).
-- Per i ruoli già autenticati (Student, Coach `Check libero`) non esiste una
-  schermata intermedia "Completa il pagamento" prima del gateway: lo step di
-  preparazione mostra già conteggio e prezzo e la sua unica CTA apre il gateway.
-  `failed` / `cancelled` riportano allo step di preparazione, con la notice e
-  documento/titolo/quote preservati; `failed` usa `Riprova pagamento`. Non è una
-  regola di prezzo né un nuovo componente condiviso.
+- Per i ruoli già autenticati (Student, Coach `Check libero`, standalone
+  autenticato `/public-view/sottocheck`) non esiste una schermata intermedia
+  "Completa il pagamento" prima del gateway: lo step di preparazione mostra già
+  conteggio e prezzo e la sua unica CTA apre il gateway. `failed` / `cancelled`
+  riportano allo step di preparazione, con la notice e documento/titolo/quote
+  preservati; `failed` usa `Riprova pagamento`. Non è una regola di prezzo né un
+  nuovo componente condiviso.
+- Checkout dalla landing `/public` con **sessione verificata già presente prima
+  dell'ingresso nel checkout**: si salta anche il recap `Completa il pagamento`
+  (oltre allo step account) e si va dritti al gateway. Chi si autentica **dentro**
+  `/public/account` mantiene il recap. La distinzione è "autenticato prima
+  dell'ingresso" vs "autenticato durante"; è realizzata solo dallo stato
+  esistente — la landing scrive `flowStage='redirecting'` (invece di
+  `checkout_account`) e fa il claim quando `isPaymentEnabled(sessione)` è vero
+  all'ingresso. Nessun flag persistente, nessuna seconda implementazione di
+  pagamento; claim, idempotenza e recovery post-pagamento restano nel gate page.
 - Il recupero password è una **GUI prototipo per handoff** (`/public/password-recovery`,
   `/public/reset-password`): solo schermate e navigazione, nessun invio email,
   nessun token di reset, nessun backend, nessun hashing. Specifica il journey per
