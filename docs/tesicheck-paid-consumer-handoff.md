@@ -25,7 +25,12 @@
 **Also implemented (consumer History redesign — see §12):**
 
 - `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
-- `Apri report` into the role-specific report route; expired records stay visible with no action.
+- `Apri report` into the role-specific report route.
+
+**Updated by Slice A (permanent History + title foundation):**
+
+- No report expiry. `isExpired`, the `Scaduto` row state, the expiry line and the availability badge were removed from the consumer History; every record shows `Apri report`. See the "No report expiry" bullet in §3.
+- Every persistent check carries a semantic `title` (`PersistentTesiCheck.title?: string`, always set by the creators; legacy records fall back to `deriveDefaultCheckTitle(document.name)` at read time via `normalizePersistentTesiCheck`). History primary identity is the title; `document.name` is secondary. The report "Conserva il report" card became "Salvato nel tuo Storico TesiCheck"; the downloaded `.txt` now has `Titolo:` + `Documento:` and no `Disponibile fino al`. Editable title + rename-from-History are Slice B.
 
 **Explicitly NOT part of this workstream:**
 
@@ -33,8 +38,8 @@
 - Coach paid vs free "modalità" selector.
 - Coach History / Storico redesign — separate future workstream; must **not** reuse the consumer persistent store (canonical §19.1).
 - Admin TesiCheck flow.
-- `In scadenza` History condition — no threshold defined (canonical §30), not implemented.
-- Full expiry / retention redesign (only the 30-day `expiresAt` field + report-page evaluation + History read-time derivation exist).
+- `In scadenza` History condition — removed with the rest of the expiry model (Slice A); no longer relevant.
+- Legal / data-retention / account-deletion architecture — out of scope; removing the 30-day UI rule is not a retention policy (canonical §20).
 - Legacy `/public/history` — left on its isolated mock; not wired to the persistent store.
 - General legacy cleanup (`/public/sottocheck`, `/public/success`, `getViewBasePath` bug, duplicate report pages, etc.).
 
@@ -92,7 +97,7 @@
 - **Account session** (`tesicheckAccountSession.ts`): `{ id, email, name?, emailVerified }` in `localStorage`. `signInAccount` → `emailVerified: true` (returning user is trusted). `registerAccount` → `emailVerified: false`. `confirmAccountEmail()` flips it. `isPaymentEnabled(session)` = `authenticated && emailVerified` and gates `startRedirect`, not just the button's disabled state.
 - **`DEMO_ACCOUNT_ID`** = `'public-account-demo'`, exported from `tesicheckAccountSession.ts`. Single shared prototype identity. Used as `owner.id` for every standalone check **and** as the ownership constant in `PublicReportPage.tsx` — kept as one exported constant so the two never drift.
 - **`owner.context`** on `PersistentTesiCheck` is `'standalone' | 'student'` only. No `coach` / `admin` value — those flows are entitlement/privileged and out of scope.
-- **30-day `expiresAt`.** `RETENTION_DAYS = 30` in `tesicheckPersistentCheck.ts`; `expiresAt = completedAt + 30d` computed once at creation. Only `PublicReportPage` / `StudentReportPage` evaluate it (expired → redirect to history). No sweep, no "expiring soon", no history-list handling.
+- **No report expiry (Slice A — permanent History).** The 30-day rule is gone. `RETENTION_DAYS`, `expiresAt = completedAt + 30d` and every `isExpired` check were removed from `tesicheckPersistentCheck.ts`, `PublicReportPage`, `StudentReportPage` and the consumer History. `PersistentTesiCheck.expiresAt` is now `expiresAt?: string` — a **legacy optional** kept only so old stored records still validate; it is never read. A record whose old `expiresAt` is in the past is fully accessible again. Legal retention / account deletion are separate production concerns, not modelled here.
 - **Storage responsibilities.** `sessionStorage` = the in-progress guest checkout (disposable, per-tab). `localStorage` = things that must outlive the checkout: the account identity and the paid checks. See §4.
 - **Why `File` / `Blob` is not persisted.** Web storage holds JSON only. `UploadedDocument` is metadata (`name`, `size`, `format`); the real bytes are represented by `temporaryDocumentRef` / the check `report.reference`. Production must resolve those to real storage.
 - **Shared payment gateway boundary.** `SottocheckPaymentGatewayBoundary` — props `onSuccess` / `onFailed` / `onCancelled`; the host page still owns stage transitions and navigation. It renders a minimal Sottotesi brand mark (`SottotesiLogodefDefault`), the `Reindirizzamento al pagamento` heading, a `Reindirizzamento in corso…` status line and a spinner — no topbar, no summary, no fake bank/card UI. It now owns **one** timer: in normal mode it calls `onSuccess` after `SIMULATED_REDIRECT_MS = 1500` (via a ref so the callback stays fresh without resetting the timer; StrictMode double-invoke still fires once). `?paymentDemo=1` (read from `window.location.search`) skips the timer and shows manual **Esito positivo / Esito negativo / Annullato** buttons so every return path stays reproducible on the deployed prototype. Reused by guest and Student; supersedes the earlier "no state / no timers" note.
@@ -249,9 +254,11 @@ Do not resolve the open items here — they are the next workstream (§11).
 - Do not create a universal TesiCheck component/model without a demonstrated shared responsibility.
 - Keep `checkout_verify_email` in both the `PrecheckFlowStage` union and `isPrecheckFlowStage`.
 - Keep `DEMO_ACCOUNT_ID` a single exported constant shared by the account session and the report ownership check.
-- Consumer History reads `public-tesicheck-checks-v1` through `getPersistentTesiChecksForOwner`, filtered by the same owner guard as the matching report page; it never mutates records and derives availability from `expiresAt` at render time.
-- Consumer History primary action is `Apri report` into the role-specific report route — never `Scarica report`, no download action, no disabled button on expired records.
-- Consumer History shows no price / pages / character count / internal refs / scores; `In scadenza` stays unimplemented until a threshold is approved (canonical §30).
+- Consumer History reads `public-tesicheck-checks-v1` through `getPersistentTesiChecksForOwner`, filtered by the same owner guard as the matching report page; it never mutates records. **No expiry derivation** (Slice A) — every record is openable.
+- Consumer History primary action is `Apri report` into the role-specific report route — never `Scarica report`, no download action.
+- Consumer History primary identity is the effective `title`; `document.name` is secondary. It shows no price / pages / character count / internal refs / scores, and **no availability badge** (every record is `Completato` — the badge is redundant; Slice A).
+- `PersistentTesiCheck.title` is optional in the type for legacy tolerance but always set by the creators; reads normalize a missing title to `deriveDefaultCheckTitle(document.name)` without persisting it. Do not add a `title` check to `isPersistentTesiCheck` (unsound — a legacy record has no stored title).
+- `expiresAt` is a legacy optional never read; new records do not generate it. Do not re-introduce `RETENTION_DAYS` or any `isExpired` gate.
 - Legacy `/public/history` stays on its isolated mock (`HistoryPage` with no `context` prop) — do not wire it to the persistent store.
 - Coach History is a separate workstream and must not reuse the consumer persistent store or its report routes (canonical §19.1).
 
@@ -276,6 +283,17 @@ Do not implement these now.
 ---
 
 ## 12. Consumer History / Storico — implementation state
+
+> **Partly superseded by Slice A (permanent History + title foundation).** The
+> expiry model this section describes is gone: no `RETENTION_DAYS`, no `expiresAt`
+> generation, no `isExpired`, no `Scaduto` / `Disponibile fino al` line, no
+> availability badge in the consumer History. `expiresAt` is now
+> `PersistentTesiCheck.expiresAt?: string`, a legacy-only field never read; a
+> record with a past `expiresAt` is fully accessible. Each row's primary identity
+> is the effective `title` (creator-assigned, or `deriveDefaultCheckTitle(document.name)`
+> for legacy records via `normalizePersistentTesiCheck`), with `document.name` as
+> secondary metadata. `Apri report` is always shown. The paragraphs below are the
+> pre-Slice-A record and are kept for history only.
 
 **Scope:** authenticated standalone `/public-view/history` and Student `/student-view/history` only. Coach, Admin, checkout, payment, recovery, report content, retention duration, pricing and legacy-route cleanup were not touched.
 

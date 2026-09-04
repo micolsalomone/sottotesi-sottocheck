@@ -1,5 +1,6 @@
 import type { UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { clearPrecheckSession, getPrecheckSession } from '@/app/data/tesicheckPrecheckSession';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 
 export interface PersistentTesiCheck {
   id: string;
@@ -7,6 +8,18 @@ export interface PersistentTesiCheck {
     context: 'standalone' | 'student';
     id: string;
   };
+  /**
+   * Semantic, user-facing title for the check/version shown in History. A
+   * distinct concept from `document.name` (the uploaded artifact) and never
+   * written back onto it.
+   *
+   * Optional only for backward compatibility with records written before the
+   * title foundation: every creator in this module always assigns a non-empty
+   * title, and the read accessors normalize legacy records to an effective title
+   * (see `normalizePersistentTesiCheck`). Editable title state arrives in a
+   * later slice.
+   */
+  title?: string;
   document: UploadedDocument;
   characterCount: number;
   price: number;
@@ -17,7 +30,14 @@ export interface PersistentTesiCheck {
   status: 'completed';
   createdAt: string;
   completedAt: string;
-  expiresAt: string;
+  /**
+   * @deprecated Legacy optional. There is no longer an application-level report
+   * expiry — completed reports stay accessible from History indefinitely. Kept
+   * only so records written by the old 30-day model still validate; it is never
+   * read to gate report access or History rendering. (Legal/data retention and
+   * account deletion are separate production concerns, out of scope here.)
+   */
+  expiresAt?: string;
   report: {
     availability: 'available';
     reference: string;
@@ -28,8 +48,10 @@ export interface PersistentTesiCheck {
   sourcePaymentReference?: string;
 }
 
+/** A stored check resolved for display: `title` is guaranteed non-empty. */
+export type NormalizedPersistentTesiCheck = PersistentTesiCheck & { title: string };
+
 const STORAGE_KEY = 'public-tesicheck-checks-v1';
-const RETENTION_DAYS = 30;
 
 /**
  * Idempotency key for one Student self-service paid materialization. Student has
@@ -38,6 +60,19 @@ const RETENTION_DAYS = 30;
  */
 export function createStudentPaymentReference() {
   return `stu-pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Guarantee an effective display `title` on a record read from storage. Records
+ * written before the title foundation have no `title`; fall back to the
+ * filename-derived default at read time only — the stored record is never
+ * mutated by a read.
+ */
+export function normalizePersistentTesiCheck(check: PersistentTesiCheck): NormalizedPersistentTesiCheck {
+  const title = check.title?.trim();
+  return title
+    ? (check as NormalizedPersistentTesiCheck)
+    : { ...check, title: deriveDefaultCheckTitle(check.document.name) };
 }
 
 function getStoredChecks(): PersistentTesiCheck[] {
@@ -59,22 +94,22 @@ function saveChecks(checks: PersistentTesiCheck[]) {
   }
 }
 
-export function getPersistentTesiCheck(checkId: string): PersistentTesiCheck | null {
+export function getPersistentTesiCheck(checkId: string): NormalizedPersistentTesiCheck | null {
   const check = getStoredChecks().find((item) => item.id === checkId);
-  return check && isPersistentTesiCheck(check) ? check : null;
+  return check && isPersistentTesiCheck(check) ? normalizePersistentTesiCheck(check) : null;
 }
 
 /**
  * Read-only view of the paid consumer checks owned by one identity, newest
  * completed first. Consumer-paid specific: the caller passes the exact
  * `owner.context` + `owner.id` for its context (standalone / student). No schema
- * change, no migration, no expiry-driven mutation — availability is derived at
- * render time from `expiresAt`.
+ * change, no migration, no expiry-driven mutation — reports stay accessible for
+ * the life of the record. Each returned check has an effective `title`.
  */
 export function getPersistentTesiChecksForOwner(
   context: PersistentTesiCheck['owner']['context'],
   ownerId: string,
-): PersistentTesiCheck[] {
+): NormalizedPersistentTesiCheck[] {
   return getStoredChecks()
     .filter(
       (item) =>
@@ -82,7 +117,8 @@ export function getPersistentTesiChecksForOwner(
         && item.owner?.context === context
         && item.owner?.id === ownerId,
     )
-    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+    .map(normalizePersistentTesiCheck);
 }
 
 export function createPersistentCheckFromPaidPrecheck(): PersistentTesiCheck | null {
@@ -101,7 +137,7 @@ export function createPersistentCheckFromPaidPrecheck(): PersistentTesiCheck | n
   );
   if (existing && isPersistentTesiCheck(existing)) {
     clearPrecheckSession();
-    return existing;
+    return normalizePersistentTesiCheck(existing);
   }
 
   const check = createPersistentTesiCheck({
@@ -123,12 +159,15 @@ export function createPersistentCheckFromPaidPrecheck(): PersistentTesiCheck | n
 
 export function createPersistentStudentCheck({
   studentId,
+  title,
   document,
   characterCount,
   price,
   sourcePaymentReference,
 }: {
   studentId: string;
+  /** Optional for now; Slice B supplies an edited title. Defaults from the filename. */
+  title?: string;
   document: UploadedDocument;
   characterCount: number;
   price: number;
@@ -141,11 +180,12 @@ export function createPersistentStudentCheck({
     (item) => item.owner?.context === 'student' && item.sourcePaymentReference === sourcePaymentReference
   );
   if (existing && isPersistentTesiCheck(existing)) {
-    return existing;
+    return normalizePersistentTesiCheck(existing);
   }
 
   const check = createPersistentTesiCheck({
     owner: { context: 'student', id: studentId },
+    title,
     document,
     characterCount,
     price,
@@ -157,6 +197,7 @@ export function createPersistentStudentCheck({
 
 function createPersistentTesiCheck({
   owner,
+  title,
   document,
   characterCount,
   price,
@@ -164,20 +205,22 @@ function createPersistentTesiCheck({
   sourcePaymentReference,
 }: {
   owner: PersistentTesiCheck['owner'];
+  title?: string;
   document: UploadedDocument;
   characterCount: number;
   price: number;
   sourceTemporaryDocumentRef?: string;
   sourcePaymentReference?: string;
-}): PersistentTesiCheck {
+}): NormalizedPersistentTesiCheck {
   const completedAt = new Date();
-  const expiresAt = new Date(completedAt);
-  expiresAt.setDate(expiresAt.getDate() + RETENTION_DAYS);
   const id = `${owner.context === 'student' ? 'STU' : 'PUB'}-CHK-${Date.now().toString().slice(-8)}`;
+  // A new record always carries a non-empty title; no application-level expiry.
+  const effectiveTitle = title?.trim() || deriveDefaultCheckTitle(document.name);
 
   return {
     id,
     owner,
+    title: effectiveTitle,
     document,
     characterCount,
     price,
@@ -185,7 +228,6 @@ function createPersistentTesiCheck({
     status: 'completed',
     createdAt: completedAt.toISOString(),
     completedAt: completedAt.toISOString(),
-    expiresAt: expiresAt.toISOString(),
     report: { availability: 'available', reference: `REP-${id.slice(-8)}` },
     sourceTemporaryDocumentRef,
     sourcePaymentReference,
@@ -201,7 +243,6 @@ function isPersistentTesiCheck(value: PersistentTesiCheck) {
     && value.payment?.status === 'paid'
     && value.status === 'completed'
     && value.completedAt
-    && value.expiresAt
     && value.report?.availability === 'available'
   );
 }

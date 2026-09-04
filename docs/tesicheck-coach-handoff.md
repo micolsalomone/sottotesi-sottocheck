@@ -10,6 +10,17 @@ Coach is a **different entitlement/context domain** — do not copy the consumer
 payment architecture into it. The one deliberate exception is the shared paid
 **primitives** the free mode reuses (see §9).
 
+> **Slice A update (permanent History + title foundation).** The 30-day report
+> expiry is removed from the Coach store and surfaces: no `RETENTION_DAYS`, no
+> `expiresAt` generation, no `isExpired`, no `Scaduto` / `Disponibile fino al`
+> line, no `SottocheckHistoryStatusBadge` in `CoachHistoryPage`. `expiresAt` is
+> now `expiresAt?: string` — legacy-only, never read. Both `CoachPathBoundCheck`
+> and `CoachFreeCheck` gained `title?: string` (always set by the creators;
+> legacy records normalize to `deriveDefaultCheckTitle(document.name)` on read).
+> History/report primary identity is the title; filename is secondary. The report
+> retention card is now "Salvato nel tuo Storico TesiCheck". Editable title +
+> rename-from-History are Slice B. See §2, §7, §8.
+
 ---
 
 ## 1. Scope implemented
@@ -98,8 +109,10 @@ interface CoachPathBoundCheck {          // unchanged
   };
   document: UploadedDocument;            // { name, size, format } — no File/Blob
   creditsUsed: number;                   // = MOCK_CREDIT_COST_PER_CHECK (8), THIS check only
+  title?: string;                        // semantic display title; always set on create, legacy-optional in the type
   status: 'completed';
-  createdAt: string; completedAt: string; expiresAt: string;   // expiresAt = completedAt + 30d
+  createdAt: string; completedAt: string;
+  expiresAt?: string;                    // LEGACY optional — no application expiry; never generated for new records, never read
   report: { availability: 'available'; reference: string };
   sourceExecutionReference: string;      // `coach-exec-<ts>-<rand>`
 }
@@ -112,8 +125,10 @@ interface CoachFreeCheck {
   characterCount: number;                // mock (28500)
   price: number;                         // mock (14.9) — price paid
   payment: { status: 'paid'; reference: string };   // reference = `PAY-<...>`
+  title?: string;                        // semantic display title; always set on create, legacy-optional in the type
   status: 'completed';
-  createdAt: string; completedAt: string; expiresAt: string;   // expiresAt = completedAt + 30d
+  createdAt: string; completedAt: string;
+  expiresAt?: string;                    // LEGACY optional — no application expiry; never generated for new records, never read
   report: { availability: 'available'; reference: string };
   sourcePaymentReference: string;        // `coach-pay-<ts>-<rand>`
 }
@@ -124,23 +139,37 @@ interface CoachFreeCheck {
 
 Accessors:
 
-- `getCoachPersistentCheck(id)` → `CoachPersistentCheck | null` (runs the union guard).
-- `getCoachPersistentChecksForOwner(coachId)` → `CoachPersistentCheck[]`, exact
-  `owner.id`, newest `completedAt` first, no expiry mutation. Read by History.
-- `createCoachPathBoundCheck({...})` → `CoachPathBoundCheck | null`. **Unchanged.**
-  Dedupes by `sourceExecutionReference`.
-- `createCoachFreeCheck({ coachId, document, characterCount, price, sourcePaymentReference })`
-  → `CoachFreeCheck | null`. Dedupes by `sourcePaymentReference`. `null` = storage
-  write failed.
+- `getCoachPersistentCheck(id)` → `NormalizedCoachPersistentCheck | null` (union
+  guard + `normalizeCoachPersistentCheck`, so `title` is guaranteed non-empty).
+- `getCoachPersistentChecksForOwner(coachId)` → `NormalizedCoachPersistentCheck[]`,
+  exact `owner.id`, newest `completedAt` first, no mutation, every row has an
+  effective `title`. Read by History.
+- `createCoachPathBoundCheck({...})` → `CoachPathBoundCheck | null`. Now accepts an
+  optional `title?` (Slice B supplies an edited value; Slice A leaves it unset so
+  the creator derives it from `document.name`). Dedupes by `sourceExecutionReference`.
+- `createCoachFreeCheck({ coachId, title?, document, characterCount, price, sourcePaymentReference })`
+  → `CoachFreeCheck | null`. Same optional-`title` rule. Dedupes by
+  `sourcePaymentReference`. `null` = storage write failed.
 - `createCoachExecutionReference()` → `coach-exec-<ts>-<rand>` (path-bound).
 - `createCoachFreePaymentReference()` → `coach-pay-<ts>-<rand>` (free).
-- Guards, all exported: `isCoachPathBoundCheck` (type predicate, **semantics
-  unchanged** — same field checks, now takes the union and early-returns on
-  `binding.mode !== 'coaching_path'`), `isCoachFreeCheck` (type predicate),
+- `normalizeCoachPersistentCheck<T>(check)` → `T & { title: string }`; fills a
+  missing/blank `title` from `deriveDefaultCheckTitle(document.name)` at read time
+  only, never persisting it.
+- Guards, all exported: `isCoachPathBoundCheck` / `isCoachFreeCheck` (type
+  predicates; the `expiresAt` requirement was removed — legacy records with no
+  `expiresAt` still validate; **no** `title` check, an unsound one is avoided),
   `isCoachPersistentCheck` (`boolean`, either shape).
 
-**Retention:** `expiresAt = completedAt + 30 days`, `RETENTION_DAYS = 30` local
-const, computed inline in both creators. Still not shared with the consumer store.
+**Retention (Slice A — permanent History):** removed. No `RETENTION_DAYS`, no
+`expiresAt` generation. `expiresAt?: string` is a legacy optional kept only so old
+stored records validate; it is never read to gate report or History access. A
+Coach record whose old `expiresAt` is in the past opens normally. Legal retention
+is a separate production concern.
+
+**Title:** every record carries a semantic `title` distinct from `document.name`,
+never inside `UploadedDocument`. Optional in the type for legacy tolerance;
+creators always set it; reads normalize legacy records to the filename-without-
+extension default. History primary identity = title, filename = secondary.
 
 **Excluded by design (both shapes):** quota total, remaining credits, cumulative
 used credits. **Path-bound only:** `price`, `payment`. **Free only:** `creditsUsed`.
@@ -305,22 +334,27 @@ already-written record is returned rather than duplicated.
 ## 7. Report — `/coach-view/report/:checkId`
 
 `src/pages/coach/CoachReportPage.tsx`, inside `CoachLayout`. **One route, both
-modes.** Reads `getCoachPersistentCheck` (union). Ownership / availability /
-expiry semantics **unchanged** — the guard checks `owner.context === 'coach'`,
-`owner.id === COACH_VIEW_COACH_ID`, `status === 'completed'`,
-`report.availability === 'available'`, valid dates; it does **not** assert
-`binding.mode`.
+modes.** Reads `getCoachPersistentCheck` (union, normalized). Ownership guard
+checks `owner.context === 'coach'`, `owner.id === COACH_VIEW_COACH_ID`,
+`status === 'completed'`, `report.availability === 'available'`, valid
+`completedAt`; it does **not** assert `binding.mode`. **No `isExpired` / expired
+state** (Slice A) — a completed report always opens.
 
 Mode-specific branch (via `isCoachFreeCheck(check)`):
 
-- `coaching_path` — header subtitle `document · studentName · pathLabel`;
-  download `.txt` includes `Studente:` / `Percorso:`. Unchanged.
-- `check_libero` — header shows a `CoachCheckLiberoBadge` next to the title and
-  subtitle `document · €14,90`; download `.txt` includes `Tipo: Check libero` /
-  `Prezzo pagato: €14,90` and **never** a Student/Percorso line.
+- header now leads with `check.title` (primary), then the mode subtitle line.
+- `coaching_path` — subtitle `document · studentName · pathLabel`; download `.txt`
+  includes `Titolo:` / `Documento:` / `Studente:` / `Percorso:`.
+- `check_libero` — `CoachCheckLiberoBadge` next to the h1; subtitle
+  `document · €14,90`; download `.txt` includes `Titolo:` / `Documento:` /
+  `Tipo: Check libero` / `Prezzo pagato: €14,90` and **never** a Student/Percorso
+  line.
 
-Everything else (expired state, invalid state, `Conserva il report` box, Coach
-support box, report `<iframe>` content) is shared and unchanged.
+The retention card is now **"Salvato nel tuo Storico TesiCheck"** ("Potrai
+consultare questo report anche in seguito.") — no expiry date, no
+`Disponibile fino al`. The downloaded `.txt` has no `Disponibile fino al` line.
+Invalid/missing state, Coach support box and report `<iframe>` content are shared
+and unchanged. Download filename stays `report-tesicheck-{check.id}.txt`.
 
 `CoachReportPage.tsx` still reads `import.meta.env.BASE_URL` via the narrow local
 `VITE_BASE_URL` intersection (repo has no `vite/client` types) — unchanged.
@@ -330,21 +364,22 @@ support box, report `<iframe>` content) is shared and unchanged.
 ## 8. History — `/coach-view/history` + `/coach-view/archivio`
 
 `src/pages/coach/CoachHistoryPage.tsx`. Reads `getCoachPersistentChecksForOwner`
-(union), exact Coach `owner.id`. Common grammar for every row: format icon +
-document name, `Completato il …`, explicit expiry (`Disponibile fino al …` /
-`Scaduto il …`), availability badge via `SottocheckHistoryStatusBadge`
-(`completed` / `expired` only), `Apri report` while available, no action element
-when expired.
+(union, normalized), exact Coach `owner.id`. Common grammar for every row: format
+icon + **`check.title` (primary)**, `check.document.name` (secondary, muted),
+`Completato il …`, `Apri report` — **always** available. **No expiry line, no
+`isExpired` gate, no `SottocheckHistoryStatusBadge`** (Slice A — every record is
+`Completato`, so an availability badge is redundant; the import was dropped from
+this file).
 
 Mode-specific context lines (via `isCoachFreeCheck(check)`):
 
 - `coaching_path` — `studentName · pathLabel` + `Crediti usati: {creditsUsed}`.
-  Unchanged.
 - `check_libero` — `<CoachCheckLiberoBadge />` + `Prezzo pagato: €14,90`. No
   Student, no path, no credits.
 
-`Check libero` is **not** routed through `SottocheckHistoryStatusBadge` — it is a
-context/type marker, see §10. Empty-state copy generalised for both record types.
+`Check libero` stays a context/type marker (`CoachCheckLiberoBadge`), never a
+status. Empty-state copy generalised for both record types and drops the
+expiry-date reference.
 
 ---
 
@@ -377,10 +412,11 @@ context/type marker, see §10. Empty-state copy generalised for both record type
 
 `CoachCheckLiberoBadge` — an `inline-flex` span: `1px` `--border`, `--background`
 fill, `--muted-foreground` text, `--radius-badge`, 11px uppercase, **no icon**,
-**no** success/warning colour. Restrained and neutral so it distinguishes the
-record without competing with the `Completato` / `Scaduto` status badges (which
-keep their own colours and carry icons). It is a context/type label, never an
-availability status.
+**no** success/warning colour. Restrained and neutral. It is a context/type
+label, never an availability status. Since Slice A the Coach History no longer
+renders any `SottocheckHistoryStatusBadge` (every record is completed), so this
+badge is the only pill on a `check_libero` row; it still must not read as a
+status. The badge is also used on the `check_libero` report header.
 
 ---
 

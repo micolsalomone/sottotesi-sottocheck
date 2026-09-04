@@ -1,6 +1,5 @@
 import { FileText } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { SottocheckHistoryStatusBadge } from '@/app/components/SottocheckHistoryStatusBadge';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { CoachCheckLiberoBadge } from '@/app/components/CoachCheckLiberoBadge';
 import { getCoachPersistentChecksForOwner, isCoachFreeCheck } from '@/app/data/tesicheckCoachCheck';
@@ -9,16 +8,17 @@ import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
 
 /**
- * Coach Storico TesiCheck — path-bound persistent records only.
+ * Coach Storico TesiCheck — persistent archive of the Coach's checks.
  *
  * Reads the Coach store (`coach-tesicheck-checks-v1`) filtered by the Coach
- * owner id; never the consumer paid store. Shares the redesigned consumer
- * History visual grammar (compact card, document identity left, status/action
- * cluster right). Two record contexts, branched on `binding.mode`:
- * `coaching_path` shows Student · Percorso and the credits consumed by THIS
- * check; `check_libero` shows the `Check libero` context badge and the price
- * paid. Remaining / total / cumulative credits are never surfaced, and a free
- * check never shows a Student or a path.
+ * owner id; never the consumer paid store. Shares the consumer History visual
+ * grammar (compact card, identity left, action right). Every completed record
+ * stays openable — there is no expiry. Two record contexts, branched on
+ * `binding.mode`: `coaching_path` shows Student · Percorso and the credits
+ * consumed by THIS check; `check_libero` shows the `Check libero` context badge
+ * and the price paid. Remaining / total / cumulative credits are never surfaced,
+ * and a free check never shows a Student or a path. The semantic check title is
+ * the primary identity; the original filename is secondary metadata.
  */
 const REPORT_BASE_PATH = '/coach-view/report';
 const NEW_CHECK_PATH = '/coach-view/sottocheck';
@@ -34,7 +34,6 @@ function formatLongDate(value: string) {
 export function CoachHistoryPage() {
   const navigate = useNavigate();
   const checks = getCoachPersistentChecksForOwner(COACH_VIEW_COACH_ID);
-  const now = Date.now();
 
   return (
     <div className="py-[32px]">
@@ -58,7 +57,7 @@ export function CoachHistoryPage() {
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          I TesiCheck completati — sui percorsi coaching e liberi a pagamento — restano disponibili qui fino alla data di scadenza del report.
+          I TesiCheck completati — sui percorsi coaching e liberi a pagamento — restano sempre disponibili qui: puoi riaprire ogni report quando vuoi.
         </p>
       </div>
 
@@ -67,7 +66,6 @@ export function CoachHistoryPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {checks.map((check) => {
-            const isExpired = new Date(check.expiresAt).getTime() <= now;
             // Document identity visual: format-driven icon + colour from the shared
             // presentation-only utility (PDF red, DOC/DOCX blue, else muted).
             const fileInfo = getFileTypeFromName(check.document.name);
@@ -98,7 +96,7 @@ export function CoachHistoryPage() {
                           color: 'var(--foreground)',
                         }}
                       >
-                        {check.document.name}
+                        {check.title}
                       </h3>
 
                       <div
@@ -109,6 +107,9 @@ export function CoachHistoryPage() {
                           fontWeight: 'var(--font-weight-regular)',
                         }}
                       >
+                        <span className="truncate text-[var(--muted-foreground)]">
+                          {check.document.name}
+                        </span>
                         {isCoachFreeCheck(check) ? (
                           <>
                             <span className="mt-0.5 mb-0.5 self-start">
@@ -131,32 +132,17 @@ export function CoachHistoryPage() {
                         <span className="text-[var(--muted-foreground)]">
                           Completato il {formatLongDate(check.completedAt)}
                         </span>
-                        <span
-                          style={{
-                            color: isExpired ? 'var(--muted-foreground)' : 'var(--foreground)',
-                            fontWeight: isExpired
-                              ? 'var(--font-weight-regular)'
-                              : 'var(--font-weight-medium)',
-                          }}
-                        >
-                          {isExpired
-                            ? `Scaduto il ${formatLongDate(check.expiresAt)}`
-                            : `Disponibile fino al ${formatLongDate(check.expiresAt)}`}
-                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3 pl-[60px] sm:flex-col sm:items-end sm:gap-3 sm:pl-0">
-                    <SottocheckHistoryStatusBadge status={isExpired ? 'expired' : 'completed'} />
-                    {!isExpired && (
-                      <SottocheckActionButton
-                        className="px-[16px] py-[10px]"
-                        onClick={() => navigate(`${REPORT_BASE_PATH}/${check.id}`)}
-                      >
-                        Apri report
-                      </SottocheckActionButton>
-                    )}
+                    <SottocheckActionButton
+                      className="px-[16px] py-[10px]"
+                      onClick={() => navigate(`${REPORT_BASE_PATH}/${check.id}`)}
+                    >
+                      Apri report
+                    </SottocheckActionButton>
                   </div>
                 </div>
               </div>
@@ -200,7 +186,7 @@ function HistoryEmptyState({ onNewCheck }: { onNewCheck: () => void }) {
           lineHeight: 1.6,
         }}
       >
-        I TesiCheck completati compariranno qui — sui percorsi coaching con studente e percorso, quelli liberi con il prezzo pagato — insieme alla data di disponibilità del report.
+        I TesiCheck completati compariranno qui — sui percorsi coaching con studente e percorso, quelli liberi con il prezzo pagato — con titolo, documento e data di completamento.
       </p>
       <SottocheckActionButton className="mt-5 px-[16px] py-[10px]" onClick={onNewCheck}>
         Nuovo TesiCheck

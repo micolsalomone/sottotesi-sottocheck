@@ -74,7 +74,6 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
     () => getPersistentTesiChecksForOwner(config.ownerContext, config.ownerId),
     [config.ownerContext, config.ownerId],
   );
-  const now = Date.now();
 
   return (
     <div className="py-[32px]">
@@ -98,7 +97,7 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
             fontWeight: 'var(--font-weight-regular)',
           }}
         >
-          I TesiCheck completati restano disponibili qui fino alla data di scadenza del report.
+          I TesiCheck completati restano sempre disponibili qui: puoi riaprire ogni report quando vuoi.
         </p>
       </div>
 
@@ -110,7 +109,6 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
       ) : (
         <div className="flex flex-col gap-4">
           {checks.map((check) => {
-            const isExpired = new Date(check.expiresAt).getTime() <= now;
             // Document identity visual: format-driven icon + colour from the shared
             // presentation-only utility (PDF red, DOC/DOCX blue, else muted).
             const fileInfo = getFileTypeFromName(check.document.name);
@@ -141,7 +139,7 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
                           color: 'var(--foreground)',
                         }}
                       >
-                        {check.document.name}
+                        {check.title}
                       </h3>
 
                       <div
@@ -152,35 +150,23 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
                           fontWeight: 'var(--font-weight-regular)',
                         }}
                       >
+                        <span className="truncate text-[var(--muted-foreground)]">
+                          {check.document.name}
+                        </span>
                         <span className="text-[var(--muted-foreground)]">
                           Completato il {formatLongDate(check.completedAt)}
-                        </span>
-                        <span
-                          style={{
-                            color: isExpired ? 'var(--muted-foreground)' : 'var(--foreground)',
-                            fontWeight: isExpired
-                              ? 'var(--font-weight-regular)'
-                              : 'var(--font-weight-medium)',
-                          }}
-                        >
-                          {isExpired
-                            ? `Scaduto il ${formatLongDate(check.expiresAt)}`
-                            : `Disponibile fino al ${formatLongDate(check.expiresAt)}`}
                         </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3 pl-[60px] sm:flex-col sm:items-end sm:gap-3 sm:pl-0">
-                    <SottocheckHistoryStatusBadge status={isExpired ? 'expired' : 'completed'} />
-                    {!isExpired && (
-                      <SottocheckActionButton
-                        className="px-[16px] py-[10px]"
-                        onClick={() => navigate(`${config.reportBasePath}/${check.id}`)}
-                      >
-                        Apri report
-                      </SottocheckActionButton>
-                    )}
+                    <SottocheckActionButton
+                      className="px-[16px] py-[10px]"
+                      onClick={() => navigate(`${config.reportBasePath}/${check.id}`)}
+                    >
+                      Apri report
+                    </SottocheckActionButton>
                   </div>
                 </div>
               </div>
@@ -230,7 +216,7 @@ function HistoryEmptyState({
           lineHeight: 1.6,
         }}
       >
-        I TesiCheck completati compariranno qui insieme alla data di disponibilità del report.
+        I TesiCheck completati compariranno qui con il titolo, il documento e la data di completamento.
       </p>
       {onNewCheck && (
         <SottocheckActionButton className="mt-5 px-[16px] py-[10px]" onClick={onNewCheck}>

@@ -1,12 +1,12 @@
 /**
  * Contextual "Check libero" marker for Coach TesiCheck records.
  *
- * This is a context/type label, NOT an availability status. `Completato` /
- * `Scaduto` remain the only availability statuses and stay on
- * `SottocheckHistoryStatusBadge`. Restrained neutral treatment (border + muted
- * text, no icon, no success/warning colour) so it distinguishes the record
- * without competing with the status badge. Shared by Coach History and the
- * Coach report header.
+ * This is a context/type label, NOT an availability status. The Coach History
+ * no longer renders an availability badge (every persistent record is completed
+ * and stays openable — there is no expiry), so this is the only pill on a
+ * `check_libero` row; it still must not read as a status. Restrained neutral
+ * treatment (border + muted text, no icon, no success/warning colour). Shared by
+ * Coach History and the Coach report header.
  */
 export function CoachCheckLiberoBadge() {
   return (

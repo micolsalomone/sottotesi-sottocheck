@@ -150,11 +150,7 @@ breve elaborazione tecnica
   ↓
 /public-view/report/:checkId
   ↓
-Storico
-  ↓
-Disponibile 30 giorni
-  ↓
-Scaduto
+Storico (archivio persistente, nessuna scadenza)
 ```
 
 ### Principio di continuità
@@ -997,7 +993,7 @@ Non condividere automaticamente:
 
 ## 14. Report actions
 
-Durante la disponibilità:
+Il report resta accessibile a tempo indeterminato dallo Storico:
 
 - `Apri report`
 - `Scarica report`
@@ -1021,17 +1017,18 @@ Non è più necessario.
 
 ### 15.2 Nuovo box consigliato
 
-**Conserva il report**
+**Salvato nel tuo Storico TesiCheck**
 
 Contenuto:
 
-- data di scadenza;
-- reminder sulla retention;
-- CTA `Scarica report`.
+- conferma che il report resta accessibile dallo Storico;
+- CTA `Scarica report` (azione separata, per una copia offline).
 
 Esempio:
 
-> Questo report sarà disponibile nel tuo account fino al 10 maggio 2026. Scaricalo entro questa data se vuoi conservarne una copia.
+> Potrai consultare questo report anche in seguito. Scarica una copia se vuoi conservarla anche offline.
+
+Il box **non** contiene più una data di scadenza né un reminder di retention: non esiste più una scadenza applicativa del report (vedi §20).
 
 ### 15.3 Support box role-aware
 
@@ -1050,16 +1047,29 @@ Questo box appartiene alla pagina di ruolo, non al report content puro.
 
 ## 16. Storico TesiCheck
 
-Lo Storico deve usare un modello moderno condiviso tra ruoli.
+Lo Storico è un **archivio persistente** del lavoro accademico/di tesi dell'utente:
+i TesiCheck completati restano accessibili nel tempo, senza scadenza applicativa.
+Deve usare un modello moderno condiviso tra ruoli.
 
 Non copiare la tabella Admin 1:1 agli utenti.
 
-### Stati UX persistenti
+### Identità della riga
 
-- **Completato**
-- **In scadenza** — condizione derivata
-- **Scaduto**
-- **Fallito / Errore**
+- **titolo del check** (semantico, distinto dal nome file) — identità primaria;
+- **nome file originale** — metadato secondario;
+- metadati di contesto per ruolo (vedi §17, §19.1);
+- data di completamento;
+- `Apri report` — sempre disponibile.
+
+Ogni TesiCheck ha un titolo. Per i record legacy privi di titolo, il fallback è il
+nome file senza estensione.
+
+### Stati
+
+Ogni record persistente è **Completato** e può sempre aprire il proprio report.
+Non esistono più gli stati `In scadenza` / `Scaduto`: sono rimossi.
+`Fallito / Errore` resta pertinente solo a superfici legacy/mock che modellano
+un'esecuzione non riuscita, non allo Storico persistente.
 
 ### Stato da rimuovere
 
@@ -1071,78 +1081,55 @@ Non copiare la tabella Admin 1:1 agli utenti.
 
 Informazioni possibili:
 
-- documento;
+- titolo del check (identità primaria);
+- nome file originale (secondario);
 - check ID, se utile;
-- data;
+- data di completamento;
 - prezzo/importo, se pertinente;
 - punteggi sintetici, se policy consente;
-- data di scadenza;
-- stato.
+- metadati di contesto per ruolo.
 
 Azioni:
 
-- `Apri report`
+- `Apri report` (sempre disponibile)
 - `Scarica report`
 
 Esempio:
 
 ```text
-Tesi_Capitolo_1.pdf
-Completato
+Capitolo 3 – Metodologia
+tesi_finale_v7_CORRETTA.docx
 
-8 feb 2026 · €12,50
-Plagio 9,2% · AI 0%
+Completato l'8 feb 2026
 
-Report disponibile fino al 10 marzo 2026
-
-[Apri report] [Scarica report]
+[Apri report]
 ```
 
 ---
 
-## 18. Storico — expiring soon
+## 18. Storico — nessuna scadenza
 
-`In scadenza` può essere una presentation condition derivata da `expires_at`.
+Non esiste più una condizione `In scadenza` né una data di scadenza del report.
+Un record completato resta disponibile a tempo indeterminato e `Apri report` non
+viene mai disabilitato o nascosto.
 
-Esempio:
-
-```text
-Scade tra 3 giorni
-Disponibile fino al 10 marzo 2026
-
-Scarica il report entro la scadenza per conservarne una copia.
-```
-
-Non è necessario introdurre un nuovo backend status solo per questa comunicazione.
+Retention legale dei file/report ed eliminazione account sono concern separati di
+produzione (vedi §20), non regole UX dello Storico.
 
 ---
 
-## 19. Storico — expired
+## 19. Storico — deep link a record non valido
 
-Dopo la scadenza:
-
-- record ancora visibile;
-- documento non disponibile;
-- report non disponibile;
-- nessun button report disabled;
-- azioni report assenti.
-
-Esempio:
-
-```text
-Tesi_Capitolo_1.pdf
-Scaduto
-
-Check completato l'8 feb 2026 · €12,50
-
-Il documento e il report non sono più disponibili.
-```
+Non esiste più uno stato "report scaduto". L'unico stato non-nominale è un
+`checkId` non trovato o non di proprietà del ruolo corrente: mostrare uno stato
+neutro "Report non disponibile" con azione verso lo Storico. Nessun record
+completato valido raggiunge questo stato.
 
 ---
 
 ## 19.1 Storico — Coach: due contesti di record
 
-Lo Storico TesiCheck del Coach contiene **due contesti di record distinti**. Condividono la stessa grammatica base dello Storico consumer — identità del documento, data di completamento, scadenza esplicita, stato di disponibilità `Completato` / `Scaduto`, azione `Apri report`, nessuna azione dopo la scadenza — ma il Coach ha metadati contestuali aggiuntivi.
+Lo Storico TesiCheck del Coach contiene **due contesti di record distinti**. Condividono la stessa grammatica base dello Storico consumer — titolo del check (primario), nome file (secondario), data di completamento, `Apri report` sempre disponibile, nessuna scadenza — ma il Coach ha metadati contestuali aggiuntivi.
 
 ### A. Check su percorso coaching
 
@@ -1150,13 +1137,12 @@ Check eseguito dal Coach per uno Student all'interno di un percorso coaching att
 
 Mostrare:
 
-- nome documento;
+- titolo del check (primario);
+- nome file originale (secondario);
 - Student;
 - percorso coaching;
 - crediti utilizzati **da quel singolo check**;
 - data di completamento;
-- scadenza esplicita del report;
-- stato di disponibilità;
 - `Apri report`.
 
 Regola di prodotto vincolante:
@@ -1178,22 +1164,20 @@ Deve essere visivamente distinguibile dai check legati a un percorso tramite un 
 
 Per questo record mostrare:
 
-- nome documento;
+- titolo del check (primario);
+- nome file originale (secondario);
 - badge `Check libero`;
 - prezzo pagato;
 - data di completamento;
-- scadenza esplicita del report;
-- stato di disponibilità;
 - `Apri report`.
 
 Non mostrare Student o percorso coaching quando il check non è associato ad alcun percorso. Non inventare un'associazione a un percorso.
 
 ### Semantica
 
-- `Check libero` è un badge di **contesto/tipo**, non uno stato; non va veicolato attraverso il badge di stato disponibilità.
-- `Completato` / `Scaduto` descrivono la **disponibilità del report**, non l'esecuzione del check.
-- I record scaduti restano visibili nello Storico e non hanno azione report: nessun bottone disabilitato, azione semplicemente assente.
-- `In scadenza` resta una condizione derivata **non definita** finché non è approvata una soglia (vedi §18 e §30).
+- `Check libero` è un badge di **contesto/tipo**, non uno stato.
+- Ogni record è `Completato` e apre sempre il proprio report. Non esistono più `Scaduto` / `In scadenza` (vedi §16, §20).
+- Un badge di stato disponibilità nello Storico persistente Coach è **ridondante** e non va mostrato.
 
 ### Gerarchia informativa
 
@@ -1201,12 +1185,11 @@ Check su percorso:
 
 ```text
 PRIMARIO
-- nome documento
-- stato disponibilità
-- scadenza
+- titolo del check
 - Apri report
 
 CONTESTO
+- nome file originale
 - Student
 - Percorso
 - Crediti usati
@@ -1219,13 +1202,12 @@ Check libero:
 
 ```text
 PRIMARIO
-- nome documento
+- titolo del check
 - badge Check libero
-- stato disponibilità
-- scadenza
 - Apri report
 
 CONTESTO
+- nome file originale
 - prezzo
 
 SECONDARIO
@@ -1239,58 +1221,51 @@ SECONDARIO
 > - **Percorso coaching** (`binding.mode === 'coaching_path'`) — invariato: selezione percorso → upload → gate entitlement qualitativo (mock) → `Avvia controllo` → check path-bound persistente → report Coach. Nessun pagamento. Studente/percorso vengono fotografati solo all'accettazione di `Avvia controllo`. Idempotenza via `sourceExecutionReference`. Lo Storico mostra studente, percorso e crediti usati dal singolo check.
 > - **Check libero a pagamento** (`binding.mode === 'check_libero'`) — il Coach seleziona l'opzione esplicita, carica il documento, vede conteggio/prezzo mock (28.500 caratteri · €14,90, stessi valori dei flussi paid consumer — decisione di consistenza prototipo, non una regola di prezzo di produzione; resta aperta l'incongruenza aritmetica `EUR 0,52/1000cc` vs `€14,90`), va al pagamento riusando `SottocheckPaymentGatewayBoundary`, e dopo il pagamento verificato materializza un `CoachFreeCheck` (nessuno studente, nessun percorso, nessun credito coaching; `price` e `payment` salvati). Idempotenza via `sourcePaymentReference` (`coach-pay-…`). Recupero post-pagamento: se la materializzazione fallisce, stato recuperabile con `Riprova a generare il report`, senza nuovo pagamento. Il Coach è già autenticato: nessun account/login/verifica email. Lo Storico e il report mostrano il badge di contesto `Check libero` e il prezzo pagato, mai studente/percorso/crediti.
 >
-> Una sola route report (`/coach-view/report/:checkId`) serve entrambe le modalità; lo Storico Coach (`/coach-view/history`, `/coach-view/archivio`) legge lo store filtrando per owner Coach e deriva `Completato` / `Scaduto` da `expiresAt` a render time. L'entitlement/quota del percorso coaching resta logica prototipo/mock. Il recupero del flusso free è session-scoped (stato React, nessun `sessionStorage`). Dettaglio tecnico: [tesicheck-coach-handoff.md](./tesicheck-coach-handoff.md).
+> Una sola route report (`/coach-view/report/:checkId`) serve entrambe le modalità; lo Storico Coach (`/coach-view/history`, `/coach-view/archivio`) legge lo store filtrando per owner Coach. Non c'è più derivazione di scadenza: ogni record è aperto. `expiresAt` resta solo come campo legacy opzionale su record vecchi, mai letto. Ogni record espone un `title` effettivo (dai creator, o fallback dal nome file per i record pre-title). L'entitlement/quota del percorso coaching resta logica prototipo/mock. Il recupero del flusso free è session-scoped (stato React, nessun `sessionStorage`). Dettaglio tecnico: [tesicheck-coach-handoff.md](./tesicheck-coach-handoff.md).
 
 ---
 
 ## 20. Retention
 
-Policy di prodotto corrente:
+Regola di prodotto approvata dal cliente:
 
-**30 giorni dal completamento del check.**
+**Un report TesiCheck completato resta accessibile dallo Storico dell'utente.**
+Non esiste più una scadenza applicativa/UI (in precedenza `completed_at + 30
+giorni`). Lo Storico è un archivio persistente: l'utente può rivedere nel tempo
+la progressione del proprio lavoro di tesi/accademico.
 
-```text
-completed_at
-→ expires_at = completed_at + 30 giorni
-```
+Vale per tutti i contesti con report persistenti: standalone, Student, Coach
+percorso, Coach `Check libero`.
 
-Prima della scadenza:
+Conseguenze:
 
-- report consultabile;
-- report scaricabile.
+- nessuna generazione di `expiresAt` sui nuovi record;
+- `expiresAt` resta un campo **legacy opzionale** tollerato sui record vecchi del
+  prototipo, mai letto per limitare l'accesso;
+- un record il cui vecchio `expiresAt` è già passato torna accessibile;
+- nessun stato "report scaduto", nessun box "Conserva il report" con data di
+  scadenza, nessuna logica "X giorni rimanenti".
 
-Dopo:
+### Fuori scope
 
-- report non disponibile;
-- documento non disponibile;
-- record storico/pagamento conservato.
-
-### Decisioni aperte
-
-Va ancora definito se dopo 30 giorni restano:
-
-- nome/metadati documento;
-- punteggio Plagio;
-- punteggio AI;
-- altri dati sintetici del report.
-
-Non lasciare che OpenCode decida questi punti.
+Questa non è una policy legale/di data-retention di produzione. La retention
+legale dei file/report e l'eliminazione account sono concern separati e futuri di
+produzione, da definire con il legale; non vanno implementati qui come
+architettura di storage.
 
 ---
 
-## 21. Deep link a report scaduto
+## 21. Deep link a un record non valido
 
-Un link salvato non deve portare a:
+Un link salvato non deve portare a 404, pagina vuota o report parziale.
 
-- 404;
-- pagina vuota;
-- report parziale.
+Un record completato valido apre **sempre** il report. L'unico stato non-nominale
+è un `checkId` non trovato o non di proprietà del ruolo corrente: dentro la shell
+mostrare uno stato neutro.
 
-Dentro la shell mostrare una expired state:
+**Report non disponibile**
 
-**Questo report è scaduto**
-
-> Il report non è più disponibile. Puoi consultare i dati del check e del pagamento nello Storico TesiCheck.
+> Non abbiamo trovato un report disponibile per questo controllo.
 
 Azioni:
 
@@ -1400,10 +1375,13 @@ Queste promesse devono essere compatibili con:
 - check;
 - supporto;
 - Admin;
-- report disponibile 30 giorni;
-- storico persistente.
+- report accessibile a tempo indeterminato dallo Storico;
+- storico persistente come archivio del lavoro di tesi.
 
-Non inventare policy durante il redesign.
+L'assenza di scadenza applicativa (§20) **aumenta** la rilevanza di questo punto:
+la relazione tra promesse della landing e conservazione effettiva di
+file/report/record va chiarita con il legale prima dell'handoff. Non inventare
+policy durante il redesign.
 
 ---
 
@@ -1440,9 +1418,8 @@ Nei contesti coaching:
 - fallimento tecnico.
 
 ### Report
-- disponibile;
-- in scadenza;
-- scaduto.
+- disponibile (sempre, per ogni record completato);
+- `checkId` non valido / non di proprietà del ruolo → stato neutro "Report non disponibile".
 
 ---
 
@@ -1457,8 +1434,7 @@ Nei contesti coaching:
 | Payment gateway | **Sì** | **Sì** | **Sì** | **No** | **Sì** | **No** |
 | Processing | Transitorio | Transitorio | Transitorio | Transitorio | Transitorio | Transitorio |
 | Completed | Report nella shell | Report nella shell | Report nella shell | Report nella shell | Report nella shell | Report + strumenti Admin |
-| Expiring | — | Warning | Warning | Warning | Warning | Visibile se utile |
-| Expired | — | Record storico | Record storico | Record nel perimetro | Record nel perimetro | Record operativo |
+| Storico | — | Archivio persistente | Archivio persistente | Archivio persistente | Archivio persistente | Record operativo |
 | Failed | — | Errore/retry | Errore/retry | Errore/support | Errore/retry | Diagnostica operativa |
 
 ---
@@ -1484,8 +1460,23 @@ Nei contesti coaching:
 - Nessuna catena di success pages non necessarie.
 - Processing è transitorio e non compare nello Storico.
 - Report dentro la shell autenticata del ruolo.
-- Retention report/documento: 30 giorni.
-- Storico conserva il record dopo expiry.
+- **Nessuna scadenza applicativa del report.** Un TesiCheck completato resta
+  accessibile dallo Storico a tempo indeterminato (standalone, Student, Coach
+  percorso, Coach `Check libero`). Non c'è box "Conserva il report" con data,
+  stato `Scaduto`, stato `In scadenza`, né report reso non disponibile dopo N
+  giorni (§20).
+- `expiresAt` è solo un campo legacy opzionale tollerato sui record vecchi del
+  prototipo, mai letto per limitare l'accesso; i nuovi record non lo generano.
+- Retention legale dei file/report ed eliminazione account sono concern separati
+  e futuri di produzione, non regole UX (§20).
+- Ogni TesiCheck ha un `title` semantico distinto dal nome file
+  (`document.name`). Non vive dentro `UploadedDocument`. Fallback per record
+  legacy senza titolo: nome file senza estensione (`deriveDefaultCheckTitle`).
+  L'editing del titolo e il rename dallo Storico sono una slice successiva.
+- Storico = archivio persistente; identità di riga = titolo (primario), nome file
+  (secondario), metadati di contesto, data di completamento, `Apri report`.
+- Nessun badge di stato disponibilità nello Storico persistente consumer/Coach:
+  ogni record è `Completato`, il badge è ridondante (§16, §19.1).
 - Student e standalone authenticated condividono il core paid flow; lo Student salta solo lo step account perché è già autenticato.
 - Coach ha due modalità:
   - percorso coaching con quota/usage limits e senza gateway;
@@ -1524,12 +1515,16 @@ Nei contesti coaching:
 
 ## 30. Decisioni prodotto ancora aperte
 
-1. Dopo expiry: quali dati sintetici del report restano visibili?
-2. Policy privacy/retention effettiva dei file originali.
-3. Quale visibilità dello staff Sottotesi sui file/report è consentita.
-4. Scope production delle pagine Profilo/Account incomplete.
-5. Eventuale collegamento opzionale futuro tra Coach paid free check e un percorso coaching.
-6. Soglia della condizione derivata `In scadenza` nello Storico (vale per tutti i ruoli). Finché non è approvata, mantenere solo la data di scadenza esplicita e non introdurre logiche “X giorni rimanenti”.
+1. Policy legale di retention/eliminazione effettiva di file originali, report e
+   record storico/pagamento (concern di produzione, separato dall'UX §20).
+2. Quale visibilità dello staff Sottotesi sui file/report è consentita.
+3. Scope production delle pagine Profilo/Account incomplete.
+4. Eventuale collegamento opzionale futuro tra Coach paid free check e un percorso coaching.
+5. Editing del titolo prima di run/pagamento e rename dallo Storico (Slice B): interazione minima, propagazione del titolo attraverso lo stato transitorio.
+
+> Risolte: la scadenza a 30 giorni e la condizione `In scadenza` sono state
+> rimosse (§20). Non c'è più una decisione aperta su "quali dati restano dopo
+> expiry" perché non c'è expiry applicativo.
 
 ---
 
@@ -1546,6 +1541,8 @@ Non usare più come riferimento:
 - history Public/Student/Coach modellate come domini separati;
 - `public-view` interpretato come pubblico;
 - Student Archivio interpretato come storico check;
+- scadenza a 30 giorni del report / stato `Scaduto` / `In scadenza` / box "Conserva il report" con data;
+- `expiresAt` letto per limitare l'accesso al report o allo Storico;
 - login che porta alla dashboard prima del pagamento;
 - pagina autonoma “Account completato”;
 - payment gateway introdotto indiscriminatamente in Admin/Coach coaching;
@@ -1573,7 +1570,7 @@ Ordine consigliato:
 3. report authenticated;
 4. Student paid flow dentro Student shell;
 5. Coach coaching flow senza success page intermedio;
-6. history + expiry;
+6. history persistente (archivio, nessuna expiry) + titolo semantico del check;
 7. Coach dual-mode con ramo paid;
 8. cleanup legacy flow;
 9. eventuale raffinamento Admin senza introdurre gateway.
