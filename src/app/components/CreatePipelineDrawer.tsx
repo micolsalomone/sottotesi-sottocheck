@@ -40,6 +40,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 const SERVICE_LINK_OPTIONS: { value: string; label: string }[] = SERVICE_CATALOG.map((service) => {
@@ -240,7 +241,7 @@ function PipelineAcademicCard({
           </select>
         </div>
         <div style={drawerFieldGroupStyle}>
-          <label style={drawerLabelStyle}>Tipo tesi</label>
+          <label style={drawerLabelStyle}>Tipologia</label>
           <select
             className="drawer-control-focus"
             value={data.thesis_type}
@@ -280,7 +281,7 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Relatore tesi</label>
+        <label style={drawerLabelStyle}>Professore</label>
         <input
           className="drawer-control-focus"
           type="text"
@@ -292,7 +293,7 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Oggetto tesi</label>
+        <label style={drawerLabelStyle}>Argomento</label>
         <input
           className="drawer-control-focus"
           type="text"
@@ -304,7 +305,7 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Materia di tesi</label>
+        <label style={drawerLabelStyle}>Materia</label>
         <input
           className="drawer-control-focus"
           type="text"

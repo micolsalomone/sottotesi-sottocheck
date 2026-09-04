@@ -1279,7 +1279,7 @@ export function DrawerAcademicSnippet({
                   lineHeight: '1.5',
                 }}
               >
-                Relatore: {record!.thesis_professor}
+                Professore: {record!.thesis_professor}
               </span>
             </div>
           )}
@@ -1308,7 +1308,11 @@ export function DrawerAcademicSnippet({
                     background: 'var(--card)',
                   }}
                 >
-                  {record!.thesis_type === 'compilativa' ? 'Tesi compilativa' : 'Tesi sperimentale'}
+                  {record!.thesis_type === 'compilativa'
+                    ? 'Tesi compilativa'
+                    : record!.thesis_type === 'sperimentale'
+                      ? 'Tesi sperimentale'
+                      : 'Esame'}
                 </span>
               )}
               {record!.foreign_language && record!.thesis_language && (

@@ -10,6 +10,16 @@
 export interface TesiCheckAccountSession {
   id: string;
   email: string;
+  /**
+   * Explicit first name for accounts registered under the current acquisition
+   * rule. Registration collects it as a required "Nome" field; sign-in does not
+   * set it.
+   */
+  firstName?: string;
+  /**
+   * Legacy single "name" string from pre-rule registrations. May be a full name;
+   * never split it to derive a surname. Prefer `firstName` when present.
+   */
   name?: string;
   emailVerified: boolean;
 }
@@ -29,8 +39,21 @@ function isAccountSession(value: unknown): value is TesiCheckAccountSession {
     && typeof session.email === 'string'
     && session.email.length > 0
     && typeof session.emailVerified === 'boolean'
+    && (session.firstName === undefined || typeof session.firstName === 'string')
     && (session.name === undefined || typeof session.name === 'string')
   );
+}
+
+/**
+ * First name for a session, preferring the explicit `firstName`. Legacy `name`
+ * is only used when it is a single token — a multi-token legacy value is not
+ * split to guess first/last.
+ */
+export function getAccountFirstName(session: TesiCheckAccountSession | null): string {
+  if (!session) return '';
+  if (session.firstName && session.firstName.trim()) return session.firstName.trim();
+  const legacy = (session.name ?? '').trim();
+  return legacy.length > 0 && !/\s/.test(legacy) ? legacy : '';
 }
 
 export function getAccountSession(): TesiCheckAccountSession | null {
@@ -62,12 +85,15 @@ export function signInAccount(email: string): TesiCheckAccountSession {
   });
 }
 
-/** New account: email must still be verified before payment is enabled. */
-export function registerAccount(name: string, email: string): TesiCheckAccountSession {
+/**
+ * New account: registration collects an explicit first name (required "Nome"
+ * field) plus email. Email must still be verified before payment is enabled.
+ */
+export function registerAccount(firstName: string, email: string): TesiCheckAccountSession {
   return saveAccountSession({
     id: DEMO_ACCOUNT_ID,
     email,
-    name,
+    firstName,
     emailVerified: false,
   });
 }

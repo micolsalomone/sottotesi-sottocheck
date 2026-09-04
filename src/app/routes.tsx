@@ -43,6 +43,7 @@ import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage'
 import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
 import { PublicAccountGatePage } from '@/pages/public/PublicAccountGatePage';
 import { PublicReportPage } from '@/pages/public/PublicReportPage';
+import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
@@ -160,7 +161,7 @@ export const router = createBrowserRouter([
       { path: 'report/:checkId', Component: PublicReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', element: <StudentHistoryPage context="standalone" /> },
-      { path: 'profilo', Component: StudentProfilePage },
+      { path: 'profilo', Component: PublicProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
   },

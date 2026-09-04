@@ -18,6 +18,8 @@ import {
 } from '@/app/data/tesicheckAccountSession';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { SottocheckCheckoutSummary } from '@/app/components/SottocheckCheckoutSummary';
+import { useLavorazioni } from '@/app/data/LavorazioniContext';
+import { ensureTesiCheckPipeline } from '@/app/data/tesicheckLeadEnrichment';
 import { createPersistentCheckFromPaidPrecheck, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input-otp';
@@ -40,6 +42,7 @@ function isReportFailDemo() {
 
 export function PublicAccountGatePage() {
   const navigate = useNavigate();
+  const { pipelines, students, addPipeline, updatePipeline } = useLavorazioni();
   const [precheckSession, setPrecheckSession] = useState(() => getPrecheckSession());
   const [account, setAccount] = useState<TesiCheckAccountSession | null>(() => getAccountSession());
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -151,13 +154,26 @@ export function PublicAccountGatePage() {
     advanceAfterAuth(signInAccount(email), 'checkout_payment');
   };
 
-  const handleRegister = (name: string, email: string) => {
-    advanceAfterAuth(registerAccount(name, email), 'checkout_verify_email');
+  const handleRegister = (firstName: string, email: string) => {
+    advanceAfterAuth(registerAccount(firstName, email), 'checkout_verify_email');
   };
 
   const handleConfirmEmail = () => {
     const verifiedAccount = confirmAccountEmail();
-    if (verifiedAccount) setAccount(verifiedAccount);
+    if (verifiedAccount) {
+      setAccount(verifiedAccount);
+      // A verified new standalone registration must project into the CRM
+      // immediately — independently of payment or the later enrichment form.
+      // Idempotent + Student-safe (see `ensureTesiCheckPipeline`).
+      ensureTesiCheckPipeline({
+        accountEmail: verifiedAccount.email,
+        firstName: verifiedAccount.firstName,
+        students,
+        pipelines,
+        addPipeline,
+        updatePipeline,
+      });
+    }
     updateCheckoutStage('checkout_payment');
   };
 
@@ -479,8 +495,9 @@ function LoginForm({ onSubmit, onSwitchToRegister }: { onSubmit: (email: string)
   );
 }
 
-function RegisterForm({ onSubmit, onSwitchToLogin }: { onSubmit: (name: string, email: string) => void; onSwitchToLogin: () => void }) {
-  const [name, setName] = useState('');
+function RegisterForm({ onSubmit, onSwitchToLogin }: { onSubmit: (firstName: string, email: string) => void; onSwitchToLogin: () => void }) {
+  // Required first name; surname is never asked at registration.
+  const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -488,7 +505,7 @@ function RegisterForm({ onSubmit, onSwitchToLogin }: { onSubmit: (name: string, 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim().length === 0) {
+    if (firstName.trim().length === 0) {
       setError('Inserisci il tuo nome.');
       return;
     }
@@ -505,7 +522,7 @@ function RegisterForm({ onSubmit, onSwitchToLogin }: { onSubmit: (name: string, 
       return;
     }
     setError(null);
-    onSubmit(name.trim(), email.trim());
+    onSubmit(firstName.trim(), email.trim());
   };
 
   return (
@@ -518,7 +535,7 @@ function RegisterForm({ onSubmit, onSwitchToLogin }: { onSubmit: (name: string, 
       </p>
 
       <div className="mt-6 flex flex-col gap-4">
-        <TextField id="register-name" label="Nome" type="text" value={name} onChange={setName} autoComplete="name" />
+        <TextField id="register-name" label="Nome" type="text" value={firstName} onChange={setFirstName} autoComplete="given-name" />
         <TextField id="register-email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
         <TextField id="register-password" label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" />
         <TextField id="register-confirm-password" label="Conferma password" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />

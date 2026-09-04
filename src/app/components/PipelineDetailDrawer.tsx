@@ -72,6 +72,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 interface PipelineDetailDrawerProps {
@@ -717,7 +718,7 @@ export function PipelineDetailDrawer({
                     flexDirection: 'column',
                     gap: '0.75rem',
                   }}>
-                    {/* Livello + Tipo tesi */}
+                    {/* Livello + Tipologia */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Livello</label>
@@ -734,7 +735,7 @@ export function PipelineDetailDrawer({
                         </select>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={microLabelStyle}>Tipo tesi</label>
+                        <label style={microLabelStyle}>Tipologia</label>
                         <select
                           className="drawer-control-focus"
                           value={academicData.thesis_type ?? ''}
@@ -777,7 +778,7 @@ export function PipelineDetailDrawer({
 
                     {/* Relatore */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Relatore tesi</label>
+                      <label style={microLabelStyle}>Professore</label>
                       <input
                         className="drawer-control-focus"
                         type="text"
@@ -790,7 +791,7 @@ export function PipelineDetailDrawer({
 
                     {/* Oggetto */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Oggetto tesi</label>
+                      <label style={microLabelStyle}>Argomento</label>
                       <input
                         className="drawer-control-focus"
                         type="text"
@@ -803,7 +804,7 @@ export function PipelineDetailDrawer({
 
                     {/* Materia */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Materia di tesi</label>
+                      <label style={microLabelStyle}>Materia</label>
                       <input
                         className="drawer-control-focus"
                         type="text"

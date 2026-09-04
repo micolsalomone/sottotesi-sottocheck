@@ -1489,6 +1489,13 @@ Nei contesti coaching:
 - Lo Storico Coach ha due contesti di record: check su percorso coaching e check libero a pagamento (§19.1).
 - Al Coach non vanno mai mostrati crediti TesiCheck rimanenti o quota residua; è ammesso solo il dato dei crediti consumati dal singolo check, se esiste (§19.1).
 - `Check libero` è un badge di contesto/tipo, non uno stato di disponibilità (§19.1).
+- Una nuova registrazione standalone TesiCheck crea/deduplica subito una Pipeline CRM, alla creazione+verifica dell'account, indipendentemente da pagamento e questionario (§33).
+- Identità di acquisizione minima = nome (first name) + email verificata (§33).
+- Un'identità che è già uno Student non genera mai una Pipeline duplicata; l'enrichment dello Student è un flusso separato, non ancora implementato (§33).
+- Il questionario post-pagamento / Profilo **arricchisce** la Pipeline già creata; non è il punto di creazione normale (§33).
+- Per le Pipeline originate da questo flusso la fonte è assegnata dal sistema: `Fonte acquisizione = TesiCheck`; mai selezionabile dall'utente (§33).
+- L'enrichment del profilo standalone non blocca mai pagamento, accesso al report o Storico (§33).
+- Consenso al ricontatto commerciale / marketing è un dominio distinto da accettazione Termini e da gestione privacy (§33.5).
 
 ---
 
@@ -1547,4 +1554,117 @@ Ordine consigliato:
 7. Coach dual-mode con ramo paid;
 8. cleanup legacy flow;
 9. eventuale raffinamento Admin senza introdurre gateway.
+
+---
+
+## 33. Standalone TesiCheck → acquisizione + enrichment lead CRM
+
+Riguarda solo l'**identità standalone TesiCheck** (registrazione + `/public-view`).
+Non tocca Student, Coach, Admin, checkout, pagamento, report o Storico.
+
+### 33.1 Concetto prodotto
+
+Una **nuova registrazione standalone** proietta subito un'identità di
+acquisizione nel CRM: alla creazione + verifica email dell'account viene
+creata/deduplicata una Pipeline. La Pipeline **non dipende** dal pagamento né dal
+completamento del questionario di profilo successivo.
+
+Il questionario `Completa il tuo profilo` (Profilo, e in futuro l'interstitial
+post-pagamento) **arricchisce** quella Pipeline già esistente: anagrafica
+completa, telefono, percorso universitario/tesi.
+
+La Pipeline/lead CRM è una **proiezione interna**. L'utente non vede e non
+sceglie: id Pipeline, stato CRM, fonte acquisizione, presa in carico, canali di
+comunicazione CRM, preventivi, note, collegamenti a servizio, metadati
+operativi.
+
+### 33.2 Identità di acquisizione minima
+
+La registrazione di un nuovo account standalone raccoglie:
+
+- **Nome** (first name) — obbligatorio;
+- **Email** — obbligatoria, flusso account esistente;
+- Password / conferma — flusso esistente.
+
+Il cognome **non** viene chiesto in registrazione. Il first name è un valore
+esplicito sull'account/sessione (`firstName`), non ricavato dallo split di una
+stringa nome completo.
+
+### 33.3 Regole
+
+- **Creazione Pipeline (registrazione):** dopo che un nuovo account standalone è
+  creato + email verificata:
+  1. si risolve l'email verificata prima contro gli **Student**;
+  2. se corrisponde a uno Student: **nessuna Pipeline** creata/aggiornata;
+  3. altrimenti si cerca una **Pipeline** esistente per email;
+  4. se esiste: si preservano tutti i dati e si garantisce `TesiCheck` in
+     `sources` una sola volta;
+  5. se non esiste **e** c'è un nome esplicito non vuoto: si crea **una**
+     Pipeline immediata con `first_name` = nome, `student_name` = nome (mai
+     l'email), `email` verificata, `sources: ['TesiCheck']` e soli campi
+     strutturali grounded. Nessun preventivo, owner, servizio, canale, note,
+     `student_id`;
+  6. se il nome esplicito è vuoto: **nessuna Pipeline creata** (risultato non
+     creato, sicuro).
+
+  **Invariante:** una Pipeline TesiCheck appena creata richiede email verificata
+  valida **e** first name esplicito non vuoto; `student_name` non è mai l'email.
+  Una Pipeline originata da TesiCheck esiste quindi anche se l'utente non paga e
+  non compila mai il questionario.
+- **Student sempre prioritario:** un'identità già corrispondente a uno Student
+  Sottotesi non viene mai duplicata come nuovo lead Pipeline.
+- **Enrichment (questionario):** normalmente risolve la Pipeline già creata e la
+  **aggiorna** (anagrafica, telefono, dati accademici raccolti). Assegnatario,
+  preventivi, note, collegamenti a servizio, lavorazioni, metadati operativi e
+  le altre fonti restano invariati; `TesiCheck` garantita una sola volta.
+- **`new_pipeline` nel questionario = solo fallback** per account pre-regola
+  (verificati ma senza Pipeline). Richiede email verificata + nome.
+- **Nessuna identità utilizzabile** (nessuna sessione, email non verificata o
+  non valida): stato neutro, nessuna Pipeline. Nessun redirect al checkout,
+  nessuna identità fittizia.
+- **Fonte** sempre assegnata dal sistema: `Fonte acquisizione = TesiCheck`, mai
+  selezionabile dall'utente.
+- L'enrichment **non è uno step del checkout** e **non blocca mai** pagamento,
+  report o Storico. Dopo il salvataggio si resta sul Profilo con una conferma
+  sintetica; nessuna pagina "profilo completato", nessun redirect.
+
+### 33.4 Vocabolario accademico (approvato dal cliente)
+
+Etichette e opzioni UI condivise da questo questionario e dai form Pipeline
+Admin. **I nomi dei campi sottostanti non cambiano.**
+
+| Etichetta UI | Campo | Note |
+| --- | --- | --- |
+| Livello di laurea | `degree_level` | — |
+| Corso di laurea | `course_name` | — |
+| Università | `university_name` | — |
+| Tipologia | `thesis_type` | valori: `Compilativa`, `Sperimentale`, `Esame` |
+| Professore | `thesis_professor` | facoltativo; ex "Relatore" |
+| Materia | `thesis_subject` | ex "Materia di tesi" |
+| Argomento | `thesis_topic` | ex "Oggetto tesi" / "Argomento / oggetto della tesi" |
+
+La stessa struttura accademica serve sia il contesto tesi sia il contesto esame:
+`Esame` è un valore di `thesis_type`, non uno schema separato.
+
+### 33.5 Domini di consenso (distinti)
+
+Tre domini che devono restare separati, **senza inventare wording legale**:
+
+1. **Accettazione Termini e Condizioni** — servizio.
+2. **Presa visione / gestione informativa privacy** — obbligatoria.
+3. **Consenso opzionale al ricontatto commerciale / marketing**.
+
+`Pipeline.marketing_consents` rappresenta **solo** il dominio 3. Accettazione
+Termini e informativa privacy **non** vanno mappate lì. La copy delle checkbox
+finali non va aggiunta finché legale non fornisce il testo. Se serve un punto per
+l'accettazione versionata (versione + timestamp), appartiene al modello
+account/sessione, non alla Pipeline — vedi requisito aperto nell'handoff.
+
+### 33.6 Handoff implementativo
+
+Vedi [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md)
+per la nota tecnica: risoluzione d'identità via email come stand-in prototipale,
+evento di creazione al verify email, CRM `LavorazioniContext` in memoria
+(sopravvive alla navigazione SPA, non al reload completo), requisito aperto per
+l'accettazione versionata Termini/privacy.
 

@@ -54,6 +54,7 @@ export interface Pipeline {
     course_name?: string;
     university_name?: string;
     thesis_professor?: string;
+    thesis_topic?: string;
     thesis_subject?: string;
     thesis_type?: ThesisType;
     foreign_language?: boolean;
@@ -72,6 +73,7 @@ export const AVAILABLE_SOURCES = [
   'Form Coaching',
   'Form Coaching Plus',
   'Gmail',
+  'TesiCheck',
   'Altro'
 ];
 
@@ -117,7 +119,9 @@ export interface CoachPayout {
 
 // ─── Student types ──────────────────────────────────────────
 export type DegreeLevel = 'triennale' | 'magistrale' | 'ciclo_unico' | 'master' | 'dottorato';
-export type ThesisType = 'compilativa' | 'sperimentale';
+// `thesis_type` also carries the exam context ('esame'); the field name is kept
+// for compatibility — the same academic structure serves thesis and exam.
+export type ThesisType = 'compilativa' | 'sperimentale' | 'esame';
 export type ContactPurpose = 'generic' | 'service_access' | 'communications' | 'coaching';
 
 export interface ContactEmail {
