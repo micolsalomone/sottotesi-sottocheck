@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router';
 import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
 import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
 import {
-  clearAccountSession,
+  clearStandaloneSession,
   getAccountFirstName,
   getAccountSession,
 } from '@/app/data/tesicheckAccountSession';
@@ -17,9 +17,11 @@ export function PublicHeader({ sidebarCollapsed }: PublicHeaderProps) {
   const accountLabel = getAccountFirstName(session) || session?.email || 'Cliente TesiCheck';
 
   function handleLogout() {
-    // Only the standalone account session is authentication state — see
-    // `clearAccountSession`. Route to the public landing, never Admin `/`.
-    clearAccountSession();
+    // Explicit logout ends both transient domains: the standalone account session
+    // and any in-progress checkout / pre-check purchase (`clearStandaloneSession`).
+    // Persistent checks, History, the registered-accounts registry and CRM data
+    // are left intact. Route to the public landing, never Admin `/`.
+    clearStandaloneSession();
     navigate('/public', { replace: true });
   }
 

@@ -88,6 +88,17 @@ export function savePrecheckSession(session: TesiCheckPrecheckSession) {
   }
 }
 
+/**
+ * Discard the in-progress checkout / pre-check purchase. The transient purchase
+ * (domain B) is consumed on exactly two lifecycle events:
+ *  - a successful payment that has materialized into a persistent TesiCheck
+ *    (`createPersistentCheckFromPaidPrecheck`);
+ *  - an explicit standalone logout (`clearStandaloneSession`).
+ *
+ * It is NOT cleared on an ordinary navigation back to the landing, on a refresh
+ * during checkout, or on a payment failure/cancellation — those keep the active
+ * precheck so the checkout can resume.
+ */
 export function clearPrecheckSession() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);

@@ -14,6 +14,8 @@
  * the real application.
  */
 
+import { clearPrecheckSession } from '@/app/data/tesicheckPrecheckSession';
+
 export interface TesiCheckAccountSession {
   id: string;
   email: string;
@@ -164,10 +166,13 @@ export function confirmAccountEmail(): TesiCheckAccountSession | null {
 }
 
 /**
- * Sign out: drops only the authenticated standalone session. Deliberately leaves
- * the registered-accounts registry (so the same account can log back in), the
- * pre-check/checkout session, persistent TesiCheck checks/history and CRM data
- * untouched — those are not authentication state.
+ * Drops only the authenticated standalone account session (domain A). Deliberately
+ * leaves everything else untouched: the registered-accounts registry (so the same
+ * account can log back in), the in-progress pre-check/checkout session, persistent
+ * TesiCheck checks/history and CRM data.
+ *
+ * For an explicit standalone logout use `clearStandaloneSession` instead — logout
+ * must also discard the transient purchase (domain B).
  */
 export function clearAccountSession() {
   try {
@@ -175,6 +180,25 @@ export function clearAccountSession() {
   } catch {
     // Storage unavailable.
   }
+}
+
+/**
+ * End the standalone TesiCheck session on an explicit logout. Clears the two
+ * transient persistence domains and nothing else:
+ *  - the authenticated account session (`clearAccountSession`, domain A);
+ *  - the in-progress checkout / pre-check purchase (`clearPrecheckSession`,
+ *    domain B), so a started-but-unfinished purchase never leaks into the next
+ *    login/session as the active checkout, and a stale mid-checkout `flowStage`
+ *    can never strand a fresh checkout.
+ *
+ * Preserves everything that must outlive a logout (domain C): the
+ * registered-accounts registry (`tesicheck-registered-accounts-v1`), persistent
+ * paid checks / permanent History (`public-tesicheck-checks-v1`), CRM pipelines,
+ * and all Student / Coach / Admin state.
+ */
+export function clearStandaloneSession() {
+  clearAccountSession();
+  clearPrecheckSession();
 }
 
 export function isPaymentEnabled(session: TesiCheckAccountSession | null): boolean {

@@ -484,6 +484,32 @@ Documento.pdf
 
 La sessione non va cancellata semplicemente tornando sulla home.
 
+### Persistenza e discard della pre-check session (semantica di prodotto)
+
+Esistono **tre domini di persistenza distinti**; la pre-check session è il
+dominio transitorio B.
+
+- **A — Identità account.** Può sopravvivere a un reload. Viene azzerata solo al
+  logout esplicito.
+- **B — Purchase/precheck transitorio corrente.** Può sopravvivere a un refresh
+  **mentre lo stesso utente sta completando il checkout** (resume da
+  `checkout_account` / `checkout_verify_email` / `checkout_payment` /
+  `redirecting`). Va invece **scartato** quando:
+  - l'utente fa **logout esplicito**;
+  - il pagamento è andato a buon fine **e** il TesiCheck persistente è stato
+    creato (materializzazione consumata, vedi §7.3).
+
+  Non deve mai propagarsi nella login/sessione successiva come acquisto attivo,
+  né lasciare un `flowStage` terminale/intermedio che blocchi un nuovo checkout.
+- **C — Dati di prodotto persistenti.** Sopravvivono al logout: check completati,
+  report, Storico permanente, Pipeline CRM, registry account prototipo
+  registrati. Non vanno mai cancellati dal logout.
+
+Un fallimento di pagamento, un annullamento o un fallimento di materializzazione
+post-pagamento **non** sono eventi di discard: mantengono la pre-check session
+attiva per il retry (§7.3), senza forzare un nuovo pagamento. Solo il logout
+esplicito e la materializzazione riuscita consumano il dominio B.
+
 ---
 
 ## 7. Payment gateway interstitial
@@ -1534,9 +1560,14 @@ Nei contesti coaching:
   invariato.
 - La registrazione standalone diretta crea/deduplica la Pipeline CRM dopo la
   verifica email, con la stessa regola di acquisizione del gate in-checkout (§33).
-- Il logout standalone (menu utente `/public-view`) azzera solo la sessione
-  account standalone e riporta a `/public` (mai `/`), abilitando test ripetibili
-  di register → logout → login.
+- Il logout standalone (menu utente `/public-view`) azzera la sessione account
+  standalone **e** scarta la pre-check/checkout session transitoria corrente
+  (domini A + B), poi riporta a `/public` (mai `/`). Non tocca il registry
+  account registrati, i check/Storico persistenti, le Pipeline CRM né lo stato
+  Student/Coach/Admin (dominio C). Un acquisto iniziato ma non completato non
+  deve mai riapparire come attivo dopo il logout o nella login successiva di un
+  altro utente; abilita test ripetibili di register → logout → login e
+  garantisce l'isolamento tra utenti diversi nel prototipo.
 - `PublicLayout` ha un guard prototipale: nessuna sessione account standalone →
   redirect a `/public`. Non riguarda Student/Coach/Admin.
 - L'autenticazione standalone del prototipo (sessione + mini-registry locale) è
