@@ -1,8 +1,10 @@
 import { FileText } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { CoachCheckLiberoBadge } from '@/app/components/CoachCheckLiberoBadge';
-import { getCoachPersistentChecksForOwner, isCoachFreeCheck } from '@/app/data/tesicheckCoachCheck';
+import { HistoryCheckTitle } from '@/app/components/HistoryCheckTitle';
+import { getCoachPersistentChecksForOwner, isCoachFreeCheck, renameCoachCheckTitle } from '@/app/data/tesicheckCoachCheck';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
@@ -33,7 +35,14 @@ function formatLongDate(value: string) {
 
 export function CoachHistoryPage() {
   const navigate = useNavigate();
-  const checks = getCoachPersistentChecksForOwner(COACH_VIEW_COACH_ID);
+  // Prototype localStorage store: bump a local counter to re-read after a rename.
+  const [renameVersion, setRenameVersion] = useState(0);
+  const checks = useMemo(() => getCoachPersistentChecksForOwner(COACH_VIEW_COACH_ID), [renameVersion]);
+
+  const handleRename = (checkId: string, nextTitle: string) => {
+    renameCoachCheckTitle(checkId, nextTitle);
+    setRenameVersion((value) => value + 1);
+  };
 
   return (
     <div className="py-[32px]">
@@ -86,18 +95,10 @@ export function CoachHistoryPage() {
                     </div>
 
                     <div className="min-w-0">
-                      <h3
-                        className="truncate"
-                        style={{
-                          fontFamily: 'var(--font-alegreya)',
-                          fontSize: 'var(--text-h3)',
-                          fontWeight: 'var(--font-weight-medium)',
-                          lineHeight: 1.3,
-                          color: 'var(--foreground)',
-                        }}
-                      >
-                        {check.title}
-                      </h3>
+                      <HistoryCheckTitle
+                        title={check.title}
+                        onRename={(nextTitle) => handleRename(check.id, nextTitle)}
+                      />
 
                       <div
                         className="mt-1 flex flex-col gap-0.5"

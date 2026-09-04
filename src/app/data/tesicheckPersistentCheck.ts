@@ -142,6 +142,7 @@ export function createPersistentCheckFromPaidPrecheck(): PersistentTesiCheck | n
 
   const check = createPersistentTesiCheck({
     owner: { context: 'standalone', id: precheck.claim.accountId },
+    title: precheck.title,
     document: precheck.document,
     characterCount: precheck.characterCount,
     price: precheck.price,
@@ -193,6 +194,25 @@ export function createPersistentStudentCheck({
   });
 
   return saveChecks([check, ...getStoredChecks()]) ? check : null;
+}
+
+/**
+ * Rename one persistent check's semantic title. Mutates **only** `title` (trimmed);
+ * an empty input resolves to the record's current title, else the filename-derived
+ * default — never blank. Document, report reference, payment, dates and owner are
+ * untouched. Returns `false` when the id is unknown or the write fails.
+ */
+export function renamePersistentCheckTitle(checkId: string, nextTitle: string): boolean {
+  const checks = getStoredChecks();
+  const index = checks.findIndex((item) => item.id === checkId);
+  if (index === -1) {
+    return false;
+  }
+  const current = checks[index];
+  const resolved =
+    nextTitle.trim() || current.title?.trim() || deriveDefaultCheckTitle(current.document.name);
+  checks[index] = { ...current, title: resolved };
+  return saveChecks(checks);
 }
 
 function createPersistentTesiCheck({

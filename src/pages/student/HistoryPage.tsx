@@ -1,9 +1,10 @@
 import { FileText, Download } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { SottocheckHistoryStatusBadge, type SottocheckHistoryStatus } from '@/app/components/SottocheckHistoryStatusBadge';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
-import { getPersistentTesiChecksForOwner } from '@/app/data/tesicheckPersistentCheck';
+import { HistoryCheckTitle } from '@/app/components/HistoryCheckTitle';
+import { getPersistentTesiChecksForOwner, renamePersistentCheckTitle } from '@/app/data/tesicheckPersistentCheck';
 import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
 import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
 import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
@@ -70,10 +71,17 @@ export function HistoryPage({ context }: HistoryPageProps) {
 function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext }) {
   const navigate = useNavigate();
   const config = CONTEXT_CONFIG[context];
+  // Prototype localStorage store: bump a local counter to re-read after a rename.
+  const [renameVersion, setRenameVersion] = useState(0);
   const checks = useMemo(
     () => getPersistentTesiChecksForOwner(config.ownerContext, config.ownerId),
-    [config.ownerContext, config.ownerId],
+    [config.ownerContext, config.ownerId, renameVersion],
   );
+
+  const handleRename = (checkId: string, nextTitle: string) => {
+    renamePersistentCheckTitle(checkId, nextTitle);
+    setRenameVersion((value) => value + 1);
+  };
 
   return (
     <div className="py-[32px]">
@@ -129,18 +137,10 @@ function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext
                     </div>
 
                     <div className="min-w-0">
-                      <h3
-                        className="truncate"
-                        style={{
-                          fontFamily: 'var(--font-alegreya)',
-                          fontSize: 'var(--text-h3)',
-                          fontWeight: 'var(--font-weight-medium)',
-                          lineHeight: 1.3,
-                          color: 'var(--foreground)',
-                        }}
-                      >
-                        {check.title}
-                      </h3>
+                      <HistoryCheckTitle
+                        title={check.title}
+                        onRename={(nextTitle) => handleRename(check.id, nextTitle)}
+                      />
 
                       <div
                         className="mt-1 flex flex-col gap-0.5"

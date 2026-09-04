@@ -211,6 +211,26 @@ export function getCoachPersistentChecksForOwner(coachId: string): NormalizedCoa
 }
 
 /**
+ * Rename one persistent Coach check's semantic title (either shape). Mutates
+ * **only** `title` (trimmed); an empty input resolves to the record's current
+ * title, else the filename-derived default — never blank. Document, report
+ * reference, payment, credits, `binding` (Student / path), dates and owner are
+ * untouched. Returns `false` when the id is unknown or the write fails.
+ */
+export function renameCoachCheckTitle(checkId: string, nextTitle: string): boolean {
+  const checks = getStoredChecks();
+  const index = checks.findIndex((item) => item.id === checkId);
+  if (index === -1) {
+    return false;
+  }
+  const current = checks[index];
+  const resolved =
+    nextTitle.trim() || current.title?.trim() || deriveDefaultCheckTitle(current.document.name);
+  checks[index] = { ...current, title: resolved };
+  return saveChecks(checks);
+}
+
+/**
  * Materialize one path-bound Coach check. Idempotent: a record already written
  * for the same `sourceExecutionReference` is returned instead of a duplicate, so
  * a StrictMode double-invoke or a retry never double-creates.

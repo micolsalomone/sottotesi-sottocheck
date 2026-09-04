@@ -355,6 +355,7 @@ export function PublicAccountGatePage() {
 
         <SottocheckCheckoutSummary
           className="order-first md:order-none"
+          title={precheckSession.title}
           documentName={precheckSession.document.name}
           characterCount={precheckSession.characterCount}
           price={precheckSession.price}

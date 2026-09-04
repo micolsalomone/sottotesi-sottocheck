@@ -1,6 +1,8 @@
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 
 interface SottocheckCheckoutSummaryProps {
+  /** Semantic check title — the purchase's primary identity. */
+  title: string;
   documentName: string;
   characterCount: number;
   price: number;
@@ -12,8 +14,11 @@ interface SottocheckCheckoutSummaryProps {
  * payment, redirecting). Always titled "Riepilogo TesiCheck" — never "riepilogo
  * pagamento" — because it represents the current purchase, not a single step.
  * Desktop: sticky right rail. Mobile: compact collapsible row.
+ *
+ * Read-only: the title is edited in the upload/preparation context, never here.
  */
 export function SottocheckCheckoutSummary({
+  title,
   documentName,
   characterCount,
   price,
@@ -34,7 +39,7 @@ export function SottocheckCheckoutSummary({
           <span className="text-[var(--muted-foreground)]" style={{ fontSize: 'var(--text-sm)' }}>Mostra dettagli</span>
         </summary>
         <div className="mt-4">
-          <SummaryFields documentName={documentName} characterCount={characterCount} price={price} />
+          <SummaryFields title={title} documentName={documentName} characterCount={characterCount} price={price} />
         </div>
       </details>
 
@@ -50,7 +55,7 @@ export function SottocheckCheckoutSummary({
           Riepilogo TesiCheck
         </p>
         <div className="mt-4">
-          <SummaryFields documentName={documentName} characterCount={characterCount} price={price} />
+          <SummaryFields title={title} documentName={documentName} characterCount={characterCount} price={price} />
         </div>
       </aside>
     </div>
@@ -58,10 +63,12 @@ export function SottocheckCheckoutSummary({
 }
 
 function SummaryFields({
+  title,
   documentName,
   characterCount,
   price,
 }: {
+  title: string;
   documentName: string;
   characterCount: number;
   price: number;
@@ -69,6 +76,9 @@ function SummaryFields({
   return (
     <>
       <p className="break-words" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+        {title}
+      </p>
+      <p className="mt-1 break-words text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
         {documentName}
       </p>
       <p className="mt-2 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>

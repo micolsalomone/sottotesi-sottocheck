@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router';
 import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
 import { createPersistentStudentCheck, createStudentPaymentReference, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { CheckTitleField } from '@/app/components/CheckTitleField';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckUploadForm, type UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type StudentFlowStage = 'form' | 'payment' | 'redirecting';
@@ -30,6 +32,9 @@ export function StudentPaidSottocheckPage() {
   const navigate = useNavigate();
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
+  // Semantic check title — seeded from the filename on upload, editable, and
+  // passed explicitly to materialization (initial + retry). React state only.
+  const [title, setTitle] = useState('');
   const [isPricing, setIsPricing] = useState(false);
   const [quote, setQuote] = useState<{ characterCount: number; price: number } | null>(null);
   const [flowStage, setFlowStage] = useState<StudentFlowStage>('form');
@@ -75,6 +80,7 @@ export function StudentPaidSottocheckPage() {
 
     const check = createPersistentStudentCheck({
       studentId: STUDENT_VIEW_STUDENT_ID,
+      title,
       document,
       characterCount: quote.characterCount,
       price: quote.price,
@@ -99,6 +105,7 @@ export function StudentPaidSottocheckPage() {
 
     const check = createPersistentStudentCheck({
       studentId: STUDENT_VIEW_STUDENT_ID,
+      title,
       document,
       characterCount: quote.characterCount,
       price: quote.price,
@@ -129,10 +136,13 @@ export function StudentPaidSottocheckPage() {
     clearPricingTimer();
 
     if (status !== 'valid') {
+      setTitle('');
       setIsPricing(false);
       return;
     }
 
+    // A new document always derives a fresh default title.
+    setTitle(deriveDefaultCheckTitle(nextDocument.name));
     setIsPricing(true);
     pricingTimerRef.current = window.setTimeout(() => {
       setQuote({ characterCount: DEMO_CHARACTER_COUNT, price: DEMO_PRICE });
@@ -145,6 +155,7 @@ export function StudentPaidSottocheckPage() {
     clearPricingTimer();
     setDocument(null);
     setDocumentStatus('idle');
+    setTitle('');
     setQuote(null);
     setIsPricing(false);
   };
@@ -233,6 +244,16 @@ export function StudentPaidSottocheckPage() {
                 showHeading={false}
               />
             </div>
+            {documentStatus === 'valid' && (
+              <CheckTitleField
+                className="mt-4"
+                value={title}
+                onChange={setTitle}
+                onBlur={() => {
+                  if (!title.trim() && document) setTitle(deriveDefaultCheckTitle(document.name));
+                }}
+              />
+            )}
           </StepCard>
 
           <StepCard number="3" title="Conferma e pagamento" description="Il TesiCheck personale è un servizio self-service a pagamento.">

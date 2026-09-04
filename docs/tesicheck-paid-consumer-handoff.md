@@ -30,7 +30,17 @@
 **Updated by Slice A (permanent History + title foundation):**
 
 - No report expiry. `isExpired`, the `Scaduto` row state, the expiry line and the availability badge were removed from the consumer History; every record shows `Apri report`. See the "No report expiry" bullet in §3.
-- Every persistent check carries a semantic `title` (`PersistentTesiCheck.title?: string`, always set by the creators; legacy records fall back to `deriveDefaultCheckTitle(document.name)` at read time via `normalizePersistentTesiCheck`). History primary identity is the title; `document.name` is secondary. The report "Conserva il report" card became "Salvato nel tuo Storico TesiCheck"; the downloaded `.txt` now has `Titolo:` + `Documento:` and no `Disponibile fino al`. Editable title + rename-from-History are Slice B.
+- Every persistent check carries a semantic `title` (`PersistentTesiCheck.title?: string`, always set by the creators; legacy records fall back to `deriveDefaultCheckTitle(document.name)` at read time via `normalizePersistentTesiCheck`). History primary identity is the title; `document.name` is secondary. The report "Conserva il report" card became "Salvato nel tuo Storico TesiCheck"; the downloaded `.txt` now has `Titolo:` + `Documento:` and no `Disponibile fino al`.
+
+**Updated by Slice B (editable title + rename-from-History):**
+
+- `TesiCheckPrecheckSession` gained a required `title: string`. `getPrecheckSession()` normalizes a missing/blank value to `deriveDefaultCheckTitle(document.name)` so legacy sessions stay valid; it is not added to the reject conditions.
+- `PublicLandingPage` seeds the title from the filename when the quote is ready, renders a `CheckTitleField` ("Titolo del controllo") next to the uploaded document, and persists edits onto the pre-check session (`commitTitle` → `savePrecheckSession`). Blank-on-blur restores the filename default. A new upload re-derives the default. The "Hai un TesiCheck in corso" resume block leads with the title.
+- `createPersistentCheckFromPaidPrecheck()` now passes `title: precheck.title` into the creator (which still falls back to the filename default if somehow blank). Title survives upload → quote → account → verify → payment → materialization unchanged.
+- `StudentPaidSottocheckPage` holds a local `title` state (seeded on file selection, `CheckTitleField` in step 2) and passes it to `createPersistentStudentCheck({ …, title })` on the initial materialization **and** the recovery retry — same title across retry. No payment/idempotency change.
+- `SottocheckCheckoutSummary` gained a `title` prop and shows it as the purchase's primary line, filename secondary. Read-only — no editable input in payment UI.
+- New shared components: `src/app/components/CheckTitleField.tsx` (prep-step field; presentation only, caller owns state/seed/reset/persist) and `src/app/components/HistoryCheckTitle.tsx` (History inline rename; local edit UI only, parent owns the store mutation + refresh). Neither is role-aware.
+- Rename: `renamePersistentCheckTitle(checkId, nextTitle)` in `tesicheckPersistentCheck.ts` mutates only `title` (trimmed; blank → current title, else filename default). `HistoryPage` (`ConsumerTesiCheckHistory`) wires it with a `renameVersion` counter in the `useMemo` deps for an immediate reload-free refresh.
 
 **Explicitly NOT part of this workstream:**
 
@@ -258,6 +268,9 @@ Do not resolve the open items here — they are the next workstream (§11).
 - Consumer History primary action is `Apri report` into the role-specific report route — never `Scarica report`, no download action.
 - Consumer History primary identity is the effective `title`; `document.name` is secondary. It shows no price / pages / character count / internal refs / scores, and **no availability badge** (every record is `Completato` — the badge is redundant; Slice A).
 - `PersistentTesiCheck.title` is optional in the type for legacy tolerance but always set by the creators; reads normalize a missing title to `deriveDefaultCheckTitle(document.name)` without persisting it. Do not add a `title` check to `isPersistentTesiCheck` (unsound — a legacy record has no stored title).
+- `TesiCheckPrecheckSession.title` is required in the type; `getPrecheckSession()` guarantees it (normalizes blank → filename default) so a legacy session never fails validation on a missing title.
+- The semantic title is edited only in the preparation/upload context (`CheckTitleField`), never inside payment UI or the checkout summary. It travels on the pre-check session (guest) or React state (Student); it is **not** stored on the account model.
+- `renamePersistentCheckTitle` mutates only `title`; History refreshes via a local counter, no reload, no event bus. The report reads the record, so a rename shows on reopen with no separate report mutation; the iframe keeps `documentName = document.name`, the `.txt` uses the current title, the download filename stays id-based.
 - `expiresAt` is a legacy optional never read; new records do not generate it. Do not re-introduce `RETENTION_DAYS` or any `isExpired` gate.
 - Legacy `/public/history` stays on its isolated mock (`HistoryPage` with no `context` prop) — do not wire it to the persistent store.
 - Coach History is a separate workstream and must not reuse the consumer persistent store or its report routes (canonical §19.1).

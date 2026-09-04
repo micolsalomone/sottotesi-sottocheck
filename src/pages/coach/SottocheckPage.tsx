@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router';
 import { AlertCircle, CheckCircle2, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { CheckTitleField } from '@/app/components/CheckTitleField';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 import {
   createCoachExecutionReference,
@@ -95,6 +97,7 @@ interface PendingPathCheck {
   studentName: string;
   pathId: string;
   pathLabel: string;
+  title: string;
   document: UploadedDocument;
   executionReference: string;
 }
@@ -128,10 +131,14 @@ export function SottocheckPage() {
 
   const [contextValue, setContextValue] = useState<string>('');
 
-  // Shared, mode-agnostic — preserved across context changes.
+  // Shared, mode-agnostic — preserved across context changes (path <-> free).
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
   const [pagesSelected, setPagesSelected] = useState<number>(0);
+  // Semantic check title: document/check identity, not path/payment state. Seeded
+  // from the filename on upload, edited freely, preserved on a context switch,
+  // re-derived on a new document.
+  const [title, setTitle] = useState('');
 
   // Path-bound transient state.
   const [pathCheckStatus, setPathCheckStatus] = useState<PathCheckStatus>('created');
@@ -235,11 +242,14 @@ export function SottocheckPage() {
     setIsPricing(false);
 
     if (status === 'valid') {
+      // A new document always derives a fresh default title.
+      setTitle(deriveDefaultCheckTitle(nextDocument.name));
       setPagesSelected(Math.floor(Math.random() * 50) + 10);
       if (contextValue === FREE_CHECK_CONTEXT) {
         startPricing();
       }
     } else {
+      setTitle('');
       setPagesSelected(0);
     }
   };
@@ -248,6 +258,7 @@ export function SottocheckPage() {
     clearPricingTimer();
     setDocument(null);
     setDocumentStatus('idle');
+    setTitle('');
     setPagesSelected(0);
     setQuote(null);
     setIsPricing(false);
@@ -272,6 +283,7 @@ export function SottocheckPage() {
       studentName: pending.studentName,
       pathId: pending.pathId,
       pathLabel: pending.pathLabel,
+      title: pending.title,
       document: pending.document,
       creditsUsed: MOCK_CREDIT_COST_PER_CHECK,
       sourceExecutionReference: pending.executionReference,
@@ -310,6 +322,7 @@ export function SottocheckPage() {
 
     const check = createCoachFreeCheck({
       coachId: COACH_VIEW_COACH_ID,
+      title: title.trim() || deriveDefaultCheckTitle(document.name),
       document,
       characterCount: quote.characterCount,
       price: quote.price,
@@ -346,12 +359,13 @@ export function SottocheckPage() {
       [selectedPath.id]: Math.min(MAX_FREE_CHECK_CREDITS, (prev[selectedPath.id] ?? 0) + MOCK_CREDIT_COST_PER_CHECK),
     }));
 
-    // Student/path snapshotted ONLY here, on an accepted action.
+    // Student/path + title snapshotted ONLY here, on an accepted action.
     pendingPathCheckRef.current = {
       studentId: selectedPath.studentId,
       studentName: selectedPath.studentName,
       pathId: selectedPath.id,
       pathLabel: selectedPath.timelineLabel,
+      title: title.trim() || deriveDefaultCheckTitle(document.name),
       document,
       executionReference: createCoachExecutionReference(),
     };
@@ -376,6 +390,7 @@ export function SottocheckPage() {
 
     const check = createCoachFreeCheck({
       coachId: COACH_VIEW_COACH_ID,
+      title: title.trim() || deriveDefaultCheckTitle(document.name),
       document,
       characterCount: quote.characterCount,
       price: quote.price,
@@ -664,6 +679,16 @@ export function SottocheckPage() {
                 showHeading={false}
               />
             </div>
+            {documentStatus === 'valid' && (
+              <CheckTitleField
+                className="mt-4"
+                value={title}
+                onChange={setTitle}
+                onBlur={() => {
+                  if (!title.trim() && document) setTitle(deriveDefaultCheckTitle(document.name));
+                }}
+              />
+            )}
           </CoachStepCard>
 
           {!hasContext && (

@@ -1,6 +1,7 @@
 import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { CheckTitleField } from '@/app/components/CheckTitleField';
 import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
 import PlanningSticker from '@/imports/Planning.png';
 import MatchSticker from '@/imports/Match.png';
@@ -29,6 +30,7 @@ import {
   type TesiCheckPrecheckSession,
 } from '@/app/data/tesicheckPrecheckSession';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 import { getAccountSession } from '@/app/data/tesicheckAccountSession';
 
 const DEMO_CHARACTER_COUNT = 28500;
@@ -42,6 +44,9 @@ export function PublicLandingPage() {
   const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(() => getPrecheckSession()?.document ?? null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>(() => getPrecheckSession()?.validationState ?? 'idle');
   const [precheckSession, setPrecheckSession] = useState<TesiCheckPrecheckSession | null>(() => getPrecheckSession());
+  // Semantic check title — seeded from the filename, editable here, and carried on
+  // the pre-check session through the whole checkout.
+  const [title, setTitle] = useState<string>(() => getPrecheckSession()?.title ?? '');
   const [isPriceCalculating, setIsPriceCalculating] = useState(false);
   const pricingTimerRef = useRef<number | null>(null);
   const canProceedToPayment = !!precheckSession && !isPriceCalculating;
@@ -58,9 +63,12 @@ export function PublicLandingPage() {
   const runPriceCalculationLoader = (document: UploadedDocument, temporaryDocumentRef: string) => {
     clearPricingTimer();
     setIsPriceCalculating(true);
+    const defaultTitle = deriveDefaultCheckTitle(document.name);
+    setTitle(defaultTitle);
     pricingTimerRef.current = window.setTimeout(() => {
       const nextSession: TesiCheckPrecheckSession = {
         document,
+        title: defaultTitle,
         temporaryDocumentRef,
         validationState: 'valid',
         characterCount: DEMO_CHARACTER_COUNT,
@@ -75,6 +83,17 @@ export function PublicLandingPage() {
     }, 700);
   };
 
+  // Persist an edited title onto the existing pre-check session so it survives
+  // navigation into the checkout. A blank title falls back to the filename default.
+  const commitTitle = (nextTitle: string) => {
+    setTitle(nextTitle);
+    if (!precheckSession) return;
+    const resolved = nextTitle.trim() || deriveDefaultCheckTitle(precheckSession.document.name);
+    const nextSession = { ...precheckSession, title: resolved };
+    savePrecheckSession(nextSession);
+    setPrecheckSession(nextSession);
+  };
+
   const handleUploadStatusChange = (status: 'idle' | 'valid' | 'invalid') => {
     setUploadStatus(status);
   };
@@ -84,9 +103,11 @@ export function PublicLandingPage() {
     clearPrecheckSession();
     setPrecheckSession(null);
     if (status === 'valid') {
+      // A new document always derives a fresh default title.
       runPriceCalculationLoader(document, createTemporaryDocumentRef());
       return;
     }
+    setTitle('');
     clearPricingTimer();
     setIsPriceCalculating(false);
   };
@@ -94,6 +115,7 @@ export function PublicLandingPage() {
   const handleFileCleared = () => {
     setUploadedDocument(null);
     setPrecheckSession(null);
+    setTitle('');
     clearPrecheckSession();
     clearPricingTimer();
     setIsPriceCalculating(false);
@@ -444,6 +466,9 @@ export function PublicLandingPage() {
                   Hai un TesiCheck in corso
                 </p>
                 <p className="mt-3" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                  {precheckSession.title}
+                </p>
+                <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
                   {precheckSession.document.name}
                 </p>
                 <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
@@ -461,6 +486,18 @@ export function PublicLandingPage() {
                   onFileCleared={handleFileCleared}
                   disabled={false}
                 />
+
+                {uploadedDocument && uploadStatus === 'valid' && (
+                  <CheckTitleField
+                    value={title}
+                    onChange={commitTitle}
+                    onBlur={() => {
+                      if (!title.trim() && precheckSession) {
+                        commitTitle(deriveDefaultCheckTitle(precheckSession.document.name));
+                      }
+                    }}
+                  />
+                )}
 
                 <div
                   className="border border-[var(--border)] bg-[var(--background)] p-4"

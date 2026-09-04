@@ -1,4 +1,5 @@
 import type { UploadedDocument } from '@/app/components/SottocheckUploadForm';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 
 export type PrecheckValidationState = 'valid';
 export type PrecheckFlowStage =
@@ -11,6 +12,15 @@ export type PrecheckFlowStage =
 
 export interface TesiCheckPrecheckSession {
   document: UploadedDocument;
+  /**
+   * Semantic, user-facing title for the check. Seeded from the filename
+   * (`deriveDefaultCheckTitle`) and editable on the landing before checkout. It
+   * travels through the whole checkout (account / verify / payment) and is read
+   * by `createPersistentCheckFromPaidPrecheck` at materialization. Distinct from
+   * `document.name`; not coupled to the account model. `getPrecheckSession`
+   * normalizes a missing/blank value so legacy sessions stay valid.
+   */
+  title: string;
   /**
    * Prototype token for a temporarily uploaded document. Production must resolve this to a
    * recoverable temporary server/storage resource; document metadata alone cannot recreate a check.
@@ -44,6 +54,11 @@ export function getPrecheckSession(): TesiCheckPrecheckSession | null {
       !session.claim
     ) {
       return null;
+    }
+
+    // Legacy sessions predate `title`: derive an effective one without invalidating.
+    if (!session.title || !session.title.trim()) {
+      return { ...session, title: deriveDefaultCheckTitle(session.document.name) };
     }
 
     return session;

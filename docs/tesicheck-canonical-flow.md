@@ -1064,6 +1064,33 @@ Non copiare la tabella Admin 1:1 agli utenti.
 Ogni TesiCheck ha un titolo. Per i record legacy privi di titolo, il fallback è il
 nome file senza estensione.
 
+### Titolo semantico del check
+
+- Ogni TesiCheck ha **un titolo semantico** più il **nome file originale**: sono
+  concetti distinti. Il titolo identifica la fase/versione del lavoro
+  (`Capitolo 3 – Metodologia`); il nome file resta l'artefatto caricato
+  (`tesi_finale_v7.docx`). Il file caricato **non viene mai rinominato**.
+- Il titolo non vive dentro `document` / `UploadedDocument`.
+- **Default:** al caricamento del documento il titolo è preimpostato con
+  `deriveDefaultCheckTitle(document.name)` — solo la rimozione dell'estensione
+  finale, nessun'altra trasformazione. Cambiando il documento il titolo torna al
+  nuovo default derivato.
+- **Editing prima di run/pagamento:** un campo `Titolo del controllo`
+  preimpostato ed editabile è mostrato accanto al documento caricato, nel passo
+  di preparazione — **non** è un nuovo step di checkout. Vale per standalone
+  guest, Student, Coach percorso e Coach `Check libero`, con la stessa semantica.
+  Se svuotato, il titolo si risolve al default da nome file (nessun titolo vuoto
+  può materializzare un check).
+- **Rename dallo Storico:** dopo il completamento l'utente può rinominare il
+  check dallo Storico con un'interazione minima (matita → edit inline/compatto →
+  Salva/Annulla). Il rename tocca **solo** `title`: mai nome file, report
+  reference, pagamento, crediti, binding studente/percorso, data di
+  completamento. Lo Storico si aggiorna subito, senza reload.
+- Il report letto dallo Storico mostra il titolo corrente; l'iframe continua a
+  ricevere il nome file originale; il `.txt` scaricato riporta `Titolo:` +
+  `Documento:`. Il nome del file scaricato resta basato sull'id
+  (`report-tesicheck-{id}.txt`), mai derivato dal titolo.
+
 ### Stati
 
 Ogni record persistente è **Completato** e può sempre aprire il proprio report.
@@ -1471,8 +1498,24 @@ Nei contesti coaching:
   e futuri di produzione, non regole UX (§20).
 - Ogni TesiCheck ha un `title` semantico distinto dal nome file
   (`document.name`). Non vive dentro `UploadedDocument`. Fallback per record
-  legacy senza titolo: nome file senza estensione (`deriveDefaultCheckTitle`).
-  L'editing del titolo e il rename dallo Storico sono una slice successiva.
+  legacy senza titolo: nome file senza estensione (`deriveDefaultCheckTitle`,
+  rimozione della sola estensione finale — nessun'altra pulizia).
+- Il titolo è **preimpostato dal nome file ed editabile prima di run/pagamento**
+  in un campo `Titolo del controllo` accanto al documento caricato (non un nuovo
+  step). Stessa semantica per standalone, Student, Coach percorso, Coach
+  `Check libero`. Cambiando il documento il titolo torna al nuovo default; se
+  svuotato si risolve al default (nessun titolo vuoto materializza un check).
+- Il titolo viaggia sullo stato transitorio fino alla materializzazione: per lo
+  standalone sulla `TesiCheckPrecheckSession` (upload → quote → account →
+  verifica → pagamento → materializzazione); per Student e Coach sullo stato
+  React del flusso, incluso il retry post-pagamento. Non è accoppiato al modello
+  account.
+- Dopo il completamento il titolo è **rinominabile dallo Storico** (interazione
+  minima: matita → edit compatto → Salva/Annulla). Il rename cambia **solo**
+  `title` (trim; vuoto → default o titolo precedente), mai nome file / report
+  reference / pagamento / crediti / binding / data di completamento. Lo Storico
+  si aggiorna subito senza reload; il report riaperto mostra il nuovo titolo,
+  l'iframe usa ancora il nome file, il `.txt` scaricato usa il titolo corrente.
 - Storico = archivio persistente; identità di riga = titolo (primario), nome file
   (secondario), metadati di contesto, data di completamento, `Apri report`.
 - Nessun badge di stato disponibilità nello Storico persistente consumer/Coach:
@@ -1520,11 +1563,11 @@ Nei contesti coaching:
 2. Quale visibilità dello staff Sottotesi sui file/report è consentita.
 3. Scope production delle pagine Profilo/Account incomplete.
 4. Eventuale collegamento opzionale futuro tra Coach paid free check e un percorso coaching.
-5. Editing del titolo prima di run/pagamento e rename dallo Storico (Slice B): interazione minima, propagazione del titolo attraverso lo stato transitorio.
 
 > Risolte: la scadenza a 30 giorni e la condizione `In scadenza` sono state
-> rimosse (§20). Non c'è più una decisione aperta su "quali dati restano dopo
-> expiry" perché non c'è expiry applicativo.
+> rimosse (§20); non c'è più una decisione aperta su "quali dati restano dopo
+> expiry" perché non c'è expiry applicativo. L'editing del titolo prima di
+> run/pagamento e il rename dallo Storico sono implementati (§16).
 
 ---
 

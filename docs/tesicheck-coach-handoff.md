@@ -18,8 +18,23 @@ payment architecture into it. The one deliberate exception is the shared paid
 > and `CoachFreeCheck` gained `title?: string` (always set by the creators;
 > legacy records normalize to `deriveDefaultCheckTitle(document.name)` on read).
 > History/report primary identity is the title; filename is secondary. The report
-> retention card is now "Salvato nel tuo Storico TesiCheck". Editable title +
-> rename-from-History are Slice B. See §2, §7, §8.
+> retention card is now "Salvato nel tuo Storico TesiCheck". See §2, §7, §8.
+>
+> **Slice B update (editable title + rename-from-History).** `SottocheckPage`
+> holds one shared, mode-agnostic `title` state alongside `document` /
+> `documentStatus` / `pagesSelected`: seeded from the filename on a valid upload,
+> shown via `CheckTitleField` in step card 2, re-derived on a new document,
+> **preserved by `handleContextChange`** (path ↔ free ↔ empty) exactly like the
+> document, blank-on-blur → filename default. Path-bound: the title is
+> snapshotted into `pendingPathCheckRef` (with Student/path/`sourceExecutionReference`)
+> only when `Avvia controllo` is accepted, then passed to
+> `createCoachPathBoundCheck`. Free: the title is passed to `createCoachFreeCheck`
+> at materialization **and** the recovery retry, resolved as
+> `title.trim() || deriveDefaultCheckTitle(document.name)`. No Student/path leaks
+> into a free check; no payment metadata leaks into a path check. History rename:
+> `renameCoachCheckTitle(checkId, nextTitle)` (mutates only `title`) wired in
+> `CoachHistoryPage` via the shared `HistoryCheckTitle` component + a
+> `renameVersion` counter for a reload-free refresh.
 
 ---
 
@@ -155,6 +170,11 @@ Accessors:
 - `normalizeCoachPersistentCheck<T>(check)` → `T & { title: string }`; fills a
   missing/blank `title` from `deriveDefaultCheckTitle(document.name)` at read time
   only, never persisting it.
+- `renameCoachCheckTitle(checkId, nextTitle)` → `boolean` (Slice B). Mutates
+  **only** `title` on the matching record (trimmed; blank input → the record's
+  current title, else the filename default). Document, report reference, payment,
+  credits, `binding`, dates and owner are untouched. `false` = unknown id or
+  failed write.
 - Guards, all exported: `isCoachPathBoundCheck` / `isCoachFreeCheck` (type
   predicates; the `expiresAt` requirement was removed — legacy records with no
   `expiresAt` still validate; **no** `title` check, an unsound one is avoided),
@@ -237,7 +257,9 @@ studente o percorso, scegli Check libero a pagamento.").
 ### State
 
 - **Shared, context-agnostic — preserved across every context change:**
-  `document`, `documentStatus`, `pagesSelected`.
+  `document`, `documentStatus`, `pagesSelected`, `title` (Slice B — the semantic
+  check title; seeded from the filename on a valid upload, edited via
+  `CheckTitleField` in step card 2, re-derived on a new document).
 - **Path-bound transient:** `pathCheckStatus` (`created`/`processing`/`error`),
   `pathCompletedCheck`, `draftUsedCreditsByPath`, `pendingPathCheckRef`,
   `hasCreatedPathCheckRef`.
@@ -254,8 +276,8 @@ state (`quote`, `isPricing`, `paymentNotice`, `freeStage='form'`,
 `hasCreatedFreeCheckRef`, `paymentReferenceRef`, `reportFailDemoRef`) **and** the
 pending path binding (`pendingPathCheckRef`, `hasCreatedPathCheckRef`,
 `pathCheckStatus='created'`, `pathCompletedCheck`). It never touches `document`,
-`documentStatus`, `pagesSelected`, or `draftUsedCreditsByPath`. If the new
-context is `check_libero` **and** a document is already valid, it re-runs
+`documentStatus`, `pagesSelected`, `title`, or `draftUsedCreditsByPath`. If the
+new context is `check_libero` **and** a document is already valid, it re-runs
 `startPricing()` so the quote is derived from the existing document — no
 re-upload.
 
@@ -263,9 +285,9 @@ Net effect:
 
 | Switch | Cleared | Preserved |
 | --- | --- | --- |
-| any → PATH | `quote` / `isPricing` / `paymentNotice` / `freeStage` / `freeIsProcessing` / `freeCompletionError` / `freeCompletedCheck` / `paymentReferenceRef` / `hasCreatedFreeCheckRef` / `reportFailDemoRef`; `pendingPathCheckRef` / `hasCreatedPathCheckRef` / `pathCheckStatus` / `pathCompletedCheck` | `document`, `documentStatus`, `pagesSelected`, `draftUsedCreditsByPath` |
-| any → FREE | same list (quote re-derived from the existing document if valid) | `document`, `documentStatus`, `pagesSelected`, `draftUsedCreditsByPath` |
-| any → `''` | same list | `document`, `documentStatus`, `pagesSelected`, `draftUsedCreditsByPath` |
+| any → PATH | `quote` / `isPricing` / `paymentNotice` / `freeStage` / `freeIsProcessing` / `freeCompletionError` / `freeCompletedCheck` / `paymentReferenceRef` / `hasCreatedFreeCheckRef` / `reportFailDemoRef`; `pendingPathCheckRef` / `hasCreatedPathCheckRef` / `pathCheckStatus` / `pathCompletedCheck` | `document`, `documentStatus`, `pagesSelected`, `title`, `draftUsedCreditsByPath` |
+| any → FREE | same list (quote re-derived from the existing document if valid) | `document`, `documentStatus`, `pagesSelected`, `title`, `draftUsedCreditsByPath` |
+| any → `''` | same list | `document`, `documentStatus`, `pagesSelected`, `title`, `draftUsedCreditsByPath` |
 
 A free check can never inherit Student / path / credits; a path-bound check can
 never inherit price / payment state. `''` is never treated as a paid choice — no
@@ -273,16 +295,19 @@ check or payment action is reachable until a context is explicitly chosen.
 
 ### Snapshot only on action
 
-`pendingPathCheckRef` (Student + path + document + `sourceExecutionReference`) is
-written **only** inside `handleStartPathCheck`, on an accepted `Avvia controllo`
-— never when the `<select>` changes. The free flow has no Student/path snapshot
-at all.
+`pendingPathCheckRef` (Student + path + document + **title** +
+`sourceExecutionReference`) is written **only** inside `handleStartPathCheck`, on
+an accepted `Avvia controllo` — never when the `<select>` changes. The title in
+the snapshot is `title.trim() || deriveDefaultCheckTitle(document.name)`. The free
+flow has no Student/path snapshot at all; it passes `title` straight into
+`createCoachFreeCheck` at materialization and on the recovery retry.
 
 ### Step hierarchy
 
 1. **Contesto del check** — the `<select>` + notice + a per-context detail box.
 2. **Carica documento** — `SottocheckUploadForm`, **never keyed** (so the file
-   survives context changes).
+   survives context changes). Below it, once `documentStatus === 'valid'`, the
+   shared `CheckTitleField` ("Titolo del controllo", Slice B).
 3. Dynamic completion card:
    - `''` → neutral hint, no action.
    - path → **Conferma e avvia controllo** (qualitative credit box + `Avvia
@@ -381,6 +406,17 @@ Mode-specific context lines (via `isCoachFreeCheck(check)`):
 status. Empty-state copy generalised for both record types and drops the
 expiry-date reference.
 
+**Rename (Slice B).** The title `<h3>` is the shared `HistoryCheckTitle`
+component (a pencil → compact inline input with Salva / Annulla; Enter saves, Esc
+cancels; never competes with `Apri report`). `CoachHistoryPage` owns the
+mutation: `handleRename(checkId, next)` calls `renameCoachCheckTitle` then bumps a
+`renameVersion` counter that is a `useMemo` dep on
+`getCoachPersistentChecksForOwner`, so the row updates immediately without a
+reload. Only `title` changes; `document.name`, credits, `binding`, price,
+payment, dates are untouched. Reopening the report shows the new title (the
+report just reads the record); the iframe still gets `document.name`; the `.txt`
+uses the current title.
+
 ---
 
 ## 9. Shared vs intentionally separate
@@ -392,6 +428,11 @@ expiry-date reference.
 - `SottocheckPaymentGatewayBoundary` — the gateway boundary + `?paymentDemo=1` /
   `?paymentDemo=reportfail` behaviour. **No Coach-specific gateway component.**
 - `formatCheckoutPrice()` — every Coach free-check amount renders `€14,90`.
+- `CheckTitleField` (Slice B) — the "Titolo del controllo" prep field, shared
+  with the standalone and Student flows. Presentation only.
+- `HistoryCheckTitle` (Slice B) — the History inline-rename affordance, shared
+  with the consumer History. Local edit UI only; `CoachHistoryPage` owns the
+  `renameCoachCheckTitle` call + refresh. Role-agnostic.
 
 **New, Coach-only:**
 
@@ -423,7 +464,7 @@ status. The badge is also used on the `check_libero` report header.
 ## 11. Known limitations
 
 - **Free-mode recovery is session-scoped** — `paymentReferenceRef`,
-  `hasCreatedFreeCheckRef`, `freeCompletedCheck`, `quote`, `document`,
+  `hasCreatedFreeCheckRef`, `freeCompletedCheck`, `quote`, `document`, `title`,
   `contextValue` live only in React state (no `sessionStorage` / `localStorage`),
   same as `StudentPaidSottocheckPage`. A full reload during `redirecting` /
   `processing` / `freeCompletionError` returns to the empty context selector and
