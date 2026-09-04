@@ -17,8 +17,10 @@ scope. No consent checkbox copy is added (see §9).
 | File | Change |
 | --- | --- |
 | `src/app/data/tesicheckLeadEnrichment.ts` | **New (grown).** `resolveEnrichmentTarget` + `withTesiCheckSource` + `nextPipelineId` + `buildTesiCheckPipeline` + `ensureTesiCheckPipeline`. |
-| `src/app/data/tesicheckAccountSession.ts` | `TesiCheckAccountSession` gains explicit `firstName?`; `registerAccount(firstName, email)` sets it; `getAccountFirstName(session)` added (prefers `firstName`, single-token legacy `name` fallback). `name?` kept for legacy sessions. |
-| `src/pages/public/PublicAccountGatePage.tsx` | `RegisterForm` "Nome" field is the explicit first name (`autoComplete="given-name"`, required — unchanged validation). On email verification (`handleConfirmEmail`) calls `ensureTesiCheckPipeline`. Consumes `useLavorazioni` (available: provider is now app-level). |
+| `src/app/data/tesicheckAccountSession.ts` | `TesiCheckAccountSession` gains explicit `firstName?`; `registerAccount(firstName, email, password?)` sets it; `getAccountFirstName(session)` added (prefers `firstName`, single-token legacy `name` fallback). `name?` kept for legacy sessions. Adds a prototype-only registered-accounts registry (`tesicheck-registered-accounts-v1`, plaintext password) + `findRegisteredAccount(email)` so `register → logout → login same account` works; `signInAccount` restores `firstName` from it. Logout (`clearAccountSession`) never touches the registry. |
+| `src/pages/public/PublicAccountGatePage.tsx` | `RegisterForm` "Nome" field is the explicit first name (`autoComplete="given-name"`, required — unchanged validation). On email verification (`handleConfirmEmail`) calls `ensureTesiCheckPipeline`. Consumes `useLavorazioni` (available: provider is now app-level). Auth form components extracted to `standaloneAuthForms.tsx` (shared with the direct auth page); `RegisterForm.onSubmit` now also carries the password. |
+| `src/pages/public/PublicStandaloneAuthPage.tsx` | **New.** Direct landing login/register (`/public/login`, `/public/register`), independent of pre-check/checkout. Its `handleConfirmEmail` calls the same `ensureTesiCheckPipeline` on verification — the acquisition rule is identical, just reached without a fake quote. |
+| `src/pages/public/standaloneAuthForms.tsx` | **New.** `EMAIL_PATTERN` + `TextField` + `FormError` + `LoginForm` + `RegisterForm` + `VerifyEmailForm`, moved verbatim from `PublicAccountGatePage` so the direct auth page reuses them without duplication. |
 | `src/pages/public/PublicProfilePage.tsx` | Enrichment-first: normal path resolves the already-created Pipeline and updates it. `new_pipeline` kept as **fallback only** (pre-rule accounts) — requires a first name. `Nome` prefilled via `getAccountFirstName`. |
 | `src/app/App.tsx` | Single app-level `LavorazioniProvider` (from the previous fix — unchanged here). |
 | `src/app/data/LavorazioniContext.tsx` | `AVAILABLE_SOURCES` + `'TesiCheck'`; `Pipeline.academic_data.thesis_topic?`; `ThesisType` + `'esame'`. |
@@ -26,10 +28,13 @@ scope. No consent checkbox copy is added (see §9).
 | `src/app/routes.tsx` | `/public-view/profilo` → `PublicProfilePage`. `/student-view/profilo` unchanged. |
 | `docs/tesicheck-canonical-flow.md` | §33 rewritten (acquisition + enrichment + academic vocabulary + consent domains) + §29 bullets. |
 
-Untouched: checkout/payment logic, TesiCheck reports, History, Coach, Admin
-drawer architecture / conversion / validation, `StudentProfilePage`,
-marketing-consent UX, Pipeline → Student conversion, underlying `thesis_*` field
-names.
+Untouched: checkout stage machine / payment / gateway boundary / persistent-check
+materialization, TesiCheck reports, History, Coach, Admin drawer architecture /
+conversion / validation, `StudentProfilePage`, marketing-consent UX, Pipeline →
+Student conversion, underlying `thesis_*` field names. The later "direct landing
+login/register" slice only extracts the checkout's auth **form components** into
+a shared module and forwards the already-collected password into
+`registerAccount`; the checkout flow stages are unchanged.
 
 ---
 

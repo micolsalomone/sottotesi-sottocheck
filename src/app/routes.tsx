@@ -42,6 +42,7 @@ import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
 import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage';
 import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
 import { PublicAccountGatePage } from '@/pages/public/PublicAccountGatePage';
+import { PublicStandaloneAuthPage } from '@/pages/public/PublicStandaloneAuthPage';
 import { PublicReportPage } from '@/pages/public/PublicReportPage';
 import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
@@ -65,6 +66,15 @@ export const router = createBrowserRouter([
   {
     path: '/public/account',
     Component: PublicAccountGatePage,
+  },
+  // Direct standalone account entry from the landing — no checkout/pre-check.
+  {
+    path: '/public/login',
+    element: <PublicStandaloneAuthPage mode="login" />,
+  },
+  {
+    path: '/public/register',
+    element: <PublicStandaloneAuthPage mode="register" />,
   },
   {
     path: '/public/history',

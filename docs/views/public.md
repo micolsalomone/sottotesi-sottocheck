@@ -40,6 +40,22 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
 - Prevedere slot grafici per sticker PNG trasparenti (placeholder sostituibili con asset reali)
 - Usare CTA chiare verso richiesta informazioni coaching
 
+## Ingresso account dalla landing
+
+- La landing `/public` espone `Accedi` (`/public/login`) e `Registrati`
+  (`/public/register`) come ingressi account diretti, separati dal checkout
+  upload-first (che resta invariato).
+- Con una sessione standalone valida le due CTA diventano un unico
+  `Vai al tuo account` → `/public-view`; la landing non viene comunque
+  reindirizzata a ogni visita.
+- `/public-view` richiede una sessione account standalone: `PublicLayout` fa da
+  guard prototipale e rimanda a `/public` se manca.
+- Logout (menu utente in `PublicHeader`): azzera solo la sessione account
+  standalone e torna a `/public` (mai `/`). Non tocca storico/check persistenti,
+  Pipeline CRM o altri store. È il meccanismo di reset per i test ripetibili.
+- Auth solo simulata (prototipo): vedi `tesicheck-canonical-flow.md` §29 e
+  `tesicheckAccountSession.ts`.
+
 ## Regole di isolamento
 
 - Header, Sidebar e Layout di public-view sono custom e indipendenti

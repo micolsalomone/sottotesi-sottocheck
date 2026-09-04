@@ -29,12 +29,16 @@ import {
   type TesiCheckPrecheckSession,
 } from '@/app/data/tesicheckPrecheckSession';
 import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+import { getAccountSession } from '@/app/data/tesicheckAccountSession';
 
 const DEMO_CHARACTER_COUNT = 28500;
 const DEMO_PRICE = 14.9;
 
 export function PublicLandingPage() {
   const navigate = useNavigate();
+  // Landing stays a marketing/acquisition page even when a session exists; only
+  // the account CTA changes to route a returning user straight to the workspace.
+  const accountSession = getAccountSession();
   const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(() => getPrecheckSession()?.document ?? null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>(() => getPrecheckSession()?.validationState ?? 'idle');
   const [precheckSession, setPrecheckSession] = useState<TesiCheckPrecheckSession | null>(() => getPrecheckSession());
@@ -112,35 +116,51 @@ export function PublicLandingPage() {
           </a>
 
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href="https://www.sottotesi.it/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-                color: 'var(--foreground)',
-              }}
-            >
-              Accedi
-            </a>
-            <a
-              href="https://www.sottotesi.it/consulenza-tesi/antiplagio-revisione/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-              }}
-            >
-              Registrati
-            </a>
+            {accountSession ? (
+              <button
+                type="button"
+                onClick={() => navigate('/public-view')}
+                className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
+                style={{
+                  borderRadius: 'var(--radius)',
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-label)',
+                  fontWeight: 'var(--font-weight-medium)',
+                }}
+              >
+                Vai al tuo account
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/public/login')}
+                  className="inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  Accedi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/public/register')}
+                  className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                  }}
+                >
+                  Registrati
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>

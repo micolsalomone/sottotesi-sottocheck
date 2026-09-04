@@ -10,13 +10,20 @@ import {
 interface UserTopbarMenuProps {
   displayName: string;
   profilePath: string;
-  logoutPath: string;
+  /** Fallback navigation target on logout when `onLogout` is not provided. */
+  logoutPath?: string;
+  /**
+   * Custom logout handler. When provided it fully owns logout (e.g. clearing a
+   * prototype account session and routing), and `logoutPath` is ignored.
+   */
+  onLogout?: () => void;
 }
 
 export function UserTopbarMenu({
   displayName,
   profilePath,
   logoutPath,
+  onLogout,
 }: UserTopbarMenuProps) {
   const navigate = useNavigate();
 
@@ -25,7 +32,11 @@ export function UserTopbarMenu({
   }
 
   function handleLogout() {
-    navigate(logoutPath);
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    if (logoutPath) navigate(logoutPath);
   }
 
   return (

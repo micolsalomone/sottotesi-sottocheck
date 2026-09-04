@@ -33,6 +33,16 @@ Il core flow di upload, validazione, check, report e storico resta concettualmen
 
 Può ospitare un **guest pre-check** per ridurre la friction prima della registrazione.
 
+Espone anche due percorsi di **ingresso account diretto**, indipendenti dal
+checkout upload-first: `Accedi` (`/public/login`) e `Registrati`
+(`/public/register`). Non richiedono pre-check session, quote fittizio o
+pagamento. La registrazione diretta usa la stessa verifica email prototipo e la
+stessa regola di acquisizione CRM (§33) del gate in-checkout, poi porta a
+`/public-view`. Il checkout upload-first (`upload → quote → account step se serve
+→ payment → report`) resta invariato: la registrazione non è mai forzata prima
+dell'upload. Se esiste già una sessione standalone valida, l'azione account della
+landing porta direttamente a `/public-view` senza reindirizzare ogni visita.
+
 ### `/public-view`
 
 È l'area autenticata dell'utente standalone TesiCheck.
@@ -1485,6 +1495,19 @@ Nei contesti coaching:
 - Admin seleziona studente + percorso e non usa gateway.
 - Student Archivio resta separato dallo Storico TesiCheck.
 - `/public` e `/public-view` restano contesti distinti.
+- La landing espone login e registrazione standalone diretti (`/public/login`,
+  `/public/register`), indipendenti dal checkout upload-first, che resta valido e
+  invariato.
+- La registrazione standalone diretta crea/deduplica la Pipeline CRM dopo la
+  verifica email, con la stessa regola di acquisizione del gate in-checkout (§33).
+- Il logout standalone (menu utente `/public-view`) azzera solo la sessione
+  account standalone e riporta a `/public` (mai `/`), abilitando test ripetibili
+  di register → logout → login.
+- `PublicLayout` ha un guard prototipale: nessuna sessione account standalone →
+  redirect a `/public`. Non riguarda Student/Coach/Admin.
+- L'autenticazione standalone del prototipo (sessione + mini-registry locale) è
+  solo simulazione per walkthrough deterministici: nessun backend, token,
+  hashing o scadenza. L'auth di produzione è delegata all'applicazione reale.
 - La landing distingue `quote_ready` da checkout già iniziato.
 - Lo Storico Coach ha due contesti di record: check su percorso coaching e check libero a pagamento (§19.1).
 - Al Coach non vanno mai mostrati crediti TesiCheck rimanenti o quota residua; è ammesso solo il dato dei crediti consumati dal singolo check, se esiste (§19.1).

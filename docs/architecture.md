@@ -130,13 +130,15 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
 | `/student-view/profilo` | Student | StudentLayout | Profilo student |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
-| `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck |
+| `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck. `PublicLayout` ha un guard prototipale: senza sessione account standalone (`getAccountSession()`) reindirizza a `/public`. Non tocca Student/Coach/Admin |
 | `/public-view/sottocheck` | Public | PublicLayout | Sottocheck vista public |
 | `/public-view/report/:checkId` | Public | PublicLayout | Report TesiCheck autenticato |
 | `/public-view/history` | Public | PublicLayout | Storico Sottocheck vista public |
 | `/public-view/profilo` | Public | PublicLayout | Profilo public |
 | `/public-view/*` | Public | PublicLayout | NotFound public |
-| `/public` | Public Landing | Standalone | Landing pubblica non loggata |
+| `/public` | Public Landing | Standalone | Landing pubblica non loggata. Header CTA `Accedi` / `Registrati` portano alle route dirette qui sotto; con sessione standalone valida diventano un unico `Vai al tuo account` → `/public-view` |
+| `/public/login` | Public Landing | Standalone | Accesso standalone diretto (nessun pre-check / checkout) → `/public-view` |
+| `/public/register` | Public Landing | Standalone | Registrazione standalone diretta → verifica email prototipo → create/dedupe Pipeline CRM (regola di acquisizione canonica) → `/public-view` |
 | `/public/account` | Public Landing | Standalone | Checkout standalone: stage `checkout_account` (login/registrazione) → `checkout_verify_email` (verifica OTP) → `checkout_payment` → `redirecting` → `payment_success` |
 | `/public/sottocheck` | Public Landing | Standalone | Flusso check pubblico (flow legacy, non collegato allo store persistente) |
 | `/public/history` | Public Landing | Standalone | Storico pubblico |
