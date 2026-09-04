@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, CreditCard, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
-import { createPersistentStudentCheck, createStudentPaymentReference, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
+import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
+import {
+  createPersistentStandaloneCheck,
+  createStandalonePaymentReference,
+  type PersistentTesiCheck,
+} from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { CheckTitleField } from '@/app/components/CheckTitleField';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
@@ -11,23 +15,35 @@ import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPay
 import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
-type StudentFlowStage = 'form' | 'redirecting';
+type FlowStage = 'form' | 'redirecting';
 type PaymentNotice = 'failed' | 'cancelled' | null;
 
 const DEMO_CHARACTER_COUNT = 28500;
 const DEMO_PRICE = 14.9;
 
 /**
- * Prototype-only: `?paymentDemo=reportfail` makes the first automatic
- * persistent-check materialization fail once, so the post-payment recovery
- * state is exercisable. Same meaning as the standalone checkout flow.
+ * Authenticated standalone self-service paid TesiCheck (`/public-view/sottocheck`),
+ * inside `PublicLayout`. The visitor already has a standalone account session
+ * (`PublicLayout` guard) — no account / login / registration / email
+ * verification step. Canonical grammar, same as Student / Coach free:
+ *
+ *   upload → title → mock count/price → ONE "Vai al pagamento"
+ *   → SottocheckPaymentGatewayBoundary → payment success
+ *   → brief "Pagamento ricevuto / Stiamo generando il report..."
+ *   → createPersistentStandaloneCheck (owner.context 'standalone', DEMO_ACCOUNT_ID)
+ *   → navigate('/public-view/report/:checkId')
+ *
+ * No final success page, no manual "Visualizza il report", no History action.
+ * Persistent store: the shared consumer `public-tesicheck-checks-v1`; the record
+ * shows in `/public-view/history` and opens via `/public-view/report/:checkId`.
+ * This is a role-specific page — it deliberately does NOT reuse the Student page.
  */
 function isReportFailDemo() {
   if (typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('paymentDemo') === 'reportfail';
 }
 
-export function StudentPaidSottocheckPage() {
+export function PublicPaidSottocheckPage() {
   const navigate = useNavigate();
   const [document, setDocument] = useState<UploadedDocument | null>(null);
   const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('idle');
@@ -36,7 +52,7 @@ export function StudentPaidSottocheckPage() {
   const [title, setTitle] = useState('');
   const [isPricing, setIsPricing] = useState(false);
   const [quote, setQuote] = useState<{ characterCount: number; price: number } | null>(null);
-  const [flowStage, setFlowStage] = useState<StudentFlowStage>('form');
+  const [flowStage, setFlowStage] = useState<FlowStage>('form');
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [completionError, setCompletionError] = useState(false);
@@ -48,11 +64,11 @@ export function StudentPaidSottocheckPage() {
 
   useEffect(() => {
     if (!completedCheck) return;
-    const timer = window.setTimeout(() => navigate(`/student-view/report/${completedCheck.id}`), 1200);
+    const timer = window.setTimeout(() => navigate(`/public-view/report/${completedCheck.id}`), 1200);
     return () => window.clearTimeout(timer);
   }, [completedCheck, navigate]);
 
-  // Payment verified: materialize the persistent Student check (+ report). On
+  // Payment verified: materialize the persistent standalone check (+ report). On
   // failure the paid state is kept (document / quote / payment reference intact)
   // and the recovery screen offers a retry of *only* this materialization.
   useEffect(() => {
@@ -77,8 +93,8 @@ export function StudentPaidSottocheckPage() {
       return;
     }
 
-    const check = createPersistentStudentCheck({
-      studentId: STUDENT_VIEW_STUDENT_ID,
+    const check = createPersistentStandaloneCheck({
+      accountId: DEMO_ACCOUNT_ID,
       title,
       document,
       characterCount: quote.characterCount,
@@ -95,15 +111,15 @@ export function StudentPaidSottocheckPage() {
     setIsProcessing(false);
   }, [completedCheck, document, isProcessing, quote]);
 
-  // Retry the persistent Student check materialization, nothing else: no gateway,
-  // no new payment, no pricing change. Idempotent — `createPersistentStudentCheck`
+  // Retry the persistent-check materialization, nothing else: no gateway, no new
+  // payment, no pricing change. Idempotent — `createPersistentStandaloneCheck`
   // dedupes by `sourcePaymentReference`, so a check written by an earlier attempt
   // is reused rather than duplicated.
   const handleRetryReportCreation = () => {
     if (completedCheck || !document || !quote || !paymentReferenceRef.current) return;
 
-    const check = createPersistentStudentCheck({
-      studentId: STUDENT_VIEW_STUDENT_ID,
+    const check = createPersistentStandaloneCheck({
+      accountId: DEMO_ACCOUNT_ID,
       title,
       document,
       characterCount: quote.characterCount,
@@ -255,7 +271,7 @@ export function StudentPaidSottocheckPage() {
             )}
           </StepCard>
 
-          <StepCard number="3" title="Conferma e pagamento" description="Il TesiCheck personale è un servizio self-service a pagamento. Da qui vai direttamente al provider di pagamento.">
+          <StepCard number="3" title="Conferma e pagamento" description="Il TesiCheck è un servizio a pagamento. Da qui vai direttamente al provider di pagamento.">
             {paymentNotice === 'failed' && (
               <div className="mt-4 border border-[var(--destructive)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="flex items-center gap-2" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
@@ -311,7 +327,7 @@ export function StudentPaidSottocheckPage() {
           onSuccess={() => {
             // One stable idempotency key per successful payment, kept across retries.
             if (!paymentReferenceRef.current) {
-              paymentReferenceRef.current = createStudentPaymentReference();
+              paymentReferenceRef.current = createStandalonePaymentReference();
             }
             setIsProcessing(true);
           }}

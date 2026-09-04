@@ -111,11 +111,17 @@ export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' 
           </p>
 
           {step === 'login' && (
-            <LoginForm onSubmit={handleLogin} onSwitchToRegister={goToRegister} externalError={loginError} />
+            <LoginForm
+              mode="direct"
+              onSubmit={handleLogin}
+              onSwitchToRegister={goToRegister}
+              onForgotPassword={() => navigate('/public/password-recovery?returnTo=/public/login')}
+              externalError={loginError}
+            />
           )}
 
           {step === 'register' && (
-            <RegisterForm onSubmit={handleRegister} onSwitchToLogin={goToLogin} />
+            <RegisterForm mode="direct" onSubmit={handleRegister} onSwitchToLogin={goToLogin} />
           )}
 
           {step === 'verify' && (

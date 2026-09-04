@@ -1,6 +1,5 @@
 import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input-otp';
 
@@ -9,7 +8,13 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input
  * gate (`PublicAccountGatePage`) and the direct landing auth surface
  * (`PublicStandaloneAuthPage`). Prototype-only: no real credential store, no
  * backend — production auth is delegated to the real application.
+ *
+ * `mode` only swaps copy: `'checkout'` (default) frames auth as a step of a
+ * configured purchase; `'direct'` keeps it a plain account surface. It never
+ * changes behaviour and never pulls in checkout data (no order summary, price or
+ * progress) — those stay in `PublicAccountGatePage`.
  */
+export type AuthFormMode = 'checkout' | 'direct';
 
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -69,11 +74,16 @@ export function FormError({ message }: { message: string }) {
 export function LoginForm({
   onSubmit,
   onSwitchToRegister,
+  onForgotPassword,
   externalError,
+  mode = 'checkout',
 }: {
   onSubmit: (email: string, password: string) => void;
   onSwitchToRegister: () => void;
+  /** Opens the password-recovery surface. The caller owns navigation + `returnTo`. */
+  onForgotPassword?: () => void;
   externalError?: string | null;
+  mode?: AuthFormMode;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -94,14 +104,17 @@ export function LoginForm({
   };
 
   const shownError = error ?? externalError ?? null;
+  const isCheckout = mode === 'checkout';
 
   return (
     <form onSubmit={submit} noValidate>
       <h1 className="mt-2" style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h2)', fontWeight: 'var(--font-weight-bold)' }}>
-        Accedi per continuare
+        {isCheckout ? 'Accedi per continuare' : 'Accedi'}
       </h1>
       <p className="mt-3 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}>
-        Accedi al tuo account per completare il TesiCheck che hai già configurato.
+        {isCheckout
+          ? 'Accedi al tuo account per completare il TesiCheck che hai già configurato.'
+          : 'Accedi al tuo account TesiCheck.'}
       </p>
 
       <div className="mt-6 flex flex-col gap-4">
@@ -109,19 +122,23 @@ export function LoginForm({
         <TextField id="login-password" label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" />
       </div>
 
-      <button
-        type="button"
-        onClick={() => toast('Ti invieremo un link per reimpostare la password.')}
-        className="control-focus-ring mt-3 inline-block text-[var(--foreground)] hover:underline"
-        style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}
-      >
-        Password dimenticata?
-      </button>
+      {onForgotPassword && (
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="control-focus-ring text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline"
+            style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}
+          >
+            Password dimenticata?
+          </button>
+        </div>
+      )}
 
       {shownError && <div className="mt-4"><FormError message={shownError} /></div>}
 
       <SottocheckActionButton className="mt-6" type="submit">
-        Accedi e continua
+        {isCheckout ? 'Accedi e continua' : 'Accedi'}
       </SottocheckActionButton>
 
       <p className="mt-5 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
@@ -142,9 +159,11 @@ export function LoginForm({
 export function RegisterForm({
   onSubmit,
   onSwitchToLogin,
+  mode = 'checkout',
 }: {
   onSubmit: (firstName: string, email: string, password: string) => void;
   onSwitchToLogin: () => void;
+  mode?: AuthFormMode;
 }) {
   // Required first name; surname is never asked at registration.
   const [firstName, setFirstName] = useState('');
@@ -194,7 +213,7 @@ export function RegisterForm({
       {error && <div className="mt-4"><FormError message={error} /></div>}
 
       <SottocheckActionButton className="mt-6" type="submit">
-        Crea account e continua
+        {mode === 'checkout' ? 'Crea account e continua' : 'Crea account'}
       </SottocheckActionButton>
 
       <p className="mt-5 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>

@@ -405,15 +405,10 @@ Dopo login/registrazione:
 
 Non usare una pagina intermedia autonoma “Account completato”.
 
-L'account completato è solo uno stato secondario del checkout, ad esempio:
-
-```text
-✓ Account
-utente@email.it
-
-Pagamento
-[ Vai al pagamento ]
-```
+L'account completato è uno stato implicito del checkout: lo step corrente avanza
+al pagamento, con documento/count/prezzo sempre visibili nel riepilogo. Non
+introdurre un blocco di pseudo-progress (Account / Email / Pagamento) come
+orientamento: bastano heading, step corrente e riepilogo persistente.
 
 ### Da non replicare
 
@@ -1547,6 +1542,18 @@ Nei contesti coaching:
 - Nessun badge di stato disponibilità nello Storico persistente consumer/Coach:
   ogni record è `Completato`, il badge è ridondante (§16, §19.1).
 - Student e standalone authenticated condividono il core paid flow; lo Student salta solo lo step account perché è già autenticato.
+- `/public-view/sottocheck` è il flusso paid canonico dello standalone
+  autenticato (`PublicPaidSottocheckPage`): upload → titolo → conteggio/prezzo
+  mock → un'unica CTA pagamento → `SottocheckPaymentGatewayBoundary` →
+  materializzazione → `/public-view/report/:checkId`. Nessuno step
+  account/login/verifica (sessione già presente; il guard di `PublicLayout` è
+  l'unico gate). Nessuna pagina finale `Check completato`, nessun
+  `Visualizza il report` manuale, nessuna azione Storico. Il record è
+  `owner.context='standalone'` nello store consumer condiviso, dedup per
+  riferimento di pagamento; compare in `/public-view/history`. La vecchia UI mock
+  (`Il controllo è in corso` / `Check completato`) è ritirata e non più
+  raggiungibile; `/public/sottocheck` reindirizza a `/public`. È una pagina
+  di ruolo dedicata: non riusa il wrapper Student.
 - Coach ha due modalità:
   - percorso coaching con quota/usage limits e senza gateway;
   - check libero a pagamento con gateway.
@@ -1560,6 +1567,31 @@ Nei contesti coaching:
   invariato.
 - La registrazione standalone diretta crea/deduplica la Pipeline CRM dopo la
   verifica email, con la stessa regola di acquisizione del gate in-checkout (§33).
+- Auth diretta (`/public/login`, `/public/register`) e account step del checkout
+  (`/public/account`) restano distinti. Le superfici di auth diretta **non**
+  mostrano riepilogo ordine, stato pagamento, prezzo/quote o progress di
+  checkout: sono schermate di sola autenticazione. L'account step del checkout
+  **mantiene** il `Riepilogo TesiCheck` perché l'utente si autentica nel
+  contesto di un acquisto già configurato; non va rimosso per parità visiva con
+  Student/Coach (che non hanno account step). Le form condivise variano solo la
+  copy tra i due contesti, mai i dati mostrati.
+- L'account step del checkout non mostra un blocco di pseudo-progress
+  (Account / Email verificata / Pagamento). L'orientamento è dato da heading +
+  step corrente + riepilogo persistente. È una scelta di presentazione: la
+  macchina a stati del `flowStage` resta invariata (UI di progress ≠ stato
+  interno del flow).
+- Per i ruoli già autenticati (Student, Coach `Check libero`) non esiste una
+  schermata intermedia "Completa il pagamento" prima del gateway: lo step di
+  preparazione mostra già conteggio e prezzo e la sua unica CTA apre il gateway.
+  `failed` / `cancelled` riportano allo step di preparazione, con la notice e
+  documento/titolo/quote preservati; `failed` usa `Riprova pagamento`. Non è una
+  regola di prezzo né un nuovo componente condiviso.
+- Il recupero password è una **GUI prototipo per handoff** (`/public/password-recovery`,
+  `/public/reset-password`): solo schermate e navigazione, nessun invio email,
+  nessun token di reset, nessun backend, nessun hashing. Specifica il journey per
+  l'implementazione reale. `Password dimenticata?` vive sotto il campo password
+  nel LoginForm condiviso (diretto e in-checkout) e passa `?returnTo=` per
+  tornare all'origine senza toccare la pre-check session.
 - Il logout standalone (menu utente `/public-view`) azzera la sessione account
   standalone **e** scarta la pre-check/checkout session transitoria corrente
   (domini A + B), poi riporta a `/public` (mai `/`). Non tocca il registry

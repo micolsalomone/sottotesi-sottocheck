@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Circle, CreditCard, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, CreditCard, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -255,7 +255,6 @@ export function PublicAccountGatePage() {
   const isVerifyStep = precheckSession.flowStage === 'checkout_verify_email';
   const isPaymentStep = precheckSession.flowStage === 'checkout_payment';
   const isRedirecting = precheckSession.flowStage === 'redirecting';
-  const isPaymentSuccess = precheckSession.flowStage === 'payment_success';
   const paymentEnabled = isPaymentEnabled(account);
 
   // The redirect boundary is a system transition, not a checkout step: no card
@@ -283,7 +282,11 @@ export function PublicAccountGatePage() {
           </p>
 
           {isAccountStep && authMode === 'login' && (
-            <LoginForm onSubmit={handleLogin} onSwitchToRegister={() => setAuthMode('register')} />
+            <LoginForm
+              onSubmit={handleLogin}
+              onSwitchToRegister={() => setAuthMode('register')}
+              onForgotPassword={() => navigate('/public/password-recovery?returnTo=/public/account')}
+            />
           )}
 
           {isAccountStep && authMode === 'register' && (
@@ -328,29 +331,6 @@ export function PublicAccountGatePage() {
               </SottocheckActionButton>
             </>
           )}
-
-          <div className="mt-8 border-t border-[var(--border)] pt-5">
-            <ChecklistRow
-              done={!!account}
-              title="Account"
-              detail={account ? account.email : 'Da completare'}
-            />
-            <ChecklistRow
-              className="mt-4"
-              done={!!account?.emailVerified}
-              title="Email verificata"
-              detail={!account ? '—' : account.emailVerified ? 'Verificata' : 'Da verificare'}
-            />
-            <div className="mt-4 flex items-center gap-3">
-              <CreditCard className={`h-5 w-5 ${isPaymentStep ? 'text-[var(--foreground)]' : 'text-[var(--muted-foreground)]'}`} aria-hidden="true" />
-              <div>
-                <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>Pagamento</p>
-                <p className="text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
-                  {isPaymentStep ? 'Attivo' : isPaymentSuccess ? 'In verifica' : paymentEnabled ? 'Prossimo step' : 'Bloccato'}
-                </p>
-              </div>
-            </div>
-          </div>
         </section>
 
         <SottocheckCheckoutSummary
@@ -362,17 +342,5 @@ export function PublicAccountGatePage() {
         />
       </div>
     </main>
-  );
-}
-
-function ChecklistRow({ done, title, detail, className = '' }: { done: boolean; title: string; detail: string; className?: string }) {
-  return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      {done ? <CheckCircle2 className="h-5 w-5 text-[var(--primary)]" aria-hidden="true" /> : <Circle className="h-5 w-5 text-[var(--muted-foreground)]" aria-hidden="true" />}
-      <div>
-        <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>{title}</p>
-        <p className="text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>{detail}</p>
-      </div>
-    </div>
   );
 }

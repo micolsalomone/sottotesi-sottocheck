@@ -38,10 +38,10 @@ const CONTEXT_CONFIG: Record<
     ownerContext: 'standalone',
     ownerId: DEMO_ACCOUNT_ID,
     reportBasePath: '/public-view/report',
-    // `/public-view/sottocheck` still renders the legacy SottocheckPage (fake
-    // payment, writes nothing, known getViewBasePath navigation bug — handoff §7).
-    // Not a safe authenticated entry point, so the standalone empty state has no CTA.
-    newCheckPath: null,
+    // `/public-view/sottocheck` is the canonical authenticated standalone paid
+    // flow (`PublicPaidSottocheckPage`): upload → title → quote → gateway →
+    // persistent `standalone` check → report. Safe as the empty-state entry point.
+    newCheckPath: '/public-view/sottocheck',
     newCheckLabel: 'Nuovo TesiCheck',
   },
   student: {

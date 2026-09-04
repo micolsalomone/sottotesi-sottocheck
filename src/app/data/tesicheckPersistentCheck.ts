@@ -63,6 +63,18 @@ export function createStudentPaymentReference() {
 }
 
 /**
+ * Idempotency key for one authenticated-standalone (`/public-view/sottocheck`)
+ * self-service paid materialization. Like the Student flow, this flow has no
+ * guest pre-check, so it cannot reuse `sourceTemporaryDocumentRef`. Minted once
+ * when the (simulated) payment succeeds and kept stable across materialization
+ * retries. Distinct from the guest pre-check flow, which keeps
+ * `sourceTemporaryDocumentRef`.
+ */
+export function createStandalonePaymentReference() {
+  return `std-pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
  * Guarantee an effective display `title` on a record read from storage. Records
  * written before the title foundation have no `title`; fall back to the
  * filename-derived default at read time only — the stored record is never
@@ -186,6 +198,50 @@ export function createPersistentStudentCheck({
 
   const check = createPersistentTesiCheck({
     owner: { context: 'student', id: studentId },
+    title,
+    document,
+    characterCount,
+    price,
+    sourcePaymentReference,
+  });
+
+  return saveChecks([check, ...getStoredChecks()]) ? check : null;
+}
+
+/**
+ * Materialize the authenticated-standalone (`/public-view/sottocheck`)
+ * self-service paid check. Same shape/store as the guest pre-check conversion
+ * (`owner.context: 'standalone'`, id = the prototype account id) so it lands in
+ * the same `/public-view/history` and opens via `/public-view/report/:checkId`.
+ * Dedupe key is `sourcePaymentReference` scoped to `owner.context === 'standalone'`
+ * — the guest flow keeps its own `sourceTemporaryDocumentRef`, so a retry reuses
+ * an already-written record instead of duplicating. `null` = storage write failed.
+ */
+export function createPersistentStandaloneCheck({
+  accountId,
+  title,
+  document,
+  characterCount,
+  price,
+  sourcePaymentReference,
+}: {
+  accountId: string;
+  /** Optional for legacy tolerance; the caller supplies the edited title. Defaults from the filename. */
+  title?: string;
+  document: UploadedDocument;
+  characterCount: number;
+  price: number;
+  sourcePaymentReference: string;
+}): PersistentTesiCheck | null {
+  const existing = getStoredChecks().find(
+    (item) => item.owner?.context === 'standalone' && item.sourcePaymentReference === sourcePaymentReference,
+  );
+  if (existing && isPersistentTesiCheck(existing)) {
+    return normalizePersistentTesiCheck(existing);
+  }
+
+  const check = createPersistentTesiCheck({
+    owner: { context: 'standalone', id: accountId },
     title,
     document,
     characterCount,

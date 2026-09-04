@@ -43,15 +43,16 @@ import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage'
 import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
 import { PublicAccountGatePage } from '@/pages/public/PublicAccountGatePage';
 import { PublicStandaloneAuthPage } from '@/pages/public/PublicStandaloneAuthPage';
+import { PublicPasswordRecoveryPage } from '@/pages/public/PublicPasswordRecoveryPage';
 import { PublicReportPage } from '@/pages/public/PublicReportPage';
 import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
-import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
 import { StudentPaidSottocheckPage } from '@/pages/student/StudentPaidSottocheckPage';
 import { StudentReportPage } from '@/pages/student/StudentReportPage';
+import { PublicPaidSottocheckPage } from '@/pages/public/PublicPaidSottocheckPage';
 
 export const router = createBrowserRouter([
   // Public non-authenticated landing page
@@ -60,8 +61,10 @@ export const router = createBrowserRouter([
     Component: PublicLandingPage,
   },
   {
+    // Legacy paid UI retired: the authenticated standalone paid flow now lives at
+    // `/public-view/sottocheck`. Nothing in-app links here anymore.
     path: '/public/sottocheck',
-    Component: StudentSottocheckPage,
+    loader: () => redirect('/public'),
   },
   {
     path: '/public/account',
@@ -75,6 +78,15 @@ export const router = createBrowserRouter([
   {
     path: '/public/register',
     element: <PublicStandaloneAuthPage mode="register" />,
+  },
+  // Prototype password-recovery GUI (handoff only): no email, no token, no reset.
+  {
+    path: '/public/password-recovery',
+    element: <PublicPasswordRecoveryPage mode="recovery" />,
+  },
+  {
+    path: '/public/reset-password',
+    element: <PublicPasswordRecoveryPage mode="reset" />,
   },
   {
     path: '/public/history',
@@ -167,7 +179,7 @@ export const router = createBrowserRouter([
     Component: PublicLayout,
     children: [
       { index: true, Component: PublicDashboardPage },
-      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'sottocheck', Component: PublicPaidSottocheckPage },
       { path: 'report/:checkId', Component: PublicReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', element: <StudentHistoryPage context="standalone" /> },
