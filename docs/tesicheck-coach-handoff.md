@@ -263,10 +263,11 @@ studente o percorso, scegli Check libero a pagamento.").
 - **Path-bound transient:** `pathCheckStatus` (`created`/`processing`/`error`),
   `pathCompletedCheck`, `draftUsedCreditsByPath`, `pendingPathCheckRef`,
   `hasCreatedPathCheckRef`.
-- **Free transient:** `isPricing`, `quote`, `freeStage` (`form`/`payment`/
-  `redirecting`), `paymentNotice`, `freeIsProcessing`, `freeCompletionError`,
-  `freeCompletedCheck`, `pricingTimerRef`, `hasCreatedFreeCheckRef`,
-  `paymentReferenceRef`, `reportFailDemoRef`.
+- **Free transient:** `isPricing`, `quote`, `freeStage` (`form`/`redirecting` —
+  the intermediate `payment` recap stage was removed, see §6), `paymentNotice`,
+  `freeIsProcessing`, `freeCompletionError`, `freeCompletedCheck`,
+  `pricingTimerRef`, `hasCreatedFreeCheckRef`, `paymentReferenceRef`,
+  `reportFailDemoRef`.
 
 ### `handleContextChange(nextValue)` — reset ONLY the other mode
 
@@ -313,8 +314,13 @@ flow has no Student/path snapshot at all; it passes `title` straight into
    - path → **Conferma e avvia controllo** (qualitative credit box + `Avvia
      controllo`).
    - free → **Conferma e pagamento** (`SottocheckPricingPreview` + `Vai al
-     pagamento`); `freeStage='payment'` swaps in `CoachFreePaymentPanel`;
-     `freeStage='redirecting'` swaps in the gateway card (steps hidden).
+     pagamento`, plus the `failed`/`cancelled` notice on return). `Vai al
+     pagamento` goes **straight** to `freeStage='redirecting'` (the gateway card,
+     steps hidden) — there is no intermediate `CoachFreePaymentPanel` /
+     `Completa il pagamento` recap. The Coach has already chosen `Check libero`,
+     uploaded, and seen the count/price, so the canonical §7.1 "before redirect"
+     info already lives in this step card; a second identical panel was
+     redundant and was removed.
 
 `processing` / `error` (path) and `freeIsProcessing` / `freeCompletionError`
 (free) are still full-page early returns.
@@ -331,14 +337,14 @@ Coach-facing selector/help copy uses **percorso**, not "lavorazione/timeline"
   → upload PDF/DOCX (SottocheckUploadForm — the only real validator; never keyed)
   → 700 ms mock pricing → quote { characterCount: 28500, price: 14.9 }
        (also re-run by handleContextChange when switching INTO check_libero with a valid doc)
-  → SottocheckPricingPreview + "Vai al pagamento"      freeStage: form → payment
-  → CoachFreePaymentPanel ("Completa il pagamento" + doc + count·price)
-       "Vai al pagamento"                              freeStage: payment → redirecting
+  → step card 3 "Conferma e pagamento": SottocheckPricingPreview + "Vai al pagamento"
+  → "Vai al pagamento"  → setPaymentNotice(null)      freeStage: form → redirecting
+       (NO intermediate "Completa il pagamento" recap — one click from prep to gateway)
   → SottocheckPaymentGatewayBoundary (in a Coach card; boundary unmodified)
        normal mode: auto onSuccess after 1500 ms
        ?paymentDemo=1: manual Esito positivo | negativo | Annullato
-       onFailed   → paymentNotice='failed'    → freeStage=payment (doc/quote kept)
-       onCancelled→ paymentNotice='cancelled' → freeStage=payment (doc/quote kept)
+       onFailed   → paymentNotice='failed'    → freeStage=form (doc/title/quote kept; step card 3 shows the notice + "Riprova pagamento")
+       onCancelled→ paymentNotice='cancelled' → freeStage=form (doc/title/quote kept; step card 3 shows the notice)
        onSuccess  → mint paymentReferenceRef once → freeIsProcessing = true
   → transient "Pagamento ricevuto / Stiamo generando il report..."
   → effect: createCoachFreeCheck({ coachId, document, characterCount, price, sourcePaymentReference })

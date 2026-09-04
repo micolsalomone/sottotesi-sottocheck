@@ -6,7 +6,6 @@ import { SottocheckActionButton } from '@/app/components/SottocheckActionButton'
 import { CheckTitleField } from '@/app/components/CheckTitleField';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
-import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
 import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
 import { COACH_VIEW_COACH_ID } from '@/app/utils/coachView';
 import {
@@ -20,7 +19,7 @@ import {
 
 type DocumentStatus = 'idle' | 'valid' | 'invalid';
 type PathCheckStatus = 'created' | 'processing' | 'error';
-type FreeStage = 'form' | 'payment' | 'redirecting';
+type FreeStage = 'form' | 'redirecting';
 type PaymentNotice = 'failed' | 'cancelled' | null;
 type PlanType = 'starter_pack' | 'coaching' | 'coaching_plus';
 
@@ -534,7 +533,6 @@ export function SottocheckPage() {
     );
   }
 
-  const showFreePaymentPanel = isFreeContext && freeStage === 'payment' && quote && document;
   const showFreeGateway = isFreeContext && freeStage === 'redirecting' && quote && document;
 
   return (
@@ -563,17 +561,7 @@ export function SottocheckPage() {
         </p>
       </div>
 
-      {showFreePaymentPanel ? (
-        <CoachFreePaymentPanel
-          document={document!}
-          quote={quote!}
-          notice={paymentNotice}
-          onPay={() => {
-            setPaymentNotice(null);
-            setFreeStage('redirecting');
-          }}
-        />
-      ) : showFreeGateway ? (
+      {showFreeGateway ? (
         <section
           className="max-w-[760px] border border-[var(--border)] bg-[var(--card)] p-6 md:p-8"
           style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
@@ -581,11 +569,11 @@ export function SottocheckPage() {
           <SottocheckPaymentGatewayBoundary
             onCancelled={() => {
               setPaymentNotice('cancelled');
-              setFreeStage('payment');
+              setFreeStage('form');
             }}
             onFailed={() => {
               setPaymentNotice('failed');
-              setFreeStage('payment');
+              setFreeStage('form');
             }}
             onSuccess={() => {
               if (!paymentReferenceRef.current) {
@@ -775,8 +763,26 @@ export function SottocheckPage() {
             <CoachStepCard
               number="3"
               title="Conferma e pagamento"
-              description="Il check libero è un controllo a pagamento, indipendente dai percorsi coaching."
+              description="Il check libero è un controllo a pagamento, indipendente dai percorsi coaching. Da qui vai direttamente al provider di pagamento."
             >
+              {paymentNotice === 'failed' && (
+                <div className="mt-4 border border-[var(--destructive)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
+                  <p className="flex items-center gap-2" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                    <AlertCircle className="h-4 w-4 text-[var(--destructive)]" /> Pagamento non riuscito
+                  </p>
+                  <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
+                    Documento, titolo e prezzo sono stati conservati. Puoi riprovare quando vuoi.
+                  </p>
+                </div>
+              )}
+              {paymentNotice === 'cancelled' && (
+                <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
+                  <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>Pagamento annullato</p>
+                  <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
+                    Nessun pagamento è stato effettuato. Documento, titolo e prezzo restano disponibili.
+                  </p>
+                </div>
+              )}
               <div className="mt-4 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <SottocheckPricingPreview
@@ -786,11 +792,14 @@ export function SottocheckPage() {
                     price={quote?.price}
                   />
                   <SottocheckActionButton
-                    onClick={() => setFreeStage('payment')}
+                    onClick={() => {
+                      setPaymentNotice(null);
+                      setFreeStage('redirecting');
+                    }}
                     disabled={!canGoToPayment}
                     icon={<CreditCard className="h-4 w-4" />}
                   >
-                    Vai al pagamento
+                    {paymentNotice === 'failed' ? 'Riprova pagamento' : 'Vai al pagamento'}
                   </SottocheckActionButton>
                 </div>
               </div>
@@ -850,62 +859,5 @@ function CoachStepCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function CoachFreePaymentPanel({
-  document,
-  quote,
-  notice,
-  onPay,
-}: {
-  document: UploadedDocument;
-  quote: { characterCount: number; price: number };
-  notice: PaymentNotice;
-  onPay: () => void;
-}) {
-  return (
-    <section
-      className="max-w-[760px] border border-[var(--border)] bg-[var(--card)] p-6 md:p-8"
-      style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}
-    >
-      <p
-        className="uppercase tracking-[0.08em] text-[var(--muted-foreground)]"
-        style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}
-      >
-        Check libero
-      </p>
-      <h2 className="mt-2" style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h2)', fontWeight: 'var(--font-weight-bold)' }}>
-        Completa il pagamento
-      </h2>
-      <p className="mt-3 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}>
-        Verrai reindirizzato a un provider di pagamento esterno per completare la transazione.
-      </p>
-      <div className="mt-6 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-        <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>{document.name}</p>
-        <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
-          {quote.characterCount.toLocaleString('it-IT')} caratteri · {formatCheckoutPrice(quote.price)}
-        </p>
-      </div>
-      {notice === 'failed' && (
-        <div className="mt-5 border border-[var(--destructive)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-          <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>Pagamento non riuscito</p>
-          <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
-            Il riepilogo è stato conservato. Puoi riprovare quando vuoi.
-          </p>
-        </div>
-      )}
-      {notice === 'cancelled' && (
-        <div className="mt-5 border border-[var(--border)] bg-[var(--background)] p-4" style={{ borderRadius: 'var(--radius)' }}>
-          <p style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>Pagamento annullato</p>
-          <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)' }}>
-            Nessun pagamento è stato effettuato. Puoi riprendere il checkout.
-          </p>
-        </div>
-      )}
-      <SottocheckActionButton className="mt-6" onClick={onPay} icon={<CreditCard className="h-4 w-4" />}>
-        {notice === 'failed' ? 'Riprova pagamento' : 'Vai al pagamento'}
-      </SottocheckActionButton>
-    </section>
   );
 }
