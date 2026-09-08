@@ -160,8 +160,9 @@ widened (`+ 'esame'`) — union widening, no `exam_*` fields, no separate schema
 `Esame` passes through `PipelinesPage.handleConvertToLavorazione` unchanged
 (`thesis_type: ad?.thesis_type || ''`). `DrawerAcademicSnippet` (shared
 read-mode display) updated once — this also reaches the Student drawers'
-read view. `CreateStudentDrawer` edit-mode labels are Student-owned and left
-unchanged (out of scope) — a known remaining inconsistency for a follow-up.
+read view. `CreateStudentDrawer` (create + edit) academic labels/options were
+aligned to the approved vocabulary in a later follow-up (`Tipologia` /
+`Professore` / `Materia` / `Argomento` + `Esame` option); no behavioural change.
 
 `thesis_topic` was missing from `Pipeline.academic_data` though drawers +
 conversion already used it; one optional field added (mirrors

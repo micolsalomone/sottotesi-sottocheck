@@ -35,6 +35,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 // ─── Single Academic Record Form ────────────────────────────
@@ -196,7 +197,7 @@ function AcademicRecordPanel({
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Livello</label>
+                <label style={drawerLabelStyle}>Livello di laurea</label>
                 <select
                   className="drawer-control-focus"
                   value={record.degree_level}
@@ -210,7 +211,7 @@ function AcademicRecordPanel({
                 </select>
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Tipo tesi</label>
+                <label style={drawerLabelStyle}>Tipologia</label>
                 <select
                   className="drawer-control-focus"
                   value={record.thesis_type}
@@ -226,7 +227,7 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Corso di studi</label>
+              <label style={drawerLabelStyle}>Corso di laurea</label>
               <input
                 className="drawer-control-focus"
                 type="text"
@@ -238,7 +239,7 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Università (opzionale)</label>
+              <label style={drawerLabelStyle}>Università</label>
               <input
                 className="drawer-control-focus"
                 type="text"
@@ -250,7 +251,7 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Relatore tesi</label>
+              <label style={drawerLabelStyle}>Professore</label>
               <input
                 className="drawer-control-focus"
                 type="text"
@@ -262,7 +263,7 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Oggetto tesi</label>
+              <label style={drawerLabelStyle}>Argomento</label>
               <input
                 className="drawer-control-focus"
                 type="text"
@@ -274,7 +275,7 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Materia di tesi</label>
+              <label style={drawerLabelStyle}>Materia</label>
               <input
                 className="drawer-control-focus"
                 type="text"

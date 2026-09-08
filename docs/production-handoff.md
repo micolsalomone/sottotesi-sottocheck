@@ -115,12 +115,12 @@ riferimento:
 
 - Authenticated `public-view` profilo (`PublicProfilePage`) resta un flusso di
   acquisizione/enrichment Pipeline, distinto dal Profilo Student.
-- `CreateStudentDrawer` (edit-mode Admin) usa ancora le etichette accademiche
-  vecchie (`Tipo tesi` → `Tipologia`, `Relatore tesi` → `Professore`, `Materia
-  di tesi` → `Materia`, `Oggetto tesi` → `Argomento`) e non offre l'opzione
-  `Esame`. Allineamento previsto come piccolo follow-up dopo la verifica del
-  Profilo. La vocabolario di `InfoCoachingCard` (Timeline) resta invariato: è
-  materia del workstream Timeline.
+- `CreateStudentDrawer` (create + edit Admin) usa ora il vocabolario approvato
+  (`Tipologia` / `Professore` / `Materia` / `Argomento`) e offre l'opzione
+  `Esame` (valore `esame`). Solo etichette/opzioni: nessun cambio a
+  multi-record, add/remove, `is_current`, binding `StudentService`, conversione
+  Pipeline o semantica di salvataggio. Il vocabolario di `InfoCoachingCard`
+  (Timeline) resta invariato: è materia del workstream Timeline.
 
 ## Product decision still open
 
