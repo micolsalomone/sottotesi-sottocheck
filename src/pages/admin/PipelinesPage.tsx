@@ -5,6 +5,7 @@ import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, Users, CheckC
 import { toast } from 'sonner';
 import { useLavorazioni, SERVICE_CATALOG } from '../../app/data/LavorazioniContext';
 import type { Pipeline, Quote, StudentService, Student, StudentAcademicRecord } from '../../app/data/LavorazioniContext';
+import { readEmailMarketingConsent } from '../../app/data/tesicheckLeadEnrichment';
 import { PipelineDetailDrawer } from '../../app/components/PipelineDetailDrawer';
 import { CreatePipelineDrawer } from '../../app/components/CreatePipelineDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
@@ -452,7 +453,9 @@ export function PipelinesPage() {
           phones: [...contactPhones, ...additionalPhones],
         },
         status: 'active',
-        marketing_consent: !!(pipelineCurrent.marketing_consents && pipelineCurrent.email && pipelineCurrent.marketing_consents[pipelineCurrent.email]),
+        // Tri-state: carry the explicit boolean if the primary-email consent key
+        // exists, else `null` (never collected) — never fabricate `false`.
+        marketing_consent: readEmailMarketingConsent(pipelineCurrent.marketing_consents, pipelineCurrent.email),
         academic_records: newAcademicRecord ? [newAcademicRecord] : [],
         created_at: today,
       };

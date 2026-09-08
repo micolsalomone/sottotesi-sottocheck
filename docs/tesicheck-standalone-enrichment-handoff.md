@@ -316,24 +316,27 @@ See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
 - Profile ↔ Account cross-links (`Gestisci account e privacy` /
   `Vai al profilo personale`); `returnTo` whitelist gains `/public-view/account`.
 
-**Slice C — commercial-consent controls in Profile:**
+**Slice C — commercial-consent controls in Profile — DONE (see §13).**
 
-- Editable/revocable `Comunicazioni commerciali` control in `/public-view/profilo`
-  (writes the resolved `Pipeline.marketing_consents[email]`) and
-  `/student-view/profilo` (writes `Student.marketing_consent`). Commercial
-  consent is **Profile-domain**, not Account-domain.
-- Profile does **not** get Terms/Privacy rows — those live on the Account page.
+- Editable/revocable `Comunicazioni` section (tri-state explicit choice) in
+  `/public-view/profilo` (writes the resolved `Pipeline.marketing_consents[email]`,
+  or a matched `Student.marketing_consent`) and `/student-view/profilo` (writes
+  `Student.marketing_consent`). Profile-domain, not Account.
+- `Pipeline.marketing_consents` type unchanged; Profile read logic is tri-state
+  (`readEmailMarketingConsent`). `Student.marketing_consent` widened to
+  `boolean | null`. Unknown is never collapsed into `false`.
+- Profile still has **no** Terms/Privacy rows — those stay on the Account page.
 
-**Slice D — Admin consent visibility:**
+**Slice D — Admin consent visibility + read normalization:**
 
 - Pipeline "recontact allowed" signal (drawer summary line, then list/card pill).
-- `Student.marketing_consent` read surface in Admin Student.
+- `Student.marketing_consent` read surface in Admin Student; tri-state-aware
+  read/label normalization across the Admin drawers (`PipelineDetailDrawer`,
+  `CreatePipelineDrawer`, `CreateLavorazioneDrawer` display, `CreateStudentDrawer`
+  control, `StudentiPage` toggle/label — see §13 "Admin compatibility").
 
 **Not slice-scoped / backend:**
 
-- `Student.marketing_consent` tri-state — only for **legacy Students never asked**
-  (`boolean` still conflates "declined" and "never asked" for them). Standalone
-  registration now always writes an explicit boolean, so it does not need it.
 - Terms/Privacy policy pages, footer legal links, versioning/timestamp/audit.
 - Retroactive acceptance for pre-feature registered accounts (separate product
   decision).
@@ -343,17 +346,26 @@ See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
 
 ## 11. Profile vs Account — surface responsibilities (product direction)
 
-Profile and Account are **separate surfaces**. Slice A already respects this:
-Terms/Privacy state is written to the account registry, commercial consent to
-the Profile-domain identity (Pipeline / Student). The remaining slices must keep
-them apart.
+Profile and Account are **separate surfaces**. Terms/Privacy state is written to
+the account registry; commercial consent is Profile-domain, written to the
+resolved identity (Pipeline `marketing_consents[email]` / `Student.marketing_consent`).
+Slice C implemented the Profile commercial-consent control; Slice D is Admin
+visibility/normalization.
 
 | Surface | Owns |
 | --- | --- |
-| **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** |
+| **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** (`Comunicazioni` section, tri-state — Slice C) |
 | **Account** (`/public-view/account`, `/student-view/account`) | account email, password / recovery entry points, **Terms acceptance status**, **Privacy acknowledgement status**, future account-management actions |
 
 Rules:
+
+- Commercial consent is tri-state and **unknown is never collapsed into `false`**:
+  `Pipeline.marketing_consents` key-absent = unknown; `Student.marketing_consent`
+  is `boolean | null` with `null` = never asked. The Profile control leaves an
+  untouched value exactly as stored on save.
+- Commercial consent never gates registration, payment, reports or service access,
+  and is never required.
+- Terms/Privacy are **not** rendered in Profile — Account only.
 
 - `/public/account` is the **paid-checkout account gate** — never reused as the
   authenticated Account/settings page.
@@ -390,6 +402,53 @@ Rules:
 Not in Slice B: any commercial-consent control in Profile (Slice C), `Student`
 tri-state, Admin visibility (Slice D), policy pages, footer legal links,
 production password/auth, Coach Account/Profile.
+
+## 13. Slice C — commercial-communications consent in Profiles (implementation)
+
+Commercial consent (domain 3) is the **only** consent surfaced in Profile;
+Terms/Privacy stay on the Account page.
+
+### Model
+
+| Concern | Change |
+| --- | --- |
+| `Pipeline.marketing_consents?: Record<string, boolean>` | **Type unchanged.** Structural tri-state already supported: key absent = unknown, `false` = asked/not granted, `true` = granted. |
+| `Student.marketing_consent` | **`boolean` → `boolean \| null`** (`true` granted / `false` declined-revoked / `null` never asked). Seeded `true`/`false` values kept as explicit demo data — not reinterpreted. |
+| `tesicheckLeadEnrichment.ts` | New `readEmailMarketingConsent(map, email): boolean \| null` — `hasOwnProperty` check, never `\|\| false`. `withEmailMarketingConsent` (Slice A) reused for writes. |
+
+### Shared UI leaf
+
+`src/app/components/profile/CommercialConsentField.tsx` — presentation only, no
+Pipeline/Student/session/CRM knowledge. Reuses the existing shadcn
+`RadioGroup`/`RadioGroupItem`. Props: `value: boolean | null`,
+`onChange(value: boolean)`, `disabled?`, `idPrefix?`. Two explicit options
+(`Sì, desidero…` / `No, non desidero…`); `value === null` → neither selected +
+`Preferenza non ancora espressa.`; always shows
+`Puoi modificare questa scelta in qualsiasi momento.` Prototype copy — final
+wording is client/legal.
+
+### Role pages
+
+| File | Change |
+| --- | --- |
+| `src/pages/student/ProfilePage.tsx` | New `FormSection "Comunicazioni"` with `CommercialConsentField`. Local `commercialConsent: boolean \| null` + `commercialTouched`. Prefill from `student.marketing_consent ?? null` (reseed resets `touched`). `handleSubmit`'s existing `updateStudent` updater writes `marketing_consent` **only** when `commercialTouched` — untouched `null`/`true`/`false` round-trips via `...prev`. Student-domain only; contacts/records/services/Pipeline/Account untouched. |
+| `src/pages/public/PublicProfilePage.tsx` | New `FormSection "Comunicazioni"` before the submit button (main form) **and** in the `student`-match branch (previously a dead-end card) with a `Salva preferenza` button. Prefill: `pipeline` → `readEmailMarketingConsent(pipeline.marketing_consents, pipeline.email ?? accountEmail)`; `student` → matched `student.marketing_consent ?? null`; `new_pipeline` → `null`. Save: `pipeline` → merge `marketing_consents: withEmailMarketingConsent(map, pipeline.email \|\| accountEmail, choice)` into the existing `updatePipeline` updater, only when `commercialTouched && choice !== null` (preserves other keys, never deletes to mean `false`); `new_pipeline` → the created Pipeline carries `marketing_consents: { [accountEmail]: choice }` only if touched (no Pipeline is created just for a preference — the name-required guard still applies first); `student` → `updateStudent(id, s => ({ ...s, marketing_consent: choice }))`, **no Pipeline created**. |
+
+### Admin compatibility (minimum only — Slice D does the real normalization)
+
+| Site | Change |
+| --- | --- |
+| `PipelinesPage.tsx` (Pipeline→Student conversion) | `!!(map && email && map[email])` → `readEmailMarketingConsent(map, email)` → `null` when the key is absent (was fabricating `false`). |
+| `CreateLavorazioneDrawer.tsx` (Pipeline→Student conversion) | `(map && map[email]) \|\| false` → `readEmailMarketingConsent(map, email)`. |
+| `CreateStudentDrawer.tsx` | Passthrough state `useState(false)` → `useState<boolean \| null>(null)`; prefill `editStudent.marketing_consent \|\| false` → `?? null`. No consent control in this drawer, so create-mode now writes `null` (not fabricated `false`); edit-mode round-trips the stored value. |
+| `StudentiPage.tsx` | `handleToggleMarketing` **unchanged behaviour** — `!s.marketing_consent` maps `null`/`false` → `true`, `true` → `false`; `null` is treated as "not granted" for the explicit Admin toggle + its menu label. Comment added; real read model is Slice D. |
+| `CreateLavorazioneDrawer.tsx:58` / `PipelineDetailDrawer` / `CreatePipelineDrawer` / `ContactManager` consent **display** | Untouched — Admin read normalization is Slice D. |
+
+### Known prototype limitation
+
+On the standalone Profile `new_pipeline` fallback, choosing a preference without
+also entering a first name shows the existing "Inserisci il tuo nome" error and
+does **not** persist the preference (no Pipeline is created solely for consent).
 
 ## 10. Verification performed
 

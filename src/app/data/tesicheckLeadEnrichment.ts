@@ -92,6 +92,25 @@ export function resolveEnrichmentTarget(params: {
 }
 
 /**
+ * Tri-state read of one contact email's marketing consent from a Pipeline
+ * consent map:
+ *  - key absent            → `null` (never collected / unknown);
+ *  - key present + `true`  → `true` (granted);
+ *  - key present + `false` → `false` (explicitly not granted).
+ *
+ * Never collapses absent into `false`. Do NOT replace call sites with
+ * `map[email] || false`.
+ */
+export function readEmailMarketingConsent(
+  map: Record<string, boolean> | undefined,
+  email: string | null | undefined,
+): boolean | null {
+  const key = (email ?? '').trim();
+  if (!map || !key) return null;
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+}
+
+/**
  * Set an explicit marketing-consent boolean for one contact email on a Pipeline
  * consent map, preserving every other entry. Writing an explicit `false` is
  * meaningful — it records "asked, not granted", distinct from a missing key

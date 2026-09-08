@@ -435,7 +435,10 @@ export function CreateStudentDrawer({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState(''); // mantenuto per compatibilità
   const [phone, setPhone] = useState(''); // mantenuto per compatibilità
-  const [marketingConsent, setMarketingConsent] = useState(false); // mantenuto per compatibilità
+  // Tri-state, passthrough only (this drawer has no consent control): create mode
+  // leaves it `null` (never collected — do not fabricate `false`); edit mode
+  // round-trips the stored value unchanged.
+  const [marketingConsent, setMarketingConsent] = useState<boolean | null>(null);
 
   // ─── Contatti strutturati ──────────────────────────────────
   const [emails, setEmails] = useState<ContactEmail[]>([]);
@@ -475,7 +478,7 @@ export function CreateStudentDrawer({
       setLastName(editStudent.last_name || '');
       setEmail(editStudent.email || '');
       setPhone(editStudent.phone || '');
-      setMarketingConsent(editStudent.marketing_consent || false);
+      setMarketingConsent(editStudent.marketing_consent ?? null);
 
       // Migra contatti alla struttura attuale
       if (editStudent.contacts && editStudent.contacts.emails.length > 0) {

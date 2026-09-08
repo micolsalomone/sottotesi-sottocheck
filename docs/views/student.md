@@ -57,8 +57,16 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   a runtime.
 - Sezioni: `Informazioni personali` (Nome, Cognome), `Contatti` (Email primaria
   read-only dal contact model; Telefono), `Percorso attuale`, `Percorsi
-  precedenti`. Spazio previsto per una futura sezione `Privacy e consensi`, non
-  ancora implementata.
+  precedenti`, `Comunicazioni` (consenso alle comunicazioni commerciali —
+  Slice C). Termini e Informativa privacy **non** stanno nel Profilo: sono
+  sull'Account (`/student-view/account`).
+- Sezione `Comunicazioni`: controllo a scelta esplicita tri-state
+  (`CommercialConsentField` condiviso) — `Sì` / `No`; stato sconosciuto =
+  nessuna opzione selezionata + `Preferenza non ancora espressa.` Legge/scrive
+  **solo** `Student.marketing_consent` (`boolean | null`) via `updateStudent`,
+  integrato nel salvataggio del Profilo. Una preferenza non toccata non viene
+  riscritta salvando altri campi (unknown resta unknown). Nessun tocco a
+  contatti / record accademici / servizi / Pipeline / stato legale Account.
 - Vocabolario accademico approvato: `Livello di laurea` (`degree_level`),
   `Corso di laurea` (`course_name`), `Università` (`university_name`),
   `Tipologia` (`thesis_type` — valori Compilativa / Sperimentale / Esame),
@@ -103,9 +111,9 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   moderazione. L'implementazione di produzione dovrebbe conservare informazioni
   di provenienza/audit adeguate per le modifiche self-service (chi ha cambiato
   il record). Non modellato qui.
-- Fuori scope in questo slice: consenso marketing (futuro Slice C, nel Profilo),
-  gestione contatti multipli, eliminazione del record accademico corrente, cambio
-  del record corrente, auth Student.
+- Fuori scope: visibilità/normalizzazione consenso in Admin (Slice D), gestione
+  contatti multipli, eliminazione del record accademico corrente, cambio del
+  record corrente, auth Student.
 - Il Profilo espone in fondo un link secondario `Gestisci account e privacy` →
   `/student-view/account`. Nella sidebar `Profilo` è nello slot secondario in
   basso (stesso pattern di Admin).

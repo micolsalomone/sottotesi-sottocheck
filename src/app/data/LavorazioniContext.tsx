@@ -169,7 +169,15 @@ export interface Student {
     phones: ContactPhone[];
   };
   status: 'active' | 'invited' | 'blocked';
-  marketing_consent: boolean;
+  /**
+   * Commercial-communications preference (tri-state):
+   *  - `true`  = granted;
+   *  - `false` = explicitly declined / revoked;
+   *  - `null`  = never asked / not recorded — MUST NOT be collapsed into `false`.
+   * Seeded records keep explicit `true` / `false` demo values. New creation /
+   * conversion that does not actually collect a preference writes `null`.
+   */
+  marketing_consent: boolean | null;
   academic_records: StudentAcademicRecord[];
   created_at: string;
   updated_at?: string;

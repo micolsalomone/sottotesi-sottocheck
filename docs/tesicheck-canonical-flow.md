@@ -1649,6 +1649,12 @@ Nei contesti coaching:
 - Termini e Informativa privacy vivono sulla pagina Account (sola lettura); il consenso commerciale vive sul Profilo (Slice C). Nessuna duplicazione di contenuti tra Profilo e Account (§33.5).
 - La pagina Account standalone legge lo stato Termini/Privacy dalla persistenza prototipo Slice A (registry → mirror sessione); assente = `Stato non registrato nel prototipo`, mai accettato per default. Lo Student non ha stato legale nel prototipo → righe neutre, niente date/versioni/accettazioni fabbricate (§33.5).
 - Nel sidebar `Profilo` è nello slot secondario in basso per standalone autenticato e Student (come Admin); Account non è nel sidebar, si raggiunge dal menu utente in alto a destra (`Informazioni Account` → `accountPath`) e dal cross-link del Profilo (§33.5).
+- Il consenso alle comunicazioni commerciali vive nel Profilo (sezione `Comunicazioni`), mai in Account. Terms/Privacy restano in Account (§33.5).
+- Il controllo è a scelta esplicita tri-state (`Sì` / `No` / non espresso): unknown non va mai collassato in `No`. Non spuntato di default; mai gate a registrazione/pagamento/report/servizi (§33.5).
+- `Pipeline.marketing_consents` mantiene il tipo `Record<string, boolean>`: chiave assente = sconosciuto, `false` = chiesto/non concesso, `true` = concesso. Read tri-state via `readEmailMarketingConsent`; niente `map[email] || false` (§33.5).
+- `Student.marketing_consent` è `boolean | null` (`null` = mai chiesto). Seed = valori demo espliciti; conversioni Pipeline→Student e nuovi Student Admin che non raccolgono una preferenza scrivono `null`, mai `false` fabbricato. La registrazione Student-match continua a scrivere `true`/`false` espliciti (§33.5).
+- Nel Profilo standalone la preferenza va all'identità risolta: Pipeline → `marketing_consents[emailVerificata]`; Student → `Student.marketing_consent`; nessun owner → stato neutro, nessuna Pipeline creata solo per la preferenza (§33.5).
+- Salvando il Profilo, una preferenza non toccata dall'utente resta invariata (assente/`null`/`true`/`false`): solo una scelta esplicita persiste il boolean (§33.5).
 
 ---
 
@@ -1888,12 +1894,41 @@ consenso commerciale su Pipeline/Student).
   secondario in basso (come Student/Admin); Account non è nel sidebar. Cross-link
   reciproci Profilo ↔ Account. `/public/account` resta il gate del checkout.
 
-Sequenza rimanente: **C** = controllo consenso commerciale nel Profilo (solo
-dominio 3); **D** = visibilità consenso in Admin.
+**Slice C — implementato.** Controllo consenso alle comunicazioni commerciali
+(dominio 3) dentro i Profili — **non** in Account.
 
-Fuori da Slice B: `Comunicazioni commerciali` nei Profili (Slice C), tri-state di
-`Student.marketing_consent` per gli Student legacy mai interpellati, visibilità
-Admin, policy page, link legali in footer, retroattività Termini/privacy sugli
+- Sezione `Profilo` → `Comunicazioni` con controllo a scelta esplicita (radio
+  tri-state condiviso `CommercialConsentField`): `Sì` / `No`; se lo stato è
+  sconosciuto nessuna opzione è selezionata + `Preferenza non ancora espressa.`
+  Helper: `Puoi modificare questa scelta in qualsiasi momento.` Copy neutra di
+  prototipo; il testo finale resta di cliente/legale.
+- **Tri-state, unknown ≠ No.**
+  - `Pipeline.marketing_consents` (tipo invariato `Record<string, boolean>`):
+    chiave assente = sconosciuto, `false` = chiesto/non concesso, `true` =
+    concesso. La sola read logic necessaria al Profilo è tri-state
+    (`readEmailMarketingConsent`); le normalizzazioni Admin sono Slice D.
+  - `Student.marketing_consent`: tipo allargato a **`boolean | null`**
+    (`true` concesso, `false` rifiutato/revocato, `null` mai chiesto). I seed
+    restano valori demo espliciti; nuove creazioni/conversioni che non
+    raccolgono davvero una preferenza scrivono `null`, mai `false` fabbricato.
+- **Owner della preferenza standalone = identità risolta** (stessa regola della
+  registrazione): target Pipeline → `marketing_consents[emailVerificata]`;
+  target Student → `Student.marketing_consent` via `updateStudent`, nessuna
+  Pipeline creata; nessun owner sicuro → stato neutro, nessuna Pipeline creata
+  solo per una preferenza.
+- **Student Profile** scrive solo dominio Student (`updateStudent`), integrato
+  nel salvataggio Profilo esistente. Nessun salvataggio Account separato.
+- **Preservazione unknown al salvataggio:** una preferenza non toccata
+  dall'utente (assente / `null` / `true` / `false`) non viene riscritta salvando
+  altri campi del Profilo. Solo una scelta esplicita persiste il boolean.
+- Il Profilo non richiede mai il consenso e non gate-a registrazione, pagamento,
+  report o accesso ai servizi.
+
+Sequenza rimanente: **D** = visibilità/normalizzazione consenso in Admin
+(pill Pipeline, badge Student, filtri, normalizzazione read).
+
+Fuori da Slice C: normalizzazione read Admin, tri-state UI per gli Student legacy
+in Admin, policy page, link legali in footer, retroattività Termini/privacy sugli
 account legacy, provenance/audit di produzione, Coach Account/Profilo.
 
 ### 33.6 Handoff implementativo

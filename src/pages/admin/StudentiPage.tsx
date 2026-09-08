@@ -336,6 +336,11 @@ export function StudentiPage() {
   };
 
   const handleToggleMarketing = (student: ExtendedStudent) => {
+    // `marketing_consent` is now tri-state (`boolean | null`). This Admin toggle
+    // is an explicit action: `!current` maps `null`/`false` → `true` and `true`
+    // → `false`. `null` is treated as "not granted" for the toggle and its menu
+    // label; a proper unknown/declined/granted read model is Slice D — it must
+    // not be inferred as consent here.
     setStudentsData(prev => prev.map(s =>
       s.id === student.id
         ? { ...s, marketing_consent: !s.marketing_consent, updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString() }

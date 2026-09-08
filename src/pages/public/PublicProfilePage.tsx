@@ -6,8 +6,10 @@ import type { DegreeLevel, Pipeline, ThesisType } from '@/app/data/LavorazioniCo
 import { getAccountFirstName, getAccountSession } from '@/app/data/tesicheckAccountSession';
 import {
   nextPipelineId,
+  readEmailMarketingConsent,
   resolveEnrichmentTarget,
   TESICHECK_ACQUISITION_SOURCE,
+  withEmailMarketingConsent,
   withTesiCheckSource,
 } from '@/app/data/tesicheckLeadEnrichment';
 import {
@@ -16,6 +18,7 @@ import {
   SelectField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
+import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 
 // Same option vocabulary as the Admin academic forms (CreatePipelineDrawer /
@@ -36,7 +39,7 @@ const TYPOLOGY_OPTIONS: { value: ThesisType; label: string }[] = [
 ];
 
 export function PublicProfilePage() {
-  const { pipelines, students, addPipeline, updatePipeline } = useLavorazioni();
+  const { pipelines, students, addPipeline, updatePipeline, updateStudent } = useLavorazioni();
   const session = useMemo(() => getAccountSession(), []);
   const accountEmail = session?.emailVerified ? session.email : null;
 
@@ -57,6 +60,12 @@ export function PublicProfilePage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  // Commercial-communications preference, written to whichever identity domain
+  // resolution resolves (Pipeline consent map, or a matched Student). `touched`
+  // separates an explicit choice from an untouched unknown so a Profile save
+  // never turns an absent/`null` value into `false`.
+  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
+  const [commercialTouched, setCommercialTouched] = useState(false);
   const [degreeLevel, setDegreeLevel] = useState<DegreeLevel | ''>('');
   const [courseName, setCourseName] = useState('');
   const [universityName, setUniversityName] = useState('');
@@ -85,6 +94,17 @@ export function PublicProfilePage() {
       setProfessor(pipeline.academic_data?.thesis_professor ?? '');
       setSubject(pipeline.academic_data?.thesis_subject ?? '');
       setTopic(pipeline.academic_data?.thesis_topic ?? '');
+      setCommercialConsent(
+        readEmailMarketingConsent(pipeline.marketing_consents, pipeline.email ?? accountEmail),
+      );
+      setCommercialTouched(false);
+      return;
+    }
+
+    if (target.mode === 'student') {
+      const matched = students.find((item) => item.id === target.studentId);
+      setCommercialConsent(matched?.marketing_consent ?? null);
+      setCommercialTouched(false);
       return;
     }
 
@@ -92,8 +112,10 @@ export function PublicProfilePage() {
       // Fallback path only (pre-rule accounts): the first name normally already
       // lives on the Pipeline created at registration.
       setFirstName(getAccountFirstName(session));
+      setCommercialConsent(null);
+      setCommercialTouched(false);
     }
-  }, [target, pipelines, session]);
+  }, [target, pipelines, students, session, accountEmail]);
 
   const markDirty = () => {
     setSaved(false);
@@ -149,6 +171,18 @@ export function PublicProfilePage() {
           academic_data:
             Object.keys(mergedAcademic).length > 0 ? mergedAcademic : pipeline.academic_data,
           sources: withTesiCheckSource(pipeline.sources),
+          // Write the explicit boolean for the verified account email only when
+          // the user chose one this session; preserve every other map entry and
+          // never delete a key to represent `false`.
+          ...(commercialTouched && commercialConsent !== null
+            ? {
+                marketing_consents: withEmailMarketingConsent(
+                  pipeline.marketing_consents,
+                  pipeline.email || accountEmail,
+                  commercialConsent,
+                ),
+              }
+            : {}),
         };
       });
       setActivePipelineId(liveTarget.pipelineId);
@@ -177,6 +211,12 @@ export function PublicProfilePage() {
       created_at: new Date().toISOString().split('T')[0],
       lavorazioni_ids: [],
       academic_data: buildAcademicData(),
+      // The Pipeline is created by the normal enrichment flow (name + fields);
+      // an explicit commercial choice rides along. No Pipeline is created solely
+      // to store a preference.
+      ...(commercialTouched && commercialConsent !== null
+        ? { marketing_consents: withEmailMarketingConsent(undefined, accountEmail, commercialConsent) }
+        : {}),
     };
     addPipeline(newPipeline);
     setActivePipelineId(id);
@@ -207,12 +247,49 @@ export function PublicProfilePage() {
   }
 
   if (target.mode === 'student') {
+    const matchedStudent = students.find((item) => item.id === target.studentId) ?? null;
+    const saveStudentConsent = () => {
+      if (!matchedStudent || !commercialTouched || commercialConsent === null) return;
+      updateStudent(matchedStudent.id, (s) => ({ ...s, marketing_consent: commercialConsent }));
+      setSaved(true);
+    };
     return (
       <PageShell>
-        <NeutralCard
-          title="Profilo studente già collegato"
-          body="Il tuo account è già associato a un profilo studente Sottotesi. Le informazioni del profilo studente sono gestite dal percorso dedicato: non è necessario compilare nulla qui."
-        />
+        <div className="flex flex-col gap-6">
+          <NeutralCard
+            title="Profilo studente già collegato"
+            body="Il tuo account è già associato a un profilo studente Sottotesi. Le informazioni del profilo studente sono gestite dal percorso dedicato: non è necessario compilare nulla qui."
+          />
+
+          {matchedStudent && (
+            <FormSection title="Comunicazioni">
+              <CommercialConsentField
+                idPrefix="standalone-student-commercial-consent"
+                value={commercialConsent}
+                onChange={(v) => {
+                  setCommercialConsent(v);
+                  setCommercialTouched(true);
+                  setSaved(false);
+                }}
+              />
+              {saved && (
+                <p
+                  className="mt-3 text-[var(--muted-foreground)]"
+                  style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
+                >
+                  Preferenza salvata.
+                </p>
+              )}
+              <div className="mt-4">
+                <SottocheckActionButton onClick={saveStudentConsent}>
+                  Salva preferenza
+                </SottocheckActionButton>
+              </div>
+            </FormSection>
+          )}
+
+          <CrossSurfaceLink to="/public-view/account" label="Gestisci account e privacy" />
+        </div>
       </PageShell>
     );
   }
@@ -272,6 +349,18 @@ export function PublicProfilePage() {
             <TextField id="profile-subject" label="Materia" value={subject} onChange={(v) => { setSubject(v); markDirty(); }} />
             <TextField id="profile-topic" label="Argomento" value={topic} onChange={(v) => { setTopic(v); markDirty(); }} />
           </div>
+        </FormSection>
+
+        <FormSection title="Comunicazioni">
+          <CommercialConsentField
+            idPrefix="standalone-commercial-consent"
+            value={commercialConsent}
+            onChange={(v) => {
+              setCommercialConsent(v);
+              setCommercialTouched(true);
+              markDirty();
+            }}
+          />
         </FormSection>
 
         <div>

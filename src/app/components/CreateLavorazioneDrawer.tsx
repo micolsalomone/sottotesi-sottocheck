@@ -6,6 +6,7 @@ import {
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { StudentService, Pipeline, Student, StudentAcademicRecord, Quote } from '../data/LavorazioniContext';
+import { readEmailMarketingConsent } from '../data/tesicheckLeadEnrichment';
 import { useAreeTematiche } from '../data/AreeTematicheContext';
 import {
   DrawerOverlay,
@@ -463,7 +464,9 @@ export function CreateLavorazioneDrawer({
           phones: contactPhones,
         },
         status: 'active',
-        marketing_consent: (selectedPipeline.marketing_consents && selectedPipeline.marketing_consents[selectedPipeline.email]) || false,
+        // Tri-state: explicit boolean when the primary-email consent key exists,
+        // else `null` (never collected) — never fabricate `false`.
+        marketing_consent: readEmailMarketingConsent(selectedPipeline.marketing_consents, selectedPipeline.email),
         academic_records: [newAcademicRecord],
         created_at: new Date().toISOString().split('T')[0],
       };

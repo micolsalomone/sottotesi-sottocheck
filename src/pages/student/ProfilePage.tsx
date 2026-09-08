@@ -11,6 +11,7 @@ import {
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
+import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 
 // Client-approved academic vocabulary. Underlying fields keep their legacy names
 // (`thesis_type` / `thesis_professor` / `thesis_subject` / `thesis_topic`).
@@ -128,6 +129,12 @@ export function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
+  // Commercial-communications preference (Student domain). `commercialTouched`
+  // separates "the user made a choice this session" from "untouched" so an
+  // unrelated Profile save never turns an untouched `null` into `false`.
+  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
+  const [commercialTouched, setCommercialTouched] = useState(false);
+
   const prefillKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!student) return;
@@ -140,6 +147,8 @@ export function ProfilePage() {
     setFirstName(student.first_name ?? '');
     setLastName(student.last_name ?? '');
     setPhone(phoneIsGapFill ? '' : existingPrimaryPhone);
+    setCommercialConsent(student.marketing_consent ?? null);
+    setCommercialTouched(false);
 
     const current = student.academic_records.filter((r) => r.is_current).map(toEditable);
     const previous = student.academic_records.filter((r) => !r.is_current).map(toEditable);
@@ -269,6 +278,10 @@ export function ProfilePage() {
         name: nextName,
         contacts,
         academic_records: [...mergedExisting, ...addedPrevious],
+        // Only write the commercial preference when the user actually chose one
+        // this session; an untouched `null` (or stored `true`/`false`) is left
+        // exactly as it was.
+        ...(commercialTouched ? { marketing_consent: commercialConsent } : {}),
       };
     });
 
@@ -458,9 +471,17 @@ export function ProfilePage() {
           </div>
         </FormSection>
 
-        {/* Slice C will add a commercial-communications consent control here.
-            Terms & Privacy status live on the Account page (/student-view/account),
-            not in Profile. */}
+        <FormSection title="Comunicazioni">
+          <CommercialConsentField
+            idPrefix="student-commercial-consent"
+            value={commercialConsent}
+            onChange={(v) => {
+              setCommercialConsent(v);
+              setCommercialTouched(true);
+              markDirty();
+            }}
+          />
+        </FormSection>
 
         <div>
           <SottocheckActionButton type="submit">Salva</SottocheckActionButton>

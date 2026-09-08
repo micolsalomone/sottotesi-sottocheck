@@ -33,8 +33,11 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
 - Sidebar — slot secondario in basso (separato, stesso pattern di Student/Admin):
   `Profilo`. `Account` **non** è nella sidebar.
 - `Profilo` (`/public-view/profilo`) e `Account` (`/public-view/account`) sono
-  superfici distinte: Profilo = dati personali + arricchimento Pipeline; Account
-  = accesso (email, recupero password) + stato Termini/Privacy in sola lettura.
+  superfici distinte: Profilo = dati personali + arricchimento Pipeline + sezione
+  `Comunicazioni` (consenso commerciale, scelta esplicita tri-state, scritto
+  all'identità risolta — Pipeline o Student); Account = accesso (email, recupero
+  password) + stato Termini/Privacy in sola lettura. Termini/Privacy non stanno
+  nel Profilo.
   Si collegano con cross-link reciproci (`Gestisci account e privacy` /
   `Vai al profilo personale`); nessun contenuto duplicato.
 - `Account` è raggiungibile dal menu utente in alto a destra
