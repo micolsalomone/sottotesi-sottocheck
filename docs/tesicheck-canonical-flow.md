@@ -1637,6 +1637,14 @@ Nei contesti coaching:
 - Per le Pipeline originate da questo flusso la fonte è assegnata dal sistema: `Fonte acquisizione = TesiCheck`; mai selezionabile dall'utente (§33).
 - L'enrichment del profilo standalone non blocca mai pagamento, accesso al report o Storico (§33).
 - Consenso al ricontatto commerciale / marketing è un dominio distinto da accettazione Termini e da gestione privacy (§33.5).
+- I tre domini di consenso restano separati: mai una singola checkbox combinata (§33.5).
+- La registrazione standalone (`/public/register` e registrazione in `/public/account`) richiede accettazione Termini **e** presa visione Informativa privacy: entrambe obbligatorie, bloccano il submit (§33.5).
+- Il consenso alle comunicazioni commerciali è opzionale, non spuntato di default, e non blocca mai account / verifica / pagamento / report (§33.5).
+- Il consenso commerciale della registrazione standalone è scritto come boolean esplicito, dopo la verifica email, al dominio di identità risolto (`applyStandaloneRegistrationConsent`): Pipeline → `marketing_consents[emailVerificata]`; Student esistente → `Student.marketing_consent` (§33.5).
+- Per la Pipeline: chiave assente = mai raccolto, `false` = chiesto e non concesso, `true` = concesso — non collassare assente e `false` (§33.5).
+- Se la registrazione standalone risolve a uno Student esistente non si crea né aggiorna una Pipeline; la scelta esplicita (checked → `true`, unchecked → `false`) aggiorna solo `Student.marketing_consent` via `updateStudent`, senza toccare contatti/servizi/altri campi. Il tri-state resta un problema aperto solo per gli Student legacy mai interpellati (§33.5).
+- I booleani `termsAccepted` / `privacyAcknowledged` sul registered-account registry sono persistenza di prototipo: assente = non registrato, mai accettato; nessuna retroattività sugli account legacy; la produzione richiede versione + timestamp + audit (§33.5).
+- Wording legale finale, versioni e URL delle policy sono responsabilità di cliente/legale; il prototipo non inventa versioni, link o testo legale (§33.5).
 
 ---
 
@@ -1806,6 +1814,65 @@ Termini e informativa privacy **non** vanno mappate lì. La copy delle checkbox
 finali non va aggiunta finché legale non fornisce il testo. Se serve un punto per
 l'accettazione versionata (versione + timestamp), appartiene al modello
 account/sessione, non alla Pipeline — vedi requisito aperto nell'handoff.
+
+**Stato prototipo — Slice A (registrazione standalone).** I due entry point di
+registrazione standalone (`/public/register` diretto e registrazione dentro
+`/public/account`) espongono ora tre controlli distinti nel `RegisterForm`
+condiviso:
+
+- `Accetto i Termini e condizioni` — **obbligatorio**, blocca il submit;
+- `Dichiaro di aver preso visione dell'Informativa privacy` — **obbligatorio**,
+  blocca il submit (acknowledgement, non consenso);
+- `Comunicazioni commerciali` — **opzionale**, non spuntato di default, non
+  blocca mai registrazione / verifica email / pagamento / accesso al report.
+
+I titoli legali sono resi come **testo**, non link: nel prototipo non esiste una
+policy page / URL reale. Wording finale, versione e link sono responsabilità di
+cliente/legale; nessuna versione o timestamp è inventata.
+
+Persistenza prototipo:
+
+- Termini + privacy → booleani opzionali (`termsAccepted`, `privacyAcknowledged`)
+  sul **registered-account registry** (`RegisteredAccount`), mirrorati sulla
+  sessione. Assenti = "non registrato nel prototipo", mai interpretati come
+  accettato; nessuna migrazione retroattiva degli account legacy. La produzione
+  deve sostituirli con versione + timestamp + audit.
+- Consenso commerciale → boolean **esplicito** scritto dopo la verifica email
+  al dominio di identità che la risoluzione di acquisizione risolve
+  (`applyStandaloneRegistrationConsent`):
+  - **Pipeline** (`created` / `enriched`) → `Pipeline.marketing_consents[emailVerificata]`.
+    `true` = concesso, `false` = chiesto e non concesso; chiave assente = mai
+    raccolto (non collassare con `map[email] || false`).
+  - **Student esistente** → nessuna Pipeline (regola invariata); la scelta
+    esplicita aggiorna `Student.marketing_consent` tramite il write condiviso
+    `updateStudent` (checked → `true`, unchecked → `false`; nessuna inferenza,
+    nessun tri-state qui). Non tocca contatti, servizi, altri campi Student.
+  - `Terms` / `Privacy` restano dominio account, indipendenti dall'identità di
+    acquisizione.
+
+**Profilo ≠ Account (direzione di prodotto).** Sono superfici separate:
+
+- **Profilo** (`/public-view/profilo`, `/student-view/profilo`) → identità,
+  contatti, dati accademici, **consenso alle comunicazioni commerciali**.
+- **Account** (`/public-view/account`, `/student-view/account` — futuri) → email
+  account, password / recupero, **stato accettazione Termini**, **stato presa
+  visione Privacy**, azioni di gestione account.
+- `/public/account` resta il **gate account del checkout a pagamento**: non va
+  mai riusato come pagina Account/impostazioni autenticata.
+
+Termini e Privacy **non** vanno pianificati come righe dentro il Profilo: sono
+stato di dominio Account. Slice A già lo rispetta (Termini/Privacy sul registry
+account, consenso commerciale su Pipeline/Student).
+
+Sequenza dopo Slice A: **B** = pagine Account reali + IA di navigazione (voce
+menu `Informazioni account` → `…/account`, `Profilo` nello slot secondario in
+basso anche per lo standalone autenticato, cross-link Profilo ↔ Account); **C** =
+controlli consenso commerciale nel Profilo; **D** = visibilità consenso in Admin.
+
+Fuori da questo slice: pagine Account, `Privacy e consensi` nei Profili,
+tri-state di `Student.marketing_consent` per gli Student legacy mai interpellati,
+visibilità Admin, policy page, link legali in footer, retroattività
+Termini/privacy sugli account legacy, provenance/audit di produzione.
 
 ### 33.6 Handoff implementativo
 

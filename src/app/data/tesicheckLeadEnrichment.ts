@@ -16,6 +16,14 @@
  * - an email that already belongs to a Pipeline enriches that Pipeline;
  * - Pipelines touched by this flow always carry `TesiCheck` in `sources`,
  *   system-assigned, never user-selectable;
+ * - the OPTIONAL commercial-communications consent captured at registration is
+ *   written as an EXPLICIT boolean to the identity domain that acquisition
+ *   resolution resolves (`applyStandaloneRegistrationConsent`): a Pipeline →
+ *   `marketing_consents[verifiedEmail]`; an existing Student → the shared
+ *   `Student.marketing_consent` (checked → `true`, unchecked → `false`, no
+ *   inference). It is a separate domain from Terms acceptance and Privacy
+ *   acknowledgement (which live on the account, not here), and it never gates
+ *   account creation, verification, payment or the report;
  * - the enrichment questionnaire (`resolveEnrichmentTarget` +
  *   `PublicProfilePage`) normally updates the already-created Pipeline;
  *   `new_pipeline` there is fallback-only for pre-rule accounts.
@@ -83,6 +91,20 @@ export function resolveEnrichmentTarget(params: {
   return { mode: 'new_pipeline' };
 }
 
+/**
+ * Set an explicit marketing-consent boolean for one contact email on a Pipeline
+ * consent map, preserving every other entry. Writing an explicit `false` is
+ * meaningful — it records "asked, not granted", distinct from a missing key
+ * ("never collected"). Callers must not collapse the two with `map[email] || false`.
+ */
+export function withEmailMarketingConsent(
+  existing: Record<string, boolean> | undefined,
+  email: string,
+  granted: boolean,
+): Record<string, boolean> {
+  return { ...(existing ?? {}), [email.trim()]: granted };
+}
+
 /** Preserve existing acquisition sources, ensure `TesiCheck` appears exactly once. */
 export function withTesiCheckSource(existing: string[] | undefined): string[] {
   const sources = existing ?? [];
@@ -133,6 +155,8 @@ export interface EnsureTesiCheckPipelineResult {
   /** `incomplete_identity` = valid email but no first name — not created. */
   outcome: 'student' | 'enriched' | 'created' | 'unavailable' | 'incomplete_identity';
   pipelineId?: string;
+  /** Set only on `outcome: 'student'` — the resolved existing Student id. */
+  studentId?: string;
 }
 
 /**
@@ -146,6 +170,14 @@ export interface EnsureTesiCheckPipelineResult {
  * - no match, valid email, empty first name → nothing (`incomplete_identity`);
  * - missing / invalid email → nothing.
  *
+ * `commercialConsent` (optional): when a boolean is passed, the resolved
+ * Pipeline gets an EXPLICIT `marketing_consents[email] = value` (`created` or
+ * `enriched` outcomes only). Omitted / `undefined` → the consent map is left
+ * untouched. This function stays **Pipeline-oriented**: on a Student match it
+ * only reports `outcome: 'student'` + `studentId` and writes nothing — the
+ * Student-domain consent write is the caller's job (see
+ * `applyStandaloneRegistrationConsent`).
+ *
  * Safe to call repeatedly: it re-resolves against current CRM data, so a second
  * call for the same identity enriches rather than duplicates.
  */
@@ -156,6 +188,7 @@ export function ensureTesiCheckPipeline(params: {
   pipelines: Pipeline[];
   addPipeline: (pipeline: Pipeline) => void;
   updatePipeline: (id: string, updater: (pipeline: Pipeline) => Pipeline) => void;
+  commercialConsent?: boolean;
 }): EnsureTesiCheckPipelineResult {
   const target = resolveEnrichmentTarget({
     accountEmail: params.accountEmail,
@@ -163,15 +196,31 @@ export function ensureTesiCheckPipeline(params: {
     pipelines: params.pipelines,
   });
 
+  const recordsConsent = typeof params.commercialConsent === 'boolean';
+
   if (target.mode === 'unavailable') return { outcome: 'unavailable' };
-  if (target.mode === 'student') return { outcome: 'student' };
+  if (target.mode === 'student') return { outcome: 'student', studentId: target.studentId };
 
   if (target.mode === 'pipeline') {
     const existing = params.pipelines.find((pipeline) => pipeline.id === target.pipelineId);
-    if (existing && !(existing.sources ?? []).includes(TESICHECK_ACQUISITION_SOURCE)) {
+    const needsSource = !!existing && !(existing.sources ?? []).includes(TESICHECK_ACQUISITION_SOURCE);
+    if (existing && (needsSource || recordsConsent)) {
+      // Key the consent under the Pipeline's own primary email so the Admin
+      // contact rows (keyed on `pipeline.email`) read it back; fall back to the
+      // verified account email if the match was via a secondary address.
+      const consentKey = existing.email || normalizeEmail(params.accountEmail);
       params.updatePipeline(target.pipelineId, (pipeline) => ({
         ...pipeline,
         sources: withTesiCheckSource(pipeline.sources),
+        ...(recordsConsent
+          ? {
+              marketing_consents: withEmailMarketingConsent(
+                pipeline.marketing_consents,
+                consentKey,
+                params.commercialConsent as boolean,
+              ),
+            }
+          : {}),
       }));
     }
     return { outcome: 'enriched', pipelineId: target.pipelineId };
@@ -187,6 +236,73 @@ export function ensureTesiCheckPipeline(params: {
   });
   if (!pipeline) return { outcome: 'incomplete_identity' };
 
-  params.addPipeline(pipeline);
+  const created = recordsConsent
+    ? {
+        ...pipeline,
+        marketing_consents: withEmailMarketingConsent(
+          undefined,
+          pipeline.email ?? (params.accountEmail ?? '').trim(),
+          params.commercialConsent as boolean,
+        ),
+      }
+    : pipeline;
+  params.addPipeline(created);
   return { outcome: 'created', pipelineId: id };
+}
+
+/**
+ * Project a verified standalone registration's identity + optional commercial
+ * choice into whichever domain acquisition resolution resolves — the single
+ * entry point both registration paths (`/public/register`,
+ * `/public/account`) call at `handleConfirmEmail`.
+ *
+ * Ownership boundary:
+ * - identity + Pipeline consent  → `ensureTesiCheckPipeline` (unchanged):
+ *   `created` / `enriched` also write `marketing_consents[verifiedEmail]`;
+ * - existing Student             → NO Pipeline (rule preserved). The explicit
+ *   commercial choice is written here to `Student.marketing_consent` via the
+ *   shared `updateStudent`. The registration UI asked outright, so this is a
+ *   direct boolean (checked → `true`, unchecked → `false`), not an inference —
+ *   tri-state for never-asked legacy Students stays a later concern. Nothing
+ *   else on the Student is touched (no contacts, no services, no Pipeline).
+ *
+ * Terms / Privacy acceptance is NOT handled here — that is account-domain state
+ * (`registerAccount`), independent of acquisition identity.
+ *
+ * `commercialConsent` omitted / `undefined` → neither domain's consent is
+ * written (identity resolution still runs).
+ */
+export function applyStandaloneRegistrationConsent(params: {
+  accountEmail: string | null | undefined;
+  firstName: string | null | undefined;
+  students: Student[];
+  pipelines: Pipeline[];
+  addPipeline: (pipeline: Pipeline) => void;
+  updatePipeline: (id: string, updater: (pipeline: Pipeline) => Pipeline) => void;
+  updateStudent: (id: string, updater: (student: Student) => Student) => void;
+  commercialConsent?: boolean;
+}): EnsureTesiCheckPipelineResult {
+  const result = ensureTesiCheckPipeline({
+    accountEmail: params.accountEmail,
+    firstName: params.firstName,
+    students: params.students,
+    pipelines: params.pipelines,
+    addPipeline: params.addPipeline,
+    updatePipeline: params.updatePipeline,
+    commercialConsent: params.commercialConsent,
+  });
+
+  if (
+    result.outcome === 'student'
+    && result.studentId
+    && typeof params.commercialConsent === 'boolean'
+  ) {
+    const granted = params.commercialConsent;
+    params.updateStudent(result.studentId, (student) => ({
+      ...student,
+      marketing_consent: granted,
+    }));
+  }
+
+  return result;
 }

@@ -31,6 +31,18 @@ export interface TesiCheckAccountSession {
    */
   name?: string;
   emailVerified: boolean;
+  /**
+   * Prototype legal state, MIRRORED from the registered-account registry for
+   * convenient reads (e.g. a future role-specific Account page —
+   * `/public-view/account` / `/student-view/account`, NOT the Profile page and
+   * NOT the `/public/account` checkout gate). The registry (`RegisteredAccount`)
+   * stays the source of truth. Absent on sessions created before this feature —
+   * read absent as "not recorded in this prototype", never as accepted.
+   * Production must replace these booleans with proper versioned + timestamped +
+   * audited acceptance.
+   */
+  termsAccepted?: boolean;
+  privacyAcknowledged?: boolean;
 }
 
 const STORAGE_KEY = 'tesicheck-account-session-v1';
@@ -48,6 +60,21 @@ interface RegisteredAccount {
   firstName: string;
   /** Plaintext — prototype only. Empty for accounts created before this registry. */
   password: string;
+  /**
+   * Prototype legal acceptance captured at standalone registration. This
+   * registry is the persistent source of truth so `logout → login → Account
+   * page` later still knows the account accepted / acknowledged. Terms &
+   * Privacy are ACCOUNT-domain state, not Profile-domain.
+   *
+   * Absent for accounts registered before this feature: interpret absent as
+   * "not recorded in this prototype" — never silently migrate legacy accounts to
+   * accepted. No version, timestamp, IP/device or audit data is modelled here;
+   * production auth / legal storage must add proper version + timestamp + audit
+   * semantics. Commercial-communications consent is deliberately NOT stored here
+   * (it is not account legal acceptance — see `tesicheckLeadEnrichment.ts`).
+   */
+  termsAccepted?: boolean;
+  privacyAcknowledged?: boolean;
 }
 
 function normalizeEmail(email: string): string {
@@ -91,6 +118,8 @@ function isAccountSession(value: unknown): value is TesiCheckAccountSession {
     && typeof session.emailVerified === 'boolean'
     && (session.firstName === undefined || typeof session.firstName === 'string')
     && (session.name === undefined || typeof session.name === 'string')
+    && (session.termsAccepted === undefined || typeof session.termsAccepted === 'boolean')
+    && (session.privacyAcknowledged === undefined || typeof session.privacyAcknowledged === 'boolean')
   );
 }
 
@@ -140,6 +169,10 @@ export function signInAccount(email: string): TesiCheckAccountSession {
     email,
     firstName: known?.firstName,
     emailVerified: true,
+    // Mirror the registry's legal state onto the session (undefined for legacy
+    // accounts — "not recorded", never assumed accepted).
+    termsAccepted: known?.termsAccepted,
+    privacyAcknowledged: known?.privacyAcknowledged,
   });
 }
 
@@ -148,14 +181,34 @@ export function signInAccount(email: string): TesiCheckAccountSession {
  * field) plus email. Email must still be verified before payment is enabled.
  * The account is also written to the prototype registry so it can sign back in
  * after logout; `password` is stored verbatim (prototype only) and may be empty.
+ *
+ * `legal` carries the two REQUIRED registration acknowledgements (Terms &
+ * Conditions acceptance, Privacy notice acknowledgement). New registrations
+ * always pass both as `true` (the form blocks submit otherwise); they are
+ * persisted to the registry and mirrored onto the session. Commercial-
+ * communications consent is NOT passed here — it is not account legal
+ * acceptance and is written to the acquisition Pipeline instead.
  */
-export function registerAccount(firstName: string, email: string, password = ''): TesiCheckAccountSession {
-  upsertRegisteredAccount({ email: email.trim(), firstName, password });
+export function registerAccount(
+  firstName: string,
+  email: string,
+  password = '',
+  legal?: { termsAccepted: boolean; privacyAcknowledged: boolean },
+): TesiCheckAccountSession {
+  upsertRegisteredAccount({
+    email: email.trim(),
+    firstName,
+    password,
+    termsAccepted: legal?.termsAccepted,
+    privacyAcknowledged: legal?.privacyAcknowledged,
+  });
   return saveAccountSession({
     id: DEMO_ACCOUNT_ID,
     email,
     firstName,
     emailVerified: false,
+    termsAccepted: legal?.termsAccepted,
+    privacyAcknowledged: legal?.privacyAcknowledged,
   });
 }
 

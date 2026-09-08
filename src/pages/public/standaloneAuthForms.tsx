@@ -16,6 +16,26 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input
  */
 export type AuthFormMode = 'checkout' | 'direct';
 
+/**
+ * Explicit registration payload. The three consent / legal domains are kept
+ * separate on purpose (canonical §33.5) and never merged into one checkbox:
+ *  - Terms & Conditions acceptance — REQUIRED (service / account acceptance);
+ *  - Privacy notice acknowledgement — REQUIRED (acknowledgement, not consent);
+ *  - commercial communications consent — OPTIONAL, and never gates registration,
+ *    email verification, payment or report access.
+ *
+ * Prototype wording only — final legal copy, versioning and any real policy
+ * links / pages are the client / legal team's responsibility.
+ */
+export interface RegisterSubmitValues {
+  firstName: string;
+  email: string;
+  password: string;
+  termsAccepted: boolean;
+  privacyAcknowledged: boolean;
+  commercialConsent: boolean;
+}
+
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function TextField({
@@ -68,6 +88,40 @@ export function FormError({ message }: { message: string }) {
     <p className="flex items-center gap-2 text-[var(--destructive)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
       <AlertCircle className="h-4 w-4 shrink-0" /> {message}
     </p>
+  );
+}
+
+/**
+ * Neutral checkbox row for a registration consent / acknowledgement. Native
+ * control (keyboard + screen-reader semantics for free); presentation only.
+ */
+function ConsentCheckbox({
+  id,
+  checked,
+  onChange,
+  children,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="flex cursor-pointer items-start gap-3 text-[var(--foreground)]"
+      style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.5 }}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="control-focus-ring mt-[2px] h-4 w-4 shrink-0"
+        style={{ accentColor: 'var(--primary)' }}
+      />
+      <span>{children}</span>
+    </label>
   );
 }
 
@@ -161,7 +215,7 @@ export function RegisterForm({
   onSwitchToLogin,
   mode = 'checkout',
 }: {
-  onSubmit: (firstName: string, email: string, password: string) => void;
+  onSubmit: (values: RegisterSubmitValues) => void;
   onSwitchToLogin: () => void;
   mode?: AuthFormMode;
 }) {
@@ -170,6 +224,10 @@ export function RegisterForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  // Three distinct consent / legal domains — kept separate, never combined.
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [commercialConsent, setCommercialConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {
@@ -190,8 +248,23 @@ export function RegisterForm({
       setError('Le password non coincidono.');
       return;
     }
+    if (!termsAccepted) {
+      setError('Per creare l’account devi accettare i Termini e condizioni.');
+      return;
+    }
+    if (!privacyAcknowledged) {
+      setError('Per creare l’account devi dichiarare di aver preso visione dell’Informativa privacy.');
+      return;
+    }
     setError(null);
-    onSubmit(firstName.trim(), email.trim(), password);
+    onSubmit({
+      firstName: firstName.trim(),
+      email: email.trim(),
+      password,
+      termsAccepted,
+      privacyAcknowledged,
+      commercialConsent,
+    });
   };
 
   return (
@@ -208,6 +281,35 @@ export function RegisterForm({
         <TextField id="register-email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
         <TextField id="register-password" label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" />
         <TextField id="register-confirm-password" label="Conferma password" type="password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
+      </div>
+
+      {/* Required acknowledgements — registration is blocked until both are checked.
+          Legal titles render as plain text: there is no real policy page / URL in
+          the prototype (see docs — final wording, version and links come from
+          client / legal). */}
+      <div className="mt-6 flex flex-col gap-3">
+        <ConsentCheckbox id="register-terms" checked={termsAccepted} onChange={setTermsAccepted}>
+          Accetto i{' '}
+          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Termini e condizioni</span>
+        </ConsentCheckbox>
+        <ConsentCheckbox id="register-privacy" checked={privacyAcknowledged} onChange={setPrivacyAcknowledged}>
+          Dichiaro di aver preso visione dell&apos;
+          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Informativa privacy</span>
+        </ConsentCheckbox>
+      </div>
+
+      {/* Optional, visually decoupled from the required block — never blocks
+          registration, verification, payment or report access. */}
+      <div className="mt-4 border-t border-[var(--border)] pt-4">
+        <ConsentCheckbox id="register-commercial" checked={commercialConsent} onChange={setCommercialConsent}>
+          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Comunicazioni commerciali</span>
+          <span
+            className="mt-1 block text-[var(--muted-foreground)]"
+            style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}
+          >
+            Acconsento a ricevere comunicazioni commerciali da Sottotesi. Facoltativo, puoi cambiare idea in qualsiasi momento.
+          </span>
+        </ConsentCheckbox>
       </div>
 
       {error && <div className="mt-4"><FormError message={error} /></div>}

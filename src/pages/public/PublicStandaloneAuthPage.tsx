@@ -9,8 +9,8 @@ import {
   signInAccount,
 } from '@/app/data/tesicheckAccountSession';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
-import { ensureTesiCheckPipeline } from '@/app/data/tesicheckLeadEnrichment';
-import { LoginForm, RegisterForm, VerifyEmailForm } from './standaloneAuthForms';
+import { applyStandaloneRegistrationConsent } from '@/app/data/tesicheckLeadEnrichment';
+import { LoginForm, RegisterForm, VerifyEmailForm, type RegisterSubmitValues } from './standaloneAuthForms';
 
 type AuthStep = 'login' | 'register' | 'verify';
 
@@ -27,10 +27,15 @@ type AuthStep = 'login' | 'register' | 'verify';
  */
 export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' }) {
   const navigate = useNavigate();
-  const { pipelines, students, addPipeline, updatePipeline } = useLavorazioni();
+  const { pipelines, students, addPipeline, updatePipeline, updateStudent } = useLavorazioni();
   const [step, setStep] = useState<AuthStep>(mode);
   const [pendingEmail, setPendingEmail] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
+  // Optional commercial-communications choice, carried in component state from
+  // the register form until it is written to the Pipeline after verification.
+  // Reload during OTP entry loses the whole verify context (not just this); the
+  // production flow owns real transport.
+  const [pendingCommercialConsent, setPendingCommercialConsent] = useState(false);
 
   // A visitor who already has a session doesn't need this surface — send them to
   // the workspace. Runs once, before any local registration sets a session.
@@ -62,9 +67,13 @@ export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' 
     navigate('/public-view', { replace: true });
   };
 
-  const handleRegister = (firstName: string, email: string, password: string) => {
-    registerAccount(firstName, email, password);
-    setPendingEmail(email);
+  const handleRegister = (values: RegisterSubmitValues) => {
+    registerAccount(values.firstName, values.email, values.password, {
+      termsAccepted: values.termsAccepted,
+      privacyAcknowledged: values.privacyAcknowledged,
+    });
+    setPendingCommercialConsent(values.commercialConsent);
+    setPendingEmail(values.email);
     setStep('verify');
   };
 
@@ -73,14 +82,19 @@ export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' 
     if (verified) {
       // A verified new standalone registration projects into the CRM immediately
       // — same canonical acquisition rule as the in-checkout gate. Idempotent +
-      // Student-safe (see `ensureTesiCheckPipeline`).
-      ensureTesiCheckPipeline({
+      // Student-safe. The optional commercial choice is written to whichever
+      // identity domain resolution resolves: Pipeline
+      // `marketing_consents[email]`, or (existing Student, no Pipeline)
+      // `Student.marketing_consent`.
+      applyStandaloneRegistrationConsent({
         accountEmail: verified.email,
         firstName: verified.firstName,
         students,
         pipelines,
         addPipeline,
         updatePipeline,
+        updateStudent,
+        commercialConsent: pendingCommercialConsent,
       });
     }
     navigate('/public-view', { replace: true });

@@ -7,7 +7,7 @@ import {
   setPrecheckFlowStage,
   type PrecheckFlowStage,
 } from '@/app/data/tesicheckPrecheckSession';
-import { LoginForm, RegisterForm, VerifyEmailForm } from './standaloneAuthForms';
+import { LoginForm, RegisterForm, VerifyEmailForm, type RegisterSubmitValues } from './standaloneAuthForms';
 import {
   confirmAccountEmail,
   getAccountSession,
@@ -19,7 +19,7 @@ import {
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { SottocheckCheckoutSummary } from '@/app/components/SottocheckCheckoutSummary';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
-import { ensureTesiCheckPipeline } from '@/app/data/tesicheckLeadEnrichment';
+import { applyStandaloneRegistrationConsent } from '@/app/data/tesicheckLeadEnrichment';
 import { createPersistentCheckFromPaidPrecheck, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
 
@@ -39,12 +39,16 @@ function isReportFailDemo() {
 
 export function PublicAccountGatePage() {
   const navigate = useNavigate();
-  const { pipelines, students, addPipeline, updatePipeline } = useLavorazioni();
+  const { pipelines, students, addPipeline, updatePipeline, updateStudent } = useLavorazioni();
   const [precheckSession, setPrecheckSession] = useState(() => getPrecheckSession());
   const [account, setAccount] = useState<TesiCheckAccountSession | null>(() => getAccountSession());
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
   const [completedCheck, setCompletedCheck] = useState<PersistentTesiCheck | null>(null);
+  // Optional commercial-communications choice from the in-checkout register form,
+  // carried in component state until it is written to the Pipeline after email
+  // verification. Not persisted — a reload during OTP loses the verify context.
+  const [pendingCommercialConsent, setPendingCommercialConsent] = useState(false);
   const [isCompletingPayment, setIsCompletingPayment] = useState(() => getPrecheckSession()?.flowStage === 'payment_success');
   const [completionError, setCompletionError] = useState(false);
 
@@ -151,8 +155,15 @@ export function PublicAccountGatePage() {
     advanceAfterAuth(signInAccount(email), 'checkout_payment');
   };
 
-  const handleRegister = (firstName: string, email: string, password: string) => {
-    advanceAfterAuth(registerAccount(firstName, email, password), 'checkout_verify_email');
+  const handleRegister = (values: RegisterSubmitValues) => {
+    setPendingCommercialConsent(values.commercialConsent);
+    advanceAfterAuth(
+      registerAccount(values.firstName, values.email, values.password, {
+        termsAccepted: values.termsAccepted,
+        privacyAcknowledged: values.privacyAcknowledged,
+      }),
+      'checkout_verify_email',
+    );
   };
 
   const handleConfirmEmail = () => {
@@ -161,14 +172,19 @@ export function PublicAccountGatePage() {
       setAccount(verifiedAccount);
       // A verified new standalone registration must project into the CRM
       // immediately — independently of payment or the later enrichment form.
-      // Idempotent + Student-safe (see `ensureTesiCheckPipeline`).
-      ensureTesiCheckPipeline({
+      // Idempotent + Student-safe. The optional commercial choice is written to
+      // whichever identity domain resolution resolves: Pipeline
+      // `marketing_consents[email]`, or (existing Student, no Pipeline)
+      // `Student.marketing_consent`.
+      applyStandaloneRegistrationConsent({
         accountEmail: verifiedAccount.email,
         firstName: verifiedAccount.firstName,
         students,
         pipelines,
         addPipeline,
         updatePipeline,
+        updateStudent,
+        commercialConsent: pendingCommercialConsent,
       });
     }
     updateCheckoutStage('checkout_payment');
