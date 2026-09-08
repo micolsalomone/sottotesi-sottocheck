@@ -16,6 +16,7 @@ import {
   SelectField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
+import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 
 // Same option vocabulary as the Admin academic forms (CreatePipelineDrawer /
 // PipelineDetailDrawer), kept local because those lists are not exported.
@@ -285,6 +286,10 @@ export function PublicProfilePage() {
           <SottocheckActionButton type="submit">Salva informazioni</SottocheckActionButton>
         </div>
       </form>
+
+      <div className="mt-6">
+        <CrossSurfaceLink to="/public-view/account" label="Gestisci account e privacy" />
+      </div>
     </PageShell>
   );
 }

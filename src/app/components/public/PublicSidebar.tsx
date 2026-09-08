@@ -23,11 +23,6 @@ const navItems: NavItem[] = [
     icon: <History size={20} />,
     path: '/public-view/history',
   },
-  {
-    label: 'Profilo',
-    icon: <User size={20} />,
-    path: '/public-view/profilo',
-  },
 ];
 
 interface PublicSidebarProps {
@@ -86,6 +81,20 @@ export function PublicSidebar({ collapsed, onToggleCollapse }: PublicSidebarProp
               );
             })}
           </nav>
+
+          {/* Account-oriented link — bottom slot, separated from main nav
+              (same pattern as StudentSidebar / the Admin sidebar settings section).
+              Account itself is reached from the top-right menu / Profile, not the sidebar. */}
+          <div style={{ borderTop: '1px solid var(--border)', padding: '8px', flexShrink: 0 }}>
+            <Link
+              to="/public-view/profilo"
+              className={`sidebar-item ${isActive('/public-view/profilo') ? 'active' : ''} ${collapsed ? 'collapsed' : ''}`}
+              title={collapsed ? 'Profilo' : undefined}
+            >
+              <span className="sidebar-item-icon"><User size={20} /></span>
+              {!collapsed && <span className="sidebar-item-label">Profilo</span>}
+            </Link>
+          </div>
         </div>
       </aside>
     </>

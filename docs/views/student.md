@@ -103,9 +103,37 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   moderazione. L'implementazione di produzione dovrebbe conservare informazioni
   di provenienza/audit adeguate per le modifiche self-service (chi ha cambiato
   il record). Non modellato qui.
-- Fuori scope in questo slice: Privacy/T&C, consenso marketing, gestione
-  contatti multipli, eliminazione del record accademico corrente, cambio del
-  record corrente, auth Student.
+- Fuori scope in questo slice: consenso marketing (futuro Slice C, nel Profilo),
+  gestione contatti multipli, eliminazione del record accademico corrente, cambio
+  del record corrente, auth Student.
+- Il Profilo espone in fondo un link secondario `Gestisci account e privacy` →
+  `/student-view/account`. Nella sidebar `Profilo` è nello slot secondario in
+  basso (stesso pattern di Admin).
+
+## Account (`/student-view/account`)
+
+- Superficie **distinta** dal Profilo: Profilo = dati personali/accademici;
+  Account = accesso e stato legale. Non duplicare i campi del Profilo.
+- Dominio: stesso `Student` strutturato del Profilo
+  (`STUDENT_VIEW_STUDENT_RECORD_ID`). **Mai** il registry / la sessione
+  dell'account standalone TesiCheck: lo Student non usa credenziali standalone.
+- Sezione `Accesso`: email primaria (dal contact model strutturato, read-only).
+  Nel prototipo non esiste un flusso password per lo Student → riga informativa
+  neutra (`Gestione password non disponibile da questa area`), nessun link al
+  recupero password standalone.
+- Sezione `Termini e privacy`: lo Student **non ha** uno stato di accettazione
+  Termini/Privacy nel modello. Righe neutre `Stato non disponibile` + nota
+  `Lo stato delle accettazioni non è disponibile per questo account.` Non
+  fabbricare date, versioni o accettazioni. Non aggiungere campi Termini/Privacy
+  a `Student` per il prototipo. La produzione deve fornire lo stato legale/account
+  reale dello Student.
+- Cross-link: `Vai al profilo personale` → `/student-view/profilo`.
+- Raggiungibile dal menu utente in alto a destra (`Informazioni Account`) e dal
+  cross-link del Profilo; **non** dalla sidebar.
+- Leaf presentazionali condivise con l'Account standalone in
+  `src/app/components/account/AccountPrimitives.tsx` (`AccountInfoRow`,
+  `LegalStatusRow`, `CrossSurfaceLink`) — sola presentazione; risoluzione dati di
+  ruolo, semantica auth e ownership dello stato legale restano nella pagina.
 
 ## Navigazione
 

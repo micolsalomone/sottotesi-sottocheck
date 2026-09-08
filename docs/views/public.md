@@ -29,10 +29,22 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
 
 ## Navigazione
 
-- Dashboard sintetica
-- Sottocheck
-- Storico
-- Profilo
+- Sidebar — nav principale: Dashboard sintetica, Sottocheck (TesiCheck), Storico.
+- Sidebar — slot secondario in basso (separato, stesso pattern di Student/Admin):
+  `Profilo`. `Account` **non** è nella sidebar.
+- `Profilo` (`/public-view/profilo`) e `Account` (`/public-view/account`) sono
+  superfici distinte: Profilo = dati personali + arricchimento Pipeline; Account
+  = accesso (email, recupero password) + stato Termini/Privacy in sola lettura.
+  Si collegano con cross-link reciproci (`Gestisci account e privacy` /
+  `Vai al profilo personale`); nessun contenuto duplicato.
+- `Account` è raggiungibile dal menu utente in alto a destra
+  (`Informazioni Account`) e dal cross-link del Profilo.
+- `/public/account` resta il gate account del checkout a pagamento: mai riusato
+  come pagina Account autenticata.
+- Stato legale Account: letto dalla persistenza prototipo Slice A (registry
+  `RegisteredAccount` + mirror sessione); assente (account legacy) →
+  `Stato non registrato nel prototipo`, mai interpretato come accettato. Nessuna
+  data/versione/URL/testo legale inventati.
 
 ## Dashboard marketing
 

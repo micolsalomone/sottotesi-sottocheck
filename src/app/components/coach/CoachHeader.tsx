@@ -26,9 +26,13 @@ export function CoachHeader({ sidebarCollapsed }: CoachHeaderProps) {
       <div className="admin-header-right">
         <div className="admin-user">
           <span className="admin-username">coach</span>
+          {/* Coach has no dedicated Account page yet — "Informazioni Account"
+              interim-points at the Coach Profile route. Inconsistent with
+              Public/Student (which now have real /…/account pages); resolve in
+              the future Coach Profile/Account workstream. */}
           <UserTopbarMenu
             displayName="Teresa P."
-            profilePath="/coach-view/profilo"
+            accountPath="/coach-view/profilo"
             logoutPath="/"
           />
         </div>

@@ -46,10 +46,12 @@ import { PublicStandaloneAuthPage } from '@/pages/public/PublicStandaloneAuthPag
 import { PublicPasswordRecoveryPage } from '@/pages/public/PublicPasswordRecoveryPage';
 import { PublicReportPage } from '@/pages/public/PublicReportPage';
 import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
+import { PublicAccountPage } from '@/pages/public/PublicAccountPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
+import { AccountPage as StudentAccountPage } from '@/pages/student/AccountPage';
 import { StudentPaidSottocheckPage } from '@/pages/student/StudentPaidSottocheckPage';
 import { StudentReportPage } from '@/pages/student/StudentReportPage';
 import { PublicPaidSottocheckPage } from '@/pages/public/PublicPaidSottocheckPage';
@@ -170,6 +172,7 @@ export const router = createBrowserRouter([
       { path: 'history', element: <StudentHistoryPage context="student" /> },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: StudentProfilePage },
+      { path: 'account', Component: StudentAccountPage },
       { path: '*', Component: NotFoundPage },
     ],
   },
@@ -184,6 +187,7 @@ export const router = createBrowserRouter([
       { path: 'output-preview', Component: PublicOutputPreviewPage },
       { path: 'history', element: <StudentHistoryPage context="standalone" /> },
       { path: 'profilo', Component: PublicProfilePage },
+      { path: 'account', Component: PublicAccountPage },
       { path: '*', Component: NotFoundPage },
     ],
   },

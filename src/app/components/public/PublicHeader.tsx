@@ -44,7 +44,7 @@ export function PublicHeader({ sidebarCollapsed }: PublicHeaderProps) {
           <span className="admin-username">{session?.email ?? 'Utente TesiCheck'}</span>
           <UserTopbarMenu
             displayName={accountLabel}
-            profilePath="/public-view/profilo"
+            accountPath="/public-view/account"
             onLogout={handleLogout}
           />
         </div>

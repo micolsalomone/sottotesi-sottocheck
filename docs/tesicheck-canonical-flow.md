@@ -1645,6 +1645,10 @@ Nei contesti coaching:
 - Se la registrazione standalone risolve a uno Student esistente non si crea né aggiorna una Pipeline; la scelta esplicita (checked → `true`, unchecked → `false`) aggiorna solo `Student.marketing_consent` via `updateStudent`, senza toccare contatti/servizi/altri campi. Il tri-state resta un problema aperto solo per gli Student legacy mai interpellati (§33.5).
 - I booleani `termsAccepted` / `privacyAcknowledged` sul registered-account registry sono persistenza di prototipo: assente = non registrato, mai accettato; nessuna retroattività sugli account legacy; la produzione richiede versione + timestamp + audit (§33.5).
 - Wording legale finale, versioni e URL delle policy sono responsabilità di cliente/legale; il prototipo non inventa versioni, link o testo legale (§33.5).
+- Profilo e Account sono superfici distinte con route separate: `/public-view/profilo` + `/public-view/account`, `/student-view/profilo` + `/student-view/account`. `/public/account` resta esclusivamente il gate account del checkout (§33.5).
+- Termini e Informativa privacy vivono sulla pagina Account (sola lettura); il consenso commerciale vive sul Profilo (Slice C). Nessuna duplicazione di contenuti tra Profilo e Account (§33.5).
+- La pagina Account standalone legge lo stato Termini/Privacy dalla persistenza prototipo Slice A (registry → mirror sessione); assente = `Stato non registrato nel prototipo`, mai accettato per default. Lo Student non ha stato legale nel prototipo → righe neutre, niente date/versioni/accettazioni fabbricate (§33.5).
+- Nel sidebar `Profilo` è nello slot secondario in basso per standalone autenticato e Student (come Admin); Account non è nel sidebar, si raggiunge dal menu utente in alto a destra (`Informazioni Account` → `accountPath`) e dal cross-link del Profilo (§33.5).
 
 ---
 
@@ -1860,19 +1864,37 @@ Persistenza prototipo:
 - `/public/account` resta il **gate account del checkout a pagamento**: non va
   mai riusato come pagina Account/impostazioni autenticata.
 
-Termini e Privacy **non** vanno pianificati come righe dentro il Profilo: sono
-stato di dominio Account. Slice A già lo rispetta (Termini/Privacy sul registry
-account, consenso commerciale su Pipeline/Student).
+Termini e Privacy **non** vanno come righe dentro il Profilo: sono stato di
+dominio Account. Slice A lo rispetta (Termini/Privacy sul registry account,
+consenso commerciale su Pipeline/Student).
 
-Sequenza dopo Slice A: **B** = pagine Account reali + IA di navigazione (voce
-menu `Informazioni account` → `…/account`, `Profilo` nello slot secondario in
-basso anche per lo standalone autenticato, cross-link Profilo ↔ Account); **C** =
-controlli consenso commerciale nel Profilo; **D** = visibilità consenso in Admin.
+**Slice B — implementato.** Pagine Account reali per ruolo:
+`/public-view/account` e `/student-view/account`, superfici distinte dai Profili.
 
-Fuori da questo slice: pagine Account, `Privacy e consensi` nei Profili,
-tri-state di `Student.marketing_consent` per gli Student legacy mai interpellati,
-visibilità Admin, policy page, link legali in footer, retroattività
-Termini/privacy sugli account legacy, provenance/audit di produzione.
+- Standalone (`PublicAccountPage`): sezione `Accesso` (email read-only, entry al
+  recupero password prototipo con `?returnTo=/public-view/account`) + sezione
+  `Termini e privacy` in **sola lettura** dallo stato Slice A (registry
+  `RegisteredAccount` → mirror sessione); registrato → `Accettati` /
+  `Presa visione registrata`, assente → `Stato non registrato nel prototipo`.
+  Nessun toggle, nessuna data/versione/URL inventata.
+- Student (`student/AccountPage`): stesso `Student` strutturato del Profilo per
+  l'email; nessun flusso password e nessun modello legale Student nel prototipo →
+  righe neutre (UI: `Stato non disponibile`), niente fabbricato, nessun campo
+  aggiunto a `Student`. Il modello legale/account Student non è modellato: lo deve
+  fornire la produzione.
+- IA: `UserTopbarMenu` prop `profilePath` → `accountPath`; `Informazioni Account`
+  porta a `…/account` per Public/Student (Admin invariato, Coach interim al
+  proprio Profilo, documentato). `PublicSidebar` sposta `Profilo` nello slot
+  secondario in basso (come Student/Admin); Account non è nel sidebar. Cross-link
+  reciproci Profilo ↔ Account. `/public/account` resta il gate del checkout.
+
+Sequenza rimanente: **C** = controllo consenso commerciale nel Profilo (solo
+dominio 3); **D** = visibilità consenso in Admin.
+
+Fuori da Slice B: `Comunicazioni commerciali` nei Profili (Slice C), tri-state di
+`Student.marketing_consent` per gli Student legacy mai interpellati, visibilità
+Admin, policy page, link legali in footer, retroattività Termini/privacy sugli
+account legacy, provenance/audit di produzione, Coach Account/Profilo.
 
 ### 33.6 Handoff implementativo
 

@@ -28,7 +28,7 @@ export function AdminHeader({ sidebarCollapsed }: AdminHeaderProps) {
           <span className="admin-username">admin</span>
           <UserTopbarMenu
             displayName="Francesca"
-            profilePath="/impostazioni/account"
+            accountPath="/impostazioni/account"
             logoutPath="/"
           />
         </div>

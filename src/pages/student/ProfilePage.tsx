@@ -10,6 +10,7 @@ import {
   SelectField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
+import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 
 // Client-approved academic vocabulary. Underlying fields keep their legacy names
 // (`thesis_type` / `thesis_professor` / `thesis_subject` / `thesis_topic`).
@@ -457,12 +458,18 @@ export function ProfilePage() {
           </div>
         </FormSection>
 
-        {/* Future section: "Privacy e consensi" — not implemented in this slice. */}
+        {/* Slice C will add a commercial-communications consent control here.
+            Terms & Privacy status live on the Account page (/student-view/account),
+            not in Profile. */}
 
         <div>
           <SottocheckActionButton type="submit">Salva</SottocheckActionButton>
         </div>
       </form>
+
+      <div className="mt-6">
+        <CrossSurfaceLink to="/student-view/account" label="Gestisci account e privacy" />
+      </div>
     </PageShell>
   );
 }

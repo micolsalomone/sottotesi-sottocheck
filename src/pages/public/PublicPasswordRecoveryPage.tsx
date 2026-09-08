@@ -14,13 +14,14 @@ import { EMAIL_PATTERN, FormError, TextField } from './standaloneAuthForms';
  *   - `mode="recovery"` → `/public/password-recovery`: request → "check your email"
  *   - `mode="reset"`    → `/public/reset-password`:    new password → "updated"
  *
- * Origin is preserved with a `returnTo` query param so `Torna ad accedere`
- * returns to the surface the user came from (`/public/account` keeps its
- * in-progress pre-check session; `/public/login` otherwise). No auth state is
- * introduced.
+ * Origin is preserved with a `returnTo` query param so the back action returns
+ * to the surface the user came from (`/public/account` keeps its in-progress
+ * pre-check session; `/public-view/account` is the authenticated standalone
+ * Account page; `/public/login` otherwise). No auth state is introduced; the
+ * whitelist stays closed — no arbitrary paths.
  */
 
-const ALLOWED_RETURN_TO = ['/public/login', '/public/account'] as const;
+const ALLOWED_RETURN_TO = ['/public/login', '/public/account', '/public-view/account'] as const;
 type ReturnTo = (typeof ALLOWED_RETURN_TO)[number];
 
 function resolveReturnTo(raw: string | null): ReturnTo {
@@ -41,7 +42,12 @@ export function PublicPasswordRecoveryPage({ mode }: { mode: 'recovery' | 'reset
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = resolveReturnTo(searchParams.get('returnTo'));
-  const returnToLabel = returnTo === '/public/account' ? "Torna al checkout" : 'Torna ad accedere';
+  const returnToLabel =
+    returnTo === '/public/account'
+      ? 'Torna al checkout'
+      : returnTo === '/public-view/account'
+        ? 'Torna all’account'
+        : 'Torna ad accedere';
 
   return (
     <main className="min-h-screen bg-[var(--background)] px-[20px] py-[40px] text-[var(--foreground)] md:px-[40px] md:py-[56px]">

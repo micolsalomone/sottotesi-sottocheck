@@ -296,25 +296,25 @@ checkbox:
   (choice included) — acceptable prototype limitation; production owns real
   transport.
 
-### 9.3 Still open — sequenced
+### 9.3 Sequenced slices
 
-See §11 for the Profile vs Account IA that shapes the remaining slices.
+See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
 
-**Slice B — real Account pages + navigation IA** (do not start until Slice A is
-reviewed / committed and explicitly requested):
+**Slice B — real Account pages + navigation IA — DONE (see §12).**
 
-- New `/public-view/account` and `/student-view/account` pages (role-specific;
-  `/public/account` is the checkout gate and must NOT be reused).
-- Account page renders Terms & Privacy **status** (from the registry /
-  `TesiCheckAccountSession` mirror), account email, password-recovery entry
-  point. Student has no legal-acceptance model yet → neutral
-  `Stato non registrato nel prototipo`, no fabricated date / version.
-- Top-right user menu `Informazioni account` → the role's `…/account` page (today
-  it points at Profile — wrong; see §11).
-- Sidebar: move standalone `Profilo` to the same secondary bottom slot Student
-  already uses.
+- `/public-view/account` (`PublicAccountPage`) + `/student-view/account`
+  (`student/AccountPage`), role-specific; `/public/account` untouched (checkout
+  gate).
+- Account pages show account email, password entry, Terms/Privacy **status**
+  (read-only). Standalone reads Slice A persistence (registry → session mirror);
+  absent → `Stato non registrato nel prototipo`. Student has no legal model →
+  both rows render `Stato non disponibile`, nothing fabricated.
+- `UserTopbarMenu` prop `profilePath` → `accountPath`; Public/Student point at
+  `…/account`, Admin unchanged, Coach interim-points at its Profile (documented).
+- `PublicSidebar` `Profilo` moved to the secondary bottom slot (matches
+  Student/Admin).
 - Profile ↔ Account cross-links (`Gestisci account e privacy` /
-  `Vai al profilo personale`), no content duplication.
+  `Vai al profilo personale`); `returnTo` whitelist gains `/public-view/account`.
 
 **Slice C — commercial-consent controls in Profile:**
 
@@ -351,22 +351,45 @@ them apart.
 | Surface | Owns |
 | --- | --- |
 | **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** |
-| **Account** (`/public-view/account`, `/student-view/account` — future) | account email, password / recovery entry points, **Terms acceptance status**, **Privacy acknowledgement status**, future account-management actions |
+| **Account** (`/public-view/account`, `/student-view/account`) | account email, password / recovery entry points, **Terms acceptance status**, **Privacy acknowledgement status**, future account-management actions |
 
 Rules:
 
 - `/public/account` is the **paid-checkout account gate** — never reused as the
   authenticated Account/settings page.
 - Sidebar: `Profilo` sits in the **secondary bottom** area for BOTH authenticated
-  standalone and Student (Student already does; standalone still has it in main
-  nav — to be aligned in Slice B).
-- Top-right user menu `Informazioni account` → the role's real `…/account` page,
-  **never** Profile.
+  standalone and Student (done in Slice B). Account is **not** in the sidebar.
+- Top-right user menu `Informazioni Account` → the role's real `…/account` page,
+  **never** Profile (`accountPath` prop).
 - Profile ↔ Account cross-link each other (`Gestisci account e privacy` →
   Account; `Vai al profilo personale` → Profile); no duplicated content.
-- Student has no legal-acceptance model — the Account page shows only what the
-  model supports, else `Stato non registrato nel prototipo`. No fabricated
-  dates / versions / acceptance. Production legal/account semantics are backend.
+- The Account page shows only what the model supports; no fabricated dates /
+  versions / acceptance. Standalone: a legacy account with no recorded state
+  renders `Stato non registrato nel prototipo`. Student has no legal-acceptance
+  model at all → both rows render `Stato non disponibile`. Production
+  legal/account semantics are backend.
+
+## 12. Slice B — Account pages + navigation IA (implementation)
+
+| File | Change |
+| --- | --- |
+| `src/app/components/account/AccountPrimitives.tsx` | **New.** Presentation-only leaves shared by both Account pages: `AccountInfoRow`, `LegalStatusRow` (label + neutral status + optional `recorded` check), `CrossSurfaceLink`. No role data / auth / legal ownership. |
+| `src/pages/public/PublicAccountPage.tsx` | **New.** `/public-view/account`. Sections `Accesso` (email read-only; `Gestisci password` → `/public/password-recovery?returnTo=/public-view/account`) and `Termini e privacy` (read-only status from `findRegisteredAccount(session.email)` ?? session mirror; `true` → `Accettati` / `Presa visione registrata` + check, else `Stato non registrato nel prototipo`; note `Informazioni di sola lettura. Testo, versione e link saranno definiti dal team legale.`). Cross-link → `/public-view/profilo`. Local `PageShell`/`NeutralCard` (same pattern as the Profile page). No editable legal toggles, no invented dates/versions/URLs. |
+| `src/pages/student/AccountPage.tsx` | **New.** `/student-view/account`. Resolves the structured `Student` (`STUDENT_VIEW_STUDENT_RECORD_ID`) — same source as the Student Profile; **never** the standalone account registry/session. `Accesso`: structured primary email (read-only) + neutral password row `Gestione password non disponibile da questa area` (no recovery link). `Termini e privacy`: both rows `Stato non disponibile` + note `Lo stato delle accettazioni non è disponibile per questo account.` (no Student legal model; nothing fabricated; no fields added to `Student`; production must supply real state). Cross-link → `/student-view/profilo`. |
+| `src/app/components/UserTopbarMenu.tsx` | Prop `profilePath` → **`accountPath`**; handler `handleGoToProfile` → `handleGoToAccount`. Label unchanged ("Informazioni Account"). |
+| `src/app/components/public/PublicHeader.tsx` | `accountPath="/public-view/account"`. |
+| `src/app/components/student/StudentHeader.tsx` | `accountPath="/student-view/account"`. |
+| `src/app/components/AdminHeader.tsx` | `accountPath="/impostazioni/account"` (unchanged target). |
+| `src/app/components/coach/CoachHeader.tsx` | `accountPath="/coach-view/profilo"` — **preserved** (no Coach Account page); comment flags the inconsistency for the future Coach workstream. Coach Account is NOT created. |
+| `src/app/components/public/PublicSidebar.tsx` | `Profilo` removed from `navItems`, rendered in a `borderTop` bottom slot (mirrors `StudentSidebar`). Collapsed/active behaviour preserved. Account not added to the sidebar. |
+| `src/pages/public/PublicProfilePage.tsx` | After the form: `CrossSurfaceLink` → `/public-view/account` ("Gestisci account e privacy"). |
+| `src/pages/student/ProfilePage.tsx` | Same cross-link → `/student-view/account`; the stale "Privacy e consensi" placeholder comment corrected (Slice C adds a commercial-consent control only; Terms/Privacy live on Account). |
+| `src/pages/public/PublicPasswordRecoveryPage.tsx` | `ALLOWED_RETURN_TO` gains `/public-view/account` (whitelist stays closed); new back-label "Torna all'account". `/public/login` + `/public/account` behaviour unchanged. |
+| `src/app/routes.tsx` | `+ { path: 'account', Component: PublicAccountPage }` under `/public-view`; `+ { path: 'account', Component: StudentAccountPage }` under `/student-view`. `/public/account` row untouched. |
+
+Not in Slice B: any commercial-consent control in Profile (Slice C), `Student`
+tri-state, Admin visibility (Slice D), policy pages, footer legal links,
+production password/auth, Coach Account/Profile.
 
 ## 10. Verification performed
 
