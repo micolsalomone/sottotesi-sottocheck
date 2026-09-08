@@ -128,7 +128,7 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/student-view/report/:checkId` | Student | StudentLayout | Report TesiCheck autenticato |
 | `/student-view/history` | Student | StudentLayout | Cronologia vista student |
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
-| `/student-view/profilo` | Student | StudentLayout | Profilo student |
+| `/student-view/profilo` | Student | StudentLayout | Profilo student. Legge/scrive il `Student` strutturato del dominio (`LavorazioniContext`) risolto tramite bridge prototipale `STUDENT_VIEW_STUDENT_RECORD_ID` (`STU-052`), distinto dall'identità piatta `S-052` usata da header/dashboard/timeline. Nessuna logica Pipeline/CRM. Vedi `docs/views/student.md` |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
 | `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck. `PublicLayout` ha un guard prototipale: senza sessione account standalone (`getAccountSession()`) reindirizza a `/public`. Non tocca Student/Coach/Admin |
 | `/public-view/sottocheck` | Public | PublicLayout | TesiCheck self-service a pagamento per l'utente standalone autenticato (`PublicPaidSottocheckPage`): upload → titolo → conteggio/prezzo mock → un'unica CTA pagamento → gateway → check persistente `owner.context='standalone'` → `/public-view/report/:checkId`. Nessuno step account (sessione già presente). Sostituisce la vecchia pagina mock |

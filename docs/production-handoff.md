@@ -58,8 +58,69 @@ Le route profile/account che mostrano `Pagina in costruzione` sono incomplete ne
 
 - Admin account/info.
 - Coach profile.
-- Student profile.
-- Authenticated `public-view` quando riusa la Student profile.
+
+## Student Profile — comportamento prototipale implementato
+
+`/student-view/profilo` non è più un placeholder. Comportamento prototipale di
+riferimento:
+
+- **Bridge di identità (prototipo).** La vista Student usa l'identità piatta
+  `S-052` (`STUDENTS_DATA`) per header/dashboard/timeline; il Profilo risolve il
+  record `Student` strutturato `STU-052` (`STUDENT_VIEW_STUDENT_RECORD_ID` in
+  `src/app/utils/studentView.ts`) da `useLavorazioni().students`. È uno shim
+  esplicito di prototipo: il mapping identità reale (account ↔ Student) resta
+  responsabilità di backend/applicazione di produzione. Il seed `STU-052`
+  riporta solo valori grounded già presenti nel mock piatto; i campi non
+  mappabili restano vuoti.
+- **Dominio scritto.** Il Profilo legge/scrive **solo** il dominio Student
+  (`updateStudent`) — anagrafica (`first_name` / `last_name` → `name`
+  ricalcolato), telefono primario (solo gap-fill), e i record in
+  `Student.academic_records[]`. Nessuna Pipeline, nessun lead CRM, nessuna
+  sessione account standalone, nessun `resolveEnrichmentTarget`.
+- **Record accademici = stessa source of truth di Admin.** Student e Admin
+  leggono/scrivono lo stesso `Student.academic_records[]`. Le modifiche dello
+  Student sono visibili in Admin nella stessa sessione SPA — voluto. Lo Student
+  può correggere il contenuto del record attuale e dei precedenti e aggiungere
+  un percorso precedente (`is_current = false`, convenzioni id/date del drawer
+  Admin). Non può cambiare quale record è corrente né toccare binding operativi
+  (`student_id`, id record, `StudentService.academic_record_id`, associazioni a
+  servizi).
+- **Rimozione percorsi precedenti.** Draft locale non salvato → `Rimuovi`
+  immediato (solo stato form). Record persistito `is_current === false` **non**
+  referenziato da alcun `StudentService.academic_record_id` → `Elimina percorso`
+  con conferma inline, poi rimosso da `Student.academic_records` via
+  `updateStudent`. Record referenziato da un `StudentService` → eliminazione
+  nascosta + copy esplicativa; il servizio non viene mai modificato. Il record
+  `is_current` non è mai eliminabile.
+- **Aggiornamenti conservativi sul contenuto.** Non è un questionario di
+  enrichment: le correzioni sovrascrivono il valore precedente sullo stesso
+  record. La semantica gap-fill-only resta per i futuri flussi post-pagamento,
+  non per l'editing del Profilo.
+- **Limitazione di provenienza/audit lasciata alla produzione.** Le modifiche
+  self-service scrivono direttamente sui record Student senza coda di
+  moderazione né versioning. `updated_at` del record viene aggiornato solo se il
+  contenuto cambia (convenzione già presente nel drawer Admin); `Student.updated_by`
+  **non** viene impostato (il drawer Admin non definisce un valore self-service e
+  qui non se ne inventa uno). La produzione deve conservare informazioni di
+  provenienza/audit adeguate (chi ha modificato il record).
+- **Fuori scope:** sezione `Privacy e consensi` (spazio previsto, non
+  implementata), consenso marketing, gestione contatti multipli, eliminazione
+  del record accademico corrente, cambio del record corrente, auth Student.
+- Presentational primitives condivise con il Public profile in
+  `src/app/components/profile/ProfileFormPrimitives.tsx` (`FormSection`,
+  `TextField`, `SelectField`, `ReadOnlyField`) — solo presentazione, nessuna
+  logica di dominio.
+
+### Ancora incompleto / divergenza nota
+
+- Authenticated `public-view` profilo (`PublicProfilePage`) resta un flusso di
+  acquisizione/enrichment Pipeline, distinto dal Profilo Student.
+- `CreateStudentDrawer` (edit-mode Admin) usa ancora le etichette accademiche
+  vecchie (`Tipo tesi` → `Tipologia`, `Relatore tesi` → `Professore`, `Materia
+  di tesi` → `Materia`, `Oggetto tesi` → `Argomento`) e non offre l'opzione
+  `Esame`. Allineamento previsto come piccolo follow-up dopo la verifica del
+  Profilo. La vocabolario di `InfoCoachingCard` (Timeline) resta invariato: è
+  materia del workstream Timeline.
 
 ## Product decision still open
 
