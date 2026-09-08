@@ -6,7 +6,7 @@ import {
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { StudentService, Pipeline, Student, StudentAcademicRecord, Quote } from '../data/LavorazioniContext';
-import { readEmailMarketingConsent } from '../data/tesicheckLeadEnrichment';
+import { marketingConsentLabel, readMarketingConsentForContact } from '../data/marketingConsent';
 import { useAreeTematiche } from '../data/AreeTematicheContext';
 import {
   DrawerOverlay,
@@ -65,30 +65,34 @@ function ContactBlock({ pipeline }: { pipeline: Pipeline }) {
     border: '1px solid var(--border)',
   });
 
-  const consentBadge = (key: string) => (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.375rem',
-        marginTop: '0.375rem',
-      }}
-    >
-      {consents[key]
-        ? <CheckCircle size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-        : <Circle size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
-      <span
+  const consentBadge = (key: string) => {
+    // Tri-state read-only: absent key = `Non richiesto`, distinct from `Non consentito`.
+    const state = readMarketingConsentForContact(consents, key);
+    return (
+      <div
         style={{
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          lineHeight: '1.5',
-          color: consents[key] ? 'var(--primary)' : 'var(--muted-foreground)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          marginTop: '0.375rem',
         }}
       >
-        {consents[key] ? 'Consenso marketing' : 'Nessun consenso'}
-      </span>
-    </div>
-  );
+        {state === true
+          ? <CheckCircle size={12} style={{ color: 'var(--foreground)', flexShrink: 0 }} />
+          : <Circle size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+        <span
+          style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: '11px',
+            lineHeight: '1.5',
+            color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
+          }}
+        >
+          {marketingConsentLabel(state)}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -419,6 +423,9 @@ export function CreateLavorazioneDrawer({
 
       // Costruisce il campo contacts dal pipeline (email/telefoni principali + aggiuntivi)
       const pipelineSource = `pipeline:${selectedPipeline.id}`;
+      // Per-email consent carries over per contact from the Pipeline map:
+      // explicit `true`/`false` under that email's key transfers as-is; a missing
+      // key stays unknown (`null`). Never collapse to one global Student value.
       const contactEmails = [
         {
           email: selectedPipeline.email,
@@ -426,6 +433,7 @@ export function CreateLavorazioneDrawer({
           purposes: ['generic', 'service_access'] as ('generic' | 'service_access')[],
           source: pipelineSource,
           added_at: today,
+          marketing_consent: readMarketingConsentForContact(selectedPipeline.marketing_consents, selectedPipeline.email),
         },
         ...(selectedPipeline.emails || []).map(email => ({
           email,
@@ -433,6 +441,7 @@ export function CreateLavorazioneDrawer({
           purposes: ['generic'] as ('generic' | 'service_access')[],
           source: pipelineSource,
           added_at: today,
+          marketing_consent: readMarketingConsentForContact(selectedPipeline.marketing_consents, email),
         })),
       ];
       const contactPhones = [
@@ -464,9 +473,6 @@ export function CreateLavorazioneDrawer({
           phones: contactPhones,
         },
         status: 'active',
-        // Tri-state: explicit boolean when the primary-email consent key exists,
-        // else `null` (never collected) — never fabricate `false`.
-        marketing_consent: readEmailMarketingConsent(selectedPipeline.marketing_consents, selectedPipeline.email),
         academic_records: [newAcademicRecord],
         created_at: new Date().toISOString().split('T')[0],
       };

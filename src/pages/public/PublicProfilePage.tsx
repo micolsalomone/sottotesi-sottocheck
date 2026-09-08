@@ -12,6 +12,7 @@ import {
   withEmailMarketingConsent,
   withTesiCheckSource,
 } from '@/app/data/tesicheckLeadEnrichment';
+import { readStudentEmailConsent, withStudentEmailConsent } from '@/app/data/marketingConsent';
 import {
   FormSection,
   ReadOnlyField,
@@ -102,8 +103,10 @@ export function PublicProfilePage() {
     }
 
     if (target.mode === 'student') {
+      // Per-email consent for the verified account email only — never a global
+      // Student value, never other Student emails.
       const matched = students.find((item) => item.id === target.studentId);
-      setCommercialConsent(matched?.marketing_consent ?? null);
+      setCommercialConsent(readStudentEmailConsent(matched?.contacts?.emails, accountEmail));
       setCommercialTouched(false);
       return;
     }
@@ -249,8 +252,18 @@ export function PublicProfilePage() {
   if (target.mode === 'student') {
     const matchedStudent = students.find((item) => item.id === target.studentId) ?? null;
     const saveStudentConsent = () => {
-      if (!matchedStudent || !commercialTouched || commercialConsent === null) return;
-      updateStudent(matchedStudent.id, (s) => ({ ...s, marketing_consent: commercialConsent }));
+      if (!matchedStudent || !commercialTouched || commercialConsent === null || !accountEmail) return;
+      // Write consent to the verified matching email contact only — no global
+      // value, no other Student email, no Pipeline, no contact/service changes.
+      updateStudent(matchedStudent.id, (s) => ({
+        ...s,
+        contacts: {
+          emails: withStudentEmailConsent(s.contacts?.emails, accountEmail, commercialConsent, {
+            source: 'tesicheck-standalone-profile',
+          }),
+          phones: s.contacts?.phones ?? [],
+        },
+      }));
       setSaved(true);
     };
     return (

@@ -418,7 +418,7 @@ export function CreateStudentDrawer({
 }: CreateStudentDrawerProps) {
   const isEditMode = !!editStudent;
   const navigate = useNavigate();
-  const { data: lavorazioni, pipelines } = useLavorazioni();
+  const { data: lavorazioni, pipelines, students } = useLavorazioni();
 
   // Sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -435,10 +435,11 @@ export function CreateStudentDrawer({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState(''); // mantenuto per compatibilità
   const [phone, setPhone] = useState(''); // mantenuto per compatibilità
-  // Tri-state, passthrough only (this drawer has no consent control): create mode
-  // leaves it `null` (never collected — do not fabricate `false`); edit mode
-  // round-trips the stored value unchanged.
-  const [marketingConsent, setMarketingConsent] = useState<boolean | null>(null);
+  // Commercial-communications consent is PER EMAIL: it rides on each
+  // `ContactEmail.marketing_consent` inside the `emails` state below, is edited
+  // inside every email card by `ContactManager` (`mode='student'`), and is
+  // persisted by this drawer's existing `Salva modifiche` transaction. There is
+  // no separate global Student consent state, no separate save, no auto-save.
 
   // ─── Contatti strutturati ──────────────────────────────────
   const [emails, setEmails] = useState<ContactEmail[]>([]);
@@ -478,30 +479,37 @@ export function CreateStudentDrawer({
       setLastName(editStudent.last_name || '');
       setEmail(editStudent.email || '');
       setPhone(editStudent.phone || '');
-      setMarketingConsent(editStudent.marketing_consent ?? null);
 
-      // Migra contatti alla struttura attuale
+      // Per-email commercial consent (`ContactEmail.marketing_consent`) is read
+      // from the SHARED `students` record so a change made from the Student
+      // Profile in the same session is reflected here; structural contact data
+      // still comes from `editStudent`. Migration below is NON lossy — it
+      // spreads each entry, so `marketing_consent` (and every other field) is
+      // preserved and never rewritten by an unrelated save.
+      const sharedStudent = students.find(s => s.id === editStudent.id);
+      const sharedEmailConsent = (address: string): boolean | null | undefined =>
+        sharedStudent?.contacts?.emails?.find(e => e.email === address)?.marketing_consent;
+
+      // Migra contatti alla struttura attuale — NON lossy: preserva tutti i
+      // purpose validi (incl. `service_access` insieme a `generic`), così
+      // salvare il drawer non altera implicitamente `purposes` / accesso ai
+      // servizi. La gestione dell'accesso ai servizi resta in TimelineDrawer.
       if (editStudent.contacts && editStudent.contacts.emails.length > 0) {
         const migratedEmails = editStudent.contacts.emails.map(e => {
-          const oldPurposes = e.purposes as any[];
-          let newPurposes: ('generic' | 'service_access')[];
-          if (oldPurposes.includes('service_access') || oldPurposes.includes('timeline')) {
-            newPurposes = ['service_access'];
-          } else {
-            newPurposes = ['generic'];
-          }
-          return { ...e, purposes: newPurposes };
+          const old = (e.purposes as string[]).map(p => (p === 'timeline' ? 'service_access' : p));
+          const kept = (['generic', 'service_access'] as const).filter(p => old.includes(p));
+          const sharedConsent = sharedEmailConsent(e.email);
+          return {
+            ...e,
+            purposes: (kept.length ? kept : ['generic']) as ('generic' | 'service_access')[],
+            ...(sharedConsent === undefined ? {} : { marketing_consent: sharedConsent }),
+          };
         });
 
         const migratedPhones = editStudent.contacts.phones.map(p => {
-          const oldPurposes = p.purposes as any[];
-          let newPurposes: ('communications' | 'coaching')[];
-          if (oldPurposes.includes('coaching')) {
-            newPurposes = ['coaching'];
-          } else {
-            newPurposes = ['communications'];
-          }
-          return { ...p, purposes: newPurposes };
+          const old = p.purposes as string[];
+          const kept = (['communications', 'coaching'] as const).filter(x => old.includes(x));
+          return { ...p, purposes: (kept.length ? kept : ['communications']) as ('communications' | 'coaching')[] };
         });
 
         setEmails(migratedEmails);
@@ -541,7 +549,6 @@ export function CreateStudentDrawer({
       setLastName('');
       setEmail('');
       setPhone('');
-      setMarketingConsent(false);
       setEmails([]);
       setPhones([]);
 
@@ -657,6 +664,10 @@ export function CreateStudentDrawer({
       finalRecords[finalRecords.length - 1].is_current = true;
     }
 
+    // Per-email commercial consent is already carried on each `emails` entry
+    // (`ContactEmail.marketing_consent`), edited inside the email cards and
+    // persisted here with the rest of `contacts`. No global Student field is
+    // written; `purposes` / service access are never touched by it.
     const student: Student = {
       id: studentId,
       name: fullName,
@@ -667,7 +678,6 @@ export function CreateStudentDrawer({
       status: isEditMode ? editStudent!.status : 'active',
       academic_records: finalRecords,
       created_at: isEditMode ? editStudent!.created_at : today,
-      marketing_consent: marketingConsent,
       contacts: { emails, phones },
     };
 
@@ -791,7 +801,11 @@ export function CreateStudentDrawer({
                 </div>
               </div>
 
-              {/* Contact Manager */}
+              {/* Contact Manager — CONTACT DATA only (service/timeline access is
+                  managed in TimelineDrawer). Per-email commercial consent is
+                  edited inside each email card and travels on the `emails`
+                  state; it is saved with the rest of the contacts by
+                  `Salva modifiche`. */}
               <ContactManager
                 emails={emails}
                 phones={phones}

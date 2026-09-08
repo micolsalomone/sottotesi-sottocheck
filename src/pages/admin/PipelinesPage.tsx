@@ -5,7 +5,12 @@ import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, Users, CheckC
 import { toast } from 'sonner';
 import { useLavorazioni, SERVICE_CATALOG } from '../../app/data/LavorazioniContext';
 import type { Pipeline, Quote, StudentService, Student, StudentAcademicRecord } from '../../app/data/LavorazioniContext';
-import { readEmailMarketingConsent } from '../../app/data/tesicheckLeadEnrichment';
+import {
+  deriveRecontactSummary,
+  pipelineContactKeys,
+  readMarketingConsentForContact,
+  recontactSummaryLabel,
+} from '../../app/data/marketingConsent';
 import { PipelineDetailDrawer } from '../../app/components/PipelineDetailDrawer';
 import { CreatePipelineDrawer } from '../../app/components/CreatePipelineDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
@@ -412,12 +417,17 @@ export function PipelinesPage() {
       } : null;
 
       const pipelineSource = `pipeline:${pipelineCurrent.id}`;
+      // Per-email consent carries over per contact from the Pipeline map: an
+      // explicit `true`/`false` under that email's key transfers as-is; a missing
+      // key stays unknown (`null`) — never fabricate `false`, never collapse the
+      // map to one global value.
       const contactEmails = pipelineCurrent.email ? [{
         email: pipelineCurrent.email,
         is_primary: true,
         purposes: ['generic', 'service_access'] as ('generic' | 'service_access')[],
         source: pipelineSource,
         added_at: today,
+        marketing_consent: readMarketingConsentForContact(pipelineCurrent.marketing_consents, pipelineCurrent.email),
       }] : [];
       const additionalEmails = (pipelineCurrent.emails || []).map(email => ({
         email,
@@ -425,6 +435,7 @@ export function PipelinesPage() {
         purposes: ['generic'] as ('generic' | 'service_access')[],
         source: pipelineSource,
         added_at: today,
+        marketing_consent: readMarketingConsentForContact(pipelineCurrent.marketing_consents, email),
       }));
       const contactPhones = pipelineCurrent.phone ? [{
         phone: pipelineCurrent.phone,
@@ -453,9 +464,6 @@ export function PipelinesPage() {
           phones: [...contactPhones, ...additionalPhones],
         },
         status: 'active',
-        // Tri-state: carry the explicit boolean if the primary-email consent key
-        // exists, else `null` (never collected) — never fabricate `false`.
-        marketing_consent: readEmailMarketingConsent(pipelineCurrent.marketing_consents, pipelineCurrent.email),
         academic_records: newAcademicRecord ? [newAcademicRecord] : [],
         created_at: today,
       };
@@ -926,6 +934,7 @@ export function PipelinesPage() {
               </TableRow>,
               ...group.pipelines.map(pipeline => {
                 const quote = pipeline.quotes?.[0];
+                const recontact = deriveRecontactSummary(pipeline.marketing_consents, pipelineContactKeys(pipeline));
 
                 return (
                   <TableRow
@@ -978,6 +987,7 @@ export function PipelinesPage() {
                         {pipeline.sources.map(source => (
                           <StatusPill key={source} label={source} variant="neutral" />
                         ))}
+                        <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
                       </div>
                     </TableCell>
 
@@ -1065,6 +1075,7 @@ export function PipelinesPage() {
                 </ResponsiveMobileCard>,
                 ...group.pipelines.map((pipeline) => {
                   const quote = pipeline.quotes?.[0];
+                  const recontact = deriveRecontactSummary(pipeline.marketing_consents, pipelineContactKeys(pipeline));
                   const isSelected = selectedIds.includes(pipeline.id);
 
                   return (
@@ -1131,6 +1142,7 @@ export function PipelinesPage() {
                           {pipeline.sources.map((source) => (
                             <StatusPill key={source} label={source} variant="neutral" />
                           ))}
+                          <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
                         </div>
 
                         {pipeline.service_link && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ExternalLink, Plus, TrendingUp, Mail, MessageCircle,
-  Phone, Pencil, Save, Trash2, CheckCircle, Circle,
+  Phone, Pencil, Save, Trash2, CheckCircle, Circle, MinusCircle,
   GraduationCap, ChevronRight, AlertTriangle,
   User, FileText, Tag, Settings2, Hash, X,
 } from 'lucide-react';
@@ -11,6 +11,12 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
+import {
+  deriveRecontactSummary,
+  readMarketingConsentForContact,
+  recontactSummaryLabel,
+} from '../data/marketingConsent';
+import { MarketingConsentSelect } from './MarketingConsentSelect';
 
 const CURRENT_ADMIN = 'Francesca';
 import {
@@ -407,8 +413,22 @@ export function PipelineDetailDrawer({
 
   if (!open) return null;
 
-  // ─── Consent row (riusabile) ──────────────────────────────
+  // ─── Consent row (riusabile) — per-contact tri-state ──────
+  // Same click-to-edit + inline Save-icon pattern as every other field in this
+  // drawer. The dropdown is `Non richiesto` (key absent) / `Consentito` (true) /
+  // `Non consentito` (false); selecting `Non richiesto` removes the key from the
+  // local map, then `saveConsent` (the drawer's existing persist path) writes it.
+  const setContactConsent = (contactKey: string, value: boolean | null) => {
+    setMarketingConsents(prev => {
+      const next = { ...prev };
+      if (value === null) delete next[contactKey];
+      else next[contactKey] = value;
+      return next;
+    });
+  };
+
   const ConsentRow = ({ contactKey }: { contactKey: string }) => {
+    const state = readMarketingConsentForContact(marketingConsents, contactKey);
     if (editingConsent === contactKey) {
       return (
         <div style={{
@@ -421,21 +441,19 @@ export function PipelineDetailDrawer({
           gap: '0.5rem',
           marginTop: '0.375rem',
         }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}>
-            <input
-              type="checkbox"
-              checked={marketingConsents[contactKey] || false}
-              onChange={(e) => setMarketingConsents(prev => ({ ...prev, [contactKey]: e.target.checked }))}
-              style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-            />
-            <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
-              Consenso marketing
-            </span>
-          </label>
+          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>
+            Comunicazioni commerciali
+          </span>
+          <MarketingConsentSelect
+            value={state}
+            onChange={(value) => setContactConsent(contactKey, value)}
+            ariaLabel={`Consenso comunicazioni commerciali per ${contactKey}`}
+          />
           <button onClick={saveConsent} style={saveBtnStyle} title="Salva consenso"><Save size={12} /></button>
         </div>
       );
     }
+    const ConsentIcon = state === true ? CheckCircle : state === false ? MinusCircle : Circle;
     return (
       <div
         onClick={() => setEditingConsent(contactKey)}
@@ -452,23 +470,31 @@ export function PipelineDetailDrawer({
         }}
         title="Clicca per modificare consenso"
       >
-        {marketingConsents[contactKey]
-          ? <CheckCircle size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-          : <Circle size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+        <ConsentIcon size={14} style={{ color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)', flexShrink: 0 }} />
         <span style={{
           fontFamily: 'var(--font-inter)',
           fontSize: '11px',
-          color: marketingConsents[contactKey] ? 'var(--primary)' : 'var(--muted-foreground)',
+          color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
           lineHeight: '1.5',
           flex: 1,
-          fontWeight: marketingConsents[contactKey] ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+          fontWeight: state === true ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
         }}>
-          {marketingConsents[contactKey] ? 'Consenso marketing attivo' : 'Nessun consenso marketing'}
+          {state === true ? 'Consentito' : state === false ? 'Non consentito' : 'Non richiesto'}
         </span>
         <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4, flexShrink: 0 }} />
       </div>
     );
   };
+
+  // Read-only person-level summary of recontact permission across current
+  // contacts (any `true` → consentito; else any `false` → non consentito; else
+  // non richiesto). Detail rows above stay authoritative per channel.
+  const recontactSummary = deriveRecontactSummary(marketingConsents, [
+    primaryEmail,
+    ...additionalEmails,
+    primaryPhone,
+    ...additionalPhones,
+  ].map(v => (v ?? '').trim()).filter(Boolean));
 
   return (
     <>
@@ -518,6 +544,26 @@ export function PipelineDetailDrawer({
         <DrawerMetaRow>
           Ultimo aggiornamento: {pipeline.updated_by || '—'} — {pipeline.updated_at ? fmtTimestamp(pipeline.updated_at) : fmtTimestamp(pipeline.created_at)}
         </DrawerMetaRow>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: '0.5rem',
+          padding: '0.5rem 1.5rem',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          <span style={microLabelStyle}>Ricontatto commerciale</span>
+          <span style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-label)',
+            fontWeight: 'var(--font-weight-medium)',
+            color: recontactSummary === 'granted' ? 'var(--foreground)' : 'var(--muted-foreground)',
+            lineHeight: '1.5',
+          }}>
+            {recontactSummaryLabel(recontactSummary)}
+          </span>
+        </div>
 
         <DrawerBody padding="0">
 

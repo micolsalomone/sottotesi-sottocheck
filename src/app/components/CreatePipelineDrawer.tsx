@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, TrendingUp, Mail, MessageCircle, Phone, Trash2, Save, CheckCircle, Circle, Pencil, X, Search, GraduationCap, UserPlus, User, Calendar, Tag, FileText, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, Mail, MessageCircle, Phone, Trash2, Save, CheckCircle, Circle, MinusCircle, Pencil, X, Search, GraduationCap, UserPlus, User, Calendar, Tag, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, Student, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
+import { readMarketingConsentForContact } from '../data/marketingConsent';
+import { MarketingConsentSelect } from './MarketingConsentSelect';
 import {
   DrawerOverlay,
   DrawerShell,
@@ -62,7 +64,11 @@ const consentRowStyle: React.CSSProperties = {
   marginTop: '0.375rem',
 };
 
-// ─── Marketing consent row ────────────────────────────────────
+// ─── Marketing consent row (per contact — tri-state) ─────────────────────────
+// Same click-to-edit → editor → inline confirm pattern as before; only the
+// editor changed from a binary checkbox to an explicit tri-state select
+// (`Non richiesto` = key absent / `Consentito` = true / `Non consentito` = false).
+// All local until the drawer's "Crea" action.
 function MarketingConsentRow({
   contactKey,
   consents,
@@ -76,25 +82,22 @@ function MarketingConsentRow({
   editingKey: string | null;
   onEdit: (key: string) => void;
   onSave: () => void;
-  onChange: (key: string, value: boolean) => void;
+  onChange: (key: string, value: boolean | null) => void;
 }) {
   const isEditing = editingKey === contactKey;
-  const hasConsent = consents[contactKey] || false;
+  const state = readMarketingConsentForContact(consents, contactKey);
 
   if (isEditing) {
     return (
       <div style={{ ...consentRowStyle, backgroundColor: 'var(--muted)' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}>
-          <input
-            type="checkbox"
-            checked={hasConsent}
-            onChange={e => onChange(contactKey, e.target.checked)}
-            style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
-          />
-          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
-            Consenso marketing
-          </span>
-        </label>
+        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>
+          Comunicazioni commerciali
+        </span>
+        <MarketingConsentSelect
+          value={state}
+          onChange={value => onChange(contactKey, value)}
+          ariaLabel={`Consenso comunicazioni commerciali per ${contactKey}`}
+        />
         <button
           type="button"
           onClick={onSave}
@@ -109,7 +112,7 @@ function MarketingConsentRow({
             alignItems: 'center',
             flexShrink: 0,
           }}
-          title="Salva consenso"
+          title="Chiudi"
         >
           <Save size={12} />
         </button>
@@ -117,6 +120,7 @@ function MarketingConsentRow({
     );
   }
 
+  const ConsentIcon = state === true ? CheckCircle : state === false ? MinusCircle : Circle;
   return (
     <div
       role="button"
@@ -126,22 +130,18 @@ function MarketingConsentRow({
       style={{ ...consentRowStyle, cursor: 'pointer' }}
       title="Clicca per modificare consenso"
     >
-      {hasConsent ? (
-        <CheckCircle size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-      ) : (
-        <Circle size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
-      )}
+      <ConsentIcon size={14} style={{ color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)', flexShrink: 0 }} />
       <span
         style={{
           fontFamily: 'var(--font-inter)',
           fontSize: '11px',
-          color: hasConsent ? 'var(--primary)' : 'var(--muted-foreground)',
+          color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
           lineHeight: '1.5',
           flex: 1,
-          fontWeight: hasConsent ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+          fontWeight: state === true ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
         }}
       >
-        {hasConsent ? 'Consenso marketing attivo' : 'Nessun consenso marketing'}
+        {state === true ? 'Consentito' : state === false ? 'Non consentito' : 'Non richiesto'}
       </span>
       <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />
     </div>
@@ -458,12 +458,16 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
     setStudentSearch(student.name);
   };
 
-  const handleConsentChange = (key: string, value: boolean) => {
-    setMarketingConsents(prev => ({ ...prev, [key]: value }));
+  const handleConsentChange = (key: string, value: boolean | null) => {
+    setMarketingConsents(prev => {
+      const next = { ...prev };
+      if (value === null) delete next[key];   // `Non richiesto` = key absent
+      else next[key] = value;
+      return next;
+    });
   };
 
   const handleConsentSave = () => {
-    toast.success('Consenso marketing aggiornato');
     setEditingConsent(null);
   };
 

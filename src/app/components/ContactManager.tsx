@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, Plus, Trash2, Key, MessageCircle, Phone as PhoneIcon, Pencil, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ContactEmail, ContactPhone } from '../data/LavorazioniContext';
+import { MarketingConsentSelect } from './MarketingConsentSelect';
 
 interface ContactManagerProps {
   emails: ContactEmail[];
@@ -14,7 +15,7 @@ interface ContactManagerProps {
     pipelineId: string;
   };
   mode?: 'student' | 'pipeline' | 'coach';
-  marketingConsent?: boolean; // Marketing consent della pipeline/studente
+  marketingConsent?: boolean; // Marketing consent della pipeline (mode='pipeline')
   onUpdateMarketingConsent?: (consent: boolean) => void;
 }
 
@@ -56,6 +57,67 @@ export function ContactManager({
   const additionalEmails = emails.filter(e => !e.is_primary);
   const primaryPhone = phones.find(p => p.is_primary);
   const additionalPhones = phones.filter(p => !p.is_primary);
+
+  // The generic Student drawer manages CONTACT DATA only. Internal purpose
+  // taxonomy (`purposes[]`) and the service-access identity are NOT shown here:
+  // service/timeline access is owned by the dedicated `TimelineDrawer`
+  // (`/coaching/timeline`). The underlying model fields are untouched. Coach
+  // keeps its existing taxonomy UI (out of scope).
+  const showContactTaxonomyUI = mode !== 'student';
+
+  // Commercial consent for `mode='student'` is tri-state PER EMAIL — it rides on
+  // each `ContactEmail.marketing_consent` and is persisted through the drawer's
+  // existing `onUpdateEmails` → `Salva modifiche` transaction. No separate
+  // section, no separate save, no auto-save; changing it never touches
+  // `purposes` / `is_primary` / service access.
+  const setEmailConsent = (email: string, consent: boolean | null) => {
+    onUpdateEmails(
+      emails.map(entry =>
+        entry.email === email
+          ? (() => {
+              const next = { ...entry };
+              if (consent === null) delete next.marketing_consent;
+              else next.marketing_consent = consent;
+              return next;
+            })()
+          : entry,
+      ),
+    );
+  };
+
+  const renderStudentEmailConsent = (email: ContactEmail) => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        paddingTop: '0.5rem',
+        borderTop: '1px solid var(--border)',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--font-inter)',
+          fontSize: '11px',
+          fontWeight: 'var(--font-weight-medium)',
+          color: 'var(--muted-foreground)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          lineHeight: '1.5',
+          flex: 1,
+          minWidth: '140px',
+        }}
+      >
+        Comunicazioni commerciali
+      </span>
+      <MarketingConsentSelect
+        value={email.marketing_consent ?? null}
+        onChange={(value) => setEmailConsent(email.email, value)}
+        ariaLabel={`Consenso comunicazioni commerciali per ${email.email}`}
+      />
+    </div>
+  );
 
   // ─── Email Handlers ───────────────────────────────────────
   const handleAddEmail = () => {
@@ -543,16 +605,23 @@ export function ContactManager({
               </div>
             )}
 
-            {/* Purposes (editable solo con matitina) */}
-            <div style={{ 
+            {/* Commercial consent for THIS email — Student drawer only. Rides on
+                `ContactEmail.marketing_consent`; persisted with the rest of the
+                contacts by `Salva modifiche`. Never coupled to purposes / access. */}
+            {mode === 'student' && renderStudentEmailConsent(primaryEmail)}
+
+            {/* Purposes + service-access — hidden in the Student drawer (contact
+                data only; managed in TimelineDrawer). Kept for Coach. */}
+            {showContactTaxonomyUI && (
+            <div style={{
               paddingTop: '0.5rem',
               borderTop: '1px solid var(--border)',
             }}>
               {editingEmailPurposes === primaryEmail.email ? (
                 <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '0.75rem', 
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
                     flexWrap: 'wrap',
                     marginBottom: '0.5rem',
                   }}>
@@ -670,6 +739,7 @@ export function ContactManager({
                 </div>
               )}
             </div>
+            )}
 
 
           </div>
@@ -756,16 +826,38 @@ export function ContactManager({
                   </div>
                 )}
 
-                {/* Purposes + Imposta principale */}
-                <div style={{ 
+                {/* Purposes + service-access — Student drawer shows only the
+                    "Imposta principale" contact control; the rest lives in
+                    TimelineDrawer. Coach keeps the full block. */}
+                <div style={{
                   paddingTop: '0.5rem',
                   borderTop: '1px solid var(--border)',
                 }}>
-                  {editingEmailPurposes === emailData.email ? (
+                  {!showContactTaxonomyUI ? (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryEmail(emailData.email)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: '11px',
+                          fontWeight: 'var(--font-weight-medium)',
+                          color: 'var(--primary)',
+                          padding: 0,
+                          lineHeight: '1.5',
+                        }}
+                      >
+                        Imposta principale
+                      </button>
+                    </div>
+                  ) : editingEmailPurposes === emailData.email ? (
                     <div>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '0.75rem', 
+                      <div style={{
+                        display: 'flex',
+                        gap: '0.75rem',
                         flexWrap: 'wrap',
                         marginBottom: '0.5rem',
                       }}>
@@ -877,7 +969,7 @@ export function ContactManager({
                   )}
 
                   {/* ── Service access badge (non per pipeline) ── */}
-                  {mode !== 'pipeline' && (
+                  {mode !== 'pipeline' && showContactTaxonomyUI && (
                     <div style={{ marginTop: '0.375rem' }}>
                       {emailData.purposes.includes('service_access') ? (
                         <span style={{
@@ -922,6 +1014,8 @@ export function ContactManager({
                   )}
                 </div>
 
+                {/* Commercial consent for THIS additional email — Student drawer only. */}
+                {mode === 'student' && renderStudentEmailConsent(emailData)}
 
               </div>
             ))}
@@ -1054,16 +1148,18 @@ export function ContactManager({
               </div>
             )}
 
-            {/* Purposes (editable solo con matitina) */}
-            <div style={{ 
+            {/* Purposes — hidden in the Student drawer (routing metadata, not a
+                user/admin task here). Kept for Coach. */}
+            {showContactTaxonomyUI && (
+            <div style={{
               paddingTop: '0.5rem',
               borderTop: '1px solid var(--border)',
             }}>
               {editingPhonePurposes === primaryPhone.phone ? (
                 <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '0.75rem', 
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
                     flexWrap: 'wrap',
                     marginBottom: '0.5rem',
                   }}>
@@ -1158,6 +1254,7 @@ export function ContactManager({
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -1250,16 +1347,37 @@ export function ContactManager({
                   </div>
                 )}
 
-                {/* Purposes + Imposta principale */}
-                <div style={{ 
+                {/* Purposes — Student drawer shows only the "Imposta principale"
+                    contact control; Coach keeps the full block. */}
+                <div style={{
                   paddingTop: '0.5rem',
                   borderTop: '1px solid var(--border)',
                 }}>
-                  {editingPhonePurposes === phoneData.phone ? (
+                  {!showContactTaxonomyUI ? (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryPhone(phoneData.phone)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: '11px',
+                          fontWeight: 'var(--font-weight-medium)',
+                          color: 'var(--primary)',
+                          padding: 0,
+                          lineHeight: '1.5',
+                        }}
+                      >
+                        Imposta principale
+                      </button>
+                    </div>
+                  ) : editingPhonePurposes === phoneData.phone ? (
                     <div>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '0.75rem', 
+                      <div style={{
+                        display: 'flex',
+                        gap: '0.75rem',
                         flexWrap: 'wrap',
                         marginBottom: '0.5rem',
                       }}>

@@ -1640,9 +1640,9 @@ Nei contesti coaching:
 - I tre domini di consenso restano separati: mai una singola checkbox combinata (§33.5).
 - La registrazione standalone (`/public/register` e registrazione in `/public/account`) richiede accettazione Termini **e** presa visione Informativa privacy: entrambe obbligatorie, bloccano il submit (§33.5).
 - Il consenso alle comunicazioni commerciali è opzionale, non spuntato di default, e non blocca mai account / verifica / pagamento / report (§33.5).
-- Il consenso commerciale della registrazione standalone è scritto come boolean esplicito, dopo la verifica email, al dominio di identità risolto (`applyStandaloneRegistrationConsent`): Pipeline → `marketing_consents[emailVerificata]`; Student esistente → `Student.marketing_consent` (§33.5).
+- Il consenso commerciale della registrazione standalone è scritto come boolean esplicito, dopo la verifica email, al dominio di identità risolto (`applyStandaloneRegistrationConsent`): Pipeline → `marketing_consents[emailVerificata]`; Student esistente → il contatto email verificato corrispondente (`contacts.emails[].marketing_consent`), mai un valore globale, mai altre email dello Student (§33.5).
 - Per la Pipeline: chiave assente = mai raccolto, `false` = chiesto e non concesso, `true` = concesso — non collassare assente e `false` (§33.5).
-- Se la registrazione standalone risolve a uno Student esistente non si crea né aggiorna una Pipeline; la scelta esplicita (checked → `true`, unchecked → `false`) aggiorna solo `Student.marketing_consent` via `updateStudent`, senza toccare contatti/servizi/altri campi. Il tri-state resta un problema aperto solo per gli Student legacy mai interpellati (§33.5).
+- Se la registrazione standalone risolve a uno Student esistente non si crea né aggiorna una Pipeline; la scelta esplicita (checked → `true`, unchecked → `false`) aggiorna solo `marketing_consent` del contatto email verificato via `updateStudent`, senza toccare altre email / `purposes` / servizi / altri campi. Se l'email verificata non è ancora un contatto ne viene aggiunto uno minimo (§33.5).
 - I booleani `termsAccepted` / `privacyAcknowledged` sul registered-account registry sono persistenza di prototipo: assente = non registrato, mai accettato; nessuna retroattività sugli account legacy; la produzione richiede versione + timestamp + audit (§33.5).
 - Wording legale finale, versioni e URL delle policy sono responsabilità di cliente/legale; il prototipo non inventa versioni, link o testo legale (§33.5).
 - Profilo e Account sono superfici distinte con route separate: `/public-view/profilo` + `/public-view/account`, `/student-view/profilo` + `/student-view/account`. `/public/account` resta esclusivamente il gate account del checkout (§33.5).
@@ -1652,9 +1652,18 @@ Nei contesti coaching:
 - Il consenso alle comunicazioni commerciali vive nel Profilo (sezione `Comunicazioni`), mai in Account. Terms/Privacy restano in Account (§33.5).
 - Il controllo è a scelta esplicita tri-state (`Sì` / `No` / non espresso): unknown non va mai collassato in `No`. Non spuntato di default; mai gate a registrazione/pagamento/report/servizi (§33.5).
 - `Pipeline.marketing_consents` mantiene il tipo `Record<string, boolean>`: chiave assente = sconosciuto, `false` = chiesto/non concesso, `true` = concesso. Read tri-state via `readEmailMarketingConsent`; niente `map[email] || false` (§33.5).
-- `Student.marketing_consent` è `boolean | null` (`null` = mai chiesto). Seed = valori demo espliciti; conversioni Pipeline→Student e nuovi Student Admin che non raccolgono una preferenza scrivono `null`, mai `false` fabbricato. La registrazione Student-match continua a scrivere `true`/`false` espliciti (§33.5).
-- Nel Profilo standalone la preferenza va all'identità risolta: Pipeline → `marketing_consents[emailVerificata]`; Student → `Student.marketing_consent`; nessun owner → stato neutro, nessuna Pipeline creata solo per la preferenza (§33.5).
+- **Consenso Student = per email** (`Student.contacts.emails[].marketing_consent?: boolean | null`): `true` consentito / `false` non consentito / `null` o assente = non richiesto. Il vecchio globale `Student.marketing_consent` è deprecato, nessuna UI/lettura/scrittura canonica lo usa; `migrateLegacyStudentConsent` sposta un valore seed sulla sola email primaria al load (Student senza email primaria → nessun consenso per email, limite documentato). Conversioni Pipeline→Student portano il consenso **per contatto** dal map Pipeline (chiave `true`/`false` → stesso valore sull'email; chiave assente → `null`), mai collassato in un unico valore, mai `false` fabbricato (§33.5).
+- Nel Profilo standalone la preferenza va all'identità risolta: Pipeline → `marketing_consents[emailVerificata]`; Student → `marketing_consent` della **sola email verificata corrispondente**; nessun owner → stato neutro, nessuna Pipeline creata solo per la preferenza (§33.5).
 - Salvando il Profilo, una preferenza non toccata dall'utente resta invariata (assente/`null`/`true`/`false`): solo una scelta esplicita persiste il boolean (§33.5).
+- Admin: vocabolario consenso unico — `Consentito` / `Non consentito` / `Non richiesto` (per contatto / per email); sintesi persona `Ricontatto consentito` / `Ricontatto non consentito` / `Consenso non richiesto` (Pipeline: sui contatti correnti; Student: su `deriveStudentRecontactSummary` sulle email correnti). Pill neutro + testo, mai verde brand come success generico (§33.5).
+- Pipeline: il consenso resta per contatto; la sintesi persona è derivata sui contatti correnti (qualsiasi `true` → consentito; altrimenti qualsiasi `false` → non consentito; altrimenti non richiesto) e NON implica che tutti i canali siano permessi — il dettaglio per-contatto resta autoritativo (§33.5).
+- Admin Pipeline list/card mostra un pill di ricontatto vicino ai `sources`; nessuna nuova colonna, nessun filtro consenso in questo slice (§33.5).
+- Student: Admin e Profilo Student condividono la stessa source of truth (`useLavorazioni().students` + `updateStudent`, campo per-email); la visibilità Admin riflette le modifiche del Profilo nella stessa sessione SPA. Nessuna seconda copia del consenso (§33.5).
+- Editing consenso Pipeline: per-contatto con controllo tri-state esplicito (`MarketingConsentSelect`). `Non richiesto` **rimuove** la chiave (unico caso legittimo di cancellazione = ritorno a sconosciuto); `Non consentito` = chiave `false`; salvare campi non correlati non tocca il map. Nessun toggle globale (§33.5).
+- Editing consenso Student: controllo tri-state `MarketingConsentSelect` **dentro ogni card email** di `ContactManager` (`mode='student'`), sotto l'indirizzo — email primaria e aggiuntive. Aggiorna solo lo stato locale dei contatti; persistito dal normale `Salva modifiche` del drawer (nessun auto-save, nessun save separato, nessuna sezione globale). Scrive solo `contacts.emails[].marketing_consent` dell'email toccata; `is_primary`, `purposes`, accesso servizi e le altre email non sono toccati. Nessun toggle nel kebab. Legge la fonte condivisa; migrazione contatti non-lossy (§33.5).
+- List/card `/studenti`: una sola pill read-only di triage per Student (`deriveStudentRecontactSummary` sulle email correnti); il valore per-email nel drawer resta autoritativo (§33.5).
+- Il drawer Student non gestisce l'accesso ai servizi: `ContactManager` in `mode='student'` mostra solo dati di contatto (rimossi `Accesso servizi` / `service_access` / UI `purposes`); l'owner dell'accesso è `TimelineDrawer` (`/coaching/timeline`). Migrazione contatti del drawer resa non lossy (§33.5).
+- Invariante duro: contatti Student ⇎ accesso servizi ⇎ consenso commerciale sono domini separati; modificarne uno non altera gli altri; impostare un'altra email come principale non trasferisce il consenso tra record (§33.5).
 
 ---
 
@@ -1854,9 +1863,12 @@ Persistenza prototipo:
     `true` = concesso, `false` = chiesto e non concesso; chiave assente = mai
     raccolto (non collassare con `map[email] || false`).
   - **Student esistente** → nessuna Pipeline (regola invariata); la scelta
-    esplicita aggiorna `Student.marketing_consent` tramite il write condiviso
-    `updateStudent` (checked → `true`, unchecked → `false`; nessuna inferenza,
-    nessun tri-state qui). Non tocca contatti, servizi, altri campi Student.
+    esplicita aggiorna `marketing_consent` del **contatto email verificato
+    corrispondente** (`contacts.emails[].marketing_consent`) tramite
+    `updateStudent` (checked → `true`, unchecked → `false`; nessuna inferenza).
+    Mai un valore globale, mai altre email; `purposes` / servizi / altri campi
+    non toccati. Email verificata non ancora contatto → viene aggiunto un
+    contatto minimo così la scelta esplicita non va persa.
   - `Terms` / `Privacy` restano dominio account, indipendenti dall'identità di
     acquisizione.
 
@@ -1924,12 +1936,87 @@ consenso commerciale su Pipeline/Student).
 - Il Profilo non richiede mai il consenso e non gate-a registrazione, pagamento,
   report o accesso ai servizi.
 
-Sequenza rimanente: **D** = visibilità/normalizzazione consenso in Admin
-(pill Pipeline, badge Student, filtri, normalizzazione read).
+**Slice D — implementato.** Visibilità Admin del consenso commerciale, senza
+redesign e senza filtri. *(Correzione di dominio successiva: il consenso Student
+è **per email** su `Student.contacts.emails[].marketing_consent`, non un valore
+globale di persona — i punti sotto sono già aggiornati.)*
 
-Fuori da Slice C: normalizzazione read Admin, tri-state UI per gli Student legacy
-in Admin, policy page, link legali in footer, retroattività Termini/privacy sugli
-account legacy, provenance/audit di produzione, Coach Account/Profilo.
+- Vocabolario Admin unico: per-contatto / per-Student `Consentito` /
+  `Non consentito` / `Non richiesto`; sintesi persona Pipeline
+  `Ricontatto consentito` / `Ricontatto non consentito` / `Consenso non richiesto`.
+  Reso con `StatusPill` neutro + testo esplicito (nessun verde brand come
+  "success" generico).
+- Helper tri-state condivisi in `src/app/data/marketingConsent.ts`
+  (`readMarketingConsentForContact`, `deriveRecontactSummary`,
+  `pipelineContactKeys`, label). `readEmailMarketingConsent` è ora un re-export di
+  `readMarketingConsentForContact`.
+- **Pipeline: consenso per contatto, editing tri-state esplicito.**
+  `PipelineDetailDrawer` e `CreatePipelineDrawer` usano un controllo
+  `MarketingConsentSelect` (`Non richiesto` / `Consentito` / `Non consentito`)
+  per ogni contatto — non più un checkbox binario, **nessun auto-save**.
+  `Consentito` → chiave `= true`; `Non consentito` → chiave `= false`;
+  `Non richiesto` → **rimuove** la chiave (unico caso legittimo di cancellazione:
+  ritorno a sconosciuto, non è un "no" esplicito). L'integrazione **non cambia
+  l'architettura del drawer**: `PipelineDetailDrawer` mantiene il pattern
+  per-campo (click → editor → Save inline: `saveConsent`); `CreatePipelineDrawer`
+  mantiene `click → editor → conferma`, persistenza sull'azione "Crea". Nessun
+  footer `Salva modifiche` globale, nessun Save inline rimosso.
+  `CreateLavorazioneDrawer` mostra solo un display read-only tri-state (converte,
+  non edita).
+- **Pipeline: sintesi persona derivata** sui **contatti correnti**: almeno un
+  contatto `true` → `Ricontatto consentito`; altrimenti almeno un `false` →
+  `Ricontatto non consentito`; altrimenti `Consenso non richiesto`. Risponde a
+  "esiste un canale su cui è permesso ricontattare?", **non** "tutti i canali
+  sono permessi". Il dettaglio per-contatto resta autoritativo su QUALE canale
+  (es. email `true` + phone `false` → sintesi `Ricontatto consentito`, ma il
+  drawer mostra phone `Non consentito`). Chiavi stale non influenzano la sintesi.
+- **Pipeline list/card**: pill compatto vicino ai `sources` (desktop + mobile),
+  leggibile in triage senza aprire il drawer. Nessuna nuova colonna.
+- **Student: consenso PER EMAIL, editing solo nel drawer.** Domini distinti e
+  mai combinati visivamente: dati di contatto, accesso ai servizi (owner:
+  `TimelineDrawer`, `/coaching/timeline`), consenso commerciale
+  (`Student.contacts.emails[].marketing_consent`). In `CreateStudentDrawer` la
+  sezione contatti (`ContactManager`, `mode='student'`) mostra **solo dati di
+  contatto**: rimossi badge/pulsante `Accesso servizi`, controlli
+  `service_access` e UI grezza di `purposes` (campi del modello intatti; Coach
+  invariato). La migrazione contatti del drawer è **non lossy**: salvare il
+  drawer non altera `purposes` / accesso / consenso di email non toccate.
+- **Editing consenso Student = controllo tri-state `MarketingConsentSelect`**
+  (`Non richiesto → chiave assente` / `Consentito → true` / `Non consentito →
+  false`) **dentro ogni card email** di `ContactManager` (`mode='student'`),
+  sotto l'indirizzo — email primaria e aggiuntive. La card email contiene solo
+  indirizzo + designazione principale + azioni di contatto + select consenso.
+  Aggiorna lo stato locale dei contatti; persistito **solo** dal normale
+  `Salva modifiche` del drawer (nessuna sezione a sé, nessun save separato,
+  nessun auto-save). Scrive `contacts.emails[].marketing_consent` dell'email
+  toccata; `is_primary` / `purposes` / accesso / altre email non toccati. Legge
+  il record **condiviso** `useLavorazioni().students`. Create mode: `Non
+  richiesto`, facoltativo, non fabbrica `false`. **Nessun toggle nel menu kebab.**
+- **Legacy**: il globale `Student.marketing_consent` è deprecato — nessuna
+  UI/lettura/scrittura canonica lo usa. `migrateLegacyStudentConsent` sposta un
+  valore seed sulla sola email primaria al load; Student senza email primaria →
+  nessun consenso per email (limite documentato).
+- **Student list/card**: una sola pill read-only di triage
+  (`deriveStudentRecontactSummary` sulle email correnti → `Ricontatto consentito`
+  / `Ricontatto non consentito` / `Consenso non richiesto`), letta dalla fonte
+  condivisa. Il valore per-email nel drawer resta autoritativo. Nessun
+  Terms/Privacy nel drawer.
+- **Invariante duro**: modifiche ai contatti nel drawer Student non
+  concedono/revocano accesso e non alterano `purposes` né spostano il consenso
+  tra record; impostare un'altra email come principale non trasferisce il
+  consenso; il flusso di accesso in `TimelineDrawer` non altera
+  `marketing_consent`; l'editing del consenso di un'email non altera
+  accesso / `purposes` / `is_primary` / le altre email.
+- **Conversione Pipeline → Student = per contatto**: per ogni email creata dalla
+  Pipeline il consenso è `readMarketingConsentForContact(map, quellaEmail)` —
+  chiave `true`→`true`, `false`→`false`, assente→`null`; mai `!!map[email]`, mai
+  collasso del map in un unico valore.
+
+Fuori da Slice D: filtri consenso Admin, azioni bulk marketing, integrazioni
+email marketing, policy/legal pages, gestione Termini/Privacy in Admin,
+timestamp/versioning/audit del consenso, log immutabile, Coach consent, Coach
+Account/Profilo. La produzione possiede provenienza, timestamp, audit ed evidenza
+legale.
 
 ### 33.6 Handoff implementativo
 

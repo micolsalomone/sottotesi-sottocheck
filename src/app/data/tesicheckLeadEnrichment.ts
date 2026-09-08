@@ -19,16 +19,18 @@
  * - the OPTIONAL commercial-communications consent captured at registration is
  *   written as an EXPLICIT boolean to the identity domain that acquisition
  *   resolution resolves (`applyStandaloneRegistrationConsent`): a Pipeline →
- *   `marketing_consents[verifiedEmail]`; an existing Student → the shared
- *   `Student.marketing_consent` (checked → `true`, unchecked → `false`, no
- *   inference). It is a separate domain from Terms acceptance and Privacy
- *   acknowledgement (which live on the account, not here), and it never gates
- *   account creation, verification, payment or the report;
+ *   `marketing_consents[verifiedEmail]`; an existing Student → the matching
+ *   verified email contact's `contacts.emails[].marketing_consent` (checked →
+ *   `true`, unchecked → `false`, no inference), never a global Student value and
+ *   never any other Student email. It is a separate domain from Terms acceptance
+ *   and Privacy acknowledgement (which live on the account, not here), and it
+ *   never gates account creation, verification, payment or the report;
  * - the enrichment questionnaire (`resolveEnrichmentTarget` +
  *   `PublicProfilePage`) normally updates the already-created Pipeline;
  *   `new_pipeline` there is fallback-only for pre-rule accounts.
  */
 import type { Pipeline, Student } from './LavorazioniContext';
+import { withStudentEmailConsent } from './marketingConsent';
 
 export type TesiCheckEnrichmentTarget =
   | { mode: 'student'; studentId: string }
@@ -91,24 +93,11 @@ export function resolveEnrichmentTarget(params: {
   return { mode: 'new_pipeline' };
 }
 
-/**
- * Tri-state read of one contact email's marketing consent from a Pipeline
- * consent map:
- *  - key absent            → `null` (never collected / unknown);
- *  - key present + `true`  → `true` (granted);
- *  - key present + `false` → `false` (explicitly not granted).
- *
- * Never collapses absent into `false`. Do NOT replace call sites with
- * `map[email] || false`.
- */
-export function readEmailMarketingConsent(
-  map: Record<string, boolean> | undefined,
-  email: string | null | undefined,
-): boolean | null {
-  const key = (email ?? '').trim();
-  if (!map || !key) return null;
-  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
-}
+// The tri-state Pipeline consent reader now lives in `./marketingConsent`
+// (`readMarketingConsentForContact`) — contact-key-neutral, shared with the
+// Admin display helpers. Re-exported here for the existing acquisition/enrichment
+// call sites.
+export { readMarketingConsentForContact as readEmailMarketingConsent } from './marketingConsent';
 
 /**
  * Set an explicit marketing-consent boolean for one contact email on a Pipeline
@@ -279,11 +268,14 @@ export function ensureTesiCheckPipeline(params: {
  * - identity + Pipeline consent  → `ensureTesiCheckPipeline` (unchanged):
  *   `created` / `enriched` also write `marketing_consents[verifiedEmail]`;
  * - existing Student             → NO Pipeline (rule preserved). The explicit
- *   commercial choice is written here to `Student.marketing_consent` via the
- *   shared `updateStudent`. The registration UI asked outright, so this is a
- *   direct boolean (checked → `true`, unchecked → `false`), not an inference —
- *   tri-state for never-asked legacy Students stays a later concern. Nothing
- *   else on the Student is touched (no contacts, no services, no Pipeline).
+ *   commercial choice is written here to the VERIFIED matching email contact's
+ *   `contacts.emails[].marketing_consent` via the shared `updateStudent` —
+ *   per-email, never a global Student value, never another Student email. The
+ *   registration UI asked outright, so this is a direct boolean (checked →
+ *   `true`, unchecked → `false`), not an inference. `purposes`, service access,
+ *   phones, other emails and Pipelines are all untouched. If the verified email
+ *   is not already a contact entry, a minimal one is appended so the explicit
+ *   choice is never dropped.
  *
  * Terms / Privacy acceptance is NOT handled here — that is account-domain state
  * (`registerAccount`), independent of acquisition identity.
@@ -317,9 +309,15 @@ export function applyStandaloneRegistrationConsent(params: {
     && typeof params.commercialConsent === 'boolean'
   ) {
     const granted = params.commercialConsent;
+    const verifiedEmail = normalizeEmail(params.accountEmail);
     params.updateStudent(result.studentId, (student) => ({
       ...student,
-      marketing_consent: granted,
+      contacts: {
+        emails: withStudentEmailConsent(student.contacts?.emails, verifiedEmail, granted, {
+          source: 'tesicheck-registration',
+        }),
+        phones: student.contacts?.phones ?? [],
+      },
     }));
   }
 

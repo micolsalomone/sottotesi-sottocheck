@@ -56,17 +56,20 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   record non esiste → stato neutro "Profilo non disponibile", nessuna creazione
   a runtime.
 - Sezioni: `Informazioni personali` (Nome, Cognome), `Contatti` (Email primaria
-  read-only dal contact model; Telefono), `Percorso attuale`, `Percorsi
-  precedenti`, `Comunicazioni` (consenso alle comunicazioni commerciali —
-  Slice C). Termini e Informativa privacy **non** stanno nel Profilo: sono
-  sull'Account (`/student-view/account`).
-- Sezione `Comunicazioni`: controllo a scelta esplicita tri-state
-  (`CommercialConsentField` condiviso) — `Sì` / `No`; stato sconosciuto =
-  nessuna opzione selezionata + `Preferenza non ancora espressa.` Legge/scrive
-  **solo** `Student.marketing_consent` (`boolean | null`) via `updateStudent`,
-  integrato nel salvataggio del Profilo. Una preferenza non toccata non viene
-  riscritta salvando altri campi (unknown resta unknown). Nessun tocco a
-  contatti / record accademici / servizi / Pipeline / stato legale Account.
+  read-only dal contact model; Telefono; + consenso commerciale dell'email
+  primaria), `Percorso attuale`, `Percorsi precedenti`. Termini e Informativa
+  privacy **non** stanno nel Profilo: sono sull'Account (`/student-view/account`).
+- Consenso comunicazioni commerciali: **nessuna sezione globale a sé**. Il
+  controllo tri-state (`CommercialConsentField` condiviso — `Sì` / `No`; stato
+  sconosciuto = nessuna opzione + `Preferenza non ancora espressa.`) è **dentro
+  la sezione `Contatti`, subito sotto l'email**, con la didascalia
+  `Riferito all'indirizzo <email>.` Legge/scrive **solo** il campo per-email
+  `Student.contacts.emails[primaria].marketing_consent` (`boolean | null`) via
+  `updateStudent`, integrato nel salvataggio del Profilo. Una preferenza non
+  toccata non viene riscritta salvando altri campi (unknown resta unknown).
+  Nessun tocco ad altre email / `purposes` / record accademici / servizi /
+  Pipeline / stato legale Account. Il vecchio `Student.marketing_consent` globale
+  è deprecato e non più usato.
 - Vocabolario accademico approvato: `Livello di laurea` (`degree_level`),
   `Corso di laurea` (`course_name`), `Università` (`university_name`),
   `Tipologia` (`thesis_type` — valori Compilativa / Sperimentale / Esame),

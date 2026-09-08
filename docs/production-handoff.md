@@ -103,9 +103,10 @@ riferimento:
   **non** viene impostato (il drawer Admin non definisce un valore self-service e
   qui non se ne inventa uno). La produzione deve conservare informazioni di
   provenienza/audit adeguate (chi ha modificato il record).
-- **Fuori scope:** sezione `Privacy e consensi` (spazio previsto, non
-  implementata), consenso marketing, gestione contatti multipli, eliminazione
-  del record accademico corrente, cambio del record corrente, auth Student.
+- **Fuori scope:** gestione contatti multipli, eliminazione del record
+  accademico corrente, cambio del record corrente, auth Student. Il consenso alle
+  comunicazioni commerciali è ora nel Profilo (sezione `Comunicazioni`);
+  Termini/Privacy sono sull'Account. Vedi "Consenso comunicazioni commerciali".
 - Presentational primitives condivise con il Public profile in
   `src/app/components/profile/ProfileFormPrimitives.tsx` (`FormSection`,
   `TextField`, `SelectField`, `ReadOnlyField`) — solo presentazione, nessuna
@@ -135,3 +136,41 @@ Il placeholder Coach Dashboard `Illustrazione / Animazione` e' un artifact del p
 ## Known intentional distinctions
 
 TesiCheck job status, history/report status e service lifecycle sono domini distinti. Label come `Completato` non implicano lo stesso colore o la stessa semantic tone. Non creare un universal StatusBadge per uniformarli.
+
+## Consenso comunicazioni commerciali
+
+Tre domini di consenso distinti (canonical §33.5): Termini & Condizioni,
+Informativa privacy, consenso commerciale. Nel prototipo:
+
+- **Termini/Privacy** → superfici Account (`/public-view/account`,
+  `/student-view/account`), sola lettura, stato letto dalla persistenza
+  prototipo Slice A (registry account); lo Student non ha modello legale →
+  `Stato non disponibile`.
+- **Consenso commerciale** → Profilo, scelta esplicita tri-state, **per email**.
+  Scritto all'identità risolta: Pipeline `marketing_consents[email]` (per
+  contatto) oppure, per uno Student, `contacts.emails[].marketing_consent`
+  (`boolean | null`) della sola email pertinente (nel Profilo Student: l'email
+  primaria, accanto all'indirizzo; nel Profilo standalone risolto a Student:
+  l'email account verificata). Nessun valore globale di persona.
+- **Admin (Slice D)** → Pipeline: consenso per contatto con controllo tri-state
+  esplicito (`Non richiesto` rimuove la chiave = ritorno a sconosciuto), più una
+  sintesi persona derivata nella list/card/drawer. Student: consenso tri-state
+  **dentro ogni card email** del drawer (`ContactManager`, `mode='student'`) come
+  unica superficie di editing (nessun toggle nel kebab), persistito dal normale
+  `Salva modifiche`; la list/card mostra una sola pill di triage derivata dalle
+  email correnti (`deriveStudentRecontactSummary`). `Non richiesto` / chiave
+  assente ≠ `Non consentito`. L'accesso ai servizi dello Student **non** si
+  gestisce dal drawer contatti: owner = `TimelineDrawer` (`/coaching/timeline`).
+  Contatti ⇎ accesso ⇎ consenso sono domini separati.
+
+I due modelli di storage (Pipeline `Record<string,boolean>` per-contatto vs
+Student `marketing_consent` per email sul contact record) **non** sono unificati
+in un'unica superficie di editing: condividono solo il vocabolario di
+visualizzazione e il componente `MarketingConsentSelect`. Il legacy globale
+`Student.marketing_consent` è deprecato e non più usato.
+
+**La produzione possiede**: provenienza (chi ha registrato il consenso e da dove),
+timestamp, versioning del testo legale, audit log immutabile, evidenza legale,
+eventuale double opt-in. Il prototipo non li modella e non dichiara conformità
+legale. Wording finale delle checkbox, base giuridica, titolare del trattamento,
+retention e URL delle policy restano responsabilità di cliente/legale.

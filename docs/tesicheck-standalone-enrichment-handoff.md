@@ -327,13 +327,18 @@ See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
   `boolean | null`. Unknown is never collapsed into `false`.
 - Profile still has **no** Terms/Privacy rows — those stay on the Account page.
 
-**Slice D — Admin consent visibility + read normalization:**
+**Slice D — Admin consent visibility + per-email Student model — DONE (see §14).**
 
-- Pipeline "recontact allowed" signal (drawer summary line, then list/card pill).
-- `Student.marketing_consent` read surface in Admin Student; tri-state-aware
-  read/label normalization across the Admin drawers (`PipelineDetailDrawer`,
-  `CreatePipelineDrawer`, `CreateLavorazioneDrawer` display, `CreateStudentDrawer`
-  control, `StudentiPage` toggle/label — see §13 "Admin compatibility").
+- Pipeline recontact signal: drawer person-level summary line + list/card pill;
+  per-contact drawer rows show tri-state (`Consentito` / `Non consentito` /
+  `Non richiesto`). Per-contact **editing is preserved** (not made read-only).
+- **Student commercial consent is per email** (`contacts.emails[].marketing_consent`),
+  edited inside each email card of the Student drawer and persisted by its
+  existing `Salva modifiche`; the list/card shows one derived triage summary
+  (`deriveStudentRecontactSummary`). The legacy global `Student.marketing_consent`
+  is deprecated. Storage/editing models for Pipeline (`Record<string,boolean>`)
+  and Student (per-email field on the contact record) are **not** unified — only
+  the display vocabulary and `MarketingConsentSelect` are shared.
 
 **Not slice-scoped / backend:**
 
@@ -347,22 +352,23 @@ See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
 ## 11. Profile vs Account — surface responsibilities (product direction)
 
 Profile and Account are **separate surfaces**. Terms/Privacy state is written to
-the account registry; commercial consent is Profile-domain, written to the
-resolved identity (Pipeline `marketing_consents[email]` / `Student.marketing_consent`).
-Slice C implemented the Profile commercial-consent control; Slice D is Admin
-visibility/normalization.
+the account registry; commercial consent is Profile-domain and **per email**,
+written to the resolved identity — Pipeline `marketing_consents[email]`, or a
+matched Student's `contacts.emails[].marketing_consent` for the relevant email
+(no global Student value). Slice C implemented the Profile commercial-consent
+control; Slice D added Admin visibility and moved the Student model to per-email.
 
 | Surface | Owns |
 | --- | --- |
-| **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** (`Comunicazioni` section, tri-state — Slice C) |
+| **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** (per email; standalone: `Comunicazioni` section; Student profile: under the primary email in `Contatti`) |
 | **Account** (`/public-view/account`, `/student-view/account`) | account email, password / recovery entry points, **Terms acceptance status**, **Privacy acknowledgement status**, future account-management actions |
 
 Rules:
 
 - Commercial consent is tri-state and **unknown is never collapsed into `false`**:
-  `Pipeline.marketing_consents` key-absent = unknown; `Student.marketing_consent`
-  is `boolean | null` with `null` = never asked. The Profile control leaves an
-  untouched value exactly as stored on save.
+  `Pipeline.marketing_consents` key-absent = unknown; a Student email's
+  `marketing_consent` is `boolean | null` / absent, with `null` / absent = never
+  asked. The Profile control leaves an untouched value exactly as stored on save.
 - Commercial consent never gates registration, payment, reports or service access,
   and is never required.
 - Terms/Privacy are **not** rendered in Profile — Account only.
@@ -449,6 +455,117 @@ wording is client/legal.
 On the standalone Profile `new_pipeline` fallback, choosing a preference without
 also entering a first name shows the existing "Inserisci il tuo nome" error and
 does **not** persist the preference (no Pipeline is created solely for consent).
+
+## 14. Slice D — Admin visibility of commercial consent (implementation)
+
+**Pipeline and Student consent administration are intentionally asymmetric.**
+Only the *display vocabulary* is shared; storage and editing are not.
+
+### Shared helpers — `src/app/data/marketingConsent.ts` (new)
+
+- `readMarketingConsentForContact(map, contactKey): boolean | null` — the
+  generalized (contact-key-neutral) tri-state reader. `tesicheckLeadEnrichment.ts`
+  now `export { readMarketingConsentForContact as readEmailMarketingConsent }`
+  (Slice C call sites unchanged; `PipelinesPage` / `CreateLavorazioneDrawer`
+  switched to the new name).
+- `pipelineContactKeys(pipeline)` — primary + additional email(s)/phone(s),
+  trimmed, de-blanked.
+- `deriveRecontactSummary(map, contactKeys): 'granted' | 'declined' | 'unknown'`
+  — any current contact `true` → `granted`; else any `false` → `declined`; else
+  `unknown`. Iterates **current** keys only, so stale map keys never drive the
+  status.
+- `marketingConsentLabel(v)` → `Consentito` / `Non consentito` / `Non richiesto`
+  (per-contact **and** per-Student). `recontactSummaryLabel(s)` →
+  `Ricontatto consentito` / `Ricontatto non consentito` / `Consenso non richiesto`.
+- Badges use `StatusPill variant="neutral"` + explicit text (no brand green as a
+  generic success colour).
+
+### Pipeline — per-contact truth + derived person summary
+
+New shared leaf `src/app/components/MarketingConsentSelect.tsx` — compact
+tri-state `<select>` (`Non richiesto` / `Consentito` / `Non consentito`), props
+`value: boolean | null` + `onChange(value: boolean | null)`. Presentation only;
+the caller maps `null` onto its storage (for a Pipeline map: **remove the key**).
+
+| File | Change |
+| --- | --- |
+| `PipelineDetailDrawer.tsx` | Only `ConsentRow` changed: the editor is now a `MarketingConsentSelect` (instead of a checkbox) inside the drawer's **unchanged** click-to-edit → editor → inline **Save-icon** pattern. `setContactConsent(key, value)` updates the local `marketingConsents` map (`null` removes the key); the existing **`saveConsent`** persists it (`updatePipeline`, the same per-contact save mechanism as before). Read view shows `Consentito` / `Non consentito` / `Non richiesto`. Added a read-only `Ricontatto commerciale` line under `DrawerMetaRow` (derived). **No footer Save added; no other field's inline save touched; close/cancel semantics unchanged.** |
+| `CreatePipelineDrawer.tsx` | Only `MarketingConsentRow` changed: checkbox → `MarketingConsentSelect` inside the **unchanged** click-to-edit → editor → confirm pattern. `handleConsentChange(key, value)` sets/deletes the key in local `marketingConsents`; persistence is the drawer's existing "Crea" submit. No interaction/architecture change. |
+| `CreateLavorazioneDrawer.tsx` | `ContactBlock.consentBadge` read-only per-contact display → tri-state label (this drawer converts, it does not edit Pipeline consent). Conversion write already tri-state (§13). |
+| `PipelinesPage.tsx` | Desktop row + mobile card: a compact `recontactSummaryLabel(...)` `StatusPill` appended to the **existing `sources` cell** (no new column, no filter). Conversion read → `readMarketingConsentForContact`. |
+
+- **Key deletion is correct only for `Non richiesto`** (returns the state to
+  unknown). `Non consentito` stores an explicit `false` — never a deletion.
+- **No auto-save; no drawer-architecture change.** Each drawer keeps its
+  established persist pattern: `PipelineDetailDrawer` = per-contact `saveConsent`
+  (its existing per-field save mechanism); `CreatePipelineDrawer` /
+  `CreateStudentDrawer` = the existing "Crea" / `Salva modifiche` submit. An
+  earlier Slice-D pass that added a global `Salva modifiche` footer to
+  `PipelineDetailDrawer` and removed its inline saves was **reverted**.
+- Mixed values example (documented): email `true` + phone `false` → person summary
+  `Ricontatto consentito`, but the drawer still shows email `Consentito` / phone
+  `Non consentito`. The summary answers "is any recontact channel permitted?",
+  not "are all channels permitted?".
+
+### Student — commercial consent PER EMAIL, editing in the drawer only
+
+> **Domain correction (supersedes the earlier "one global person-level value"
+> direction).** Student commercial consent is **per email**:
+> `Student.contacts.emails[].marketing_consent?: boolean | null`
+> (`true` granted / `false` declined / `null` or absent = not required). Consent
+> belongs to the email channel, independent of `purposes` / service access. The
+> legacy global `Student.marketing_consent` is **deprecated** — no canonical
+> UI / read / write uses it; `migrateLegacyStudentConsent` (in
+> `LavorazioniContext.tsx`) moves a seeded global value onto the **primary email
+> only** at module load (a Student with no primary email keeps none — documented
+> limitation). Three separate domains still never visually combine:
+> **contact data**, **service access** (owned by `TimelineDrawer`),
+> **commercial consent** (now per-email).
+
+| File | Change |
+| --- | --- |
+| `LavorazioniContext.tsx` | `ContactEmail` gains optional `marketing_consent?: boolean \| null` (tri-state, doc comment). `Student.marketing_consent` → **optional + `@deprecated`**. `migrateLegacyStudentConsent` maps each seed's legacy global value onto its primary email (only when that email has no explicit value) and strips the top-level field; `INITIAL_STUDENTS` is `[...].map(migrateLegacyStudentConsent)`. |
+| `marketingConsent.ts` | Header rewritten (Student is per-email now). New: `readStudentEmailConsent(emails, email)` (case-insensitive, tri-state, never `false` on miss), `deriveStudentRecontactSummary(emails)` (any `true`→granted; else any `false`→declined; else unknown), `withStudentEmailConsent(emails, email, consent, createIfMissing?)` (returns a new array with ONE email's consent set / `null` cleared; appends a minimal contact when missing + a source is given; never touches other emails or other fields). Pipeline helpers unchanged. |
+| `ContactManager.tsx` | `showContactTaxonomyUI = mode !== 'student'` (unchanged — hides `purposes` / `Accesso servizi` / `service_access` for student; Coach keeps full UI). NEW: for `mode='student'`, a compact `MarketingConsentSelect` ("Comunicazioni commerciali") rendered **inside every email card**, under the address (primary + additional). `setEmailConsent(email, value)` maps just that entry via `onUpdateEmails` — deletes the key on `null`, sets `true`/`false` otherwise; never touches `purposes` / `is_primary` / other emails. `marketingConsent` / `onUpdateMarketingConsent` props **restored to their pre-Slice-D signature** (`boolean` / `(boolean)=>void`); the pre-existing `mode='pipeline'` block and its `editingMarketingConsent` state are **restored** (not removed). No global consent block between Email and `Telefoni`. |
+| `CreateStudentDrawer.tsx` | Global `marketingConsent` / `consentTouched` state, its prefill and its `marketing_consent` submit write **removed**. Per-email consent rides on the `emails` state: the non-lossy contact migration spreads each entry (so `marketing_consent` is preserved) and overlays each email's `marketing_consent` from the **shared** `useLavorazioni().students` record so a Profile change in the same session is reflected. `<ContactManager>` no longer receives `marketingConsent` / `onUpdateMarketingConsent`. Persisted by the existing `Salva modifiche` (`contacts.emails`); no separate section, no separate save, no auto-save. |
+| `StudentiPage.tsx` | `resolveStudentConsent` → `resolveStudentRecontact(id): RecontactSummary` via `deriveStudentRecontactSummary(shared.contacts?.emails)`. List + mobile card show one read-only triage pill `recontactSummaryLabel(...)` (`Ricontatto consentito` / `Ricontatto non consentito` / `Consenso non richiesto`). `marketingConsentLabel` import replaced. Still no kebab toggle. |
+| `PipelinesPage.tsx` / `CreateLavorazioneDrawer.tsx` | Pipeline→Student conversion: each built email carries `marketing_consent: readMarketingConsentForContact(pipeline.marketing_consents, thatEmail)`; the top-level `newStudent.marketing_consent` is dropped. Per-contact, never collapsed. |
+| `tesicheckLeadEnrichment.ts` | `applyStandaloneRegistrationConsent` Student-match branch writes `withStudentEmailConsent(student.contacts?.emails, verifiedEmail, granted, { source: 'tesicheck-registration' })` — the verified email contact only, never a global value, never other emails. Module + fn docstrings updated. |
+| `student/ProfilePage.tsx` | The standalone `Comunicazioni` `FormSection` is **removed**. `CommercialConsentField` now sits **inside `Contatti`, under the email**, with caption `Riferito all'indirizzo <email>.` Prefill via `readStudentEmailConsent(student.contacts?.emails, primaryEmail)`; `handleSubmit` writes the primary email's `marketing_consent` via `withStudentEmailConsent` (guarded by `commercialTouched`). No global field written. |
+| `PublicProfilePage.tsx` | `target.mode === 'student'` branch: prefill via `readStudentEmailConsent(matched?.contacts?.emails, accountEmail)`; `saveStudentConsent` writes `withStudentEmailConsent(s.contacts?.emails, accountEmail, choice, { source: 'tesicheck-standalone-profile' })` — the verified matching email only, no Pipeline, no global value. `pipeline` / `new_pipeline` branches unchanged. |
+
+### Authoritative service-access surface (audit)
+
+`TimelineDrawer.tsx` — rendered by `src/pages/admin/TimelinePage.tsx`, route
+`/coaching/timeline`, section **"Accesso al servizio"**. Writes
+`StudentService.coaching_access_enabled` + `invite_status` / `invite_email` /
+`invite_sent_at` (via `updateService`) and sets `service_access` on the selected
+invite email, removing it from all others (radio, via `updateStudent`). The
+Student/email is chosen in its "Email di accesso" selector (defaults to the
+current `service_access` email → first email); the Student is resolved by
+`student.studentId`. Pipeline / Lavorazione expose **no** competing access
+*control* — only a one-time `service_access` default on the primary email at
+Pipeline→Student conversion (which `TimelineDrawer` can then change).
+
+### Pipeline → Student conversion
+
+**Per contact.** Every email built from the Pipeline carries
+`marketing_consent = readMarketingConsentForContact(pipeline.marketing_consents,
+thatEmail)`: key `true` → email `true`, `false` → `false`, absent → `null`. No
+channel aggregation, no collapse to one Student value, never `!!map[email]`.
+After conversion each email owns its own consent; later changes to the Student's
+service-access email do not alter it.
+
+### Hard invariant
+
+- Student drawer contact edits → do **not** grant/revoke timeline access, do
+  **not** alter `purposes` (non-lossy migration), do **not** move consent
+  between email records.
+- Setting another email as primary → does **not** transfer `marketing_consent`
+  to a different record.
+- `TimelineDrawer` access flow → does **not** alter `marketing_consent`.
+- Commercial-consent edits (Profile or Admin drawer) → do **not** alter access,
+  `purposes`, `is_primary`, or any other email's consent.
 
 ## 10. Verification performed
 

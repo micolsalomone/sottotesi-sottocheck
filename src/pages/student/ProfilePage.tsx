@@ -12,6 +12,7 @@ import {
 } from '@/app/components/profile/ProfileFormPrimitives';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
+import { readStudentEmailConsent, withStudentEmailConsent } from '@/app/data/marketingConsent';
 
 // Client-approved academic vocabulary. Underlying fields keep their legacy names
 // (`thesis_type` / `thesis_professor` / `thesis_subject` / `thesis_topic`).
@@ -129,9 +130,10 @@ export function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
-  // Commercial-communications preference (Student domain). `commercialTouched`
-  // separates "the user made a choice this session" from "untouched" so an
-  // unrelated Profile save never turns an untouched `null` into `false`.
+  // Commercial-communications consent for the PRIMARY email
+  // (`contacts.emails[].marketing_consent`). `commercialTouched` separates "the
+  // user made a choice this session" from "untouched" so an unrelated Profile
+  // save never turns an untouched `null` into `false`.
   const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
   const [commercialTouched, setCommercialTouched] = useState(false);
 
@@ -147,13 +149,13 @@ export function ProfilePage() {
     setFirstName(student.first_name ?? '');
     setLastName(student.last_name ?? '');
     setPhone(phoneIsGapFill ? '' : existingPrimaryPhone);
-    setCommercialConsent(student.marketing_consent ?? null);
+    setCommercialConsent(readStudentEmailConsent(student.contacts?.emails, primaryEmail));
     setCommercialTouched(false);
 
     const current = student.academic_records.filter((r) => r.is_current).map(toEditable);
     const previous = student.academic_records.filter((r) => !r.is_current).map(toEditable);
     setAcademic([...current, ...previous]);
-  }, [student, existingPrimaryPhone, phoneIsGapFill]);
+  }, [student, existingPrimaryPhone, phoneIsGapFill, primaryEmail]);
 
   const markDirty = () => setSaved(false);
 
@@ -227,6 +229,18 @@ export function ProfilePage() {
         };
       }
 
+      // Commercial consent: write ONLY the primary email's per-email value, and
+      // only when the Student changed it this session. No other email, no
+      // `purposes`, no service access is touched.
+      if (commercialTouched && primaryEmail) {
+        contacts = {
+          emails: withStudentEmailConsent(contacts?.emails, primaryEmail, commercialConsent, {
+            source: 'student-profile',
+          }),
+          phones: contacts?.phones ?? [],
+        };
+      }
+
       const today = new Date().toISOString().split('T')[0];
       const editsById = new Map(academic.filter((r) => !r.isNew).map((r) => [r.id, r]));
 
@@ -278,10 +292,6 @@ export function ProfilePage() {
         name: nextName,
         contacts,
         academic_records: [...mergedExisting, ...addedPrevious],
-        // Only write the commercial preference when the user actually chose one
-        // this session; an untouched `null` (or stored `true`/`false`) is left
-        // exactly as it was.
-        ...(commercialTouched ? { marketing_consent: commercialConsent } : {}),
       };
     });
 
@@ -355,6 +365,28 @@ export function ProfilePage() {
               />
             ) : (
               <ReadOnlyField label="Telefono" value={existingPrimaryPhone} />
+            )}
+          </div>
+
+          {/* Commercial-communications consent for the primary email — kept
+              adjacent to the email it applies to, not in a separate section. */}
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <CommercialConsentField
+              idPrefix="student-commercial-consent"
+              value={commercialConsent}
+              onChange={(v) => {
+                setCommercialConsent(v);
+                setCommercialTouched(true);
+                markDirty();
+              }}
+            />
+            {primaryEmail && (
+              <p
+                className="mt-2 text-[var(--muted-foreground)]"
+                style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
+              >
+                Riferito all&apos;indirizzo {primaryEmail}.
+              </p>
             )}
           </div>
         </FormSection>
@@ -469,18 +501,6 @@ export function ProfilePage() {
               </button>
             </div>
           </div>
-        </FormSection>
-
-        <FormSection title="Comunicazioni">
-          <CommercialConsentField
-            idPrefix="student-commercial-consent"
-            value={commercialConsent}
-            onChange={(v) => {
-              setCommercialConsent(v);
-              setCommercialTouched(true);
-              markDirty();
-            }}
-          />
         </FormSection>
 
         <div>

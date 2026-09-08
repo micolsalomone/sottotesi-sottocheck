@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router';
-import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, Mail, MailX, UserCheck, ExternalLink, Clock } from 'lucide-react';
+import { ChevronRight, Edit, Trash2, Power, StickyNote, AlertCircle, CheckCircle, Users, UserCheck, ExternalLink, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI } from '../../app/data/LavorazioniContext';
@@ -23,6 +23,7 @@ import {
   ResponsiveMobileCardSection,
   ResponsiveMobileFieldLabel,
   ResponsiveTableLayout,
+  StatusPill,
   TableActionCell,
   TableActionPlaceholderCell,
   TableCell,
@@ -34,6 +35,11 @@ import {
   TableSelectionCell,
   TableSelectionHeaderCell,
 } from '../../app/components/TablePrimitives';
+import {
+  deriveStudentRecontactSummary,
+  recontactSummaryLabel,
+  type RecontactSummary,
+} from '../../app/data/marketingConsent';
 import { useTableResize } from '../../app/hooks/useTableResize';
 
 // ─── Mock admin corrente ───────────────────────────────────
@@ -335,19 +341,20 @@ export function StudentiPage() {
     toast.success(student.status === 'active' ? 'Studente bloccato' : 'Studente attivato');
   };
 
-  const handleToggleMarketing = (student: ExtendedStudent) => {
-    // `marketing_consent` is now tri-state (`boolean | null`). This Admin toggle
-    // is an explicit action: `!current` maps `null`/`false` → `true` and `true`
-    // → `false`. `null` is treated as "not granted" for the toggle and its menu
-    // label; a proper unknown/declined/granted read model is Slice D — it must
-    // not be inferred as consent here.
-    setStudentsData(prev => prev.map(s =>
-      s.id === student.id
-        ? { ...s, marketing_consent: !s.marketing_consent, updated_by: CURRENT_ADMIN, updated_at: new Date().toISOString() }
-        : s
-    ));
-    toast.success(student.marketing_consent ? 'Consenso marketing rimosso' : 'Consenso marketing attivato');
-  };
+  // Commercial consent is PER EMAIL (`contacts.emails[].marketing_consent`). The
+  // list/card shows ONE derived triage summary over the student's CURRENT emails
+  // (any email granted → "Ricontatto consentito"; else any declined → "Ricontatto
+  // non consentito"; else "Consenso non richiesto"). Read from the shared
+  // `useLavorazioni().students` record so a Profile/drawer change is reflected in
+  // the same session. Per-email values in the Student drawer stay authoritative.
+  const resolveStudentRecontact = (id: string): RecontactSummary =>
+    deriveStudentRecontactSummary(students.find(s => s.id === id)?.contacts?.emails);
+
+  // Per-email consent is edited only inside each email card of the Student
+  // drawer (`CreateStudentDrawer` → `ContactManager`, reached via "Modifica"),
+  // persisted by its existing "Salva modifiche" transaction. No kebab toggle:
+  // a binary global toggle could not express per-email tri-state. The list/card
+  // summary stays read-only.
 
   const handleEditStudent = (student: ExtendedStudent) => {
     setEditStudentId(student.id);
@@ -457,7 +464,6 @@ export function StudentiPage() {
     return [
       { label: 'Modifica', icon: <Edit size={16} />, onClick: () => handleEditStudent(student) },
       { label: `Note interne${noteCount > 0 ? ` (${noteCount})` : ''}`, icon: <StickyNote size={16} />, onClick: () => handleOpenNotesDrawer(student) },
-      { label: student.marketing_consent ? 'Rimuovi consenso marketing' : 'Attiva consenso marketing', icon: student.marketing_consent ? <MailX size={16} /> : <Mail size={16} />, onClick: () => handleToggleMarketing(student) },
       { label: student.status === 'active' ? 'Blocca' : 'Attiva', icon: <Power size={16} />, onClick: () => handleToggleStatus(student), divider: true },
       { label: 'Rimuovi', icon: <Trash2 size={16} />, onClick: () => handleRemoveStudent(student), variant: 'destructive' }
     ];
@@ -637,6 +643,7 @@ export function StudentiPage() {
               ) : (
                 filteredData.map((student) => {
                   const noteCount = student.notes?.length || 0;
+                  const recontact = resolveStudentRecontact(student.id);
                   const isSelected = selectedIds.includes(student.id);
                   const isExpanded = expandedRows.has(student.id);
                   const studentLavorazioni = getStudentLavorazioni(student.id);
@@ -661,6 +668,9 @@ export function StudentiPage() {
                           <CellContentStack>
                             <CellTextPrimary>{student.name}</CellTextPrimary>
                             <CellTextSecondary>{student.email}</CellTextSecondary>
+                            <div style={{ marginTop: '0.125rem' }}>
+                              <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
+                            </div>
                           </CellContentStack>
                         </TableCell>
 
@@ -830,6 +840,7 @@ export function StudentiPage() {
           <ResponsiveMobileCards>
             {filteredData.map((student) => {
               const noteCount = student.notes?.length || 0;
+              const recontact = resolveStudentRecontact(student.id);
               const isSelected = selectedIds.includes(student.id);
               const studentLavorazioni = getStudentLavorazioni(student.id);
               const activeRef = getActiveReferente(student.id);
@@ -845,6 +856,9 @@ export function StudentiPage() {
                         <CellTextSecondary>{student.id}</CellTextSecondary>
                         <CellTextPrimary>{student.name}</CellTextPrimary>
                         <CellTextSecondary>{student.email}</CellTextSecondary>
+                        <div style={{ marginTop: '0.125rem' }}>
+                          <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
+                        </div>
                       </CellContentStack>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

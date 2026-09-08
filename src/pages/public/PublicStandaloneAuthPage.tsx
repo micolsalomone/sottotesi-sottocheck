@@ -84,8 +84,8 @@ export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' 
       // — same canonical acquisition rule as the in-checkout gate. Idempotent +
       // Student-safe. The optional commercial choice is written to whichever
       // identity domain resolution resolves: Pipeline
-      // `marketing_consents[email]`, or (existing Student, no Pipeline)
-      // `Student.marketing_consent`.
+      // `marketing_consents[email]`, or (existing Student, no Pipeline) the
+      // verified email contact's `contacts.emails[].marketing_consent`.
       applyStandaloneRegistrationConsent({
         accountEmail: verified.email,
         firstName: verified.firstName,
