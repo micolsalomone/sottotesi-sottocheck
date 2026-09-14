@@ -33,11 +33,35 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
 - Sidebar — slot secondario in basso (separato, stesso pattern di Student/Admin):
   `Profilo`. `Account` **non** è nella sidebar.
 - `Profilo` (`/public-view/profilo`) e `Account` (`/public-view/account`) sono
-  superfici distinte: Profilo = dati personali + arricchimento Pipeline + sezione
-  `Comunicazioni` (consenso commerciale, scelta esplicita tri-state, scritto
-  all'identità risolta — Pipeline o Student); Account = accesso (email, recupero
-  password) + stato Termini/Privacy in sola lettura. Termini/Privacy non stanno
-  nel Profilo.
+  superfici distinte: Profilo = `Informazioni personali` → `Contatti` → percorso
+  accademico, in quest'ordine. Account = accesso (email, recupero password) +
+  stato Termini/Privacy in sola lettura. Termini/Privacy non stanno nel
+  Profilo.
+  - **Dominio proprio, indipendente dal CRM.** Il Profilo standalone legge e
+    scrive **solo** un prototipo dedicato
+    (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
+    mai `Pipeline` né `Student.academic_records[]`. Non risolve più
+    `resolveEnrichmentTarget`: la sua forma **non cambia mai** in base a se
+    l'email corrisponde a una Pipeline, a uno Student o a nessuno dei due —
+    ogni utente standalone autenticato vede sempre lo stesso modello
+    `Percorso attuale` + `Percorsi precedenti` (percorso corrente sempre
+    presente, creato vuoto al primo accesso; percorsi precedenti aggiungibili
+    ed eliminabili liberamente — nessun concetto `StudentService` in questo
+    dominio). Stessa leaf condivisa (`AcademicRecordsSections`) usata da
+    `/student-view/profilo`, che invece resta sul dominio Student reale
+    (`Student.academic_records[]`, con `is_current` e binding `StudentService`
+    operativi/Admin) — i due Profili non sono uniti né sincronizzati da questo
+    prototipo.
+  - Il consenso commerciale (scelta esplicita tri-state) vive **dentro**
+    `Contatti`, accanto all'email a cui si riferisce — non in una sezione
+    `Comunicazioni` separata. È scritto sullo stesso store Profilo
+    (`commercial_consents`), seedato dalla scelta esplicita fatta in
+    registrazione; la Pipeline/lo Student CRM ricevono comunque la stessa
+    scelta in parallelo (dominio acquisizione, invariato — vedi
+    `tesicheck-standalone-enrichment-handoff.md` §19).
+  - **Handoff produzione:** la sincronizzazione fra questo Profilo standalone
+    e un'eventuale identità CRM/Student reale è una decisione di
+    implementazione futura, non simulata da questo prototipo.
   Si collegano con cross-link reciproci (`Gestisci account e privacy` /
   `Vai al profilo personale`); nessun contenuto duplicato.
 - `Account` è raggiungibile dal menu utente in alto a destra

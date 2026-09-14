@@ -2,6 +2,7 @@ import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input-otp';
+import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 
 /**
  * Standalone TesiCheck auth form components, shared by the in-checkout account
@@ -18,10 +19,14 @@ export type AuthFormMode = 'checkout' | 'direct';
 
 /**
  * Explicit registration payload. The three consent / legal domains are kept
- * separate on purpose (canonical §33.5) and never merged into one checkbox:
+ * separate on purpose (canonical §33.5) and never merged into one control:
  *  - Terms & Conditions acceptance — REQUIRED (service / account acceptance);
  *  - Privacy notice acknowledgement — REQUIRED (acknowledgement, not consent);
- *  - commercial communications consent — OPTIONAL, and never gates registration,
+ *  - commercial communications consent — the PREFERENCE itself is optional
+ *    (`Sì` is never required), but EXPRESSING it is mandatory: registration
+ *    blocks submit until the user picks `Sì` or `No`, so `commercialConsent` is
+ *    always a genuine explicit boolean here, never a silent unchosen default.
+ *    It never gates on being `true` — only on being chosen — and never blocks
  *    email verification, payment or report access.
  *
  * Prototype wording only — final legal copy, versioning and any real policy
@@ -227,7 +232,11 @@ export function RegisterForm({
   // Three distinct consent / legal domains — kept separate, never combined.
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
-  const [commercialConsent, setCommercialConsent] = useState(false);
+  // Tri-state locally (`null` = not yet chosen) so the form can tell "no
+  // interaction yet" apart from an explicit "No" — but registration never
+  // submits a `null`: expressing a preference is mandatory, the preference
+  // itself is not (see `RegisterSubmitValues` above).
+  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {
@@ -254,6 +263,11 @@ export function RegisterForm({
     }
     if (!privacyAcknowledged) {
       setError('Per creare l’account devi dichiarare di aver preso visione dell’Informativa privacy.');
+      return;
+    }
+    if (commercialConsent === null) {
+      // The choice (Sì/No) is mandatory to EXPRESS; consenting itself stays optional.
+      setError('Seleziona una preferenza per le comunicazioni commerciali (Sì o No).');
       return;
     }
     setError(null);
@@ -298,18 +312,17 @@ export function RegisterForm({
         </ConsentCheckbox>
       </div>
 
-      {/* Optional, visually decoupled from the required block — never blocks
-          registration, verification, payment or report access. */}
+      {/* Visually decoupled from the required Terms/Privacy block, and the
+          preference itself never blocks registration, verification, payment or
+          report access — but EXPRESSING a choice (Sì/No) is mandatory: this
+          shared tri-state field starts unselected and submit is blocked below
+          until one option is picked. Reused as-is from the Profile surfaces. */}
       <div className="mt-4 border-t border-[var(--border)] pt-4">
-        <ConsentCheckbox id="register-commercial" checked={commercialConsent} onChange={setCommercialConsent}>
-          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Comunicazioni commerciali</span>
-          <span
-            className="mt-1 block text-[var(--muted-foreground)]"
-            style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}
-          >
-            Acconsento a ricevere comunicazioni commerciali da Sottotesi. Facoltativo, puoi cambiare idea in qualsiasi momento.
-          </span>
-        </ConsentCheckbox>
+        <CommercialConsentField
+          idPrefix="register-commercial"
+          value={commercialConsent}
+          onChange={setCommercialConsent}
+        />
       </div>
 
       {error && <div className="mt-4"><FormError message={error} /></div>}

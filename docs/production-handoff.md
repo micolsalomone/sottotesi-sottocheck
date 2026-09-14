@@ -114,8 +114,27 @@ riferimento:
 
 ### Ancora incompleto / divergenza nota
 
-- Authenticated `public-view` profilo (`PublicProfilePage`) resta un flusso di
-  acquisizione/enrichment Pipeline, distinto dal Profilo Student.
+- Authenticated `public-view` profilo (`PublicProfilePage`) **non** è più un
+  flusso di acquisizione/enrichment Pipeline: legge/scrive un dominio
+  prototipale proprio e indipendente dal CRM
+  (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
+  mai `Pipeline` né `Student.academic_records[]`. La sua forma è sempre la
+  stessa per ogni utente standalone autenticato — `Informazioni personali` →
+  `Contatti` (consenso commerciale per-email inline, non una sezione
+  `Comunicazioni` separata) → `Percorso attuale` + `Percorsi precedenti` — mai
+  "un blocco se Pipeline, multi-record se Student". Riusa la stessa leaf
+  condivisa (`AcademicRecordsSections`) di `/student-view/profilo`, che invece
+  resta sul dominio Student reale (`Student.academic_records[]`, `is_current` e
+  binding `StudentService` operativi/Admin, mai toccati dal Profilo
+  standalone) — i due Profilo non sono uniti né sincronizzati. L'acquisizione
+  Pipeline a registrazione (`ensureTesiCheckPipeline`,
+  `applyStandaloneRegistrationConsent`) resta invariata e indipendente da
+  questa pagina; solo la scelta di consenso commerciale viene proiettata in
+  parallelo anche sul dominio Profilo standalone
+  (`seedStandaloneProfileFromRegistration`), senza che il Profilo legga mai
+  indietro dal CRM. La sincronizzazione fra questo Profilo standalone e
+  un'eventuale identità CRM/Student reale è lasciata alla produzione, non
+  simulata qui — vedi `tesicheck-standalone-enrichment-handoff.md` §19.
 - `CreateStudentDrawer` (create + edit Admin) usa ora il vocabolario approvato
   (`Tipologia` / `Professore` / `Materia` / `Argomento`) e offre l'opzione
   `Esame` (valore `esame`). Solo etichette/opzioni: nessun cambio a
@@ -152,6 +171,27 @@ Informativa privacy, consenso commerciale. Nel prototipo:
   (`boolean | null`) della sola email pertinente (nel Profilo Student: l'email
   primaria, accanto all'indirizzo; nel Profilo standalone risolto a Student:
   l'email account verificata). Nessun valore globale di persona.
+- **Registrazione standalone = scelta obbligatoria, valore opzionale.** Il
+  tri-state generale del CRM (chiave assente = mai chiesto, valido per contatti
+  di altri canali di acquisizione o dati CRM legacy) resta **distinto**
+  dall'invariante specifico della registrazione standalone TesiCheck: chi
+  completa la registrazione **deve esprimere** una preferenza esplicita —
+  `Sì` o `No` — per le comunicazioni commerciali prima di poter creare
+  l'account; il consenso positivo non è mai obbligatorio, **esprimerlo lo è**.
+  `RegisterForm` (condiviso da `/public/register` e dal checkout in-account)
+  blocca il submit finché non è selezionata un'opzione, riusando lo stesso
+  controllo tri-state (`CommercialConsentField`) del Profilo. Il risultato è
+  sempre un booleano esplicito, mai `null`, passato a
+  `applyStandaloneRegistrationConsent` dopo la verifica email: scrive
+  `Pipeline.marketing_consents[emailVerificata]` oppure, per uno Student
+  esistente, `contacts.emails[emailVerificata].marketing_consent` — sempre
+  `true`/`false`. Di conseguenza il Profilo standalone non mostra mai
+  `Preferenza non ancora espressa` per l'email dell'account verificato di una
+  registrazione TesiCheck completata; quello stato resta legittimo solo per
+  contatti CRM non originati da questa registrazione (Pipeline/Student
+  pre-esistenti risolti per email, o il fallback `new_pipeline` per account
+  pre-regola). Non è stato introdotto alcun consenso "positivo" obbligatorio,
+  né alcuna coercizione di un valore sconosciuto a `false`.
 - **Admin (Slice D)** → Pipeline: consenso per contatto con controllo tri-state
   esplicito (`Non richiesto` rimuove la chiave = ritorno a sconosciuto), più una
   sintesi persona derivata nella list/card/drawer. Student: consenso tri-state

@@ -1,29 +1,41 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
-import { useLavorazioni } from '@/app/data/LavorazioniContext';
-import type { DegreeLevel, Pipeline, ThesisType } from '@/app/data/LavorazioniContext';
+import type { DegreeLevel, ThesisType } from '@/app/data/LavorazioniContext';
 import { getAccountFirstName, getAccountSession } from '@/app/data/tesicheckAccountSession';
 import {
-  nextPipelineId,
-  readEmailMarketingConsent,
-  resolveEnrichmentTarget,
-  TESICHECK_ACQUISITION_SOURCE,
-  withEmailMarketingConsent,
-  withTesiCheckSource,
-} from '@/app/data/tesicheckLeadEnrichment';
-import { readStudentEmailConsent, withStudentEmailConsent } from '@/app/data/marketingConsent';
+  applyStandaloneAcademicEdits,
+  createDraftAcademicRecord,
+  ensureStandaloneProfile,
+  readStandaloneCommercialConsent,
+  toEditableStandaloneRecord,
+  updateStandaloneProfile,
+  writeStandaloneCommercialConsent,
+} from '@/app/data/standaloneProfile';
+import type { EditableAcademic } from '@/app/data/studentAcademicRecords';
 import {
   FormSection,
   ReadOnlyField,
-  SelectField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
+import { AcademicRecordsSections } from '@/app/components/profile/AcademicRecordsSection';
 import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 
-// Same option vocabulary as the Admin academic forms (CreatePipelineDrawer /
-// PipelineDetailDrawer), kept local because those lists are not exported.
+/**
+ * Standalone Profile (`/public-view/profilo`) — its own self-contained
+ * prototype domain (`standaloneProfile.ts`), keyed by the verified account
+ * email. Deliberately CRM-free: it never resolves Pipeline vs. Student, so its
+ * shape (one current academic record + zero-or-more previous ones, always
+ * available to fill in) never changes based on identity-resolution branching.
+ * Acquisition Pipeline creation/dedupe at registration
+ * (`tesicheckLeadEnrichment.ts`) is a separate, untouched concern — this page
+ * never reads or writes it.
+ */
+
+// Same option vocabulary as the Admin academic forms / Student Profile, kept
+// local because those lists are not exported (see the standalone-enrichment
+// handoff for why this stays a per-file constant rather than a shared module).
 const DEGREE_LEVEL_OPTIONS: { value: DegreeLevel; label: string }[] = [
   { value: 'triennale', label: 'Triennale' },
   { value: 'magistrale', label: 'Magistrale' },
@@ -40,193 +52,93 @@ const TYPOLOGY_OPTIONS: { value: ThesisType; label: string }[] = [
 ];
 
 export function PublicProfilePage() {
-  const { pipelines, students, addPipeline, updatePipeline, updateStudent } = useLavorazioni();
   const session = useMemo(() => getAccountSession(), []);
   const accountEmail = session?.emailVerified ? session.email : null;
-
-  // Once a save has happened this visit, keep editing that exact Pipeline so a
-  // repeated save never creates a duplicate.
-  const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [fallbackNameError, setFallbackNameError] = useState(false);
-
-  const target = useMemo(() => {
-    if (activePipelineId) {
-      return { mode: 'pipeline' as const, pipelineId: activePipelineId };
-    }
-    return resolveEnrichmentTarget({ accountEmail, students, pipelines });
-  }, [activePipelineId, accountEmail, students, pipelines]);
 
   // ─── Form state ───────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  // Commercial-communications preference, written to whichever identity domain
-  // resolution resolves (Pipeline consent map, or a matched Student). `touched`
-  // separates an explicit choice from an untouched unknown so a Profile save
-  // never turns an absent/`null` value into `false`.
+  // `touched` separates an explicit choice from an untouched unknown so a
+  // Profile save never turns an absent/`null` value into `false`.
   const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
   const [commercialTouched, setCommercialTouched] = useState(false);
-  const [degreeLevel, setDegreeLevel] = useState<DegreeLevel | ''>('');
-  const [courseName, setCourseName] = useState('');
-  const [universityName, setUniversityName] = useState('');
-  const [typology, setTypology] = useState<ThesisType | ''>('');
-  const [professor, setProfessor] = useState('');
-  const [subject, setSubject] = useState('');
-  const [topic, setTopic] = useState('');
+  const [academic, setAcademic] = useState<EditableAcademic[]>([]);
+  const [saved, setSaved] = useState(false);
 
-  // Prefill once per resolved target.
+  // Prefill once per account email; re-syncs when the record SET changes (add/
+  // delete), mirroring `student/ProfilePage`, so in-session edits are not lost.
   const prefillKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    const key = target.mode === 'pipeline' ? `pipeline:${target.pipelineId}` : target.mode;
+    if (!accountEmail) return;
+    const profile = ensureStandaloneProfile(accountEmail);
+    if (!profile) return;
+    const key = `${accountEmail}:${profile.academic_records.map((r) => r.id).join(',')}`;
     if (prefillKeyRef.current === key) return;
     prefillKeyRef.current = key;
 
-    if (target.mode === 'pipeline') {
-      const pipeline = pipelines.find((item) => item.id === target.pipelineId);
-      if (!pipeline) return;
-      setFirstName(pipeline.first_name ?? '');
-      setLastName(pipeline.last_name ?? '');
-      setPhone(pipeline.phone ?? '');
-      setDegreeLevel(pipeline.academic_data?.degree_level ?? '');
-      setCourseName(pipeline.academic_data?.course_name ?? '');
-      setUniversityName(pipeline.academic_data?.university_name ?? '');
-      setTypology(pipeline.academic_data?.thesis_type ?? '');
-      setProfessor(pipeline.academic_data?.thesis_professor ?? '');
-      setSubject(pipeline.academic_data?.thesis_subject ?? '');
-      setTopic(pipeline.academic_data?.thesis_topic ?? '');
-      setCommercialConsent(
-        readEmailMarketingConsent(pipeline.marketing_consents, pipeline.email ?? accountEmail),
-      );
-      setCommercialTouched(false);
-      return;
-    }
+    setFirstName(profile.first_name || getAccountFirstName(session));
+    setLastName(profile.last_name);
+    setPhone(profile.phone);
+    setCommercialConsent(readStandaloneCommercialConsent(accountEmail));
+    setCommercialTouched(false);
+    setAcademic([
+      ...profile.academic_records.filter((r) => r.is_current).map(toEditableStandaloneRecord),
+      ...profile.academic_records.filter((r) => !r.is_current).map(toEditableStandaloneRecord),
+    ]);
+  }, [accountEmail, session]);
 
-    if (target.mode === 'student') {
-      // Per-email consent for the verified account email only — never a global
-      // Student value, never other Student emails.
-      const matched = students.find((item) => item.id === target.studentId);
-      setCommercialConsent(readStudentEmailConsent(matched?.contacts?.emails, accountEmail));
-      setCommercialTouched(false);
-      return;
-    }
+  const markDirty = () => setSaved(false);
 
-    if (target.mode === 'new_pipeline') {
-      // Fallback path only (pre-rule accounts): the first name normally already
-      // lives on the Pipeline created at registration.
-      setFirstName(getAccountFirstName(session));
-      setCommercialConsent(null);
-      setCommercialTouched(false);
-    }
-  }, [target, pipelines, students, session, accountEmail]);
-
-  const markDirty = () => {
-    setSaved(false);
-    setFallbackNameError(false);
+  const patchAcademic = (id: string, patch: Partial<EditableAcademic>) => {
+    setAcademic((prev) => prev.map((record) => (record.id === id ? { ...record, ...patch } : record)));
+    markDirty();
   };
 
-  const buildAcademicData = (): Pipeline['academic_data'] | undefined => {
-    const next: NonNullable<Pipeline['academic_data']> = {};
-    if (degreeLevel) next.degree_level = degreeLevel;
-    if (courseName.trim()) next.course_name = courseName.trim();
-    if (universityName.trim()) next.university_name = universityName.trim();
-    if (typology) next.thesis_type = typology;
-    if (professor.trim()) next.thesis_professor = professor.trim();
-    if (subject.trim()) next.thesis_subject = subject.trim();
-    if (topic.trim()) next.thesis_topic = topic.trim();
-    return Object.keys(next).length > 0 ? next : undefined;
+  const addPreviousRecord = () => {
+    setAcademic((prev) => [...prev, createDraftAcademicRecord()]);
+    markDirty();
   };
+
+  // Unsaved draft: drop from local form state only. It never reached the
+  // Profile store, so no write is needed.
+  const removeDraft = (id: string) => {
+    setAcademic((prev) => prev.filter((record) => record.id !== id));
+    markDirty();
+  };
+
+  // No `StudentService` concept in the standalone Profile — every previous
+  // record is always a safe delete target.
+  const deletePersistedRecord = (id: string) => {
+    if (!accountEmail) return;
+    updateStandaloneProfile(accountEmail, (profile) => ({
+      ...profile,
+      academic_records: profile.academic_records.filter((record) => record.id !== id),
+    }));
+  };
+  const isRecordServiceBound = () => false;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!accountEmail) return;
 
-    // Re-resolve against the latest CRM data so a second submit updates the
-    // Pipeline written by the first one instead of adding another.
-    const liveTarget = activePipelineId
-      ? ({ mode: 'pipeline', pipelineId: activePipelineId } as const)
-      : resolveEnrichmentTarget({ accountEmail, students, pipelines });
-
-    if (liveTarget.mode === 'student' || liveTarget.mode === 'unavailable') return;
-
-    const trimmedFirst = firstName.trim();
-    const trimmedLast = lastName.trim();
-    const fullName = `${trimmedFirst} ${trimmedLast}`.trim();
-
-    if (liveTarget.mode === 'pipeline') {
-      updatePipeline(liveTarget.pipelineId, (pipeline) => {
-        const mergedAcademic: NonNullable<Pipeline['academic_data']> = {
-          ...pipeline.academic_data,
-          ...(degreeLevel ? { degree_level: degreeLevel } : {}),
-          ...(courseName.trim() ? { course_name: courseName.trim() } : {}),
-          ...(universityName.trim() ? { university_name: universityName.trim() } : {}),
-          ...(typology ? { thesis_type: typology } : {}),
-          ...(professor.trim() ? { thesis_professor: professor.trim() } : {}),
-          ...(subject.trim() ? { thesis_subject: subject.trim() } : {}),
-          ...(topic.trim() ? { thesis_topic: topic.trim() } : {}),
-        };
-        return {
-          ...pipeline,
-          first_name: trimmedFirst,
-          last_name: trimmedLast,
-          student_name: fullName || pipeline.student_name || pipeline.email || 'Lead senza nome',
-          phone: phone.trim() || pipeline.phone || '',
-          academic_data:
-            Object.keys(mergedAcademic).length > 0 ? mergedAcademic : pipeline.academic_data,
-          sources: withTesiCheckSource(pipeline.sources),
-          // Write the explicit boolean for the verified account email only when
-          // the user chose one this session; preserve every other map entry and
-          // never delete a key to represent `false`.
-          ...(commercialTouched && commercialConsent !== null
-            ? {
-                marketing_consents: withEmailMarketingConsent(
-                  pipeline.marketing_consents,
-                  pipeline.email || accountEmail,
-                  commercialConsent,
-                ),
-              }
-            : {}),
-        };
-      });
-      setActivePipelineId(liveTarget.pipelineId);
-      setSaved(true);
-      return;
+    // Write the touched consent choice only when the user made one this
+    // session — an untouched value round-trips unchanged.
+    if (commercialTouched && commercialConsent !== null) {
+      writeStandaloneCommercialConsent(accountEmail, commercialConsent);
     }
 
-    // liveTarget.mode === 'new_pipeline' — fallback compatibility only: a
-    // post-rule registration already has its Pipeline (created at email
-    // verification), so this branch is reached only for pre-rule accounts. A
-    // verified email is guaranteed here (resolver); a first name is still
-    // required before a lead can be created.
-    if (!trimmedFirst) {
-      setFallbackNameError(true);
-      return;
-    }
-    const id = nextPipelineId(pipelines);
-    const newPipeline: Pipeline = {
-      id,
-      student_name: fullName,
-      first_name: trimmedFirst,
-      last_name: trimmedLast,
-      email: accountEmail,
+    updateStandaloneProfile(accountEmail, (profile) => ({
+      ...profile,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
       phone: phone.trim(),
-      sources: [TESICHECK_ACQUISITION_SOURCE],
-      created_at: new Date().toISOString().split('T')[0],
-      lavorazioni_ids: [],
-      academic_data: buildAcademicData(),
-      // The Pipeline is created by the normal enrichment flow (name + fields);
-      // an explicit commercial choice rides along. No Pipeline is created solely
-      // to store a preference.
-      ...(commercialTouched && commercialConsent !== null
-        ? { marketing_consents: withEmailMarketingConsent(undefined, accountEmail, commercialConsent) }
-        : {}),
-    };
-    addPipeline(newPipeline);
-    setActivePipelineId(id);
+      academic_records: applyStandaloneAcademicEdits(profile.academic_records, academic),
+    }));
     setSaved(true);
   };
 
-  // ─── Guard / neutral states ──────────────────────────────
+  // ─── Guard / neutral state ──────────────────────────────
   if (!session || !session.emailVerified) {
     return (
       <PageShell>
@@ -238,74 +150,8 @@ export function PublicProfilePage() {
     );
   }
 
-  if (target.mode === 'unavailable') {
-    return (
-      <PageShell>
-        <NeutralCard
-          title="Profilo non disponibile"
-          body="Non è stato possibile collegare il tuo profilo all'account. Riprova più tardi."
-        />
-      </PageShell>
-    );
-  }
-
-  if (target.mode === 'student') {
-    const matchedStudent = students.find((item) => item.id === target.studentId) ?? null;
-    const saveStudentConsent = () => {
-      if (!matchedStudent || !commercialTouched || commercialConsent === null || !accountEmail) return;
-      // Write consent to the verified matching email contact only — no global
-      // value, no other Student email, no Pipeline, no contact/service changes.
-      updateStudent(matchedStudent.id, (s) => ({
-        ...s,
-        contacts: {
-          emails: withStudentEmailConsent(s.contacts?.emails, accountEmail, commercialConsent, {
-            source: 'tesicheck-standalone-profile',
-          }),
-          phones: s.contacts?.phones ?? [],
-        },
-      }));
-      setSaved(true);
-    };
-    return (
-      <PageShell>
-        <div className="flex flex-col gap-6">
-          <NeutralCard
-            title="Profilo studente già collegato"
-            body="Il tuo account è già associato a un profilo studente Sottotesi. Le informazioni del profilo studente sono gestite dal percorso dedicato: non è necessario compilare nulla qui."
-          />
-
-          {matchedStudent && (
-            <FormSection title="Comunicazioni">
-              <CommercialConsentField
-                idPrefix="standalone-student-commercial-consent"
-                value={commercialConsent}
-                onChange={(v) => {
-                  setCommercialConsent(v);
-                  setCommercialTouched(true);
-                  setSaved(false);
-                }}
-              />
-              {saved && (
-                <p
-                  className="mt-3 text-[var(--muted-foreground)]"
-                  style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
-                >
-                  Preferenza salvata.
-                </p>
-              )}
-              <div className="mt-4">
-                <SottocheckActionButton onClick={saveStudentConsent}>
-                  Salva preferenza
-                </SottocheckActionButton>
-              </div>
-            </FormSection>
-          )}
-
-          <CrossSurfaceLink to="/public-view/account" label="Gestisci account e privacy" />
-        </div>
-      </PageShell>
-    );
-  }
+  const currentRecords = academic.filter((r) => r.isCurrent);
+  const previousRecords = academic.filter((r) => !r.isCurrent);
 
   return (
     <PageShell>
@@ -326,65 +172,53 @@ export function PublicProfilePage() {
       )}
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
-        <FormSection title="Anagrafica">
+        <FormSection title="Informazioni personali">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <TextField id="profile-first-name" label="Nome" value={firstName} onChange={(v) => { setFirstName(v); markDirty(); }} autoComplete="given-name" />
             <TextField id="profile-last-name" label="Cognome" value={lastName} onChange={(v) => { setLastName(v); markDirty(); }} autoComplete="family-name" />
           </div>
         </FormSection>
 
-        <FormSection title="Contatto">
+        <FormSection title="Contatti">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ReadOnlyField label="Email account" value={session.email} />
             <TextField id="profile-phone" label="Telefono (facoltativo)" type="tel" value={phone} onChange={(v) => { setPhone(v); markDirty(); }} autoComplete="tel" />
           </div>
-        </FormSection>
 
-        <FormSection title="Percorso universitario">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <SelectField
-              id="profile-degree-level"
-              label="Livello di laurea"
-              value={degreeLevel}
-              onChange={(v) => { setDegreeLevel(v as DegreeLevel | ''); markDirty(); }}
-              options={DEGREE_LEVEL_OPTIONS}
+          {/* Commercial-communications consent for the verified account email —
+              kept adjacent to the email it applies to, not in a separate section. */}
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <CommercialConsentField
+              idPrefix="standalone-commercial-consent"
+              value={commercialConsent}
+              onChange={(v) => {
+                setCommercialConsent(v);
+                setCommercialTouched(true);
+                markDirty();
+              }}
             />
-            <TextField id="profile-course" label="Corso di laurea" value={courseName} onChange={(v) => { setCourseName(v); markDirty(); }} />
-            <TextField id="profile-university" label="Università" value={universityName} onChange={(v) => { setUniversityName(v); markDirty(); }} autoComplete="organization" />
-            <SelectField
-              id="profile-typology"
-              label="Tipologia"
-              value={typology}
-              onChange={(v) => { setTypology(v as ThesisType | ''); markDirty(); }}
-              options={TYPOLOGY_OPTIONS}
-            />
-            <TextField id="profile-professor" label="Professore (facoltativo)" value={professor} onChange={(v) => { setProfessor(v); markDirty(); }} />
-            <TextField id="profile-subject" label="Materia" value={subject} onChange={(v) => { setSubject(v); markDirty(); }} />
-            <TextField id="profile-topic" label="Argomento" value={topic} onChange={(v) => { setTopic(v); markDirty(); }} />
+            <p
+              className="mt-2 text-[var(--muted-foreground)]"
+              style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
+            >
+              Riferito all&apos;indirizzo {session.email}.
+            </p>
           </div>
         </FormSection>
 
-        <FormSection title="Comunicazioni">
-          <CommercialConsentField
-            idPrefix="standalone-commercial-consent"
-            value={commercialConsent}
-            onChange={(v) => {
-              setCommercialConsent(v);
-              setCommercialTouched(true);
-              markDirty();
-            }}
-          />
-        </FormSection>
+        <AcademicRecordsSections
+          current={currentRecords}
+          previous={previousRecords}
+          onChange={patchAcademic}
+          onAddPrevious={addPreviousRecord}
+          onRemoveDraft={removeDraft}
+          onDeletePersisted={deletePersistedRecord}
+          isRecordServiceBound={isRecordServiceBound}
+          degreeLevelOptions={DEGREE_LEVEL_OPTIONS}
+          typologyOptions={TYPOLOGY_OPTIONS}
+        />
 
         <div>
-          {fallbackNameError && (
-            <p
-              className="mb-3 text-[var(--destructive)]"
-              style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
-            >
-              Inserisci il tuo nome per salvare le informazioni.
-            </p>
-          )}
           <SottocheckActionButton type="submit">Salva informazioni</SottocheckActionButton>
         </div>
       </form>

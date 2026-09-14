@@ -27,10 +27,12 @@
 - `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
 - `Apri report` into the role-specific report route.
 
-**Also implemented (post-payment academic-profile review — Slice 1, see §14):**
+**Also implemented (post-payment academic-profile review — CRM-free, see §14):**
 
-- `/public-view/sottocheck` only: after the persistent standalone check exists, an **optional academic-profile review** (four fields — degree level / university / course / typology) appears before the report whenever the resolved acquisition identity has a reviewable academic target. **Not gap-fill** — all four fields are always shown, **prefilled** with the current values, for confirm/correct/complete/skip. A Student with >1 academic record also gets a `Percorso accademico` selector to pick which existing record to review (preselecting `is_current`); the selector never changes `is_current`, creates/deletes a record, touches service bindings, or binds the check to a record. **Academic context only** — no surname / phone / contact / identity / consent. It never blocks the report, never runs before `completedCheck`, and does **not** touch payment / the gateway / `sourcePaymentReference` / materialization / `completionError` recovery / `PersistentTesiCheck` / the report page. Values go to the resolved Pipeline `academic_data` or the one selected Student academic record (by stable id), never to `public-tesicheck-checks-v1`.
-- The guest `/public/account` flow and the Student paid flow are **not** touched.
+- `/public-view/sottocheck` **and** `/public/account` (guest checkout): after the persistent standalone check exists, an **optional academic-profile review** (four fields — degree level / university / course / typology) appears before the report, sourced from the user's own **standalone Profile** (`src/app/data/standaloneProfile.ts`) — **not** from Pipeline/Student CRM resolution. **Not gap-fill** — all four fields are always shown, **prefilled** with the current values, for confirm/correct/complete/skip; a Profile with 0 academic records gets one auto-initialized rather than being skipped. A Profile with >1 academic record also gets a `Percorso accademico` selector to pick which existing record to review; the selector never creates/deletes a record or binds the check to one — there is no `StudentService`/`is_current` concept in this domain at all. **Academic context only** — no surname / phone / contact / identity / consent. It never blocks the report, never runs before `completedCheck`, and does **not** touch payment / the gateway / `sourceTemporaryDocumentRef` / `sourcePaymentReference` / materialization / `completionError` recovery / `PersistentTesiCheck` / the report page. Values go to the resolved standalone-Profile record (by stable id), never to Pipeline, never to `Student.academic_records[]`, never to `public-tesicheck-checks-v1`.
+- Same leaf component and the same standalone-Profile review helpers on both pages; the two checkout controllers (`PublicAccountGatePage`, `PublicPaidSottocheckPage`) remain fully separate — see §14.
+- Acquisition Pipeline creation/dedupe at registration (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`) is **unchanged** and lives entirely outside this review's concerns — the review never reads or writes it.
+- The Student paid flow (`StudentPaidSottocheckPage`) is **not** touched (later slice).
 
 **Updated by Slice A (permanent History + title foundation):**
 
@@ -432,73 +434,106 @@ above the primary CTA, as a secondary text link — consistent across the direct
 
 ---
 
-## 14. Post-payment academic-profile review interstitial — Slice 1 (authenticated standalone only)
+## 14. Post-payment academic-profile review interstitial — authenticated standalone + guest
 
-> Full technical detail: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §15.
-> This section only records how it touches the paid-consumer flow.
+> Full technical detail: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md)
+> §19. This section only records how it touches the paid-consumer flow.
+>
+> **CRM-free.** Earlier revisions of this section had the review resolve
+> Pipeline-vs-Student and write directly to `academic_data` /
+> `Student.academic_records[]`. That was removed: the review now reads/writes
+> **only** a dedicated prototype-local standalone Profile store
+> (`src/app/data/standaloneProfile.ts`, keyed by the verified account email) —
+> never Pipeline, never Student. Acquisition Pipeline creation at registration
+> is untouched and lives entirely outside this review's concerns.
 
-**Scope:** `/public-view/sottocheck` (`PublicPaidSottocheckPage`) **only**. Guest
-`/public/account` = next slice; Student paid flow = later slice. Nothing about the
-payment/materialization/recovery machinery changed.
+**Scope:** `/public-view/sottocheck` (`PublicPaidSottocheckPage`) **and**
+`/public/account` (`PublicAccountGatePage`). Student paid flow
+(`StudentPaidSottocheckPage`) is a later slice, not touched. Nothing about the
+payment/materialization/recovery machinery of either page changed.
 
-**Domain: academic context only, review-and-update (not gap-fill).** Four fields —
-`Livello di laurea` (`degree_level`), `Università` (`university_name`),
-`Corso di laurea` (`course_name`), `Tipologia` (`thesis_type`) — always shown,
-**prefilled** with current values. A Student with >1 academic record also gets a
-`Percorso accademico` selector (existing-record edit target only). **No** surname
-/ phone / contact / identity / consent — Profile concerns. No PersistentTesiCheck
-↔ academic-record association.
+**Domain: academic context only, review-and-update (not gap-fill), always
+applicable.** Four fields — `Livello di laurea` (`degree_level`), `Università`
+(`university_name`), `Corso di laurea` (`course_name`), `Tipologia`
+(`thesis_type`) — always shown, **prefilled** with current values from the
+user's own standalone Profile. A Profile with >1 academic record also gets a
+`Percorso accademico` selector (existing-record edit target only). A Profile
+with 0 academic records gets one auto-initialized blank current record instead
+of skipping the review. **No** surname / phone / contact / identity / consent —
+Profile concerns. No PersistentTesiCheck ↔ academic-record association.
 
 **Where it plugs in.** The pre-existing `completedCheck → setTimeout(navigate('/public-view/report/:id'), 1200)`
 effect is the *only* thing gated. After `setCompletedCheck(check)` (materialization
-effect, **unchanged**) the page now:
+effect, **unchanged**) each page now:
 
 1. writes a transient breadcrumb `{ checkId }` to `sessionStorage['tesicheck-pending-enrichment-v1']`;
-2. runs `resolvePostPaymentAcademicReview({ accountEmail, students, pipelines })`
-   (`tesicheckLeadEnrichment.ts`) → `{ applicable, initialValues, records?, selectedRecordId? }`;
-3. if `applicable` → sets `academicReview` + `selectedRecordId`, renders
-   `PostPaymentEnrichmentInterstitial` (all four fields prefilled; selector when
-   `records.length > 1`) and does **not** arm the navigation timer;
-4. otherwise (Pipeline missing, Student with 0 academic records, or
-   `new_pipeline` / `unavailable`) → keeps the 1200 ms "Pagamento ricevuto" beat
-   and navigates.
+2. runs `resolveStandaloneAcademicReview(email)` (`standaloneProfile.ts`) →
+   `{ initialValues, records?, selectedRecordId } | null` — `null` only when
+   there is no verified account email to resolve;
+3. if resolved → sets `academicReview` + `selectedRecordId` + `reviewEmail`,
+   renders `PostPaymentEnrichmentInterstitial` (all four fields prefilled;
+   selector when `records.length > 1`) and does **not** arm the navigation
+   timer;
+4. otherwise → keeps the 1200 ms "Pagamento ricevuto" beat and navigates.
 
-`Aggiorna profilo` calls `applyPostPaymentAcademicUpdate` (try/catch;
-`studentRecordId = selectedRecordId`; non-destructive — a submitted non-empty
-value that differs replaces, unchanged is a no-op, empty never erases; Pipeline
-`academic_data` **or** the one Student record by stable id; never a second
-Pipeline, never a new/`is_current`-changed Student record, never identity /
-contacts / consent / `sources` / service bindings) then navigates regardless of
-the result. `Salta` navigates only. Both clear the breadcrumb.
+`Aggiorna profilo` calls `applyStandaloneAcademicReview(reviewEmail,
+selectedRecordId, values)` (try/catch; non-destructive — a submitted non-empty
+value that differs replaces, unchanged is a no-op, empty never erases; patches
+only the one selected record by stable id in the standalone Profile store;
+never Pipeline, never Student, never identity / contacts / consent) then
+navigates regardless of the result. `Salta` navigates only. Both clear the
+breadcrumb.
 
 **Invariants added to §10:**
 
 - The interstitial never appears before `completedCheck`; a materialization
   failure keeps the existing `completionError` recovery and shows no interstitial.
-- Review-and-update, not gap-fill: for a reviewable target all four fields are
-  always shown prefilled; it disappears only when there is no reviewable target.
+- Review-and-update, not gap-fill: all four fields are always shown prefilled
+  for the selected record; a Profile with 0 records gets one auto-initialized
+  rather than skipping.
 - Academic context only: no surname / phone / contact / identity / commercial
-  consent write anywhere in this slice.
-- Student multi-record: the selector is an edit-target chooser only — never
-  changes `is_current`, creates/deletes a record, touches `StudentService` /
-  `academic_record_id` / service access, or associates the check with a record.
-  The write targets the selected record by **stable id**; `is_current` changing
-  meanwhile does not redirect it; a missing/stale id writes nothing.
+  consent write anywhere in this flow.
+- Multi-record selector: an edit-target chooser only — never associates the
+  check with a record. The write targets the selected record by **stable id**;
+  a missing/stale id writes nothing. No `StudentService` concept exists in this
+  domain at all.
 - Values are **never** written to `PersistentTesiCheck` /
-  `public-tesicheck-checks-v1`; they go to the resolved Pipeline `academic_data`
-  or the one selected Student academic record only.
+  `public-tesicheck-checks-v1`, **never** to Pipeline, **never** to
+  `Student.academic_records[]` — only to the resolved record in
+  `standaloneProfile.ts`.
 - The review save must never block or gate the paid report; there is no recovery
   screen for this data.
 - The `tesicheck-pending-enrichment-v1` breadcrumb holds only a `checkId`, is
   never a payment idempotency key, and never triggers re-payment or
   re-materialization. It is cleared on save / skip / auto-forward and after it is
   consumed on mount (refresh → straight to the paid report).
-- `sourcePaymentReference`, the gateway boundary, the materialization effect, the
-  `completionError` recovery, the persistent-check schema and the report pages
-  are unchanged.
+- `sourceTemporaryDocumentRef` / `sourcePaymentReference`, the gateway boundary,
+  the materialization effect, the `completionError` recovery, the
+  persistent-check schema, the report pages, acquisition Pipeline creation at
+  registration, and Admin are all unchanged.
 
-**New / changed files:** `src/app/data/tesicheckLeadEnrichment.ts` (new exports
-only), `src/app/data/pendingEnrichmentBreadcrumb.ts` (new),
-`src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` (new),
-`src/pages/public/PublicPaidSottocheckPage.tsx` (wiring). Build passes; `tsc`
-baseline of 42 unchanged; `git diff --check` clean.
+**Guest-specific:** registration still creates/deduplicates the Pipeline **at
+email verification** (`handleConfirmEmail` → `applyStandaloneRegistrationConsent`,
+canonical §33.3, byte-for-byte unchanged) — that acquisition write is entirely
+separate from, and never read by, this review. `handleConfirmEmail` (both
+`PublicAccountGatePage` and `PublicStandaloneAuthPage`) additionally calls the
+new `seedStandaloneProfileFromRegistration({ email, firstName, commercialConsent })`
+right after it, mirroring the SAME already-explicit registration choice onto
+the standalone Profile store, in parallel. The pre-check session
+(`tesicheck-precheck-session-v1`) is already cleared the moment
+`createPersistentCheckFromPaidPrecheck` succeeds, so the shared
+`tesicheck-pending-enrichment-v1` breadcrumb is what protects post-materialization
+continuation from that point (same module, same single key, both flows).
+
+**Files:** `src/app/data/standaloneProfile.ts` (new — the store + review
+helpers), `src/app/data/pendingEnrichmentBreadcrumb.ts` (unchanged logic,
+docstring updated), `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx`
+(import source only, no behaviour change), `src/pages/public/PublicPaidSottocheckPage.tsx`
+(review wiring repointed, `useLavorazioni` removed entirely), `src/pages/public/PublicAccountGatePage.tsx`
+(review wiring repointed, `useLavorazioni` kept for the untouched registration
+call, `seedStandaloneProfileFromRegistration` added), `src/pages/public/PublicStandaloneAuthPage.tsx`
+(same additive seed call). `src/app/data/tesicheckLeadEnrichment.ts` reverted
+to its pre-review shape — zero changes to any acquisition function. Build
+passes; `tsc` baseline of 42 unchanged; `git diff --check` clean.
+
+Full trace: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §19.7.

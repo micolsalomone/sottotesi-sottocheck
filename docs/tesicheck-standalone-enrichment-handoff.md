@@ -605,13 +605,31 @@ Manual code trace (seed data in `LavorazioniContext`):
 
 ## 15. Slice 1 — post-payment ACADEMIC-PROFILE REVIEW interstitial (authenticated standalone only)
 
+> **SUPERSEDED — data source only, see §19.** §15–§17 below describe the
+> review/Profile resolving Pipeline-vs-Student via `resolveEnrichmentTarget`.
+> That CRM dependency was removed: the review and `/public-view/profilo` now
+> read/write a dedicated CRM-free prototype store
+> (`src/app/data/standaloneProfile.ts`) and never resolve Pipeline or Student.
+> Everything else these sections describe — the UI (`PostPaymentEnrichmentInterstitial`,
+> the four fields, the `Percorso accademico` selector), the insertion seam
+> (`completedCheck` → breadcrumb → decide → interstitial-or-timer), the
+> breadcrumb/refresh behaviour, and the non-destructive save semantics — is
+> **unchanged in shape**, just repointed to the new store. Read §19 for the
+> current architecture; §15–§17 are kept for historical trace of the
+> intermediate CRM-based design and the reasoning that led away from it.
+
 Scope: the authenticated-standalone paid flow **only** —
-`/public-view/sottocheck` (`PublicPaidSottocheckPage`). The guest
-`/public/account` flow (`PublicAccountGatePage`) and the Student paid flow
-(`StudentPaidSottocheckPage`) are **not** touched; guest is the next slice,
-Student is a later slice. The insertion architecture (shared helper + shared
-presentational leaf + a per-page navigation gate) is reusable for both without
-sharing the paid page or the shell.
+`/public-view/sottocheck` (`PublicPaidSottocheckPage`). The Student paid flow
+(`StudentPaidSottocheckPage`) is a later slice, not touched here.
+
+> **Guest `/public/account` (`PublicAccountGatePage`) now shares this same
+> post-payment academic-profile review — see §16 (Slice 2).** Both pages reuse
+> `PostPaymentEnrichmentInterstitial` and the `resolvePostPaymentAcademicReview`
+> / `applyPostPaymentAcademicUpdate` / `academicValuesForRecord` helpers
+> documented below; their controllers (checkout stages, verification, payment,
+> materialization, recovery) remain fully separate. The insertion architecture
+> (shared helper + shared presentational leaf + a per-page navigation gate) is
+> what made that reuse possible without merging the two pages or their shells.
 
 **It is a review-and-update step, not gap-fill.** Whenever a reviewable academic
 target exists, **all four** academic fields are shown, **prefilled** with the
@@ -789,3 +807,655 @@ Manual code trace:
   breadcrumb path touches).
 - **L. Materialization failure** → `completedCheck` never set → decision effect
   bails → existing `completionError` recovery only → interstitial never appears.
+
+---
+
+## 16. Slice 2 — same academic-profile review on the guest checkout (`PublicAccountGatePage`)
+
+> **SUPERSEDED — data source only, see §19.** Same note as §15: this section's
+> CRM (Pipeline/Student) resolution was removed; the seam, UI and breadcrumb
+> behaviour it describes are otherwise still accurate, now reading/writing
+> `standaloneProfile.ts` instead.
+
+Extends §15 to the **guest acquisition flow**:
+`/public → /public/account → payment → materialization → academic-profile
+review → report`. Reuses the Slice 1 leaf and helpers as-is; adds **zero** new
+product concepts. `StudentPaidSottocheckPage` remains untouched (later slice).
+
+### 16.1 What is reused vs. what stays separate
+
+**Reused, unmodified:**
+
+- `PostPaymentEnrichmentInterstitial` (same component, same props contract —
+  no guest-specific variant, no second questionnaire component).
+- `resolvePostPaymentAcademicReview`, `applyPostPaymentAcademicUpdate`,
+  `academicValuesForRecord`, `AcademicRecordOption`, `PostPaymentAcademicValues`
+  (`tesicheckLeadEnrichment.ts` — no changes to any of §15's exports).
+- `pendingEnrichmentBreadcrumb.ts` (`tesicheck-pending-enrichment-v1`) — same
+  single key, same contract.
+- `resolveEnrichmentTarget` (Student wins over Pipeline) underneath both.
+
+**Stays separate (by design — not merged):**
+
+- `PublicAccountGatePage` (guest checkout controller: account/login/register,
+  email verification, checkout stage machine, payment gateway, materialization,
+  `completionError` recovery) and `PublicPaidSottocheckPage` (authenticated
+  standalone controller) remain two independent page components. Only the leaf
+  interstitial and the data-layer helpers are shared — never the controller,
+  never the shell, never the checkout/account UI.
+- Account/login/registration forms, email verification, the checkout stage
+  machine (`PrecheckFlowStage`), `SottocheckCheckoutSummary`, the payment
+  gateway boundary, and `createPersistentCheckFromPaidPrecheck` (+ its retry) —
+  **all byte-for-byte unchanged.**
+
+### 16.2 Exact insertion point
+
+Same seam as Slice 1: the pre-existing
+`completedCheck → setTimeout(navigate('/public-view/report/:id'), 1200)` effect
+(`PublicAccountGatePage.tsx`, previously right after the materialization effect)
+is the *only* thing gated/replaced. Nothing about the materialization effect or
+its retry (`handleRetryReportCreation`) changed.
+
+After `setCompletedCheck(check)` (materialization effect success, **unchanged**)
+or a successful `handleRetryReportCreation` (**unchanged**), the page now:
+
+1. writes `{ checkId }` to `sessionStorage['tesicheck-pending-enrichment-v1']`;
+2. runs `resolvePostPaymentAcademicReview({ accountEmail: account?.emailVerified
+   ? account.email : null, students, pipelines })` — the SAME `account` state
+   the page already tracks (set at login/register/`confirmAccountEmail`), gated
+   `emailVerified` is guaranteed true by the time payment succeeds because
+   `isPaymentEnabled` (`authenticated && emailVerified`) already gated
+   `startRedirect`;
+3. if `applicable` → sets `academicReview` + `selectedRecordId`, renders
+   `PostPaymentEnrichmentInterstitial` (wrapped in the page's own
+   `<main className="min-h-screen bg-[var(--background)] px-[20px] … md:px-[40px]">`
+   shell, matching the page's other early-return branches — this page has no
+   shared `PublicLayout` chrome, unlike `PublicPaidSottocheckPage`) and does
+   **not** arm the navigation timer; also sets `isCompletingPayment` to `false`
+   so the "Pagamento ricevuto" card does not compete with the review render;
+4. otherwise (Pipeline missing, Student with 0 academic records, or
+   `new_pipeline` / `unavailable`) → keeps the existing 1200 ms "Pagamento
+   ricevuto" beat and navigates.
+
+A new mount-only refresh-safety effect mirrors Slice 1: if a breadcrumb survives
+a reload and there is no in-memory `completedCheck` / `academicReview`, navigate
+straight to `/public-view/report/:checkId` and clear it.
+
+`handleAcademicSave` (try/catch around `applyPostPaymentAcademicUpdate` with
+`studentRecordId: selectedRecordId`, then navigate) / `handleAcademicSkip`
+(navigate only) / `handleAcademicRecordChange` (`setSelectedRecordId`) are new,
+name-for-name parallels of the Slice 1 handlers. The render order is: academic
+review → `isCompletingPayment` → `completionError` → `!precheckSession` → the
+checkout form — so a materialization failure (`completionError`) is always
+reached before any review state exists (`completedCheck` is never set on that
+path), and the review branch always wins over the processing/checkout branches
+once it is set.
+
+### 16.3 Pipeline behaviour
+
+Identical to §15.5: `resolveEnrichmentTarget` resolves by the verified account
+email. Guest registration already created/deduped that Pipeline **at email
+verification** (`handleConfirmEmail` → `applyStandaloneRegistrationConsent` →
+`ensureTesiCheckPipeline`, unchanged, canonical §33.3) — **long before** payment.
+The post-payment review therefore always resolves the **same, already-existing**
+Pipeline; it never creates a second one. All four fields prefill from
+`pipeline.academic_data`; `Aggiorna profilo` writes only the changed non-empty
+fields back to that same Pipeline (non-destructive — see §15.5).
+
+### 16.4 Student multi-record behaviour
+
+Identical to §15.4 / §15.5: 0 records → no review → report; 1 record → review
+directly, no selector; >1 records → `Percorso accademico` selector, preselecting
+`is_current` else the first record in Profile order. The selected record id is
+only the edit target — `is_current`, `StudentService`, `academic_record_id` and
+service access are never touched, and the write targets that stable record id
+even if `is_current` changes meanwhile.
+
+An existing Student identity is resolved **before** any Pipeline lookup (the
+long-standing `resolveEnrichmentTarget` rule, canonical §33.3) — registration
+never creates a Pipeline for an email that already matches a Student, so the
+guest post-payment review naturally lands on the Student branch for that case,
+exactly like Slice 1.
+
+### 16.5 Breadcrumb / refresh behaviour
+
+Reuses the **same** `pendingEnrichmentBreadcrumb.ts` module and the same single
+key — no second guest-specific storage mechanism. One guest-specific fact
+matters here and is now explicit in the module's Slice 1 header comment: the
+guest **pre-check session** (`tesicheck-precheck-session-v1`,
+`sessionStorage`) is already cleared by `createPersistentCheckFromPaidPrecheck`
+the moment materialization succeeds (canonical §6 / paid-consumer §3) — so once
+a persistent check exists, the pre-check session can no longer serve as a
+resume mechanism. The `tesicheck-pending-enrichment-v1` breadcrumb is what
+protects continuation from that point forward: a refresh while the review is
+open (or during the "Pagamento ricevuto" beat) loses in-memory state entirely,
+but the breadcrumb lets the next mount fall straight to the already-materialized
+report — no repayment, no duplicate check (the existing
+`sourceTemporaryDocumentRef` dedupe in `createPersistentCheckFromPaidPrecheck`
+is untouched and would no-op a duplicate attempt regardless). Questionnaire
+answers are never restored — the review is disposable, the paid report is not.
+
+### 16.6 Files changed
+
+| File | Change |
+| --- | --- |
+| `src/pages/public/PublicAccountGatePage.tsx` | Consumes the same `useLavorazioni` destructure it already had. New `academicReview` + `selectedRecordId` state, mirroring Slice 1. New mount-only refresh-safety effect. The **existing** `completedCheck → setTimeout(navigate, 1200)` effect is replaced by the gated version (writes breadcrumb → `resolvePostPaymentAcademicReview` → interstitial or timer). New `handleAcademicSave` / `handleAcademicSkip` / `handleAcademicRecordChange` / `goToReport`. New early-return render branch (before `isCompletingPayment`) mounting `PostPaymentEnrichmentInterstitial` inside the page's own `<main>` shell. **Untouched:** the returning-account effect, the materialization effect, `handleRetryReportCreation`, `updateCheckoutStage`, `advanceAfterAuth`, `handleLogin`, `handleRegister`, `handleConfirmEmail` (+ its `applyStandaloneRegistrationConsent` call), `startRedirect`, `returnFromPayment`, and every render branch for `completionError` / `!precheckSession` / `isRedirecting` / the checkout form. |
+| `src/app/data/tesicheckLeadEnrichment.ts` | **No changes** — Slice 1 exports reused as-is. |
+| `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` | **No changes.** |
+| `src/app/data/pendingEnrichmentBreadcrumb.ts` | **No changes** — same key, same module, now documented as shared by both paid pages. |
+
+### 16.7 Prototype-scope notes (handoff only, not implemented)
+
+Explicitly out of scope here, same as Slice 1 and the rest of this workstream:
+durable server-side workflow state, token-based recovery, CRM transaction
+rollback, payment reconciliation, questionnaire-answer persistence beyond the
+one-shot in-memory review, audit logging, analytics, and queue/retry
+infrastructure. The `tesicheck-pending-enrichment-v1` breadcrumb and the
+`sourceTemporaryDocumentRef` / `sourcePaymentReference` dedupe keys remain
+prototype-only, client-side stand-ins for what production must implement
+server-side (canonical §7.4, paid-consumer handoff §7 "PROTOTYPE LIMITATION").
+
+### 16.8 Verification
+
+- `npm run build` — passes (Vite 6.4.2).
+- `git diff --check` — clean (only pre-existing LF→CRLF warnings).
+- `npx tsc --noEmit` — **42-error baseline unchanged**; no new errors in
+  `PublicAccountGatePage.tsx` or any other touched file.
+
+Manual code trace:
+
+- **A. Guest `/public` → registration/login → payment → persistent check →
+  applicable Pipeline review → report.** Registration creates/dedupes the
+  Pipeline at email verification (unchanged); payment succeeds; materialization
+  effect creates the persistent check (unchanged, dedupe by
+  `sourceTemporaryDocumentRef`); decision effect resolves the same Pipeline via
+  the verified email and shows the review if any field is worth reviewing (it
+  always is, since the review is now review-not-gap-fill — see §15.1); `Aggiorna
+  profilo` / `Salta` both reach `/public-view/report/:checkId`.
+- **B. Existing Pipeline values** → all four fields prefilled; a correction on
+  save persists to the **same** Pipeline (`updatePipeline`, matched by
+  `resolveEnrichmentTarget`'s `pipeline.id`) — never a duplicate.
+- **C. Student identity with multiple academic records** (guest login/registration
+  email matches a seeded Student with >1 record) → `Percorso accademico` selector
+  appears, preselecting `is_current`; switching updates the prefill; save patches
+  only the selected record's stable id.
+- **D. Student with 0 academic records** → `resolvePostPaymentAcademicReview`
+  returns `applicable: false` → review skipped → report; no record created.
+- **E. `Salta`** → zero Pipeline/Student writes → breadcrumb cleared → report.
+- **F. Refresh while the review is open** → mount effect reads the breadcrumb →
+  navigates straight to the already-materialized report; no gateway, no new
+  `createPersistentCheckFromPaidPrecheck` call, no duplicate persistent check.
+- **G. Materialization failure** (`?paymentDemo=reportfail` or a storage error)
+  → `completedCheck` never set → decision effect never runs → existing
+  `completionError` recovery screen only, unchanged copy and retry button → no
+  academic review at any point on this path.
+- **H. Guest registration / account / payment UI is otherwise unchanged** — no
+  edits to `LoginForm`, `RegisterForm`, `VerifyEmailForm`,
+  `SottocheckCheckoutSummary`, `SottocheckPaymentGatewayBoundary`, the
+  `PrecheckFlowStage` machine, or any copy in the account/verify/payment steps.
+  (`RegisterForm` was later touched by an unrelated, separate correction — see
+  §18.2 — not by this slice.)
+
+---
+
+## 17. Standalone Profile consistency correction — Student multi-record + consent placement
+
+> **SUPERSEDED by §19.** This section fixed `PublicProfilePage` to expose a
+> Student's real multi-record academic history INSTEAD of a neutral card — a
+> genuine, still-valid product fix. But the mechanism it used (branching on
+> `resolveEnrichmentTarget`, writing into `Student.academic_records[]` /
+> `Pipeline.academic_data` directly from the public Profile) reintroduced the
+> exact CRM coupling into the public Profile that §19 then removed. The
+> **shape** this section establishes — `Informazioni personali` → `Contatti`
+> (consent inline) → `Percorso attuale` + `Percorsi precedenti`, reusing
+> `AcademicRecordsSections`/`studentAcademicRecords` helpers — is preserved
+> in §19; only the data source changed, from Pipeline/Student to
+> `standaloneProfile.ts`. `student/ProfilePage`'s own refactor onto the shared
+> `studentAcademicRecords.ts` module (the files table below) is **unaffected**
+> — the Student role surface still reads/writes `Student.academic_records[]`,
+> unchanged by §19.
+
+**Problem found.** `PostPaymentEnrichmentInterstitial` (Slices 1–2) correctly
+distinguishes a Pipeline's single flat `academic_data` from a Student's
+multi-record `academic_records[]`. `/public-view/profilo`
+(`PublicProfilePage`) did not: its Student branch was a neutral
+"Profilo studente già collegato" card with only a commercial-consent control —
+it never exposed the Student's actual academic records at all, current or
+previous. That made the post-payment copy "Le ritroverai nel Profilo" literally
+false for a Student-resolved identity: an academic edit made in the review had
+nowhere to be seen again on `/public-view/profilo`. The commercial-consent
+control also lived in a separate `Comunicazioni` `FormSection`, inconsistent
+with the per-email domain model (Pipeline `marketing_consents[email]` / Student
+`contacts.emails[].marketing_consent`) and with `student/ProfilePage`'s own
+placement (inline under `Contatti`).
+
+**Fix — reuse, not redesign.** No new academic-record model, no route/shell
+merge. `PublicProfilePage` and `student/ProfilePage` now share two extracted
+modules; each page keeps its own state, resolution and `updateStudent` calls.
+
+| File | Role |
+| --- | --- |
+| `src/app/data/studentAcademicRecords.ts` | **New.** Pure domain layer: `EditableAcademic`, `toEditableAcademicRecord`, `createDraftAcademicRecord`, `editableAcademicHasContent`, `editableAcademicDiffersFrom`, `applyAcademicRecordEdits(studentId, records, edits)` — the Profile-style direct-correction merge (content overwrite, `updated_at` bumped only on real change, never `id`/`student_id`/`is_current`/service bindings). This is explicitly **not** the post-payment review's gap-fill (`tesicheckLeadEnrichment.ts`); both live side by side because the semantics differ on purpose. |
+| `src/app/components/profile/AcademicRecordsSection.tsx` | **New.** Presentational: `AcademicRecordFields` (the 7-field grid — `degree_level`, `course_name`, `university_name`, `thesis_type`, `thesis_professor`, `thesis_subject`, `thesis_topic`) and `AcademicRecordsSections` (`Percorso attuale` + `Percorsi precedenti`, add/remove-draft/delete-if-unbound, its own local "confirm delete" state). Option lists (`degreeLevelOptions`/`typologyOptions`) are passed in as props — each host keeps its own local `DEGREE_LEVEL_OPTIONS`/`TYPOLOGY_OPTIONS` constant (not extracted; same "don't refactor for a second consumer" call as §15.6, now a third+fourth consumer exists but still out of scope for this pass). |
+| `src/pages/student/ProfilePage.tsx` | **Refactored, behavior-preserving.** Local `EditableAcademic`/`toEditable`/`editableHasContent`/`editableDiffersFrom`/`AcademicFields`/`textActionStyle` removed in favor of the shared modules; `handleSubmit`'s inline merge replaced by `applyAcademicRecordEdits`; the "Percorso attuale"/"Percorsi precedenti" JSX replaced by one `<AcademicRecordsSections>` call. Output is unchanged — same fields, same copy, same interactions, same `updateStudent` write shape. |
+| `src/pages/public/PublicProfilePage.tsx` | **Behavior change (this is the actual fix).** See below. |
+
+### 17.1 Pipeline target — unchanged model, reordered/relocated sections only
+
+Still one flat `academic_data`, no record selector (a Pipeline cannot have
+multiple academic records — none invented). Section order normalized to
+`Informazioni personali` (was `Anagrafica`) → `Contatti` (was `Contatto`,
+now **also** hosts the commercial-consent control, moved out of the removed
+`Comunicazioni` section, with a `Riferito all'indirizzo …` caption matching
+`student/ProfilePage`) → `Percorso universitario`. `handleSubmit`'s write logic
+(the `academic_data` merge, `marketing_consents[email]` write) is **untouched**
+— only the JSX section each field lives in moved.
+
+### 17.2 Student target — now a real multi-record editor, not a neutral card
+
+The branch keeps its "Nome, cognome e contatti restano gestiti dal percorso
+dedicato" note (identity editing is still out of scope for the standalone
+Profile — an intentional, unchanged decision, not reopened here) but now also
+renders:
+
+- `Contatti` — `Email account` (read-only, the verified account email) +
+  the commercial-consent control inline, same placement/domain rule as
+  `student/ProfilePage` and the Pipeline branch above: writes
+  `contacts.emails[verifiedEmail].marketing_consent` only, via the SAME
+  `withStudentEmailConsent` helper already used here before this change.
+- `AcademicRecordsSections` bound to `matchedStudent.academic_records` via
+  the new `studentAcademic` state (`EditableAcademic[]`), prefilled and
+  re-synced on the same `student:{id}:{recordIds.join(',')}` key pattern
+  `student/ProfilePage` uses (so in-session edits are not clobbered, but a
+  fresh mount always re-reads current data — including any change made by the
+  post-payment review, canonical §33.7).
+- One `Salva` submit (`handleStudentSubmit`) that writes **both** the touched
+  consent (if any) and the academic corrections in a single `updateStudent`
+  call, via `applyAcademicRecordEdits(matchedStudent.id, matchedStudent.academic_records, studentAcademic)`
+  — the exact same domain function `student/ProfilePage` uses. Replaces the
+  old lone "Salva preferenza" button.
+
+**Zero new academic-record source.** No second array, no flattening: the
+Profile reads/writes the SAME `Student.academic_records[]` the post-payment
+review and `student/ProfilePage` read/write. A record edited in the
+post-payment review (Slice 1/2) is the same record shown here (matched by
+stable `id`); a record edited here is the same record `student/ProfilePage`
+and Admin see, in the same SPA session (existing shared-source-of-truth
+convention, canonical §33 / production-handoff.md).
+
+**Still enforced, unchanged:** `is_current` is never editable from this
+surface (no toggle, `AcademicRecordsSections` never exposes one); the delete
+action is hidden entirely for a record referenced by a `StudentService`
+(`isStudentRecordServiceBound`, same `services.some(s => s.academic_record_id === id)`
+check as `student/ProfilePage`); no `StudentService` write of any kind
+originates from the Profile.
+
+### 17.3 Trace
+
+- Pipeline user edits academic data in the post-payment review → same
+  `pipeline.academic_data` → `/public-view/profilo` shows the updated values on
+  next visit (same object, no copy).
+- Student user with 3 academic records edits record B in the post-payment
+  review (via its stable id) → `/public-view/profilo` shows record B, unchanged
+  id, among the same 3 records (current + 2 previous, or whatever the actual
+  split is) — no duplication, no flattening.
+- `is_current` and `StudentService` bindings are never touched by either
+  surface.
+
+### 17.4 Verification
+
+`npm run build` passes; `git diff --check` clean; `npx tsc --noEmit` at the
+**42-error baseline**, no new errors in any touched or new file.
+
+---
+
+## 18. Registration commercial-consent invariant — explicit choice required
+
+**Problem found.** `RegisterForm`'s "Comunicazioni commerciali" control was a
+single checkbox defaulting to unchecked/`false`. That made "declined" and
+"never interacted with the control" indistinguishable at the data layer: a
+registration where the user simply never touched the checkbox produced the
+exact same `commercialConsent: false` as one where they deliberately declined.
+Downstream, `ensureTesiCheckPipeline` / `applyStandaloneRegistrationConsent`
+already write an EXPLICIT boolean whenever `commercialConsent` is a `boolean`
+(never a silent default) — so the actual gap was entirely in the form: it never
+forced a genuine choice.
+
+**Product rule (new, standalone-registration-specific):** for a standalone
+account that has completed TesiCheck registration, the resolved identity's
+verified account email must end up with an explicit
+`marketing_consent = true | false` — never unknown/`null`/absent. The
+preference itself stays optional (`Sì` is never required); **expressing** it is
+mandatory. This is **narrower** than the general CRM rule: `Pipeline` contacts
+from other acquisition channels, and Student contacts not touched by this
+registration, may legitimately stay `Non richiesto` / unknown — that tri-state
+is unchanged everywhere else (Admin Slice D, Profile for a Pipeline resolved by
+email match rather than fresh registration, etc.).
+
+### 18.1 Fix
+
+`src/pages/public/standaloneAuthForms.tsx` — `RegisterForm` only:
+
+- `commercialConsent` local state changed from `useState(false)` (boolean,
+  defaulting to "declined") to `useState<boolean | null>(null)` (tri-state,
+  defaulting to "not yet chosen").
+- The custom `ConsentCheckbox`-based block is replaced by the **same shared**
+  `CommercialConsentField` (`src/app/components/profile/CommercialConsentField.tsx`)
+  already used by both Profiles — reused as-is, no new component, same
+  `Sì, desidero…` / `No, non desidero…` copy and the same
+  "Puoi modificare questa scelta in qualsiasi momento." helper.
+- `submit()` gains one more guard, after the two required Terms/Privacy checks
+  and before calling `onSubmit`: `if (commercialConsent === null) { setError(...); return; }`
+  — a plain-language error ("Seleziona una preferenza per le comunicazioni
+  commerciali (Sì o No).") in the form's existing single error slot. Positive
+  consent is still never required — only that *some* explicit answer was given.
+- `RegisterSubmitValues.commercialConsent` stays `boolean` (unchanged type) —
+  the form's own guard guarantees it is never reached with `null`.
+
+Nothing else changed: `PublicAccountGatePage.handleRegister` and
+`PublicStandaloneAuthPage.handleRegister` already forward
+`values.commercialConsent` verbatim into `pendingCommercialConsent` and then
+into `applyStandaloneRegistrationConsent` at `handleConfirmEmail` — both
+untouched, because they already handled a plain `boolean` correctly. No change
+to `tesicheckLeadEnrichment.ts`, `ensureTesiCheckPipeline`,
+`applyStandaloneRegistrationConsent`, or either Profile's *read* logic — this
+was a write-path (form) defect, not a read-path one; per the task instruction,
+the fixture/registration-state path was fixed rather than coercing an unknown
+read into `false` anywhere downstream.
+
+### 18.2 Why the Profile automatically stops showing "Preferenza non ancora espressa"
+
+> **Updated by §19.** At the time this section was written, `/public-view/profilo`
+> still read `readEmailMarketingConsent` / `readStudentEmailConsent` (Pipeline /
+> Student) directly, so this reasoning applied to the Public Profile too. §19
+> removed that read path: the Public Profile now reads
+> `readStandaloneCommercialConsent` from `standaloneProfile.ts` instead. The
+> underlying mechanism described below — "the write path always supplies a
+> `boolean`, so the empty state never occurs for a completed registration" —
+> is now true of `standaloneProfile.ts`'s `commercial_consents` map
+> specifically, seeded by `seedStandaloneProfileFromRegistration` (§19.4). It
+> remains true of the CRM side too (Admin still reads Pipeline/Student
+> tri-state, still never sees an unexplained gap for a TesiCheck registration)
+> — the two are now two independent writes of the SAME explicit choice, not
+> one read serving both surfaces.
+
+`CommercialConsentField` only renders that helper line when
+`value === null`. Since `readEmailMarketingConsent` /
+`readStudentEmailConsent` now always find an explicit key for a
+TesiCheck-registered identity's verified email (because the write path always
+supplies a `boolean`), the empty state simply never occurs for that identity —
+no change to either Profile's *read* logic was needed or made. The empty state
+remains fully legitimate for:
+
+- a Pipeline resolved by e-mail match that pre-dates this registration
+  (created through another acquisition channel);
+- an existing Student whose matched email was never asked (general Admin/CRM
+  tri-state, unchanged);
+- the `new_pipeline` fallback (pre-rule accounts, canonical §33.3) — that path
+  still creates a Pipeline without necessarily capturing a consent choice, by
+  design (it is a fallback for accounts that predate this rule, not a new
+  registration).
+
+### 18.3 Scope discipline
+
+Untouched, on purpose: Admin tri-state consent editing (Slice D), manually
+created Pipeline consent semantics, Student contacts not resolved through this
+registration path, service access, Account Terms/Privacy status. `LoginForm`
+and `VerifyEmailForm` are untouched — only `RegisterForm`'s commercial-consent
+control changed.
+
+### 18.4 Verification
+
+`npm run build` passes; `git diff --check` clean; `npx tsc --noEmit` at the
+**42-error baseline**, no new errors in `standaloneAuthForms.tsx` or any other
+file.
+
+---
+
+## 19. Public Profile / post-payment review decoupled from CRM (Pipeline/Student)
+
+**Problem found.** §15–§17 built the public-facing Profile / post-payment
+review on top of `resolveEnrichmentTarget` (Pipeline-vs-Student CRM
+resolution). That over-modelled CRM ownership into public UI that should not
+have known about it: the public Profile's *shape* changed depending on whether
+the account's email happened to match a Pipeline or a Student — a one-block
+academic form for one, a multi-record editor for the other — and the
+post-payment review inherited the same branching, plus wrote directly into
+`Pipeline.academic_data` / `Student.academic_records[]`. Acquisition/CRM logic
+is explicitly **owned by the developer team, not this prototype UI workstream**
+— the public Profile and the post-payment review must not depend on it.
+
+**PROTOTYPE / PRODUCTION HANDOFF boundary (read this first):**
+
+- **PROTOTYPE:** the standalone Profile now has its own self-contained,
+  demonstrable user-profile state (`src/app/data/standaloneProfile.ts`),
+  independent of CRM resolution. It supports one current + zero-or-more
+  previous academic records for every authenticated standalone user, always —
+  never "one block vs. many" depending on a CRM match. The post-payment review
+  reads/writes that SAME state. Acquisition Pipeline creation/dedupe
+  (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`) is
+  **completely unchanged** and lives **entirely outside** this Profile UI's
+  concerns — registration still creates/dedupes a Pipeline (or resolves a
+  Student) exactly as before; the Profile simply never reads or writes that
+  result.
+- **PRODUCTION HANDOFF:** whether and how a standalone user's Profile data
+  (this prototype's `standaloneProfile.ts`) should reconcile with a real
+  CRM/Student backend entity is a decision for developer/backend
+  implementation — **this prototype intentionally does not simulate that
+  reconciliation.** Nothing in `standaloneProfile.ts`, `PublicProfilePage`, or
+  the post-payment review should be read as prescribing that architecture; it
+  is a UX/UI demonstration of Profile *ownership and shape*, not a CRM design.
+
+### 19.1 What was removed
+
+| Removed | From | Why |
+| --- | --- | --- |
+| `resolvePostPaymentAcademicReview`, `applyPostPaymentAcademicUpdate`, `academicValuesForRecord`, `PostPaymentAcademicValues`, `AcademicRecordOption`, `PostPaymentAcademicReview`, `PostPaymentAcademicOutcome`, and their internal helpers (`academicValuesFrom`, `academicRecordLabel`, `orderedAcademicRecords`, `academicPatchFor`, `applyAcademicValuesToPipeline`, `applyAcademicValuesToStudentRecord`) | `src/app/data/tesicheckLeadEnrichment.ts` | Review-only, CRM-coupled, used by nothing else (confirmed by a repo-wide grep before deletion) |
+| Pipeline-vs-Student branching for identity, contacts, academic data and consent (`target.mode === 'pipeline' \| 'student' \| 'new_pipeline' \| 'unavailable'`, `useLavorazioni()`, `resolveEnrichmentTarget`, `addPipeline`/`updatePipeline`/`updateStudent` calls) | `src/pages/public/PublicProfilePage.tsx` | The public Profile must not change shape based on CRM resolution |
+| `resolveStandaloneAcademicReview`'s / the review's dependence on `students`/`pipelines`/`updatePipeline`/`updateStudent` | `PublicPaidSottocheckPage.tsx`, `PublicAccountGatePage.tsx` | The review must read/write only the standalone Profile |
+
+`tesicheckLeadEnrichment.ts` is now back to exactly its pre-review-work shape
+(`resolveEnrichmentTarget`, `ensureTesiCheckPipeline`,
+`buildTesiCheckPipeline`, `applyStandaloneRegistrationConsent`, and their
+supporting helpers) — a diff against the last commit shows **zero** changes to
+any of those functions, only the module doc-comment and the removed
+review-only tail. **Not removed, not touched:** `resolveEnrichmentTarget`
+itself, `ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`,
+`buildTesiCheckPipeline`, `withTesiCheckSource`, `nextPipelineId`,
+`withEmailMarketingConsent` — registration still uses every one of them,
+unchanged. No Admin file was touched.
+
+### 19.2 Chosen standalone Profile prototype source of truth
+
+**New module:** `src/app/data/standaloneProfile.ts`. **Not** an extension of
+`tesicheckAccountSession.ts` — that module owns *account* identity and legal
+state (email, verification, Terms/Privacy), and conflating Profile data
+(personal info, academic records, commercial consent) into it would blur
+"who I am" with "what I've told you about myself", a distinction the rest of
+the prototype already treats as meaningful (canonical §33.5's Profile-vs-Account
+split). A separate, small, dedicated store keeps that boundary intact while
+staying just as minimal.
+
+- **Storage:** `localStorage`, key `tesicheck-standalone-profile-v1`, one JSON
+  object keyed by the **normalized verified account email** — the same keying
+  `tesicheck-registered-accounts-v1` already uses, so no new identity concept
+  is introduced. (Not keyed by `DEMO_ACCOUNT_ID`: that id is shared by every
+  standalone account in this prototype, so keying by it would collapse every
+  registered email's Profile into one row — wrong for demo walkthroughs where
+  different test registrations should see their own data.)
+- **Shape** (`StandaloneProfile`): `email`, `first_name`, `last_name`, `phone`,
+  `commercial_consents: Record<string, boolean>` (per-email, mirrors the
+  Pipeline `marketing_consents` shape conceptually but is a wholly separate
+  map — never the same object), `academic_records: StandaloneAcademicRecord[]`.
+- **Academic record shape** (`StandaloneAcademicRecord`): `id`, `is_current`,
+  the seven content fields (`degree_level`, `course_name`, `university_name`,
+  `thesis_type`, `thesis_professor`, `thesis_subject`, `thesis_topic`),
+  `created_at`, `updated_at`. No `student_id`, no `foreign_language`, no
+  `thesis_language`, no service-binding field of any kind — those are Student
+  operational-domain concepts this store never models.
+- **Invariant:** `ensureStandaloneProfile(email)` (get-or-create) guarantees
+  the returned profile always has **exactly one `is_current` record** —
+  auto-creating a blank one on first use. A standalone Profile is never "not
+  applicable"; it always has something to review or complete.
+
+### 19.3 Public Profile (`/public-view/profilo`) — final shape
+
+Same conceptual layout as §17 established, now CRM-free:
+
+```text
+Informazioni personali   (Nome, Cognome)
+Contatti                 (Email account read-only, Telefono, consenso inline)
+Percorso attuale         (AcademicRecordsSections)
+Percorsi precedenti      (AcademicRecordsSections)
+```
+
+- **Always the multi-record experience** — no branching. Every authenticated
+  standalone user gets `Percorso attuale` + `Percorsi precedenti`, reusing the
+  shared `AcademicRecordsSections` leaf (unchanged from §17) with the **same**
+  option constants (`DEGREE_LEVEL_OPTIONS` / `TYPOLOGY_OPTIONS`, still local —
+  no shared-taxonomy extraction, per the earlier documented decision) and all
+  seven academic content fields.
+- **`isRecordServiceBound` is a trivial `() => false`** — the standalone
+  Profile has no `StudentService` concept, so every previous record is always
+  deletable. This does not change `AcademicRecordsSections`'s contract (still
+  used, unmodified, by `student/ProfilePage`, where the same prop carries the
+  real service-binding check).
+- **Save** (`handleSubmit`) writes `updateStandaloneProfile`: `first_name`,
+  `last_name`, `phone` (direct correction, not gap-fill — same "Profile lets
+  you correct what you already know" semantics as before) and
+  `applyStandaloneAcademicEdits(profile.academic_records, academic)` — the
+  same direct-correction merge shape §17 introduced, now operating on
+  `StandaloneAcademicRecord[]` instead of `Student.academic_records[]`.
+  Consent is written separately, only when `commercialTouched`.
+- **First-name prefill fallback:** `profile.first_name || getAccountFirstName(session)`
+  — if the Profile store's `first_name` is still blank (e.g. an account whose
+  registration predates this store), fall back to the account session's first
+  name for continuity. `getAccountFirstName` is account-identity data, not
+  CRM — this is not a Pipeline/Student read.
+
+### 19.4 Commercial consent — smallest prototype-local mechanism
+
+The approved per-email UX (`CommercialConsentField`, tri-state, "Puoi
+modificare questa scelta in qualsiasi momento.") is unchanged. What changed is
+**where the Public Profile reads/writes it**:
+
+- `readStandaloneCommercialConsent(email)` / `writeStandaloneCommercialConsent(email, granted)`
+  in `standaloneProfile.ts` — tri-state read (`commercial_consents[email]`
+  absent = never expressed), explicit-boolean write only.
+- **Bridging the registration choice in, without CRM branching in the
+  Profile:** `RegisterForm` already forces an explicit Sì/No choice at
+  registration (§18). At `handleConfirmEmail` (`PublicAccountGatePage.tsx`,
+  `PublicStandaloneAuthPage.tsx`) that SAME explicit boolean is now written
+  **twice, in parallel, to two independent places**:
+  1. `applyStandaloneRegistrationConsent(...)` — **unchanged call, unchanged
+     behaviour** — the acquisition write, to Pipeline `marketing_consents[email]`
+     or a matched Student's `contacts.emails[].marketing_consent`. This is
+     what Admin reads (Slice D, §14) and is owned by the CRM/acquisition
+     workstream, not this one.
+  2. `seedStandaloneProfileFromRegistration({ email, firstName, commercialConsent })`
+     (new, `standaloneProfile.ts`) — mirrors first name + the SAME consent
+     boolean into `standaloneProfile.ts`'s own `commercial_consents` map. This
+     is what `/public-view/profilo` and the post-payment review read.
+
+  Both calls read the SAME already-resolved `pendingCommercialConsent`
+  component state; neither one derives from or depends on the other's result.
+  The Profile never calls `resolveEnrichmentTarget` to find "its" consent
+  value — it only ever reads its own store.
+- **Invariant preserved, unchanged:** a completed standalone registration
+  still always produces an explicit `true | false` for the account email
+  (§18) — now written to both the CRM side (Admin visibility) and the
+  Profile-local side (Public Profile visibility) at once. The general
+  Admin/CRM tri-state semantics for contacts from other channels are
+  completely untouched.
+
+### 19.5 Post-payment academic review — final source/update behaviour
+
+Same UI, same seam (`completedCheck` → breadcrumb → decide → interstitial or
+1200 ms timer → report), same non-destructive 4-field patch semantics as
+§15/§16 established — only the data source changed:
+
+- **`resolveStandaloneAcademicReview(email)`** (`standaloneProfile.ts`) calls
+  `ensureStandaloneProfile(email)` and returns `{ initialValues,
+  selectedRecordId, records? }` directly — **always** resolvable for a valid
+  verified email (a current record always exists), so there is no longer a
+  Pipeline-missing / Student-0-records / `new_pipeline` / `unavailable` case
+  to skip on. The interstitial's applicability now depends only on "is there a
+  verified account email", not on any CRM state.
+- **0 academic records in the Profile:** per product direction, this is a USER
+  PROFILE surface, so there is no reason to skip. `ensureStandaloneProfile`
+  auto-creates a blank current record and the review shows it — the opposite
+  of the old CRM-based behaviour, which skipped entirely for a Student with 0
+  records.
+- **1 record:** no selector, prefilled directly.
+- **>1 records:** `Percorso accademico` selector, preselecting the current
+  record (else the first in the same order convention as before). Selecting
+  another record re-derives `initialValues` via
+  `standaloneAcademicValuesForRecord(email, recordId)`.
+- **`applyStandaloneAcademicReview(email, recordId, values)`** — the exact
+  same non-destructive per-field patch §15 built
+  (`academicPatchFor`/`fourFieldPatch`: non-empty + different → replaces;
+  empty or unchanged → no-op; the record's other three Profile-only fields are
+  never touched), now against `StandaloneAcademicRecord` instead of Pipeline
+  `academic_data` / a `Student.academic_records[]` entry. A missing or stale
+  `recordId` at save time writes nothing.
+- **No CRM write is required or performed for this review, ever.** `reviewEmail`
+  (new page-local state on both paid pages) captures the verified email once,
+  at the same moment the review is resolved, so the save/prefill calls never
+  need to re-resolve anything.
+- **No TesiCheck ↔ academic-record association** is introduced — unchanged
+  from §15/§16; the check id is used only for navigation + the breadcrumb.
+
+### 19.6 Files changed
+
+| File | Change |
+| --- | --- |
+| `src/app/data/standaloneProfile.ts` | **New.** The CRM-free Profile store: `StandaloneProfile`, `StandaloneAcademicRecord`, get/ensure/update, `readStandaloneCommercialConsent` / `writeStandaloneCommercialConsent` / `seedStandaloneProfileFromRegistration`, `toEditableStandaloneRecord` / `applyStandaloneAcademicEdits` (Profile, 7-field direct correction), `resolveStandaloneAcademicReview` / `standaloneAcademicValuesForRecord` / `applyStandaloneAcademicReview` (post-payment review, 4-field non-destructive patch). Imports only the generic, Student-agnostic pieces of `studentAcademicRecords.ts` (`createDraftAcademicRecord`, `editableAcademicHasContent`, the `EditableAcademic` type) — never `StudentAcademicRecord` itself. |
+| `src/app/data/tesicheckLeadEnrichment.ts` | Reverted to its pre-review shape: the entire "Post-payment ACADEMIC-PROFILE REVIEW" section removed; module doc-comment updated to point at `standaloneProfile.ts`. **Zero** changes to any acquisition function. |
+| `src/pages/public/PublicProfilePage.tsx` | Rewritten: no more `useLavorazioni`, `resolveEnrichmentTarget`, Pipeline/Student branching. Reads/writes only `standaloneProfile.ts`. Always renders the same Informazioni personali → Contatti → Percorso attuale → Percorsi precedenti shape. |
+| `src/pages/public/PublicPaidSottocheckPage.tsx` | Review wiring repointed from `tesicheckLeadEnrichment.ts` to `standaloneProfile.ts`; `useLavorazioni()` removed entirely (nothing else in the page needed it); new `reviewEmail` state. |
+| `src/pages/public/PublicAccountGatePage.tsx` | Same repointing; `useLavorazioni()` **kept** (still needed for the untouched `applyStandaloneRegistrationConsent` call); new `reviewEmail` state; `handleConfirmEmail` gains the additive `seedStandaloneProfileFromRegistration` call. |
+| `src/pages/public/PublicStandaloneAuthPage.tsx` | Same additive `seedStandaloneProfileFromRegistration` call at its own `handleConfirmEmail`, for parity with the in-checkout registration path. |
+| `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` | Import source for `PostPaymentAcademicValues` / `AcademicRecordOption` changed from `tesicheckLeadEnrichment.ts` to `standaloneProfile.ts`; doc comment updated. **No behavioural change** — still presentation-only, still receives no CRM/account data. |
+| `src/pages/student/ProfilePage.tsx`, `src/app/components/profile/AcademicRecordsSection.tsx`, `src/app/data/studentAcademicRecords.ts` | **Unaffected by this task** — `student/ProfilePage` still reads/writes `Student.academic_records[]` directly, unchanged; the shared leaf/helpers are reused, not modified. |
+
+### 19.7 Trace
+
+- **A.** New standalone user → `ensureStandaloneProfile` guarantees a current
+  academic record from the first Profile visit; `Aggiungi percorso precedente`
+  is always available.
+- **B.** `/public-view/profilo` renders the identical shape regardless of
+  whether the account email happens to match a Pipeline, a Student, or
+  neither — because it never checks.
+- **C.** Post-payment review's `initialValues` come from
+  `resolveStandaloneAcademicReview`, reading `standaloneProfile.ts` only.
+- **D.** A save in the post-payment review (`applyStandaloneAcademicReview`)
+  and a later visit to `/public-view/profilo` (`ensureStandaloneProfile`) read
+  the same `localStorage` row for that email — the edited values appear.
+- **E.** Adding a previous path in the Profile (`addPreviousRecord` →
+  `applyStandaloneAcademicEdits` on save) persists a new
+  `StandaloneAcademicRecord`; a later paid check's review resolves
+  `resolveStandaloneAcademicReview` against the updated `academic_records`
+  array and offers it in the selector.
+- **F.** Neither `applyStandaloneAcademicEdits` nor `applyStandaloneAcademicReview`
+  nor any Profile handler calls `updatePipeline` / `updateStudent` / `addPipeline`
+  — confirmed by grep (`useLavorazioni` no longer imported in
+  `PublicProfilePage.tsx` / `PublicPaidSottocheckPage.tsx`).
+- **G.** `ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`,
+  `resolveEnrichmentTarget`, `buildTesiCheckPipeline` are byte-for-byte
+  unchanged (diff-verified against the last commit).
+- **H.** No Admin file appears in the changed-files list for this task.
+- **I.** The materialization effect, `handleRetryReportCreation`, the payment
+  gateway, `createPersistentStandaloneCheck` / `createPersistentCheckFromPaidPrecheck`,
+  the `completionError` recovery, the `tesicheck-pending-enrichment-v1`
+  breadcrumb and the Save/Skip → `goToReport` navigation are all unchanged —
+  only `resolveStandaloneAcademicReview` / `applyStandaloneAcademicReview` /
+  `standaloneAcademicValuesForRecord` replaced the CRM-based equivalents at
+  the exact same call sites.
+- **J.** `RegisterForm` still blocks submit until an explicit Sì/No is chosen
+  (§18, unchanged); the choice is now written to both the CRM side and the
+  Profile-local side.
+
+### 19.8 Verification
+
+`npm run build` passes; `git diff --check` clean; `npx tsc --noEmit` at the
+**42-error baseline**, no new errors in any touched or new file.

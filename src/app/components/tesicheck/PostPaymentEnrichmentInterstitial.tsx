@@ -10,23 +10,25 @@ import {
 import type {
   AcademicRecordOption,
   PostPaymentAcademicValues,
-} from '@/app/data/tesicheckLeadEnrichment';
+} from '@/app/data/standaloneProfile';
 
 /**
- * Post-payment ACADEMIC-PROFILE REVIEW interstitial — authenticated standalone
- * paid flow only.
+ * Post-payment ACADEMIC-PROFILE REVIEW interstitial. Shared by both standalone
+ * paid pages (guest checkout and authenticated standalone) — never a second,
+ * page-specific questionnaire component.
  *
  * PRESENTATIONAL ONLY. It never receives the check id, the report path, a
- * Pipeline, a Student or the account session — the paid page owns those
- * concerns.
+ * Pipeline, a Student, a CRM identity or the account session — the paid page
+ * owns those concerns and resolves everything against the user's own
+ * standalone Profile (`standaloneProfile.ts`) before rendering this leaf.
  *
  * It always renders all four academic fields, prefilled from `initialValues`, so
  * the user can review, correct or complete the academic information already on
  * their Profile before seeing the report. When `records` holds more than one
- * entry (a Student with multiple academic records) a compact `Percorso
+ * entry (the Profile has multiple academic records) a compact `Percorso
  * accademico` selector chooses which EXISTING record is being reviewed — it is
- * only an edit-target chooser, nothing more. With one record, or a Pipeline
- * target, no selector is shown.
+ * only an edit-target chooser, nothing more. With one record, no selector is
+ * shown.
  *
  * It is NOT identity completion, contact collection, account/legal management or
  * full Profile editing — surname, phone and contacts are Profile concerns and

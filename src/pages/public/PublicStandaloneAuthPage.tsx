@@ -10,6 +10,7 @@ import {
 } from '@/app/data/tesicheckAccountSession';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
 import { applyStandaloneRegistrationConsent } from '@/app/data/tesicheckLeadEnrichment';
+import { seedStandaloneProfileFromRegistration } from '@/app/data/standaloneProfile';
 import { LoginForm, RegisterForm, VerifyEmailForm, type RegisterSubmitValues } from './standaloneAuthForms';
 
 type AuthStep = 'login' | 'register' | 'verify';
@@ -94,6 +95,15 @@ export function PublicStandaloneAuthPage({ mode }: { mode: 'login' | 'register' 
         addPipeline,
         updatePipeline,
         updateStudent,
+        commercialConsent: pendingCommercialConsent,
+      });
+      // Mirror the SAME explicit choice onto the standalone-local Profile store
+      // (in parallel, never instead of the acquisition write above) so
+      // `/public-view/profilo` and the post-payment review can read it without
+      // ever resolving Pipeline or Student.
+      seedStandaloneProfileFromRegistration({
+        email: verified.email,
+        firstName: verified.firstName,
         commercialConsent: pendingCommercialConsent,
       });
     }
