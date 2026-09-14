@@ -64,6 +64,15 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
     implementazione futura, non simulata da questo prototipo.
   Si collegano con cross-link reciproci (`Gestisci account e privacy` /
   `Vai al profilo personale`); nessun contenuto duplicato.
+  - **Completamento profilo — onboarding post-registrazione, non post-pagamento.**
+    Una modale one-time (`StandaloneProfileCompletionModal`) compare sopra la
+    Dashboard o sopra il Report già renderizzati (mai a bloccarli), subito dopo
+    una nuova registrazione — mai per account legacy/demo. Indipendente da
+    questa, una card di promemoria **non bloccante** in Dashboard resta visibile
+    finché il record accademico corrente del Profilo non ha tutti e quattro i
+    campi essenziali; il suo CTA porta a `/public-view/profilo`, non riapre mai
+    la modale. Dettaglio completo: `tesicheck-standalone-enrichment-handoff.md`
+    §20.
 - `Account` è raggiungibile dal menu utente in alto a destra
   (`Informazioni Account`) e dal cross-link del Profilo.
 - `/public/account` resta il gate account del checkout a pagamento: mai riusato

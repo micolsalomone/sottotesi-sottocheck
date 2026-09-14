@@ -1,14 +1,50 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowRight, ClipboardCheck, ExternalLink } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, ExternalLink, GraduationCap } from 'lucide-react';
 import PlanningSticker from '@/imports/Planning.png';
 import MatchSticker from '@/imports/Match.png';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { isCurrentAcademicRecordComplete, isProfileCompletionPromptPending } from '@/app/data/standaloneProfile';
+import { StandaloneProfileCompletionModal } from '@/app/components/profile/StandaloneProfileCompletionModal';
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const session = useMemo(() => getAccountSession(), []);
+  const accountEmail = session?.emailVerified ? session.email : null;
+
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  useEffect(() => {
+    setShowCompletionModal(Boolean(accountEmail && isProfileCompletionPromptPending(accountEmail)));
+  }, [accountEmail]);
+
+  // Independent of the one-time modal flag — derived only from the current
+  // academic record (§16/§18 of the product spec). Computed once on mount and
+  // then re-derived explicitly whenever the modal is dismissed (Save or
+  // Skip/X both funnel through the same onClose), never via an incidental
+  // effect dependency on the modal's own open state — that would couple two
+  // signals the product model requires to stay independent.
+  const [academicComplete, setAcademicComplete] = useState(true);
+  const refreshAcademicComplete = () => {
+    setAcademicComplete(accountEmail ? isCurrentAcademicRecordComplete(accountEmail) : true);
+  };
+  useEffect(() => {
+    refreshAcademicComplete();
+  }, [accountEmail]);
 
   return (
     <div className="py-[32px]">
+      {accountEmail && (
+        <StandaloneProfileCompletionModal
+          isOpen={showCompletionModal}
+          email={accountEmail}
+          onClose={() => {
+            setShowCompletionModal(false);
+            refreshAcademicComplete();
+          }}
+        />
+      )}
+
       <header className="mb-8 md:mb-10">
         <h1
           style={{
@@ -171,6 +207,38 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {!academicComplete && (
+        <section
+          className="mt-6 border border-[var(--border)] bg-[var(--background)] p-5 flex items-center justify-between gap-4 flex-wrap"
+          style={{ borderRadius: 'var(--radius)' }}
+        >
+          <div className="flex items-start gap-3">
+            <GraduationCap className="w-5 h-5 mt-0.5 flex-shrink-0 text-[var(--muted-foreground)]" />
+            <div>
+              <p
+                style={{
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-label)',
+                  fontWeight: 'var(--font-weight-medium)',
+                  color: 'var(--foreground)',
+                }}
+              >
+                Completa il tuo profilo
+              </p>
+              <p
+                className="mt-1 text-[var(--muted-foreground)]"
+                style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', maxWidth: '520px' }}
+              >
+                Aggiungi le informazioni sul tuo percorso universitario per completare il tuo profilo Sottotesi.
+              </p>
+            </div>
+          </div>
+          <SottocheckActionButton variant="secondary" onClick={() => navigate('/public-view/profilo')}>
+            Completa profilo
+          </SottocheckActionButton>
+        </section>
+      )}
 
       <section
         className="mt-6 border border-[var(--border)] bg-[var(--card)] p-6 md:p-7"

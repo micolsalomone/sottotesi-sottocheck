@@ -11,11 +11,11 @@
  * `EditableAcademic` (the type), `createDraftAcademicRecord`,
  * `editableAcademicHasContent` — which never reference `StudentAcademicRecord`.
  *
- * This is a CORRECTION surface, not the post-payment academic review
- * (`standaloneProfile.ts`'s `applyStandaloneAcademicReview`): an edited field
- * here intentionally overwrites the stored value — the user may correct data
- * they already know, the same convention the Admin drawer uses. It never
- * gap-fills; that semantic is specific to the post-payment review.
+ * This is a CORRECTION surface, not the post-registration Profile-completion
+ * modal (`standaloneProfile.ts`'s `applyCurrentAcademicUpdate`): an edited
+ * field here intentionally overwrites the stored value — the user may correct
+ * data they already know, the same convention the Admin drawer uses. It never
+ * gap-fills; that non-destructive semantic is specific to the modal.
  *
  * Multiple academic records are a real part of the Student domain. This module
  * never flattens them into one record and never introduces a second

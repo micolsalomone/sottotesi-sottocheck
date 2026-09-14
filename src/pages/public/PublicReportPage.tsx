@@ -1,8 +1,11 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Download, Mail } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { getPersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
-import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
+import { DEMO_ACCOUNT_ID, getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { isProfileCompletionPromptPending } from '@/app/data/standaloneProfile';
+import { StandaloneProfileCompletionModal } from '@/app/components/profile/StandaloneProfileCompletionModal';
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('it-IT', {
@@ -15,6 +18,14 @@ function formatDate(value: string) {
 export function PublicReportPage() {
   const navigate = useNavigate();
   const { checkId } = useParams();
+
+  const session = useMemo(() => getAccountSession(), []);
+  const accountEmail = session?.emailVerified ? session.email : null;
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  useEffect(() => {
+    setShowCompletionModal(Boolean(accountEmail && isProfileCompletionPromptPending(accountEmail)));
+  }, [accountEmail]);
+
   const check = checkId ? getPersistentTesiCheck(checkId) : null;
   const completedAt = check ? new Date(check.completedAt) : null;
   const isValidCheck = check
@@ -64,6 +75,14 @@ export function PublicReportPage() {
 
   return (
     <div className="py-[32px]">
+      {accountEmail && (
+        <StandaloneProfileCompletionModal
+          isOpen={showCompletionModal}
+          email={accountEmail}
+          onClose={() => setShowCompletionModal(false)}
+        />
+      )}
+
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.3 }}>

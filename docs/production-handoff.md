@@ -135,6 +135,15 @@ riferimento:
   indietro dal CRM. La sincronizzazione fra questo Profilo standalone e
   un'eventuale identità CRM/Student reale è lasciata alla produzione, non
   simulata qui — vedi `tesicheck-standalone-enrichment-handoff.md` §19.
+- **Completamento profilo post-registrazione** (modale one-time
+  `StandaloneProfileCompletionModal` + card promemoria non bloccante in
+  Dashboard) è interamente prototipale: il flag `profile_completion_prompt_pending`
+  e la derivazione di completezza (`isCurrentAcademicRecordComplete`) vivono
+  solo in `src/app/data/standaloneProfile.ts` (`localStorage`), senza alcuna
+  sincronizzazione server-side simulata. La produzione deve decidere dove
+  persistere questo stato one-time (probabilmente lato backend, per
+  sopravvivere a dispositivi/sessioni diverse) — questo prototipo non lo
+  prescrive. Vedi `tesicheck-standalone-enrichment-handoff.md` §20.
 - `CreateStudentDrawer` (create + edit Admin) usa ora il vocabolario approvato
   (`Tipologia` / `Professore` / `Materia` / `Argomento`) e offre l'opzione
   `Esame` (valore `esame`). Solo etichette/opzioni: nessun cambio a

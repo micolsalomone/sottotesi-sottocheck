@@ -2042,19 +2042,19 @@ evento di creazione al verify email, CRM `LavorazioniContext` in memoria
 (sopravvive alla navigazione SPA, non al reload completo), requisito aperto per
 l'accettazione versionata Termini/privacy.
 
-### 33.7 Interstitial di revisione del profilo accademico post-pagamento (standalone autenticato + guest)
+### 33.7 Interstitial di revisione del profilo accademico post-pagamento (standalone autenticato + guest) — STORICO
 
-> **Aggiornato: dominio CRM-free.** Le versioni precedenti di questa sezione
-> facevano risolvere all'interstitial l'identità Pipeline-vs-Student
-> (`resolveEnrichmentTarget`) e scrivevano direttamente su `academic_data`
-> della Pipeline o su `Student.academic_records[]`. Questo accoppiamento è
-> stato rimosso: l'interstitial ora legge/scrive **solo** un dominio Profilo
-> standalone prototipale e indipendente dal CRM
-> (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
-> mai Pipeline né Student. Sequenza, UI, breadcrumb e semantica di scrittura
-> non distruttiva restano quelle descritte sotto — cambia solo *dove* i valori
-> vivono. Dettaglio tecnico completo:
-> [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §19.
+> **SUPERSITUITO — vedi §33.8.** L'interstitial post-**pagamento** descritto in
+> questa sezione (`PostPaymentEnrichmentInterstitial`, il breadcrumb
+> `tesicheck-pending-enrichment-v1`) è stato **rimosso**. Il completamento del
+> profilo accademico ora avviene al momento della **registrazione**, non del
+> pagamento: una modale one-time (`StandaloneProfileCompletionModal`) mostrata
+> sopra la Dashboard o sopra il Report già renderizzati, più una card di
+> promemoria non bloccante in Dashboard. Il flusso a pagamento naviga di nuovo
+> direttamente al report dopo la materializzazione, senza alcun passaggio
+> accademico intermedio. Sezione mantenuta solo per traccia storica —
+> componenti e funzioni qui nominati non esistono più. Dettaglio tecnico
+> completo: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20.
 
 Riguarda **entrambi** i flussi paid standalone: lo standalone autenticato
 (`/public-view/sottocheck`) **e** il checkout guest (`/public/account`). Il
@@ -2160,4 +2160,73 @@ pagamento riuscito
   `sourcePaymentReference`, effetto di materializzazione,
   recupero `completionError`, schema del check persistente, pagina report,
   acquisizione Pipeline a registrazione, Admin.
+
+### 33.8 Completamento profilo accademico post-REGISTRAZIONE (modale one-time + card promemoria Dashboard)
+
+Sostituisce integralmente §33.7. Il completamento del profilo accademico
+appartiene all'onboarding di **registrazione**, non al pagamento: sia chi si
+registra durante il checkout guest (`/public → /public/account`) sia chi si
+registra direttamente (`/public/register`, senza acquisto) ottiene la stessa
+opportunità one-time, sulla prima superficie autenticata che raggiunge.
+
+**Tre superfici, tre ruoli distinti — mai confusi:**
+
+1. **`StandaloneProfileCompletionModal`** — opportunità one-time mostrata
+   subito dopo una NUOVA registrazione, sopra la Dashboard (registrazione
+   diretta) o sopra il Report a pagamento già renderizzato (registrazione da
+   checkout guest) — mai prima che l'host esista, mai a bloccarne il render.
+   Controllata **solo** dal flag `profile_completion_prompt_pending` su
+   `standaloneProfile.ts`: assente (account legacy/demo) → `false`, mai
+   dedotto da dati accademici mancanti. Impostato `true` **solo** da
+   `seedStandaloneProfileFromRegistration`, cioè solo a una registrazione
+   nuova. Ogni uscita dalla modale (`Aggiorna profilo`, `Salta`, la X) lo
+   riporta a `false` — la modale non ricompare mai più per quell'account.
+2. **Card promemoria in Dashboard** — non bloccante, indipendente dal flag
+   one-time: visibile quando il record accademico **corrente** del Profilo
+   manca di uno qualsiasi dei quattro campi essenziali (`degree_level`,
+   `university_name`, `course_name`, `thesis_type`); scompare da sola quando
+   tutti e quattro sono presenti. Saltare la modale **non** fa scomparire la
+   card se il dato resta incompleto, e completare il Profilo **non** riarma
+   la modale — i due segnali non si influenzano mai a vicenda.
+3. **`/public-view/profilo`** — superficie di gestione completa (§19.3),
+   invariata: informazioni personali, contatti, consenso commerciale, tutti e
+   sette i campi del record corrente, record precedenti. Sia la modale sia la
+   card promemoria esistono solo per instradare l'utente qui, non la
+   sostituiscono.
+
+**Sequenza canonica (checkout guest):**
+
+```text
+registrazione + verifica email (Pipeline creata/dedupe — invariato, §33.3)
+→ pagamento
+→ check standalone persistente materializzato (invariato)
+→ navigazione diretta al report (nessun gate accademico)
+→ modale one-time mostrata SOPRA il report già visibile, se il flag è attivo
+```
+
+**Sequenza canonica (registrazione diretta):**
+
+```text
+registrazione + verifica email
+→ Dashboard standalone
+→ modale one-time mostrata SOPRA la Dashboard già visibile, se il flag è attivo
+```
+
+- **Scrittura della modale**: non distruttiva sui soli quattro campi, sul
+  **solo** record marcato corrente (`is_current`) del Profilo standalone —
+  stessa semantica di patch non distruttiva che l'interstitial post-pagamento
+  usava (§33.7, storico): valore inviato non vuoto e diverso → sostituisce;
+  vuoto o invariato → no-op. Nessuna scrittura su Pipeline/Student.
+- **`Salta` / X**: zero scritture accademiche; solo il flag one-time passa a
+  `false`.
+- **Owner dei dati**: `standaloneProfile.ts`, mai Pipeline, mai
+  `Student.academic_records[]`, mai il check persistente — stesso confine
+  CRM-free stabilito da §19.
+- **Il breadcrumb di continuazione post-pagamento (`tesicheck-pending-enrichment-v1`)
+  è stato rimosso** insieme all'interstitial che proteggeva: non esiste più
+  alcuna finestra tra materializzazione e navigazione da proteggere da un
+  refresh.
+
+Dettaglio tecnico completo (implementazione, file, criteri di accettazione):
+[tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20.
 

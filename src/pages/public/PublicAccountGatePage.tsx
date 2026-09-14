@@ -18,22 +18,9 @@ import {
 } from '@/app/data/tesicheckAccountSession';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { SottocheckCheckoutSummary } from '@/app/components/SottocheckCheckoutSummary';
-import { PostPaymentEnrichmentInterstitial } from '@/app/components/tesicheck/PostPaymentEnrichmentInterstitial';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
 import { applyStandaloneRegistrationConsent } from '@/app/data/tesicheckLeadEnrichment';
-import {
-  applyStandaloneAcademicReview,
-  resolveStandaloneAcademicReview,
-  seedStandaloneProfileFromRegistration,
-  standaloneAcademicValuesForRecord,
-  type AcademicRecordOption,
-  type PostPaymentAcademicValues,
-} from '@/app/data/standaloneProfile';
-import {
-  clearPendingEnrichmentCheckId,
-  readPendingEnrichmentCheckId,
-  writePendingEnrichmentCheckId,
-} from '@/app/data/pendingEnrichmentBreadcrumb';
+import { seedStandaloneProfileFromRegistration } from '@/app/data/standaloneProfile';
 import { createPersistentCheckFromPaidPrecheck, type PersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
 import { SottocheckPaymentGatewayBoundary } from '@/app/components/SottocheckPaymentGatewayBoundary';
 
@@ -53,24 +40,17 @@ function isReportFailDemo() {
 
 /**
  * Guest checkout gate (`/public/account`): account/login/register → email
- * verification → payment → materialization, UNCHANGED — including the
- * acquisition Pipeline/Student projection at `handleConfirmEmail`
- * (`applyStandaloneRegistrationConsent`), which is untouched. On top of that,
- * once a persistent check exists (`completedCheck`), the SAME optional
- * post-payment academic-profile review used by the authenticated standalone
- * flow (`PostPaymentEnrichmentInterstitial` +
- * `resolveStandaloneAcademicReview` / `applyStandaloneAcademicReview` from
- * `standaloneProfile.ts`) is shown before the report — never before, never on
- * a materialization failure. This review is deliberately CRM-free: it reads
- * and writes ONLY the user's own prototype-local standalone Profile, never
- * Pipeline or Student — so its shape never depends on Pipeline-vs-Student
- * resolution. `handleConfirmEmail` additionally mirrors the already-explicit
- * registration choice (first name + commercial consent) into that SAME
- * Profile store via `seedStandaloneProfileFromRegistration`, in parallel with
- * (never instead of) the acquisition write. Same
- * `tesicheck-pending-enrichment-v1` breadcrumb for refresh safety. This page
- * and `PublicPaidSottocheckPage` stay separate controllers — only the
- * interstitial component and the standalone-Profile helpers are shared.
+ * verification → payment → materialization → normal navigation to the report.
+ * Fully unchanged — including the acquisition Pipeline/Student projection at
+ * `handleConfirmEmail` (`applyStandaloneRegistrationConsent`).
+ *
+ * `handleConfirmEmail` additionally mirrors the already-explicit registration
+ * choice (first name + commercial consent) onto the standalone Profile store
+ * via `seedStandaloneProfileFromRegistration`, in parallel with (never instead
+ * of) the acquisition write — that same call also arms the one-time
+ * `profileCompletionPromptPending` flag, which `PublicReportPage` reads to
+ * show `StandaloneProfileCompletionModal` OVER the already-rendered report.
+ * This page no longer gates navigation on any Profile step.
  */
 export function PublicAccountGatePage() {
   const navigate = useNavigate();
@@ -80,18 +60,6 @@ export function PublicAccountGatePage() {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice>(null);
   const [completedCheck, setCompletedCheck] = useState<PersistentTesiCheck | null>(null);
-  // `null` = post-materialization review decision not taken yet; an object =
-  // show the academic-profile review interstitial (prefill values + optional
-  // record-selector options, both sourced from the user's own standalone
-  // Profile — see `PublicPaidSottocheckPage` for the same pattern).
-  // `selectedRecordId` names the Profile academic record under review;
-  // `reviewEmail` is the verified account email the review resolved for.
-  const [academicReview, setAcademicReview] = useState<{
-    initialValues: PostPaymentAcademicValues;
-    records?: AcademicRecordOption[];
-  } | null>(null);
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
-  const [reviewEmail, setReviewEmail] = useState<string | null>(null);
   // Optional commercial-communications choice from the in-checkout register form,
   // carried in component state until it is written to the Pipeline after email
   // verification. Not persisted — a reload during OTP loses the verify context.
@@ -117,25 +85,6 @@ export function PublicAccountGatePage() {
     const nextSession = setPrecheckFlowStage(nextStage);
     if (nextSession) setPrecheckSession(nextSession);
   }, [account, precheckSession?.flowStage]);
-
-  // Refresh safety: the academic-profile review widens the window between
-  // materialization and report navigation, and (like Slice 1) lives only in
-  // React state. If a breadcrumb from a materialized check survives a reload,
-  // fall forward to the already-paid report — the review is disposable, the
-  // paid report is not. Never reopens payment, never re-materializes. The guest
-  // pre-check session is already cleared on successful materialization
-  // (`createPersistentCheckFromPaidPrecheck`), so this breadcrumb is what
-  // protects post-materialization continuation specifically.
-  useEffect(() => {
-    if (completedCheck || academicReview !== null) return;
-    const pendingCheckId = readPendingEnrichmentCheckId();
-    if (!pendingCheckId) return;
-    clearPendingEnrichmentCheckId();
-    navigate(`/public-view/report/${pendingCheckId}`);
-    // Mount-only: a genuine post-refresh recovery. Later-session state is
-    // checked in the guard above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Payment is verified: materialize the paid pre-check into a persistent check
   // (+ report). On failure the paid state is kept — the pre-check session stays
@@ -191,72 +140,12 @@ export function PublicAccountGatePage() {
     setPrecheckSession(null);
   };
 
-  // Post-materialization: persist the transient breadcrumb, then decide whether
-  // the academic-profile review interstitial applies before navigating (same
-  // seam as the authenticated standalone flow). Only this navigation is gated —
-  // the materialization effect above and its retry are untouched. The review
-  // reads/creates ONLY the user's own standalone Profile — no CRM resolution.
   useEffect(() => {
-    if (!completedCheck || academicReview !== null) return;
+    if (!completedCheck) return;
 
-    writePendingEnrichmentCheckId(completedCheck.id);
-
-    let review: ReturnType<typeof resolveStandaloneAcademicReview> = null;
-    let email: string | null = null;
-    try {
-      email = account?.emailVerified ? account.email : null;
-      review = resolveStandaloneAcademicReview(email);
-    } catch {
-      review = null;
-    }
-
-    if (review) {
-      setAcademicReview({ initialValues: review.initialValues, records: review.records });
-      setSelectedRecordId(review.selectedRecordId);
-      setReviewEmail(email);
-      setIsCompletingPayment(false);
-      return;
-    }
-
-    // No verified account email to resolve a Profile for — keep the brief
-    // "Pagamento ricevuto" beat, then report.
-    const timer = window.setTimeout(() => {
-      clearPendingEnrichmentCheckId();
-      navigate(`/public-view/report/${completedCheck.id}`);
-    }, 1200);
+    const timer = window.setTimeout(() => navigate(`/public-view/report/${completedCheck.id}`), 1200);
     return () => window.clearTimeout(timer);
-  }, [completedCheck, academicReview, navigate, account]);
-
-  const goToReport = (checkId: string) => {
-    clearPendingEnrichmentCheckId();
-    navigate(`/public-view/report/${checkId}`);
-  };
-
-  // Both interstitial actions always reach the paid report. Save attempts the
-  // Profile update and navigates regardless of its outcome — this review is
-  // secondary to a paid result, so a failure here never shows a recovery screen
-  // (that screen is reserved for materialization failure, see `completionError`).
-  // Writes only the user's own standalone Profile — no Pipeline, no Student.
-  const handleAcademicSave = (values: PostPaymentAcademicValues) => {
-    if (!completedCheck) return;
-    try {
-      if (selectedRecordId) {
-        applyStandaloneAcademicReview(reviewEmail, selectedRecordId, values);
-      }
-    } catch {
-      // Never block the report on the academic-profile review.
-    }
-    goToReport(completedCheck.id);
-  };
-
-  const handleAcademicSkip = () => {
-    if (!completedCheck) return;
-    goToReport(completedCheck.id);
-  };
-
-  const handleAcademicRecordChange = (recordId: string) => {
-    setSelectedRecordId(recordId);
-  };
+  }, [completedCheck, navigate]);
 
   const updateCheckoutStage = (flowStage: PrecheckFlowStage) => {
     const nextSession = setPrecheckFlowStage(flowStage);
@@ -342,27 +231,6 @@ export function PublicAccountGatePage() {
     setPaymentNotice(outcome);
     updateCheckoutStage('checkout_payment');
   };
-
-  // Optional post-payment academic-profile review. The persistent check already
-  // exists; both actions lead to its report. The prefill follows the selected
-  // record so switching the selector updates the fields.
-  if (academicReview) {
-    const initialValues =
-      (selectedRecordId ? standaloneAcademicValuesForRecord(reviewEmail, selectedRecordId) : null)
-      ?? academicReview.initialValues;
-    return (
-      <main className="min-h-screen bg-[var(--background)] px-[20px] text-[var(--foreground)] md:px-[40px]">
-        <PostPaymentEnrichmentInterstitial
-          initialValues={initialValues}
-          records={academicReview.records}
-          selectedRecordId={selectedRecordId ?? undefined}
-          onRecordChange={handleAcademicRecordChange}
-          onSave={handleAcademicSave}
-          onSkip={handleAcademicSkip}
-        />
-      </main>
-    );
-  }
 
   if (isCompletingPayment) {
     return (

@@ -27,12 +27,11 @@
 - `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
 - `Apri report` into the role-specific report route.
 
-**Also implemented (post-payment academic-profile review — CRM-free, see §14):**
+**Formerly implemented, now REMOVED (post-payment academic-profile review — see §14, superseded):**
 
-- `/public-view/sottocheck` **and** `/public/account` (guest checkout): after the persistent standalone check exists, an **optional academic-profile review** (four fields — degree level / university / course / typology) appears before the report, sourced from the user's own **standalone Profile** (`src/app/data/standaloneProfile.ts`) — **not** from Pipeline/Student CRM resolution. **Not gap-fill** — all four fields are always shown, **prefilled** with the current values, for confirm/correct/complete/skip; a Profile with 0 academic records gets one auto-initialized rather than being skipped. A Profile with >1 academic record also gets a `Percorso accademico` selector to pick which existing record to review; the selector never creates/deletes a record or binds the check to one — there is no `StudentService`/`is_current` concept in this domain at all. **Academic context only** — no surname / phone / contact / identity / consent. It never blocks the report, never runs before `completedCheck`, and does **not** touch payment / the gateway / `sourceTemporaryDocumentRef` / `sourcePaymentReference` / materialization / `completionError` recovery / `PersistentTesiCheck` / the report page. Values go to the resolved standalone-Profile record (by stable id), never to Pipeline, never to `Student.academic_records[]`, never to `public-tesicheck-checks-v1`.
-- Same leaf component and the same standalone-Profile review helpers on both pages; the two checkout controllers (`PublicAccountGatePage`, `PublicPaidSottocheckPage`) remain fully separate — see §14.
-- Acquisition Pipeline creation/dedupe at registration (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`) is **unchanged** and lives entirely outside this review's concerns — the review never reads or writes it.
-- The Student paid flow (`StudentPaidSottocheckPage`) is **not** touched (later slice).
+- §14 below documents a post-**payment** academic-profile review interstitial that used to appear between check materialization and the report on both `/public-view/sottocheck` and `/public/account`. It has been **deleted** — see [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20. Academic-profile completion now happens at **registration**, via a one-time modal (`StandaloneProfileCompletionModal`) hosted on the Dashboard or the Report page — never inside the paid-checkout controllers this document covers. Both paid pages now navigate straight from materialization to the report, with no academic step in between; the `tesicheck-pending-enrichment-v1` breadcrumb it depended on was removed too.
+- Acquisition Pipeline creation/dedupe at registration (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`) is **unchanged** — untouched by either the old review or its removal.
+- The Student paid flow (`StudentPaidSottocheckPage`) is **not** touched.
 
 **Updated by Slice A (permanent History + title foundation):**
 
@@ -434,18 +433,18 @@ above the primary CTA, as a secondary text link — consistent across the direct
 
 ---
 
-## 14. Post-payment academic-profile review interstitial — authenticated standalone + guest
+## 14. Post-payment academic-profile review interstitial — authenticated standalone + guest (REMOVED — see §15)
 
-> Full technical detail: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md)
-> §19. This section only records how it touches the paid-consumer flow.
->
-> **CRM-free.** Earlier revisions of this section had the review resolve
-> Pipeline-vs-Student and write directly to `academic_data` /
-> `Student.academic_records[]`. That was removed: the review now reads/writes
-> **only** a dedicated prototype-local standalone Profile store
-> (`src/app/data/standaloneProfile.ts`, keyed by the verified account email) —
-> never Pipeline, never Student. Acquisition Pipeline creation at registration
-> is untouched and lives entirely outside this review's concerns.
+> **FULLY SUPERSEDED — see §15.** This entire section describes a post-payment
+> interstitial (`PostPaymentEnrichmentInterstitial`, the
+> `tesicheck-pending-enrichment-v1` breadcrumb) that has been **deleted**.
+> Neither paid page (`PublicPaidSottocheckPage`, `PublicAccountGatePage`) gates
+> navigation on any academic step anymore — both go straight from
+> materialization to the report. Kept below for historical trace only; every
+> component/function this section names has been removed from the codebase.
+> Full technical detail of the replacement:
+> [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md)
+> §20.
 
 **Scope:** `/public-view/sottocheck` (`PublicPaidSottocheckPage`) **and**
 `/public/account` (`PublicAccountGatePage`). Student paid flow
@@ -537,3 +536,29 @@ to its pre-review shape — zero changes to any acquisition function. Build
 passes; `tsc` baseline of 42 unchanged; `git diff --check` clean.
 
 Full trace: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §19.7.
+
+---
+
+## 15. §14 removed — academic-profile completion moved to registration onboarding
+
+The post-payment review §14 documented was removed in full. Both paid
+controllers (`PublicPaidSottocheckPage.tsx`, `PublicAccountGatePage.tsx`) had
+their academic-review state/effects/handlers/render-branch stripped and are
+back to a plain `completedCheck → setTimeout(navigate, 1200)` effect — the
+materialization effect, `handleRetryReportCreation`, the payment gateway, both
+idempotency keys (`sourceTemporaryDocumentRef` / `sourcePaymentReference`) and
+the `completionError` recovery screen are all **unchanged** by this removal.
+`PostPaymentEnrichmentInterstitial.tsx` and `pendingEnrichmentBreadcrumb.ts`
+were deleted outright (zero remaining importers, confirmed by grep).
+
+Academic-profile completion now happens at **registration**, not payment: a
+one-time modal (`StandaloneProfileCompletionModal`) shown over the Dashboard
+or the Report page — whichever the user reaches first — driven by a
+`profile_completion_prompt_pending` flag set once by
+`seedStandaloneProfileFromRegistration`. This paid-consumer flow's only
+remaining connection to it is that reaching the report via
+`/public-view/report/:checkId` is one of the two possible modal hosts; the
+paid flow itself neither triggers, gates, nor reads that flag.
+
+Full detail (modal, Dashboard reminder card, registration seeding, both
+hosts, scope verification): [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20.

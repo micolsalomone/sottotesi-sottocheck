@@ -1,16 +1,15 @@
 /**
  * Prototype-local Profile domain for the authenticated standalone TesiCheck
  * user (`/public-view`). `PublicProfilePage` (`/public-view/profilo`) and the
- * post-payment academic review (`PublicPaidSottocheckPage`,
- * `PublicAccountGatePage`) read/write ONLY this store — never `Pipeline` nor
- * `Student.academic_records[]`.
+ * post-registration Profile-completion modal
+ * (`StandaloneProfileCompletionModal`) read/write ONLY this store — never
+ * `Pipeline` nor `Student.academic_records[]`.
  *
- * This is a deliberate product boundary: the public-facing Profile / review
- * must not depend on Pipeline-vs-Student CRM resolution, so its shape (one
- * academic block vs. a multi-record editor, whether the review even appears)
- * never changes based on identity-resolution branching. Every authenticated
- * standalone user gets the SAME Profile shape — current + zero-or-more
- * previous academic records, always available to fill in.
+ * This is a deliberate product boundary: the public-facing Profile /
+ * onboarding UI must not depend on Pipeline-vs-Student CRM resolution, so its
+ * shape never changes based on identity-resolution branching. Every
+ * authenticated standalone user gets the SAME Profile shape — current +
+ * zero-or-more previous academic records, always available to fill in.
  *
  * Acquisition Pipeline creation/dedupe at registration
  * (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`, both in
@@ -19,7 +18,7 @@
  * The only touch point is additive: `seedStandaloneProfileFromRegistration`
  * mirrors the ALREADY-explicit registration choice (first name + commercial
  * consent) onto this store, in parallel with (never instead of) the
- * acquisition write.
+ * acquisition write, and arms the one-time onboarding prompt flag.
  *
  * PROTOTYPE ONLY:
  *  - keyed by the verified standalone account email (the same keying already
@@ -64,21 +63,25 @@ export interface StandaloneProfile {
   /** Per-email commercial-communications consent. Key present = explicit choice; absent = never expressed. */
   commercial_consents: Record<string, boolean>;
   academic_records: StandaloneAcademicRecord[];
+  /**
+   * ONE-TIME onboarding prompt flag — means ONLY "the post-registration
+   * Profile-completion modal still needs to be shown". It is NOT a
+   * Profile-completeness signal (see `isCurrentAcademicRecordComplete` for
+   * that, a separate and unrelated derivation). Set `true` only by
+   * `seedStandaloneProfileFromRegistration` on a NEW successful registration;
+   * set back to `false` the moment the modal is dismissed by any exit (save,
+   * skip, close). Absent (pre-existing/legacy profiles) is read as `false` —
+   * never inferred from missing academic data, never defaulted to `true`.
+   */
+  profile_completion_prompt_pending?: boolean;
 }
 
-/** The four post-payment-review academic fields — narrower on purpose than the full Profile field set (see `PostPaymentEnrichmentInterstitial`). */
+/** The four onboarding-modal academic fields — narrower on purpose than the full Profile field set (see `StandaloneProfileCompletionModal`). */
 export interface PostPaymentAcademicValues {
   degree_level?: DegreeLevel | '';
   university_name?: string;
   course_name?: string;
   thesis_type?: ThesisType | '';
-}
-
-/** One existing academic record offered as a review edit target. */
-export interface AcademicRecordOption {
-  id: string;
-  label: string;
-  isCurrent: boolean;
 }
 
 function normalizeEmail(email: string | null | undefined): string {
@@ -145,8 +148,8 @@ export function getStandaloneProfile(email: string | null | undefined): Standalo
 /**
  * Get-or-create, guaranteeing the returned profile always has exactly one
  * `is_current` academic record — a standalone Profile always has something to
- * review or complete; unlike CRM resolution, it is never "not applicable".
- * `null` only when the email itself is invalid/absent.
+ * complete; it is never "not applicable". `null` only when the email itself is
+ * invalid/absent.
  */
 export function ensureStandaloneProfile(email: string | null | undefined): StandaloneProfile | null {
   const key = normalizeEmail(email);
@@ -204,6 +207,12 @@ export function writeStandaloneCommercialConsent(email: string | null | undefine
  * PARALLEL with — never instead of — the acquisition Pipeline/Student write
  * `applyStandaloneRegistrationConsent` already performs. Does not touch
  * academic records; never reads or resolves Pipeline/Student.
+ *
+ * Also arms the one-time `profile_completion_prompt_pending` flag: a NEW
+ * successful standalone registration should offer the Profile-completion
+ * modal once, on whichever landing surface (Dashboard or Report) the user
+ * reaches first. Existing profiles that predate this feature are never
+ * retroactively flagged — only a fresh registration calls this at all.
  */
 export function seedStandaloneProfileFromRegistration(params: {
   email: string;
@@ -216,7 +225,25 @@ export function seedStandaloneProfileFromRegistration(params: {
     ...profile,
     first_name: profile.first_name || (params.firstName ?? '').trim(),
     commercial_consents: { ...profile.commercial_consents, [key]: params.commercialConsent },
+    profile_completion_prompt_pending: true,
   }));
+}
+
+/**
+ * Whether the one-time Profile-completion modal still needs to be shown.
+ * Absent (pre-existing/legacy profiles, or no profile at all) reads as
+ * `false` — never inferred, never shown automatically to an account that
+ * didn't register through the flag-setting path.
+ */
+export function isProfileCompletionPromptPending(email: string | null | undefined): boolean {
+  return getStandaloneProfile(email)?.profile_completion_prompt_pending === true;
+}
+
+/** Called on every modal exit — Save, Skip, or the X close — never re-armed by anything else. */
+export function dismissProfileCompletionPrompt(email: string | null | undefined): void {
+  const key = normalizeEmail(email);
+  if (!key) return;
+  updateStandaloneProfile(key, (profile) => ({ ...profile, profile_completion_prompt_pending: false }));
 }
 
 // ─── Academic-record editing for the Profile page (all 7 fields, direct correction) ───
@@ -249,7 +276,7 @@ export function toEditableStandaloneRecord(record: StandaloneAcademicRecord): Ed
 }
 
 /**
- * Direct content correction (Profile semantics, NOT the post-payment review's
+ * Direct content correction (Profile semantics, NOT the onboarding modal's
  * gap-fill-free patch below): existing records matched by id are replaced with
  * the edited content when it differs (never `id` / `is_current` / `created_at`;
  * `updated_at` bumped only on real change); drafts with content become new,
@@ -298,30 +325,7 @@ export function applyStandaloneAcademicEdits(
   return [...merged, ...added];
 }
 
-// ─── Post-payment academic review (4 fields, non-destructive per-field patch) ───
-
-// Local record-summary label map — matches the vocabulary already used by
-// `CreateStudentDrawer` / `tesicheckLeadEnrichment.ts`'s prior version, kept
-// local on purpose (no shared taxonomy module for this yet).
-const DEGREE_LEVEL_SUMMARY_LABEL: Record<DegreeLevel, string> = {
-  triennale: 'Triennale',
-  magistrale: 'Magistrale',
-  ciclo_unico: 'Ciclo unico',
-  master: 'Master',
-  dottorato: 'Dottorato',
-};
-
-function recordLabel(record: StandaloneAcademicRecord): string {
-  return (
-    [
-      record.degree_level ? DEGREE_LEVEL_SUMMARY_LABEL[record.degree_level] : null,
-      record.course_name || null,
-      record.university_name || null,
-    ]
-      .filter(Boolean)
-      .join(' · ') || 'Percorso accademico'
-  );
-}
+// ─── Post-registration Profile-completion modal (current record, 4 fields only) ───
 
 function valuesFromRecord(record: StandaloneAcademicRecord): PostPaymentAcademicValues {
   return {
@@ -332,53 +336,16 @@ function valuesFromRecord(record: StandaloneAcademicRecord): PostPaymentAcademic
   };
 }
 
-export interface StandaloneAcademicReview {
-  initialValues: PostPaymentAcademicValues;
-  /** Present only when the profile has >1 academic record. */
-  records?: AcademicRecordOption[];
-  selectedRecordId: string;
-}
-
 /**
- * Resolve the post-payment academic review for this verified standalone
- * account email. Reads/auto-provisions ONLY this store (via
- * `ensureStandaloneProfile`) — never Pipeline or Student. Always resolvable
- * for a valid email: a current record always exists (created blank on first
- * use), so there is no "nothing to review" case to skip, unlike the previous
- * CRM-resolved version. `records` (the selector options) is present only when
- * the profile holds more than one academic record.
+ * Prefill values for the CURRENT academic record, auto-provisioning the
+ * profile/record if needed (`ensureStandaloneProfile`). Used only by
+ * `StandaloneProfileCompletionModal` — the modal never manages previous
+ * records, never selects among records, never changes `is_current`.
  */
-export function resolveStandaloneAcademicReview(email: string | null | undefined): StandaloneAcademicReview | null {
+export function getCurrentAcademicValues(email: string | null | undefined): PostPaymentAcademicValues | null {
   const profile = ensureStandaloneProfile(email);
-  if (!profile) return null;
-
-  const ordered = [
-    ...profile.academic_records.filter((r) => r.is_current),
-    ...profile.academic_records.filter((r) => !r.is_current),
-  ];
-  const selected = ordered[0];
-  const base: StandaloneAcademicReview = {
-    initialValues: valuesFromRecord(selected),
-    selectedRecordId: selected.id,
-  };
-  if (profile.academic_records.length <= 1) return base;
-  return {
-    ...base,
-    records: ordered.map((record) => ({
-      id: record.id,
-      label: recordLabel(record),
-      isCurrent: record.is_current,
-    })),
-  };
-}
-
-/** Prefill values for one existing record (by id), or `null` if it no longer exists. */
-export function standaloneAcademicValuesForRecord(
-  email: string | null | undefined,
-  recordId: string,
-): PostPaymentAcademicValues | null {
-  const record = getStandaloneProfile(email)?.academic_records.find((r) => r.id === recordId);
-  return record ? valuesFromRecord(record) : null;
+  const current = profile?.academic_records.find((r) => r.is_current);
+  return current ? valuesFromRecord(current) : null;
 }
 
 type FourFieldKeys = 'degree_level' | 'university_name' | 'course_name' | 'thesis_type';
@@ -400,21 +367,18 @@ function fourFieldPatch(
 }
 
 /**
- * Apply the reviewed 4 academic fields to ONE existing record, identified by
- * stable id. Non-destructive: a submitted non-empty value that differs from
- * the current one replaces it; empty or unchanged is a no-op; the record's
- * other Profile-only fields (`thesis_professor` / `thesis_subject` /
- * `thesis_topic`) are never touched. If the id no longer exists at save time,
- * nothing is written. Secondary to the paid result: callers navigate to the
- * report regardless of this call's outcome, and should tolerate it throwing.
+ * Apply the completion-modal's 4 fields to the CURRENT academic record only.
+ * Non-destructive: a submitted non-empty value that differs from the current
+ * one replaces it; empty or unchanged is a no-op; the record's other
+ * Profile-only fields (`thesis_professor` / `thesis_subject` / `thesis_topic`)
+ * are never touched, and neither are any previous records. Auto-provisions the
+ * current record if somehow missing (`ensureStandaloneProfile`-equivalent
+ * guard), so a save never silently does nothing.
  */
-export function applyStandaloneAcademicReview(
-  email: string | null | undefined,
-  recordId: string,
-  values: PostPaymentAcademicValues,
-): void {
+export function applyCurrentAcademicUpdate(email: string | null | undefined, values: PostPaymentAcademicValues): void {
+  ensureStandaloneProfile(email);
   updateStandaloneProfile(email, (profile) => {
-    const index = profile.academic_records.findIndex((r) => r.id === recordId);
+    const index = profile.academic_records.findIndex((r) => r.is_current);
     if (index === -1) return profile;
     const patch = fourFieldPatch(profile.academic_records[index], values);
     if (Object.keys(patch).length === 0) return profile;
@@ -426,4 +390,22 @@ export function applyStandaloneAcademicReview(
       ),
     };
   });
+}
+
+/**
+ * Dashboard-reminder-only derivation: is the CURRENT academic record's
+ * essential context present (degree level, university, course, typology)?
+ * Unrelated to `profile_completion_prompt_pending` — this controls ONLY
+ * whether the Dashboard reminder card renders, never the one-time modal.
+ * Previous-record completeness is irrelevant here by design.
+ */
+export function isCurrentAcademicRecordComplete(email: string | null | undefined): boolean {
+  const record = getStandaloneProfile(email)?.academic_records.find((r) => r.is_current);
+  if (!record) return false;
+  return Boolean(
+    record.degree_level.trim() &&
+      record.university_name.trim() &&
+      record.course_name.trim() &&
+      record.thesis_type.trim(),
+  );
 }

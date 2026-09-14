@@ -7,8 +7,15 @@
 
 Scope: standalone TesiCheck registration → immediate CRM Pipeline
 (create/dedupe) → later Profile questionnaire enriches that Pipeline. The
-Student questionnaire and any Dashboard/report entry-point cards are **not** in
-scope. No consent checkbox copy is added (see §9).
+Student questionnaire is **not** in scope. No consent checkbox copy is added
+(see §9).
+
+> **Dashboard/report entry-point cards were later brought into scope — see
+> §20.** The original post-payment academic-review interstitial (§15–§17, §19)
+> was superseded by a post-**registration** onboarding modal
+> (`StandaloneProfileCompletionModal`) hosted on the Dashboard and the Report
+> page, plus a non-blocking Dashboard reminder card. Read §20 first for the
+> current architecture; §15–§19 remain for historical trace only.
 
 ---
 
@@ -605,18 +612,19 @@ Manual code trace (seed data in `LavorazioniContext`):
 
 ## 15. Slice 1 — post-payment ACADEMIC-PROFILE REVIEW interstitial (authenticated standalone only)
 
-> **SUPERSEDED — data source only, see §19.** §15–§17 below describe the
-> review/Profile resolving Pipeline-vs-Student via `resolveEnrichmentTarget`.
-> That CRM dependency was removed: the review and `/public-view/profilo` now
-> read/write a dedicated CRM-free prototype store
-> (`src/app/data/standaloneProfile.ts`) and never resolve Pipeline or Student.
-> Everything else these sections describe — the UI (`PostPaymentEnrichmentInterstitial`,
-> the four fields, the `Percorso accademico` selector), the insertion seam
-> (`completedCheck` → breadcrumb → decide → interstitial-or-timer), the
-> breadcrumb/refresh behaviour, and the non-destructive save semantics — is
-> **unchanged in shape**, just repointed to the new store. Read §19 for the
-> current architecture; §15–§17 are kept for historical trace of the
-> intermediate CRM-based design and the reasoning that led away from it.
+> **FULLY SUPERSEDED — see §20.** §15–§16 describe a post-**payment**
+> academic-review interstitial (`PostPaymentEnrichmentInterstitial`,
+> `pendingEnrichmentBreadcrumb.ts`) inserted between materialization and the
+> report. That interstitial, its breadcrumb, and the CRM-coupled resolver it
+> originally used (later repointed to `standaloneProfile.ts` by §19) have all
+> been **deleted**. Academic-profile completion moved to **registration
+> onboarding**: a one-time modal shown over the Dashboard or the Report
+> (`StandaloneProfileCompletionModal`), plus a persistent, non-blocking
+> Dashboard reminder card. The paid flow (`PublicPaidSottocheckPage`,
+> `PublicAccountGatePage`) now navigates straight to the report after
+> materialization, with no academic step in between. §15–§17 are kept for
+> historical trace only — none of the components/files/functions they name
+> still exist. Read §20 for the current architecture.
 
 Scope: the authenticated-standalone paid flow **only** —
 `/public-view/sottocheck` (`PublicPaidSottocheckPage`). The Student paid flow
@@ -812,10 +820,10 @@ Manual code trace:
 
 ## 16. Slice 2 — same academic-profile review on the guest checkout (`PublicAccountGatePage`)
 
-> **SUPERSEDED — data source only, see §19.** Same note as §15: this section's
-> CRM (Pipeline/Student) resolution was removed; the seam, UI and breadcrumb
-> behaviour it describes are otherwise still accurate, now reading/writing
-> `standaloneProfile.ts` instead.
+> **FULLY SUPERSEDED — see §20.** Same note as §15: the post-payment
+> interstitial this section extended to the guest checkout no longer exists.
+> `PublicAccountGatePage` now navigates straight to the report after
+> materialization, unchanged apart from that removal.
 
 Extends §15 to the **guest acquisition flow**:
 `/public → /public/account → payment → materialization → academic-profile
@@ -1368,7 +1376,16 @@ modificare questa scelta in qualsiasi momento.") is unchanged. What changed is
   Admin/CRM tri-state semantics for contacts from other channels are
   completely untouched.
 
-### 19.5 Post-payment academic review — final source/update behaviour
+### 19.5 Post-payment academic review — final source/update behaviour (HISTORICAL — see §20)
+
+> **This entire subsection describes a step that no longer exists.** §20
+> replaced the post-payment review with a post-**registration** onboarding
+> modal; the paid pages no longer gate navigation on any academic step. Kept
+> for historical trace only — `resolveStandaloneAcademicReview`,
+> `standaloneAcademicValuesForRecord` and `applyStandaloneAcademicReview` were
+> deleted from `standaloneProfile.ts` and replaced with
+> `getCurrentAcademicValues` / `applyCurrentAcademicUpdate` (current-record
+> only, no selector — see §20.3).
 
 Same UI, same seam (`completedCheck` → breadcrumb → decide → interstitial or
 1200 ms timer → report), same non-destructive 4-field patch semantics as
@@ -1459,3 +1476,297 @@ Same UI, same seam (`completedCheck` → breadcrumb → decide → interstitial 
 
 `npm run build` passes; `git diff --check` clean; `npx tsc --noEmit` at the
 **42-error baseline**, no new errors in any touched or new file.
+
+---
+
+## 20. Post-payment review replaced by post-registration onboarding modal + Dashboard reminder card
+
+**Problem found.** §15–§19 placed academic-profile completion **after
+payment**, as an interstitial between check materialization and the report.
+Product direction changed: Profile completion belongs to **registration
+onboarding**, not payment — a guest who registers mid-checkout and a user who
+registers directly (`Registrati`, no purchase involved) should get the same
+one-time opportunity to complete their academic profile, and a paid report
+must never be delayed or gated by it.
+
+**PROTOTYPE / PRODUCTION HANDOFF boundary (read this first):**
+
+- **PROTOTYPE:** registration sets a one-time onboarding-prompt flag on the
+  standalone Profile (`standaloneProfile.ts`). Whichever authenticated
+  surface the user reaches first — Dashboard (direct registration) or the
+  paid Report (guest checkout registration) — shows
+  `StandaloneProfileCompletionModal` over its already-rendered content, never
+  gating or delaying it. The Dashboard additionally shows a persistent,
+  non-blocking reminder card whenever the current academic record is missing
+  any of its four essential fields, independent of the one-time flag.
+- **PRODUCTION HANDOFF:** as with §19, this prototype does not prescribe how
+  the onboarding prompt or Profile data should be represented against a real
+  backend/CRM — `profile_completion_prompt_pending` and the completeness
+  derivation are prototype-local, `localStorage`-backed signals only.
+
+### 20.1 Canonical hierarchy
+
+Three surfaces, three distinct jobs — never conflated:
+
+1. **`StandaloneProfileCompletionModal`** — an immediate, ONE-TIME onboarding
+   opportunity shown right after a NEW registration, on whichever surface
+   (Dashboard or Report) the user reaches first. Controlled exclusively by
+   `profile_completion_prompt_pending`. Never reappears once dismissed
+   (Save, Skip, or the X all dismiss it the same way).
+2. **Dashboard reminder card** — a persistent, non-blocking reminder shown
+   whenever the CURRENT academic record's four essential fields are not all
+   filled in, regardless of whether the modal was ever shown, skipped, or
+   completed. Disappears the moment those four fields are all present.
+3. **`/public-view/profilo`** — the full management surface: personal info,
+   contacts, commercial consent, the current record's all seven fields, and
+   any number of previous records (add/remove). Both the modal and the
+   reminder card exist only to route the user toward this surface; neither
+   replaces it.
+
+These two flags are **intentionally independent** — see §20.4 for the
+worked example the product spec called out explicitly.
+
+### 20.2 `profile_completion_prompt_pending` — the one-time flag
+
+New optional field on `StandaloneProfile` (`standaloneProfile.ts`):
+
+```
+profile_completion_prompt_pending?: boolean
+```
+
+- Means **only** "the one-time onboarding modal still needs to be shown" —
+  never a Profile-completeness signal (that is §20.5's separate derivation).
+- `isProfileCompletionPromptPending(email)` — absent (legacy/pre-feature
+  profiles, or no profile at all) reads as `false`. Never inferred from
+  missing academic data; never defaulted to `true`.
+- `dismissProfileCompletionPrompt(email)` — sets it `false`. Called on every
+  modal exit (Save, Skip, X) — identical outcome for all three, differing
+  only in whether academic data was also written (§20.6/§20.7).
+- Set to `true` **only** by `seedStandaloneProfileFromRegistration`, i.e.
+  only on a brand-new successful registration. No other code path ever sets
+  it `true` — an existing account can never have the modal "re-armed".
+
+### 20.3 Registration seeding
+
+`seedStandaloneProfileFromRegistration({ email, firstName, commercialConsent })`
+(`standaloneProfile.ts`) is unchanged in its call sites — both
+`PublicAccountGatePage.handleConfirmEmail` and
+`PublicStandaloneAuthPage.handleConfirmEmail` already called it (§19.4) to
+mirror the registration's first name + commercial-consent choice onto the
+Profile store. Its **body** now additionally sets
+`profile_completion_prompt_pending: true` on every call. Since this function
+only ever runs once, at a NEW registration's email-verification moment, no
+existing/legacy account is ever retroactively flagged — `profile_completion_prompt_pending`
+simply does not exist on a profile that predates this feature, which
+`isProfileCompletionPromptPending` reads as `false` (§20.2).
+
+Nothing else about registration changed: `applyStandaloneRegistrationConsent`
+(the Pipeline/Student acquisition write) is called immediately before, at the
+same call site, completely unchanged (§19.4's diagram still applies — this
+is a third parallel write alongside the two §19.4 already documented, not a
+replacement of either).
+
+### 20.4 Worked example — why the two flags never interact
+
+From the product spec, verified by code trace:
+
+1. New registration → `profile_completion_prompt_pending = true`.
+2. User reaches the Dashboard (or Report) → modal shown.
+3. User clicks **Salta** → `dismissProfileCompletionPrompt` →
+   `profile_completion_prompt_pending = false`. Zero academic writes. Modal
+   never auto-opens again for this account.
+4. The current academic record is still incomplete (nothing was written) →
+   `isCurrentAcademicRecordComplete(email)` is `false` → the Dashboard
+   reminder card **remains visible** — it never read the pending flag, so
+   dismissing the modal has no effect on it.
+5. User later fills in the four fields via `/public-view/profilo` and saves →
+   `isCurrentAcademicRecordComplete(email)` becomes `true` → the reminder
+   card disappears on the next Dashboard render. `profile_completion_prompt_pending`
+   is never touched by this — it was already `false` since step 3 and stays
+   that way; completing the Profile does **not** re-arm the modal.
+
+### 20.5 Dashboard completeness derivation
+
+`isCurrentAcademicRecordComplete(email)` (`standaloneProfile.ts`) — reads
+(never auto-creates) the Profile's current academic record and returns
+`true` only when `degree_level`, `university_name`, `course_name` and
+`thesis_type` are all non-blank. No profile / no current record → `false`.
+Previous records are never consulted — only the current record's four
+essential fields decide the Dashboard reminder card's visibility (§20.7).
+This is a **read-only** derivation; it never creates or modifies a profile
+(unlike `ensureStandaloneProfile`, which the modal's prefill uses).
+
+### 20.6 `StandaloneProfileCompletionModal`
+
+New: `src/app/components/profile/StandaloneProfileCompletionModal.tsx`.
+Follows the established custom-overlay modal pattern already used by
+`AssignStepModal.tsx` (`coach/`) — fixed-inset overlay + `onClick={onClose}`,
+inner card with `stopPropagation`, header with title + X, scrollable body,
+footer actions — rendered with the Public/standalone pages' `var(--…)`
+CSS-variable styling convention (matching `ProfileFormPrimitives.tsx` /
+`SottocheckActionButton`), not Coach's Tailwind bracket-var syntax. The
+unused shadcn `ui/dialog.tsx` / `ui/alert-dialog.tsx` primitives (zero
+consumers repo-wide) were deliberately not adopted — reusing them here would
+have introduced a second, competing modal architecture instead of following
+the one actually in use.
+
+- **Props:** `{ isOpen, email, onClose }` — no `checkId` / Pipeline / Student
+  / account-session data; it only needs the verified email.
+- **Content:** title `Completa il tuo profilo`; body `Aggiungi alcune
+  informazioni sul tuo percorso universitario. Potrai modificarle in
+  qualsiasi momento dal Profilo.`; single column, four fields — `Livello di
+  laurea` (select), `Università` (text), `Corso di laurea` (text),
+  `Tipologia` (select) — all optional, no progress bar, no required markers.
+  The modal card itself is the only container; `FormSection` /
+  `AcademicRecordsSections` are deliberately **not** nested inside it (per
+  product direction — the modal is not a small Profile page).
+- **Prefill:** `getCurrentAcademicValues(email)` (new, `standaloneProfile.ts`)
+  — calls `ensureStandaloneProfile` (guarantees a current record exists,
+  same invariant §19.2 established) and returns that record's four fields.
+- **Save (`Aggiorna profilo`):** `applyCurrentAcademicUpdate(email, values)`
+  (new) — the exact same non-destructive per-field patch semantics §15.5
+  established (`fourFieldPatch`: non-empty + different → replaces; empty or
+  unchanged → no-op), now always targeting the record flagged `is_current`
+  directly (no `recordId` parameter — the modal never manages or selects
+  among records), then `dismissProfileCompletionPrompt(email)`, then
+  `onClose()`.
+- **Skip / X (`Salta`, top-right X):** both call the same `dismiss()` —
+  `dismissProfileCompletionPrompt(email)` then `onClose()` — zero academic
+  writes, no field marked completed/declined.
+- Width ~540px, `max-h-[85vh]` with an internal scrolling field area, so it
+  stays usable at mobile widths without horizontal overflow.
+
+### 20.7 Dashboard host (`DashboardPage.tsx`)
+
+- Resolves the verified account email the same way `PublicProfilePage` does
+  (`getAccountSession()` + `emailVerified` guard).
+  Note: `DEMO_ACCOUNT_ID` remains the routing/report-ownership identity
+  elsewhere in this prototype (§19.2) — the Profile store is keyed by email,
+  unchanged from §19.
+- `showCompletionModal` state, initialized from
+  `isProfileCompletionPromptPending(accountEmail)` on mount; renders
+  `<StandaloneProfileCompletionModal>` unconditionally alongside the existing
+  Dashboard content (not gating it) — `onClose` just flips the state back to
+  `false`, no navigation, no redirect. The Dashboard underneath is always
+  already fully rendered.
+- New reminder-card `<section>`, inserted between the TesiCheck service card
+  and the Coaching upsell card, rendered only when
+  `!isCurrentAcademicRecordComplete(accountEmail)` (re-derived whenever the
+  modal's open state changes, so completing the Profile via the modal — if
+  that path is ever extended — or dismissing it both refresh the card
+  immediately). Intentionally lighter-weight styling than the TesiCheck card
+  (no image sticker, thinner border, no shadow) to stay visually subordinate,
+  per product direction. Copy: eyebrow/title `Completa il tuo profilo`, body
+  `Aggiungi le informazioni sul tuo percorso universitario per completare il
+  tuo profilo Sottotesi.`, CTA `Completa profilo` → `navigate('/public-view/profilo')`.
+  The card never reopens the modal — it only links to the full Profile.
+- Nothing else on the Dashboard (the TesiCheck card, the Coaching card, their
+  copy/CTAs) was touched.
+
+### 20.8 Report host (`PublicReportPage.tsx`)
+
+Identical pattern to the Dashboard host, added as a sibling at the top of the
+existing return JSX — `isValidCheck`, the iframe `src`/props, the download
+handler and both support/storico cards are **byte-for-byte unchanged**. The
+modal is rendered only in the valid-check branch (never in the `ReportState`
+early-return for a missing/invalid check, which was left untouched); it sits
+visually over the already-rendered report, never delays or gates the
+`isValidCheck` guard, the iframe render, or navigation to this page. Session
+resolution and modal open/dismiss logic mirror §20.7 exactly (own
+`getAccountSession` + `isProfileCompletionPromptPending` read, own
+`showCompletionModal` state).
+
+### 20.9 Old post-payment interstitial removal
+
+Both paid-flow controllers reverted to their pre-review shape:
+
+| File | Change |
+| --- | --- |
+| `src/pages/public/PublicPaidSottocheckPage.tsx` | Removed all academic-review state/effects/handlers/render-branch. The materialization effect and `handleRetryReportCreation` are untouched. Restored the plain `completedCheck → setTimeout(navigate('/public-view/report/:id'), 1200)` effect — the review no longer sits between materialization and navigation. |
+| `src/pages/public/PublicAccountGatePage.tsx` | Same reversion. `useLavorazioni()` **kept** (still needed for the untouched `applyStandaloneRegistrationConsent` call in `handleConfirmEmail`); `seedStandaloneProfileFromRegistration` call site unchanged (the new flag comes from extending that function's body, §20.3, not this call site). Restored the same plain navigation-timer effect. |
+| `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` | **Deleted.** Fully replaced by `StandaloneProfileCompletionModal`, which is not a drop-in reuse (different trigger, different host pages, no record selector) — reusing the old component's shell would have kept a payment-shaped seam (`initialValues`/`records`/`selectedRecordId` props) with no product reason to exist anymore. |
+| `src/app/data/standaloneProfile.ts` | `resolveStandaloneAcademicReview`, `standaloneAcademicValuesForRecord`, `applyStandaloneAcademicReview`, `AcademicRecordOption`, `StandaloneAcademicReview`, `recordLabel`, `DEGREE_LEVEL_SUMMARY_LABEL` **deleted** (confirmed unused repo-wide by grep before deletion) — replaced by the simpler current-record-only `getCurrentAcademicValues` / `applyCurrentAcademicUpdate` (§20.6) the modal actually needs, plus `profile_completion_prompt_pending` / `isProfileCompletionPromptPending` / `dismissProfileCompletionPrompt` / `isCurrentAcademicRecordComplete`. `seedStandaloneProfileFromRegistration` extended in place (§20.3). Module doc-comment rewritten to describe the modal/reminder-card architecture instead of the post-payment review. The 7-field Profile-editing exports (`toEditableStandaloneRecord`, `applyStandaloneAcademicEdits`) are **unchanged** — `/public-view/profilo` (§19.3) is untouched by this task. |
+
+### 20.10 Breadcrumb decision
+
+`src/app/data/pendingEnrichmentBreadcrumb.ts` — **deleted**, along with its
+only callers (the two paid-flow controllers above). Its entire purpose
+(§15.7/§16.5) was protecting continuation from a refresh **while the
+post-payment interstitial was open, between materialization and navigation**.
+That seam no longer exists — navigation after materialization is once again
+a plain, ungated `setTimeout` → `navigate`, so a refresh during that brief
+window simply re-renders the paid page from its own existing state (`?
+completedCheck` is lost on a hard refresh regardless, same as before this
+entire workstream began — an accepted, pre-existing prototype limitation,
+not something this task's breadcrumb was protecting). No genuine
+report-continuation use remained once the interstitial was removed, so
+keeping the module would have been dead infrastructure with a misleading
+name. A repo-wide grep after deletion confirmed both files (and the
+interstitial component) have zero remaining importers.
+
+### 20.11 Scope protection
+
+Untouched, verified by `git diff --stat` against `Pipeline`/CRM/Admin/Student/
+Account/payment files: `tesicheckLeadEnrichment.ts`, `LavorazioniContext.tsx`,
+every `src/pages/admin/**`, every `src/pages/student/**`,
+`tesicheckAccountSession.ts`, `tesicheckPersistentCheck.ts`. The Dashboard
+reminder card is the **only** Dashboard-content change; every other Dashboard
+section (TesiCheck card, Coaching card) is byte-for-byte unchanged. The
+Report page's `isValidCheck` guard, iframe, download handler and support
+cards are byte-for-byte unchanged.
+
+### 20.12 Trace (acceptance criteria)
+
+- **A.** Register during guest `/public/account` checkout → payment →
+  materialization → plain `setTimeout` navigation (no gate) →
+  `/public-view/report/:checkId` renders fully → modal shown **over** it
+  (`isProfileCompletionPromptPending` true from registration).
+- **B.** `Aggiorna profilo` in that modal → `applyCurrentAcademicUpdate`
+  updates the Profile's current record's four fields → modal closes → report
+  remains visible, unaffected → `profile_completion_prompt_pending` is
+  `false`, so a later report visit never reopens it.
+- **C.** `Salta` / X → zero academic writes → prompt dismissed → report
+  remains visible → never reopens.
+- **D.** Register directly via `/public/register` → Dashboard renders fully
+  → same modal shown over it (same flag, same component, different host).
+- **E.** Skip on the Dashboard → Dashboard remains, unaffected → modal never
+  reopens on a later Dashboard visit.
+- **F.** Current academic record still incomplete after Skip → Dashboard
+  reminder card shown (§20.4's worked example).
+- **G.** Reminder card's `Completa profilo` → `/public-view/profilo`.
+- **H.** All four current-record fields completed in the full Profile →
+  return to Dashboard → `isCurrentAcademicRecordComplete` now `true` →
+  reminder card no longer rendered.
+- **I.** A legacy/demo account with no `profile_completion_prompt_pending`
+  key → `isProfileCompletionPromptPending` reads `false` → modal never
+  auto-appears, on either host.
+- **J.** `/public-view/profilo` (§19.3) still supports the current record
+  plus any number of previous records, unaffected by this task.
+- **K.** No modal / Dashboard-reminder / registration-seed write anywhere in
+  this task calls `updatePipeline` / `updateStudent` / `addPipeline` —
+  confirmed by grep; `useLavorazioni` is not imported by
+  `StandaloneProfileCompletionModal.tsx`, `DashboardPage.tsx`, or
+  `PublicReportPage.tsx`.
+- **L.** `PublicPaidSottocheckPage.tsx` / `PublicAccountGatePage.tsx` contain
+  no academic-review state, handler or render branch after this task —
+  materialization → navigation is unconditional.
+- **M.** The report is never blocked: `isValidCheck`, the iframe and the
+  download flow are reached and rendered exactly as before this task, with
+  the modal only ever layered on top, never gating any of it.
+
+### 20.13 Verification
+
+- `npm run build` — passes (Vite 6.4.2).
+- `git diff --check` — clean (only pre-existing LF→CRLF advisory warnings on
+  touched files, no actual whitespace errors).
+- `npx tsc --noEmit` — **42-error baseline unchanged**; the handful of errors
+  that do appear in touched files (`DashboardPage.tsx` image-module imports,
+  `PublicReportPage.tsx`'s `import.meta.env`) are pre-existing, unrelated to
+  this task, and were already part of the 42 before this work.
+- `git diff` against Pipeline/CRM/Admin/Student/Account/payment files —
+  empty (§20.11).
+- Browser/UI smoke test: **not performed** — no browser-automation tool was
+  available in this environment. `npm run dev` was started and served
+  without console/build errors, but the modal, reminder card and both hosts
+  were verified by code review + `tsc`/`build` only, not by exercising them
+  in a live browser. This should be manually verified before shipping.
