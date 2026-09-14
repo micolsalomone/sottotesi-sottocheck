@@ -29,7 +29,13 @@
  *   `PublicProfilePage`) normally updates the already-created Pipeline;
  *   `new_pipeline` there is fallback-only for pre-rule accounts.
  */
-import type { Pipeline, Student } from './LavorazioniContext';
+import type {
+  DegreeLevel,
+  Pipeline,
+  Student,
+  StudentAcademicRecord,
+  ThesisType,
+} from './LavorazioniContext';
 import { withStudentEmailConsent } from './marketingConsent';
 
 export type TesiCheckEnrichmentTarget =
@@ -322,4 +328,290 @@ export function applyStandaloneRegistrationConsent(params: {
   }
 
   return result;
+}
+
+// ─── Post-payment ACADEMIC-PROFILE REVIEW (authenticated standalone) ──────────
+//
+// A lightweight review-and-update step shown once, AFTER a paid standalone
+// TesiCheck has been materialized (never before `completedCheck` exists).
+//
+// It lets the user REVIEW and, if they want, correct or complete the four
+// academic fields already associated with their Profile identity. It is NOT
+// gap-fill-only: whenever a resolvable academic target exists, ALL FOUR fields
+// are shown, PREFILLED with the current values — the user confirms, corrects,
+// completes or skips.
+//
+// It is still NOT identity completion, contact collection, account/legal
+// management or full Profile editing — surname, phone, contacts, consent, quotes,
+// notes, assignees and `sources` are never touched here. The full Profile remains
+// the surface for deliberate edits.
+//
+// The Student domain supports MULTIPLE academic records. This step reviews ONE
+// EXISTING record: for a Student with >1 record a selector chooses which existing
+// record to review (preselecting `is_current`, else the first in Profile order).
+// The selector is only an edit-target chooser — it never changes `is_current`,
+// creates / deletes a record, touches `StudentService` / `academic_record_id`, or
+// associates the paid TesiCheck with any record. There is NO
+// PersistentTesiCheck ↔ academic-record association in this slice.
+//
+// Values belong to the resolved Pipeline `academic_data` or the selected Student
+// academic record. They are never written to the PersistentTesiCheck /
+// `public-tesicheck-checks-v1` record. This step is secondary to the paid result:
+// callers navigate to the report regardless of the outcome and tolerate
+// `applyPostPaymentAcademicUpdate` throwing.
+
+export interface PostPaymentAcademicValues {
+  degree_level?: DegreeLevel | '';
+  university_name?: string;
+  course_name?: string;
+  thesis_type?: ThesisType | '';
+}
+
+/** One existing Student academic record offered as an edit target. */
+export interface AcademicRecordOption {
+  id: string;
+  label: string;
+  isCurrent: boolean;
+}
+
+/**
+ * Whether the post-payment academic-profile review applies, and the data to
+ * prefill. `applicable: false` for `new_pipeline` / `unavailable` and for a
+ * Student with **zero** academic records (never fabricated) — the caller then
+ * goes straight to the report.
+ *
+ * `records` is present only for a Student with **>1** academic record (the
+ * selectable existing records, in Profile order). `selectedRecordId` is set for
+ * every Student case (the record to review first); it is absent for a Pipeline
+ * target (one flat `academic_data`, no selector).
+ */
+export type PostPaymentAcademicReview =
+  | { applicable: false }
+  | {
+      applicable: true;
+      initialValues: PostPaymentAcademicValues;
+      records?: AcademicRecordOption[];
+      selectedRecordId?: string;
+    };
+
+function academicValuesFrom(source: {
+  degree_level?: DegreeLevel | '';
+  university_name?: string;
+  course_name?: string;
+  thesis_type?: ThesisType | '';
+}): PostPaymentAcademicValues {
+  return {
+    degree_level: source.degree_level ?? '',
+    university_name: source.university_name ?? '',
+    course_name: source.course_name ?? '',
+    thesis_type: source.thesis_type ?? '',
+  };
+}
+
+// Local degree-level label map for the record-summary selector — matches the
+// existing `CreateStudentDrawer` summary vocabulary (`degreeLabelMap`). Not a new
+// taxonomy; kept local because the drawer's map is not exported.
+const DEGREE_LEVEL_SUMMARY_LABEL: Record<DegreeLevel, string> = {
+  triennale: 'Triennale',
+  magistrale: 'Magistrale',
+  ciclo_unico: 'Ciclo unico',
+  master: 'Master',
+  dottorato: 'Dottorato',
+};
+
+/** `Magistrale · Lettere Moderne · Università di Bologna` — same join as `CreateStudentDrawer`. */
+function academicRecordLabel(record: StudentAcademicRecord): string {
+  return (
+    [
+      record.degree_level ? DEGREE_LEVEL_SUMMARY_LABEL[record.degree_level] : null,
+      record.course_name || null,
+      record.university_name || null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Percorso accademico'
+  );
+}
+
+/** Profile/Admin order: the `is_current` record(s) first, then the rest in array order. */
+function orderedAcademicRecords(student: Student): StudentAcademicRecord[] {
+  return [
+    ...student.academic_records.filter((record) => record.is_current),
+    ...student.academic_records.filter((record) => !record.is_current),
+  ];
+}
+
+/**
+ * Prefill values for one existing Student academic record (by stable id), or
+ * `null` if no Student currently owns a record with that id.
+ */
+export function academicValuesForRecord(
+  students: Student[],
+  recordId: string,
+): PostPaymentAcademicValues | null {
+  for (const student of students) {
+    const record = student.academic_records.find((entry) => entry.id === recordId);
+    if (record) return academicValuesFrom(record);
+  }
+  return null;
+}
+
+/**
+ * Resolve the post-payment academic-profile review for the verified standalone
+ * account. Re-resolves the acquisition identity via email:
+ *  - Pipeline                  → applicable; prefill from `pipeline.academic_data`;
+ *  - Student, ≥1 record        → applicable; preselect `is_current` (else the
+ *                                first record in Profile order); prefill from it;
+ *                                add `records` when there is >1;
+ *  - Student, 0 records        → not applicable (no record is fabricated);
+ *  - new_pipeline / unavailable → not applicable.
+ */
+export function resolvePostPaymentAcademicReview(params: {
+  accountEmail: string | null | undefined;
+  students: Student[];
+  pipelines: Pipeline[];
+}): PostPaymentAcademicReview {
+  const target = resolveEnrichmentTarget({
+    accountEmail: params.accountEmail,
+    students: params.students,
+    pipelines: params.pipelines,
+  });
+
+  if (target.mode === 'pipeline') {
+    const pipeline = params.pipelines.find((item) => item.id === target.pipelineId);
+    if (!pipeline) return { applicable: false };
+    return { applicable: true, initialValues: academicValuesFrom(pipeline.academic_data ?? {}) };
+  }
+  if (target.mode === 'student') {
+    const student = params.students.find((item) => item.id === target.studentId);
+    if (!student || student.academic_records.length === 0) return { applicable: false };
+
+    const ordered = orderedAcademicRecords(student);
+    const selected = ordered[0]; // is_current if present, else first in Profile order
+
+    if (student.academic_records.length === 1) {
+      return {
+        applicable: true,
+        initialValues: academicValuesFrom(selected),
+        selectedRecordId: selected.id,
+      };
+    }
+    return {
+      applicable: true,
+      initialValues: academicValuesFrom(selected),
+      selectedRecordId: selected.id,
+      records: ordered.map((record) => ({
+        id: record.id,
+        label: academicRecordLabel(record),
+        isCurrent: record.is_current,
+      })),
+    };
+  }
+  return { applicable: false };
+}
+
+/**
+ * Non-destructive academic patch: for each of the four fields, a submitted
+ * NON-EMPTY value that differs from the current one replaces it; an unchanged
+ * value is a no-op; a submitted EMPTY value never erases an existing value. No
+ * field is ever cleared from this step.
+ */
+function academicPatchFor(
+  current: { degree_level?: DegreeLevel | ''; university_name?: string; course_name?: string; thesis_type?: ThesisType | '' },
+  values: PostPaymentAcademicValues,
+): { degree_level?: DegreeLevel; university_name?: string; course_name?: string; thesis_type?: ThesisType } {
+  const patch: { degree_level?: DegreeLevel; university_name?: string; course_name?: string; thesis_type?: ThesisType } = {};
+  const degreeLevel = (values.degree_level ?? '').trim();
+  if (degreeLevel && degreeLevel !== (current.degree_level ?? '')) patch.degree_level = degreeLevel as DegreeLevel;
+  const university = (values.university_name ?? '').trim();
+  if (university && university !== (current.university_name ?? '')) patch.university_name = university;
+  const course = (values.course_name ?? '').trim();
+  if (course && course !== (current.course_name ?? '')) patch.course_name = course;
+  const thesisType = (values.thesis_type ?? '').trim();
+  if (thesisType && thesisType !== (current.thesis_type ?? '')) patch.thesis_type = thesisType as ThesisType;
+  return patch;
+}
+
+function applyAcademicValuesToPipeline(pipeline: Pipeline, values: PostPaymentAcademicValues): Pipeline {
+  const academic = pipeline.academic_data ?? {};
+  const patch = academicPatchFor(academic, values);
+  if (Object.keys(patch).length === 0) return pipeline;
+  return { ...pipeline, academic_data: { ...academic, ...patch } };
+}
+
+/**
+ * Update ONE existing Student academic record, identified by its stable id.
+ * Never creates a record, never changes `is_current`, never touches `id` /
+ * `student_id` / `StudentService.academic_record_id` / service bindings — and
+ * never touches identity, contacts, phone or commercial consent. `updated_at` is
+ * bumped only when a value actually changed. If the id no longer exists at save
+ * time, nothing is written.
+ */
+function applyAcademicValuesToStudentRecord(
+  student: Student,
+  recordId: string,
+  values: PostPaymentAcademicValues,
+): Student {
+  const index = student.academic_records.findIndex((record) => record.id === recordId);
+  if (index === -1) return student;
+
+  const patch = academicPatchFor(student.academic_records[index], values);
+  if (Object.keys(patch).length === 0) return student;
+
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    ...student,
+    academic_records: student.academic_records.map((entry, i) =>
+      i === index ? { ...entry, ...patch, updated_at: today } : entry,
+    ),
+  };
+}
+
+export type PostPaymentAcademicOutcome = 'pipeline' | 'student' | 'skipped';
+
+/**
+ * Apply the reviewed academic values to the resolved acquisition identity.
+ * Re-resolves at call time (never trusts a stale target). Explicit non-empty
+ * values may overwrite current values (user correction); empty inputs never
+ * erase; unchanged values are a no-op. Writes ONLY the Pipeline `academic_data`
+ * or the ONE Student academic record named by `studentRecordId` — never a second
+ * Pipeline, never a new Student record, never `is_current`, never identity /
+ * contacts / consent / `sources` / service bindings.
+ *
+ * For a Student target `studentRecordId` is required (the edit-target record id
+ * the caller was reviewing); a missing id, or an id that no longer exists, means
+ * no academic write. `new_pipeline` / `unavailable` → nothing written
+ * (`skipped`).
+ *
+ * This step is secondary to the paid result: callers MUST navigate to the report
+ * regardless of the return value, and MUST tolerate this throwing.
+ */
+export function applyPostPaymentAcademicUpdate(params: {
+  accountEmail: string | null | undefined;
+  students: Student[];
+  pipelines: Pipeline[];
+  updatePipeline: (id: string, updater: (pipeline: Pipeline) => Pipeline) => void;
+  updateStudent: (id: string, updater: (student: Student) => Student) => void;
+  values: PostPaymentAcademicValues;
+  /** Student target only: the stable id of the existing record being reviewed. */
+  studentRecordId?: string;
+}): PostPaymentAcademicOutcome {
+  const target = resolveEnrichmentTarget({
+    accountEmail: params.accountEmail,
+    students: params.students,
+    pipelines: params.pipelines,
+  });
+
+  if (target.mode === 'pipeline') {
+    params.updatePipeline(target.pipelineId, (pipeline) => applyAcademicValuesToPipeline(pipeline, params.values));
+    return 'pipeline';
+  }
+  if (target.mode === 'student') {
+    const recordId = params.studentRecordId;
+    if (!recordId) return 'skipped';
+    params.updateStudent(target.studentId, (student) =>
+      applyAcademicValuesToStudentRecord(student, recordId, params.values),
+    );
+    return 'student';
+  }
+  return 'skipped';
 }

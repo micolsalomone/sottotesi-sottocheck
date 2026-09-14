@@ -1636,6 +1636,17 @@ Nei contesti coaching:
 - Il questionario post-pagamento / Profilo **arricchisce** la Pipeline già creata; non è il punto di creazione normale (§33).
 - Per le Pipeline originate da questo flusso la fonte è assegnata dal sistema: `Fonte acquisizione = TesiCheck`; mai selezionabile dall'utente (§33).
 - L'enrichment del profilo standalone non blocca mai pagamento, accesso al report o Storico (§33).
+- **Interstitial di revisione del profilo accademico post-pagamento (Slice 1, solo `/public-view/sottocheck`):** compare **solo dopo** la materializzazione del check persistente (`completedCheck`), mai prima; se la materializzazione fallisce resta solo il recupero esistente e l'interstitial non compare (§33.7).
+- **Dominio: solo contesto accademico.** Non è completamento identità, raccolta contatti, lead di vendita, gestione account/legale o editing completo del Profilo. `Cognome`, `Telefono` e contatti non compaiono mai (§33.7).
+- L'interstitial è **opzionale e non bloccante**: `Aggiorna profilo` / `Salta` portano sempre al report; `Salta` non scrive nulla e non marca campi (§33.7).
+- **Revisione-e-aggiornamento, non gap-fill:** per un target rivedibile si mostrano **sempre tutti e quattro** i campi accademici, **precompilati** con i valori correnti (l'utente conferma / corregge / completa / salta). L'interstitial scompare solo quando **non** esiste un target rivedibile (Pipeline assente, Student con 0 record accademici, `new_pipeline` / `unavailable`). Non è la superficie di gestione: il Profilo completo resta per gli edit deliberati multi-record (§33.7).
+- Quattro campi, solo accademici: `Livello di laurea` (`degree_level`), `Università` (`university_name`), `Corso di laurea` (`course_name`), `Tipologia` (`thesis_type`), più il selettore `Percorso accademico` per Student con >1 record accademico. Esclusi `Cognome`, `Telefono`, nome, email, `Materia`, `Professore`, `Argomento`, Termini, Privacy, consenso commerciale (§33.7).
+- **Record accademici multipli Student:** il selettore sceglie **quale record esistente** rivedere (preselezione `is_current`, altrimenti il primo nell'ordine del Profilo). È solo un selettore di target di modifica: non cambia `is_current`, non crea/elimina record, non tocca `StudentService` / `academic_record_id`, non associa il TesiCheck a un record. **Nessuna associazione PersistentTesiCheck ↔ record accademico in questo slice** (§33.7).
+- **Scrittura non distruttiva:** ri-risoluzione del target al salvataggio; per campo un valore inviato non vuoto e diverso sostituisce quello corrente, un valore invariato è no-op, un valore inviato vuoto non cancella mai un valore esistente (§33.7).
+- Le risposte scrivono `academic_data` sulla Pipeline risolta **o** il **solo** record accademico esistente identificato per `id` stabile (quello in revisione) dello Student risolto, **mai** il `PersistentTesiCheck` / `public-tesicheck-checks-v1`; mai una seconda Pipeline; mai un record accademico Student creato; mai `is_current` cambiato; nessuna scrittura di cognome/telefono/contatti/identità/consenso/`sources`/`StudentService`. `studentRecordId` mancante o id inesistente al salvataggio → nessuna scrittura (§33.7).
+- Il salvataggio della revisione non blocca mai il report (tentativo in `try/catch`, poi navigazione comunque); nessuna schermata di recupero per questi dati (§33.7).
+- Refresh mentre l'interstitial è aperto: un breadcrumb transitorio `{ checkId }` in `sessionStorage` (`tesicheck-pending-enrichment-v1`) porta dritti al report a pagamento; non riapre pagamento, non rigenera il check, non è chiave di idempotenza (§33.7).
+- Gateway, `sourcePaymentReference`, effetto di materializzazione, recupero `completionError`, schema del check e pagina report restano invariati (§33.7).
 - Consenso al ricontatto commerciale / marketing è un dominio distinto da accettazione Termini e da gestione privacy (§33.5).
 - I tre domini di consenso restano separati: mai una singola checkbox combinata (§33.5).
 - La registrazione standalone (`/public/register` e registrazione in `/public/account`) richiede accettazione Termini **e** presa visione Informativa privacy: entrambe obbligatorie, bloccano il submit (§33.5).
@@ -2025,4 +2036,92 @@ per la nota tecnica: risoluzione d'identità via email come stand-in prototipale
 evento di creazione al verify email, CRM `LavorazioniContext` in memoria
 (sopravvive alla navigazione SPA, non al reload completo), requisito aperto per
 l'accettazione versionata Termini/privacy.
+
+### 33.7 Interstitial di revisione del profilo accademico post-pagamento (Slice 1 — solo standalone autenticato)
+
+Riguarda **solo** il flusso paid dello standalone autenticato
+(`/public-view/sottocheck`). Il flusso guest (`/public/account`) è lo slice
+successivo; il questionario Student è uno slice più avanti. L'architettura di
+inserimento (helper condiviso + leaf presentazionale condivisa + gate di
+navigazione per pagina) può servire anche gli altri contesti senza fondere le
+pagine paid o le shell.
+
+**È una revisione-e-aggiornamento, non un gap-fill.** Quando esiste un target
+accademico rivedibile si mostrano **sempre tutti e quattro** i campi accademici,
+**precompilati** con i valori correnti: l'utente conferma, corregge, completa o
+salta. **Non** è completamento identità, raccolta contatti, lead di vendita,
+gestione account/legale o editing completo del Profilo. Cognome, telefono,
+contatti, consenso, preventivi, note, assegnatari e `sources` non vengono mai
+toccati.
+
+**Record accademici multipli dello Student.** Il dominio Student supporta più
+record accademici. Questo passo rivede **un** record esistente: uno Student con
+>1 record ottiene un selettore compatto `Percorso accademico` per scegliere quale
+record esistente rivedere (preselezione `is_current`, altrimenti il primo
+nell'ordine del Profilo). Il selettore è **solo** un selettore di target di
+modifica — non cambia `is_current`, non crea/elimina record, non tocca
+`StudentService` / `academic_record_id`, non associa il TesiCheck pagato a un
+record. **In questo slice non esiste alcuna associazione PersistentTesiCheck ↔
+record accademico** (decisione futura separata, se diventasse un requisito).
+
+Sequenza canonica:
+
+```text
+pagamento riuscito
+→ check standalone persistente materializzato in sicurezza
+→ interstitial di revisione accademica opzionale SE esiste un target rivedibile
+→ report
+```
+
+- **Solo post-materializzazione.** Compare **dopo** che il check persistente
+  esiste (`completedCheck`), mai prima. Se la materializzazione fallisce resta il
+  recupero `completionError` esistente e l'interstitial non compare.
+- **Opzionale e non bloccante.** `Aggiorna profilo` (primaria) tenta
+  l'aggiornamento accademico e poi naviga comunque al report; `Salta`
+  (secondaria) non scrive nulla, non marca campi, non crea entità. Entrambe
+  portano sempre al report a pagamento.
+- **Sempre quattro campi, precompilati.** Per un target rivedibile si rendono
+  ogni volta `Livello di laurea`, `Università`, `Corso di laurea`, `Tipologia`,
+  precompilati con i valori correnti — **non** "solo i campi mancanti".
+  L'interstitial scompare solo quando **non** esiste un target rivedibile.
+- **Revisione, non superficie di gestione.** Il Profilo completo resta la
+  superficie per la gestione deliberata multi-record; questa è una revisione
+  leggera a una schermata.
+- **Campi (quattro, solo accademici):** `Livello di laurea` (`degree_level`),
+  `Università` (`university_name`), `Corso di laurea` (`course_name`), `Tipologia`
+  (`thesis_type` — Compilativa / Sperimentale / Esame), più il selettore
+  `Percorso accademico` per Student con >1 record. Esclusi: `Cognome`,
+  `Telefono`, nome, email, `Materia`, `Professore`, `Argomento`, Termini,
+  Privacy, consenso commerciale. Nessun campo esame-specifico.
+- **Semantica di scrittura (non distruttiva).** Si ri-risolve il target al
+  salvataggio. Per ogni campo: un valore inviato **non vuoto** e **diverso** da
+  quello corrente lo sostituisce (correzione esplicita dell'utente); un valore
+  invariato è un no-op; un valore inviato **vuoto** non cancella mai un valore
+  esistente. Nessun campo viene mai svuotato da questo passo.
+- **Owner delle risposte = Pipeline o Student risolti**, mai il
+  `PersistentTesiCheck` / `public-tesicheck-checks-v1`. Pipeline → merge dei soli
+  campi cambiati non vuoti in `academic_data` sulla Pipeline già creata; mai una
+  seconda Pipeline; nessuna scrittura di
+  cognome/telefono/contatti/`sources`/consenso/preventivi/note. Student → patch
+  del **solo** record accademico esistente identificato per `id` stabile (quello
+  in revisione); `updated_at` aggiornato solo se un valore cambia davvero;
+  nessun record creato; nessun cambio di `is_current`; nessun tocco a `id` /
+  `student_id` / `StudentService` / `academic_record_id` / accesso ai servizi /
+  identità / contatti / consenso. Se `studentRecordId` manca o l'id non esiste
+  più al salvataggio → nessuna scrittura. Student con 0 record accademici,
+  `new_pipeline` / `unavailable` → nessuna scrittura, si va al report.
+- **Il salvataggio non blocca mai il report.** La scrittura è tentata in
+  `try/catch`; la navigazione avviene comunque. Nessuna schermata di recupero per
+  questi dati — recupero pagamento/report e questa revisione sono domini
+  distinti.
+- **Refresh.** Alla materializzazione si scrive un breadcrumb transitorio
+  `{ checkId }` in `sessionStorage` (`tesicheck-pending-enrichment-v1`). Un
+  reload mentre l'interstitial è aperto perde lo stato in memoria: al mount
+  successivo la pagina legge il breadcrumb e va dritta a
+  `/public-view/report/:checkId`, poi lo cancella. Il breadcrumb è cancellato
+  anche su `Aggiorna profilo` / `Salta` / navigazione automatica. Non riapre mai
+  il pagamento, non rigenera il check, non è una chiave di idempotenza di
+  pagamento.
+- Invariato: gateway, `sourcePaymentReference`, effetto di materializzazione,
+  recupero `completionError`, schema del check persistente, pagina report.
 

@@ -27,6 +27,11 @@
 - `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
 - `Apri report` into the role-specific report route.
 
+**Also implemented (post-payment academic-profile review — Slice 1, see §14):**
+
+- `/public-view/sottocheck` only: after the persistent standalone check exists, an **optional academic-profile review** (four fields — degree level / university / course / typology) appears before the report whenever the resolved acquisition identity has a reviewable academic target. **Not gap-fill** — all four fields are always shown, **prefilled** with the current values, for confirm/correct/complete/skip. A Student with >1 academic record also gets a `Percorso accademico` selector to pick which existing record to review (preselecting `is_current`); the selector never changes `is_current`, creates/deletes a record, touches service bindings, or binds the check to a record. **Academic context only** — no surname / phone / contact / identity / consent. It never blocks the report, never runs before `completedCheck`, and does **not** touch payment / the gateway / `sourcePaymentReference` / materialization / `completionError` recovery / `PersistentTesiCheck` / the report page. Values go to the resolved Pipeline `academic_data` or the one selected Student academic record (by stable id), never to `public-tesicheck-checks-v1`.
+- The guest `/public/account` flow and the Student paid flow are **not** touched.
+
 **Updated by Slice A (permanent History + title foundation):**
 
 - No report expiry. `isExpired`, the `Scaduto` row state, the expiry line and the availability badge were removed from the consumer History; every record shows `Apri report`. See the "No report expiry" bullet in §3.
@@ -424,3 +429,76 @@ mechanism was added.
 `Password dimenticata?` now sits right-aligned directly under the password field,
 above the primary CTA, as a secondary text link — consistent across the direct
 `/public/login` and the in-checkout `/public/account` login.
+
+---
+
+## 14. Post-payment academic-profile review interstitial — Slice 1 (authenticated standalone only)
+
+> Full technical detail: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §15.
+> This section only records how it touches the paid-consumer flow.
+
+**Scope:** `/public-view/sottocheck` (`PublicPaidSottocheckPage`) **only**. Guest
+`/public/account` = next slice; Student paid flow = later slice. Nothing about the
+payment/materialization/recovery machinery changed.
+
+**Domain: academic context only, review-and-update (not gap-fill).** Four fields —
+`Livello di laurea` (`degree_level`), `Università` (`university_name`),
+`Corso di laurea` (`course_name`), `Tipologia` (`thesis_type`) — always shown,
+**prefilled** with current values. A Student with >1 academic record also gets a
+`Percorso accademico` selector (existing-record edit target only). **No** surname
+/ phone / contact / identity / consent — Profile concerns. No PersistentTesiCheck
+↔ academic-record association.
+
+**Where it plugs in.** The pre-existing `completedCheck → setTimeout(navigate('/public-view/report/:id'), 1200)`
+effect is the *only* thing gated. After `setCompletedCheck(check)` (materialization
+effect, **unchanged**) the page now:
+
+1. writes a transient breadcrumb `{ checkId }` to `sessionStorage['tesicheck-pending-enrichment-v1']`;
+2. runs `resolvePostPaymentAcademicReview({ accountEmail, students, pipelines })`
+   (`tesicheckLeadEnrichment.ts`) → `{ applicable, initialValues, records?, selectedRecordId? }`;
+3. if `applicable` → sets `academicReview` + `selectedRecordId`, renders
+   `PostPaymentEnrichmentInterstitial` (all four fields prefilled; selector when
+   `records.length > 1`) and does **not** arm the navigation timer;
+4. otherwise (Pipeline missing, Student with 0 academic records, or
+   `new_pipeline` / `unavailable`) → keeps the 1200 ms "Pagamento ricevuto" beat
+   and navigates.
+
+`Aggiorna profilo` calls `applyPostPaymentAcademicUpdate` (try/catch;
+`studentRecordId = selectedRecordId`; non-destructive — a submitted non-empty
+value that differs replaces, unchanged is a no-op, empty never erases; Pipeline
+`academic_data` **or** the one Student record by stable id; never a second
+Pipeline, never a new/`is_current`-changed Student record, never identity /
+contacts / consent / `sources` / service bindings) then navigates regardless of
+the result. `Salta` navigates only. Both clear the breadcrumb.
+
+**Invariants added to §10:**
+
+- The interstitial never appears before `completedCheck`; a materialization
+  failure keeps the existing `completionError` recovery and shows no interstitial.
+- Review-and-update, not gap-fill: for a reviewable target all four fields are
+  always shown prefilled; it disappears only when there is no reviewable target.
+- Academic context only: no surname / phone / contact / identity / commercial
+  consent write anywhere in this slice.
+- Student multi-record: the selector is an edit-target chooser only — never
+  changes `is_current`, creates/deletes a record, touches `StudentService` /
+  `academic_record_id` / service access, or associates the check with a record.
+  The write targets the selected record by **stable id**; `is_current` changing
+  meanwhile does not redirect it; a missing/stale id writes nothing.
+- Values are **never** written to `PersistentTesiCheck` /
+  `public-tesicheck-checks-v1`; they go to the resolved Pipeline `academic_data`
+  or the one selected Student academic record only.
+- The review save must never block or gate the paid report; there is no recovery
+  screen for this data.
+- The `tesicheck-pending-enrichment-v1` breadcrumb holds only a `checkId`, is
+  never a payment idempotency key, and never triggers re-payment or
+  re-materialization. It is cleared on save / skip / auto-forward and after it is
+  consumed on mount (refresh → straight to the paid report).
+- `sourcePaymentReference`, the gateway boundary, the materialization effect, the
+  `completionError` recovery, the persistent-check schema and the report pages
+  are unchanged.
+
+**New / changed files:** `src/app/data/tesicheckLeadEnrichment.ts` (new exports
+only), `src/app/data/pendingEnrichmentBreadcrumb.ts` (new),
+`src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` (new),
+`src/pages/public/PublicPaidSottocheckPage.tsx` (wiring). Build passes; `tsc`
+baseline of 42 unchanged; `git diff --check` clean.

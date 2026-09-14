@@ -600,3 +600,192 @@ Manual code trace (seed data in `LavorazioniContext`):
   Pipeline with `sources: ['TesiCheck']` + whatever the user typed.
 - **No session / unverified / malformed email**: resolver `unavailable` →
   neutral state, no Pipeline, no checkout redirect.
+
+---
+
+## 15. Slice 1 — post-payment ACADEMIC-PROFILE REVIEW interstitial (authenticated standalone only)
+
+Scope: the authenticated-standalone paid flow **only** —
+`/public-view/sottocheck` (`PublicPaidSottocheckPage`). The guest
+`/public/account` flow (`PublicAccountGatePage`) and the Student paid flow
+(`StudentPaidSottocheckPage`) are **not** touched; guest is the next slice,
+Student is a later slice. The insertion architecture (shared helper + shared
+presentational leaf + a per-page navigation gate) is reusable for both without
+sharing the paid page or the shell.
+
+**It is a review-and-update step, not gap-fill.** Whenever a reviewable academic
+target exists, **all four** academic fields are shown, **prefilled** with the
+current values, so the user can confirm, correct, complete or skip. It is still
+**not** identity completion, contact collection, sales-lead capture,
+account/legal management or full Profile editing. Surname, phone, contacts,
+consent, quotes, notes, assignees and `sources` are **never** touched — no field,
+no save path anywhere in this slice.
+
+**Multiple Student academic records.** The Student domain supports several
+academic records. This step reviews **one existing** record: a Student with >1
+record gets a compact `Percorso accademico` selector to choose which existing
+record to review (preselecting `is_current`, else the first in Profile order).
+The selector is only an edit-target chooser — it never changes `is_current`,
+creates/deletes a record, touches `StudentService` / `academic_record_id`, or
+associates the paid TesiCheck with any record. **There is no
+PersistentTesiCheck ↔ academic-record association in this slice** (a separate
+future decision if it becomes a requirement).
+
+### 15.1 Product shape
+
+- **Post-materialization only.** Shown **after** the persistent standalone check
+  exists (`completedCheck` set), never before. On a materialization failure the
+  existing `completionError` recovery is unchanged and the review never appears.
+- **Optional, non-blocking.** `Aggiorna profilo` (primary) attempts the academic
+  update then navigates regardless of the outcome; `Salta` (secondary) writes
+  nothing, marks nothing, creates no entity. Both always reach the paid report.
+- **Always all four fields, prefilled.** For a resolvable target the interstitial
+  renders `Livello di laurea`, `Università`, `Corso di laurea`, `Tipologia`
+  every time, prefilled with the current values — **not** "missing fields only".
+  The interstitial only disappears when there is **no** reviewable target (see
+  §15.4).
+- **Review, not correction surface.** The full Profile remains the surface for
+  deliberate multi-record management; this is a lightweight one-screen review.
+- **Values belong to Pipeline / Student, never the check.** Nothing is written to
+  `PersistentTesiCheck` / `public-tesicheck-checks-v1`.
+- **Save never blocks the report.** `applyPostPaymentAcademicUpdate` runs in a
+  `try/catch`; navigation happens regardless. No recovery screen for this data —
+  payment/report recovery and this review are different domains.
+
+### 15.2 Fields (four — academic only)
+
+| UI label | key | Pipeline target | Student target | Control |
+| --- | --- | --- | --- | --- |
+| Livello di laurea | `degree_level` | `academic_data.degree_level` | selected record | select |
+| Università | `university_name` | `academic_data.university_name` | selected record | text |
+| Corso di laurea | `course_name` | `academic_data.course_name` | selected record | text |
+| Tipologia | `thesis_type` | `academic_data.thesis_type` | selected record (`Compilativa` / `Sperimentale` / `Esame`) | select |
+
+Plus, for a Student with >1 record, a `Percorso accademico` `<select>` above the
+four fields. Explicitly **excluded**: `Cognome`, `Telefono`, first name, email,
+`Materia` (`thesis_subject`), `Professore` (`thesis_professor`), `Argomento`
+(`thesis_topic`), Terms, Privacy, commercial consent. No exam-specific
+properties — `Esame` stays a `thesis_type` value.
+
+`PostPaymentAcademicValues` = `{ degree_level?, university_name?, course_name?, thesis_type? }`.
+
+### 15.3 Files
+
+| File | Change |
+| --- | --- |
+| `src/app/data/tesicheckLeadEnrichment.ts` | **New exports.** `PostPaymentAcademicValues`, `AcademicRecordOption`, `PostPaymentAcademicReview`, `PostPaymentAcademicOutcome`; `resolvePostPaymentAcademicReview({ accountEmail, students, pipelines })` → `{ applicable, initialValues, records?, selectedRecordId? }` (see §15.4); `academicValuesForRecord(students, recordId)` → prefill for one Student record by id (or `null`); `applyPostPaymentAcademicUpdate({ …, updatePipeline, updateStudent, values, studentRecordId? })` → re-resolves at call time and writes the Pipeline `academic_data` **or** the ONE Student record named by `studentRecordId` (see §15.5). Internal `academicValuesFrom` / `academicRecordLabel` / `orderedAcademicRecords` / `academicPatchFor` / `applyAcademicValuesToPipeline` / `applyAcademicValuesToStudentRecord`. No change to any existing export; `ContactPhone` is **not** imported. |
+| `src/app/data/pendingEnrichmentBreadcrumb.ts` | **New.** `write/read/clearPendingEnrichmentCheckId` over the single `sessionStorage` key `tesicheck-pending-enrichment-v1`, value `{ checkId }` only. Protects post-materialization continuation on a refresh; never a payment idempotency key, never stores answers. |
+| `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx` | **New.** Presentational leaf. Props `{ initialValues; records?; selectedRecordId?; onRecordChange?; onSave(values); onSkip() }` — **no** checkId / reportPath / Pipeline / Student / account session. Reuses `FormSection` / `TextField` / `SelectField` / `fieldLabelStyle` / `controlStyle` from `ProfileFormPrimitives`. Heading `Prima del report`; body `Controlla o aggiorna alcune informazioni sul tuo percorso universitario. Le ritroverai nel Profilo. Puoi anche saltare e vedere subito il report.`; section `Contesto accademico`. **Single-column** layout (`grid-cols-1`) inside a contained `max-w-[520px]` column: optional `Percorso accademico` `<select>` (only when `records.length > 1`; options show the record summary + ` · Corrente` for the current one) followed by the **four always-rendered** fields, order degree level → university → course → typology, prefilled from `initialValues`. A guarded effect re-seeds the four fields when `selectedRecordId` changes. Actions: primary `Aggiorna profilo`, secondary `Salta`. No progress bar, no required markers, single screen. Degree/typology option lists are defined **locally** (see §15.6). |
+| `src/pages/public/PublicPaidSottocheckPage.tsx` | Consumes `useLavorazioni` (`students`, `pipelines`, `updatePipeline`, `updateStudent`). New `academicReview` + `selectedRecordId` state. Mount effect: if a breadcrumb survives a reload and no in-memory review state, navigate straight to `/public-view/report/:checkId` and clear the breadcrumb. The **existing** `completedCheck → setTimeout(navigate, 1200)` effect is replaced by: write breadcrumb → `resolvePostPaymentAcademicReview` → if `applicable`, set `academicReview` + `selectedRecordId` and render the interstitial (no timer); else keep the 1200 ms beat and navigate. On render, the `initialValues` passed follow `selectedRecordId` via `academicValuesForRecord` so switching records updates the prefill. `handleAcademicSave` (try/catch around `applyPostPaymentAcademicUpdate` with `studentRecordId: selectedRecordId`, then navigate) / `handleAcademicSkip` (navigate only) / `handleAcademicRecordChange` (`setSelectedRecordId`); save/skip clear the breadcrumb. The **materialization effect and `completionError` recovery are untouched.** |
+
+### 15.4 Review applicability (`resolvePostPaymentAcademicReview`)
+
+Runs `resolveEnrichmentTarget(accountEmail)` (verified account email; unverified
+→ `null` → `unavailable`):
+
+- **`pipeline`** → `applicable: true`; `initialValues` from `pipeline.academic_data`;
+  no `records`, no `selectedRecordId` (one flat object, no selector).
+- **`student`, ≥1 academic record** → `applicable: true`; preselect the
+  `is_current` record, else the first in Profile order
+  (`is_current` first, then array order); `initialValues` + `selectedRecordId`
+  from it; `records` (the ordered options, each labelled
+  `Livello · Corso · Università` — the `CreateStudentDrawer` summary join — with
+  `isCurrent`) **only when there is >1 record**.
+- **`student`, 0 academic records** → `applicable: false` (no record fabricated) →
+  straight to report.
+- **`new_pipeline` / `unavailable`** → `applicable: false` → straight to report.
+
+### 15.5 Update semantics (`applyPostPaymentAcademicUpdate`)
+
+Re-resolves the target at save time (never trusts a stale target). Non-destructive
+per field (`academicPatchFor`): a submitted **non-empty** value that **differs**
+from the current one replaces it (explicit user correction); an unchanged value
+is a no-op; a submitted **empty** value never erases an existing value. No field
+is ever cleared here.
+
+- **Pipeline** — `updatePipeline`, merge the changed non-empty keys into
+  `academic_data`. Nothing else on the Pipeline is touched — no `last_name` /
+  `student_name` / `phone` / contact / `sources` / consent / quotes / notes /
+  assignees; **no second Pipeline**.
+- **Student** — `updateStudent`, patch **only the one record whose `id` equals
+  `studentRecordId`** (the record the user was reviewing), `updated_at` bumped
+  only when a value actually changed. **A missing `studentRecordId`, or an id
+  that no longer exists at save time, writes nothing.** Never creates a record,
+  never changes `is_current`, never touches `id` / `student_id` /
+  `StudentService.academic_record_id` / service bindings — and never touches
+  identity, `contacts` (no phone write, no contact creation), `purposes`,
+  `is_primary` or commercial consent. `is_current` changing meanwhile does **not**
+  redirect the write — the selected record id is the edit target.
+- **`new_pipeline` / `unavailable`** → nothing written (`outcome: 'skipped'`).
+
+There is **no** phone-persistence / contact-creation logic and **no**
+PersistentTesiCheck ↔ academic-record association anywhere in this slice.
+
+### 15.6 Academic option constants (audit outcome)
+
+The degree-level and typology option lists in `PublicProfilePage` are **not
+exported**. Extracting them would mean editing a Profile page purely because a
+second consumer appeared — out of scope for this slice and against the
+"don't refactor for a second consumer" rule. The interstitial therefore defines
+the two short lists **locally**. The record-summary selector label reuses the
+existing `CreateStudentDrawer` vocabulary (`degreeLabelMap` + `' · '` join +
+`Corrente` cue), replicated locally in `tesicheckLeadEnrichment.ts`
+(`DEGREE_LEVEL_SUMMARY_LABEL` / `academicRecordLabel`) since that map is not
+exported either. No new taxonomy. If a third consumer appears, extract then.
+
+### 15.7 Refresh / breadcrumb behaviour
+
+- On materialization success the page writes `{ checkId }` to
+  `sessionStorage['tesicheck-pending-enrichment-v1']` **before** deciding on the
+  review.
+- A reload while the interstitial (or the 1200 ms beat) is open loses the
+  in-memory flow; on the next mount the page reads the breadcrumb and navigates
+  straight to `/public-view/report/:checkId`, then clears it.
+- The breadcrumb is also cleared on `Aggiorna profilo`, `Salta`, and the
+  automatic direct-to-report path.
+- It is **never** used to reopen payment, regenerate the check, or as a payment
+  idempotency key (`sourcePaymentReference` is unchanged and untouched). It only
+  protects post-materialization continuation.
+
+### 15.8 Verification
+
+- `npm run build` — passes (Vite 6.4.2).
+- `git diff --check` — clean (only pre-existing LF→CRLF warnings).
+- `npx tsc --noEmit` — **42-error baseline unchanged**; no new errors in touched
+  or new files.
+
+Manual code trace:
+
+- **A. Pipeline target** → `resolvePostPaymentAcademicReview` → `applicable`, no
+  `records` → interstitial shows the four fields prefilled from
+  `pipeline.academic_data`, no selector.
+- **B. Student with exactly 1 academic record** → `applicable`,
+  `selectedRecordId` set, no `records` → four fields prefilled from that record,
+  no selector.
+- **C. Student with 3 academic records** → `records` (3 options, Profile order),
+  `selectedRecordId` = the `is_current` one → selector shown with the current
+  record preselected; fields reflect it.
+- **D. Switch the selector to another record** → page updates `selectedRecordId`,
+  recomputes `initialValues` via `academicValuesForRecord`, the component's
+  guarded effect re-seeds the four fields from that record.
+- **E. `Aggiorna profilo`** → `applyPostPaymentAcademicUpdate` with
+  `studentRecordId = selectedRecordId` → only that record (matched by stable id)
+  is patched; unchanged/empty inputs never write; existing values are only
+  replaced by an explicit different non-empty value.
+- **F. `is_current` flag** is never read as a write target and never modified —
+  the selected record id is authoritative even if `is_current` changed meanwhile.
+- **G. No `StudentService` / `academic_record_id` / service-access change**;
+  `applyAcademicValuesToStudentRecord` maps only the matched record's four
+  content fields + `updated_at`.
+- **H. Student with 0 academic records** → `applicable: false` → no interstitial
+  → 1200 ms beat → report; no record created.
+- **I. No PersistentTesiCheck / report ↔ academic-record association** is
+  introduced anywhere (grep: no write to `public-tesicheck-checks-v1` from the
+  helper; the check id is only used for navigation + the breadcrumb).
+- **J. `Salta`** → zero writes → breadcrumb cleared → report.
+- **K. Refresh on the interstitial** → breadcrumb read on mount → report; no
+  payment, no duplicate check (materialization effect guarded by `isProcessing`
+  + `hasCreatedCheckRef` + per-`sourcePaymentReference` dedupe, none of which the
+  breadcrumb path touches).
+- **L. Materialization failure** → `completedCheck` never set → decision effect
+  bails → existing `completionError` recovery only → interstitial never appears.
