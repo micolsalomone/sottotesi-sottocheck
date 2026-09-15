@@ -1,12 +1,19 @@
 import { Link } from 'react-router';
 import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
 import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
+import { useCoachViewProfile } from './CoachViewProfileContext';
 
 interface CoachHeaderProps {
   sidebarCollapsed?: boolean;
 }
 
 export function CoachHeader({ sidebarCollapsed }: CoachHeaderProps) {
+  // Coach-view-local prototype identity (CoachViewProfileContext, scoped to
+  // CoachLayout — not a shared CRM) — reacts to Profile/Account updates
+  // immediately within this view, no more hardcoded display string. See
+  // coachView.ts and CoachViewProfileContext.tsx for what this is and isn't.
+  const { profile } = useCoachViewProfile();
+
   return (
     <header className="admin-header">
       {/* Logo area — fixed left, independent from sidebar state */}
@@ -26,13 +33,9 @@ export function CoachHeader({ sidebarCollapsed }: CoachHeaderProps) {
       <div className="admin-header-right">
         <div className="admin-user">
           <span className="admin-username">coach</span>
-          {/* Coach has no dedicated Account page yet — "Informazioni Account"
-              interim-points at the Coach Profile route. Inconsistent with
-              Public/Student (which now have real /…/account pages); resolve in
-              the future Coach Profile/Account workstream. */}
           <UserTopbarMenu
-            displayName="Teresa P."
-            accountPath="/coach-view/profilo"
+            displayName={profile.fullName}
+            accountPath="/coach-view/account"
             logoutPath="/"
           />
         </div>

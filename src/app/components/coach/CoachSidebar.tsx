@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { LayoutDashboard, Users, ClipboardCheck, History, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, History, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -83,6 +83,19 @@ export function CoachSidebar({ collapsed, onToggleCollapse }: CoachSidebarProps)
             })}
           </nav>
 
+          {/* Account-oriented link — bottom slot, separated from main nav
+              (same pattern as Student/Public sidebars). Account itself is
+              reached from the topbar user menu, not from here. */}
+          <div style={{ borderTop: '1px solid var(--border)', padding: '8px', flexShrink: 0 }}>
+            <Link
+              to="/coach-view/profilo"
+              className={`sidebar-item ${isActive('/coach-view/profilo') ? 'active' : ''} ${collapsed ? 'collapsed' : ''}`}
+              title={collapsed ? 'Profilo' : undefined}
+            >
+              <span className="sidebar-item-icon"><User size={20} /></span>
+              {!collapsed && <span className="sidebar-item-label">Profilo</span>}
+            </Link>
+          </div>
         </div>
       </aside>
     </>

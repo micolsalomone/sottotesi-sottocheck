@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router';
 import { CoachSidebar } from './CoachSidebar';
 import { CoachHeader } from './CoachHeader';
+import { CoachViewProfileProvider } from './CoachViewProfileContext';
 
 const SIDEBAR_STORAGE_KEY = 'coach-sidebar-collapsed';
 
@@ -26,20 +27,22 @@ export function CoachLayout() {
   const toggleCollapse = () => setSidebarCollapsed((prev) => !prev);
 
   return (
-    <div className="admin-layout">
-      <CoachHeader sidebarCollapsed={sidebarCollapsed} />
+    <CoachViewProfileProvider>
+      <div className="admin-layout">
+        <CoachHeader sidebarCollapsed={sidebarCollapsed} />
 
-      <div className="admin-layout-body">
-        <CoachSidebar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={toggleCollapse}
-        />
-        <main className={`admin-main ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
-          <div className="page-container">
-            <Outlet />
-          </div>
-        </main>
+        <div className="admin-layout-body">
+          <CoachSidebar
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleCollapse}
+          />
+          <main className={`admin-main ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
+            <div className="page-container">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </CoachViewProfileProvider>
   );
 }
