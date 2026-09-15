@@ -148,6 +148,22 @@ export interface ContactPhone {
   purposes: ('communications' | 'coaching')[]; // communications o coaching
   source?: string;
   added_at: string;
+  /**
+   * Commercial-communications consent for THIS phone channel (tri-state), same
+   * semantics as `ContactEmail.marketing_consent`:
+   *  - `true`      = granted (Consentito);
+   *  - `false`     = explicitly declined / revoked (Non consentito);
+   *  - `null` / absent = never asked / not recorded (Non richiesto) —
+   *    MUST NOT be collapsed into `false`.
+   * In this prototype, phone consent means permission for promotional
+   * WhatsApp communication from Sottotesi on that number — NOT commercial
+   * phone calls; commercial voice-call permission is out of scope here and
+   * is a production/legal decision, not modelled separately. Consent belongs
+   * to the individual phone, independently of `purposes` / service access
+   * (which cover operational/service contact, a separate concern). Read/
+   * derive via `src/app/data/marketingConsent.ts`.
+   */
+  marketing_consent?: boolean | null;
 }
 
 export interface StudentAcademicRecord {

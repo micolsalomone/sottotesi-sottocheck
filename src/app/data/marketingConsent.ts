@@ -2,21 +2,28 @@
  * Commercial-communications consent — shared tri-state read helpers and the
  * Admin display vocabulary. One implementation, no per-component duplication.
  *
- * Both domain models are now PER-CONTACT / PER-EMAIL (they are NOT the same
- * storage shape and are intentionally not unified into one editing surface):
+ * Both domain models are PER-CONTACT DETAIL (they are NOT the same storage
+ * shape and are intentionally not unified into one editing surface):
  *
  * - **Pipeline** `marketing_consents?: Record<string, boolean>` — keyed per
  *   contact string (email / phone): key absent = unknown / never collected;
  *   `true` = granted; `false` = explicitly not granted.
- * - **Student** `contacts.emails[].marketing_consent?: boolean | null` — one
- *   tri-state per email: `true` granted / `false` declined-revoked /
- *   `null` or absent = unknown. Consent belongs to the email channel, separate
- *   from `purposes` / service access. The legacy global `Student.marketing_consent`
- *   is deprecated and no longer read or written.
+ * - **Student** `contacts.emails[].marketing_consent?: boolean | null` and
+ *   `contacts.phones[].marketing_consent?: boolean | null` — one tri-state per
+ *   contact detail: `true` granted / `false` declined-revoked / `null` or
+ *   absent = unknown. Consent belongs to the individual contact (email OR
+ *   phone), separate from `purposes` / service access, and never moves when a
+ *   different contact is made primary. The legacy global
+ *   `Student.marketing_consent` is deprecated and no longer read or written.
+ *
+ * Prototype phone semantics: a phone contact's consent means permission for
+ * promotional WhatsApp communication on that number — NOT commercial phone
+ * calls. Commercial voice-call permission is out of scope of this prototype
+ * and is a production/legal decision, not modelled here.
  *
  * Unknown is never collapsed into "No".
  */
-import type { ContactEmail } from './LavorazioniContext';
+import type { ContactEmail, ContactPhone } from './LavorazioniContext';
 
 export type RecontactSummary = 'granted' | 'declined' | 'unknown';
 
@@ -103,16 +110,22 @@ export function readStudentEmailConsent(
 }
 
 /**
- * Person-level recontact summary derived from the CURRENT Student email
- * contacts only (same rule as `deriveRecontactSummary` for Pipeline): any email
- * `true` → `granted`; else any email `false` → `declined`; else `unknown`.
- * Triage only — the per-email value in the drawer stays authoritative.
+ * Person-level recontact summary derived from the CURRENT Student email AND
+ * phone contacts (same rule as `deriveRecontactSummary` for Pipeline): any
+ * contact `true` → `granted`; else any contact `false` → `declined`; else
+ * `unknown`. Triage only — the per-contact value in the drawer stays
+ * authoritative for WHICH channel has consent.
  */
 export function deriveStudentRecontactSummary(
   emails: ContactEmail[] | undefined,
+  phones?: ContactPhone[] | undefined,
 ): RecontactSummary {
   let sawDeclined = false;
   for (const entry of emails ?? []) {
+    if (entry.marketing_consent === true) return 'granted';
+    if (entry.marketing_consent === false) sawDeclined = true;
+  }
+  for (const entry of phones ?? []) {
     if (entry.marketing_consent === true) return 'granted';
     if (entry.marketing_consent === false) sawDeclined = true;
   }
@@ -152,6 +165,48 @@ export function withStudentEmailConsent(
       added_at: new Date().toISOString(),
       marketing_consent: consent,
     });
+  }
+  return list;
+}
+
+/**
+ * Tri-state read of ONE Student phone contact's commercial consent. Matching
+ * is on the phone value as stored (trimmed). Missing phone / missing field →
+ * `null` (Non richiesto) — never `false`.
+ */
+export function readStudentPhoneConsent(
+  phones: ContactPhone[] | undefined,
+  phone: string | null | undefined,
+): boolean | null {
+  const key = normalizeContactKey(phone);
+  if (!phones || !key) return null;
+  const match = phones.find((entry) => normalizeContactKey(entry.phone) === key);
+  if (!match) return null;
+  return match.marketing_consent === true || match.marketing_consent === false
+    ? match.marketing_consent
+    : null;
+}
+
+/**
+ * Return a NEW phone array with exactly one phone's `marketing_consent` set to
+ * the given tri-state (`null` clears the field back to "not required"). Every
+ * other phone and every other field is left untouched — changing consent never
+ * mutates `purposes` / `is_primary` / service access. Only writes to a phone
+ * that already exists (no `createIfMissing`: a phone contact must already be
+ * present to have a consent preference set on it).
+ */
+export function withStudentPhoneConsent(
+  phones: ContactPhone[] | undefined,
+  phone: string | null | undefined,
+  consent: boolean | null,
+): ContactPhone[] {
+  const list: ContactPhone[] = phones ? phones.map((entry) => ({ ...entry })) : [];
+  const key = normalizeContactKey(phone);
+  if (!key) return list;
+  const index = list.findIndex((entry) => normalizeContactKey(entry.phone) === key);
+  if (index >= 0) {
+    if (consent === null) delete list[index].marketing_consent;
+    else list[index].marketing_consent = consent;
   }
   return list;
 }

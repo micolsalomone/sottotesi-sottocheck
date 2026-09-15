@@ -50,7 +50,7 @@ export function TextField({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: 'text' | 'tel';
+  type?: 'text' | 'tel' | 'password';
   autoComplete?: string;
 }) {
   return (

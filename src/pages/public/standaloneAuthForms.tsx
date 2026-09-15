@@ -267,7 +267,7 @@ export function RegisterForm({
     }
     if (commercialConsent === null) {
       // The choice (Sì/No) is mandatory to EXPRESS; consenting itself stays optional.
-      setError('Seleziona una preferenza per le comunicazioni commerciali (Sì o No).');
+      setError('Indica se vuoi ricevere la newsletter Sottotesi (Sì o No).');
       return;
     }
     setError(null);
@@ -316,13 +316,33 @@ export function RegisterForm({
           preference itself never blocks registration, verification, payment or
           report access — but EXPRESSING a choice (Sì/No) is mandatory: this
           shared tri-state field starts unselected and submit is blocked below
-          until one option is picked. Reused as-is from the Profile surfaces. */}
+          until one option is picked. Canonical prototype meaning: the
+          Sottotesi newsletter / promotional email — registration collects
+          only an email (no phone yet), so this choice is scoped to that
+          email and never mentions WhatsApp or a future phone contact. A
+          phone added later in Account starts its OWN separate preference at
+          "Non richiesto"; it is never inferred from this choice (MODEL B —
+          per contact detail). */}
       <div className="mt-4 border-t border-[var(--border)] pt-4">
-        <CommercialConsentField
-          idPrefix="register-commercial"
-          value={commercialConsent}
-          onChange={setCommercialConsent}
-        />
+        <p
+          className="text-[var(--foreground)]"
+          style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.5 }}
+        >
+          Vuoi ricevere la newsletter Sottotesi?
+        </p>
+        <div className="mt-3">
+          <CommercialConsentField
+            idPrefix="register-commercial"
+            value={commercialConsent}
+            onChange={setCommercialConsent}
+            showLabel={false}
+            showUnknownHint={false}
+            yesLabel="Sì"
+            noLabel="No"
+            helperText=""
+            ariaLabel="Vuoi ricevere la newsletter Sottotesi?"
+          />
+        </div>
       </div>
 
       {error && <div className="mt-4"><FormError message={error} /></div>}

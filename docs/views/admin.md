@@ -44,9 +44,11 @@ neutro + testo esplicito — mai il verde brand come "success" generico.
 `Non richiesto` (stato sconosciuto / mai raccolto) non va mai collassato in
 `Non consentito`.
 
-Il consenso commerciale è **per contatto / per email** in entrambi i domini
-(Pipeline e Student). Non è più un valore globale di persona. Storage ed editing
-restano comunque **distinti** tra Pipeline e Student:
+Il consenso commerciale è **per contatto (email e telefono)** in entrambi i
+domini (Pipeline e Student) — Pipeline lo era già per entrambi i canali;
+Student lo estende dal solo canale email anche al telefono. Non è più un
+valore globale di persona. Storage ed editing restano comunque **distinti**
+tra Pipeline e Student:
 
 ### Pipeline — consenso per contatto + sintesi persona derivata
 
@@ -79,18 +81,31 @@ restano comunque **distinti** tra Pipeline e Student:
   commerciale`) e come pill compatto nella list/card `/pipelines` (vicino ai
   `sources`, desktop + mobile). Nessuna nuova colonna, nessun filtro consenso.
 
-### Student — consenso per email
+### Student — consenso per contatto (email + telefono)
 
-- `Student.contacts.emails[].marketing_consent?: boolean | null` — un valore
-  tri-state **per ogni email** dello studente: `true` = Consentito, `false` =
-  Non consentito, `null` / assente = Non richiesto. Il consenso appartiene al
-  canale email, indipendente da `purposes` e dall'accesso ai servizi.
+- `Student.contacts.emails[].marketing_consent?: boolean | null` e
+  `Student.contacts.phones[].marketing_consent?: boolean | null` — un valore
+  tri-state **per ogni email e per ogni telefono** dello studente: `true` =
+  Consentito, `false` = Non consentito, `null` / assente = Non richiesto. Il
+  consenso appartiene al singolo contatto (email O telefono), indipendente da
+  `purposes` e dall'accesso ai servizi, e non si sposta mai fra contatti.
+  **Significato in questo prototipo — email = newsletter/promozionale via
+  email; telefono = SOLO WhatsApp promozionale, non telefonate commerciali.**
+  Il contatto resta comunque utilizzabile per assistenza/servizio a
+  prescindere da questo consenso (dominio separato). Un eventuale consenso
+  per chiamate commerciali è una decisione di produzione/legale, non
+  modellata qui. Admin mantiene comunque il vocabolario operativo esistente
+  (`Consentito` / `Non consentito` / `Non richiesto` — vedi sopra), distinto
+  dal linguaggio self-service (`Sì` / `No` + domanda in linguaggio naturale)
+  usato su Profilo/Account.
 - Il vecchio valore globale `Student.marketing_consent` è **deprecato**: nessuna
   UI / lettura / scrittura canonica lo usa più. `migrateLegacyStudentConsent`
   (in `LavorazioniContext.tsx`) sposta un eventuale valore globale dei seed
   sulla **sola email primaria** al caricamento del modulo; uno Student senza
   email primaria non riceve alcun consenso per email (limite documentato — un
-  valore globale non è attribuibile in sicurezza a tutte le email).
+  valore globale non è attribuibile in sicurezza a tutte le email). Il
+  telefono non ha mai avuto un consenso globale, quindi non richiede
+  migrazione.
 - **Il drawer Student non è più una superficie di gestione accessi.** In
   `CreateStudentDrawer` la sezione contatti (`ContactManager`, `mode='student'`)
   mostra **solo dati di contatto**: email principale/aggiuntive, telefono
@@ -109,44 +124,50 @@ restano comunque **distinti** tra Pipeline e Student:
   altre (radio, via `updateStudent`). Pipeline/Lavorazione non espongono un
   controllo di gestione accessi concorrente (impostano solo un default
   `service_access` sull'email primaria alla conversione Pipeline→Student).
-- **Controllo `Comunicazioni commerciali` dentro OGNI card email** di
-  `ContactManager` (`mode='student'`): un `MarketingConsentSelect` tri-state
-  compatto (`Non richiesto` / `Consentito` / `Non consentito`) sotto l'indirizzo,
-  nella card dell'email primaria e in quelle aggiuntive. La card email contiene
-  solo: indirizzo, designazione principale, azioni di contatto, select consenso —
-  nient'altro (niente `Accesso servizi`, niente `purposes` grezzi, niente
-  tassonomia interna). È l'**unica** superficie di editing del consenso lato
-  Admin — nessun toggle nel menu kebab, nessuna sezione globale separata tra
-  Email e Telefoni.
-  - Cambiare il consenso di un'email aggiorna solo lo stato locale dei contatti
-    del form; `Salva modifiche` (la transazione esistente del drawer) persiste
-    le email aggiornate. Nessun auto-save, nessun save separato del consenso.
+- **Controllo `Comunicazioni commerciali` dentro OGNI card email E OGNI card
+  telefono** di `ContactManager` (`mode='student'`): un `MarketingConsentSelect`
+  tri-state compatto (`Non richiesto` / `Consentito` / `Non consentito`) sotto
+  l'indirizzo/numero, nella card primaria e in quelle aggiuntive, per
+  entrambi i tipi di contatto. La card contiene solo: indirizzo/numero,
+  designazione principale, azioni di contatto, select consenso — nient'altro
+  (niente `Accesso servizi`, niente `purposes` grezzi, niente tassonomia
+  interna sui campi mostrati). È l'**unica** superficie di editing del
+  consenso lato Admin — nessun toggle nel menu kebab, nessuna sezione globale
+  separata tra Email e Telefoni.
+  - Cambiare il consenso di un'email o di un telefono aggiorna solo lo stato
+    locale dei contatti del form; `Salva modifiche` (la transazione esistente
+    del drawer) persiste i contatti aggiornati. Nessun auto-save, nessun save
+    separato del consenso.
   - Mapping: `Non richiesto → chiave assente`, `Consentito → true`,
-    `Non consentito → false`. Cambiare il consenso di un'email non tocca
-    `is_primary`, `purposes`, accesso ai servizi, né le altre email.
-- Source of truth **condivisa** con il Profilo Student: il drawer legge
-  `marketing_consent` per email dal record `useLavorazioni().students` (non dallo
-  snapshot `editStudent`); la migrazione contatti resta non-lossy, quindi un
-  salvataggio non correlato non riscrive un valore più recente impostato dal
-  Profilo.
+    `Non consentito → false`. Cambiare il consenso di un contatto non tocca
+    `is_primary`, `purposes`, accesso ai servizi, né il consenso degli altri
+    contatti (email o telefono che siano).
+- Source of truth **condivisa** con l'Account Student: il drawer legge
+  `marketing_consent` per email/telefono dal record `useLavorazioni().students`
+  (non dallo snapshot `editStudent`); la migrazione contatti resta non-lossy,
+  quindi un salvataggio non correlato non riscrive un valore più recente
+  impostato dall'Account.
 - **Sintesi Student per la list/card `/studenti`**: una sola pill read-only di
   triage (`Ricontatto consentito` / `Ricontatto non consentito` /
-  `Consenso non richiesto`) derivata dalle email **correnti** dello studente
-  (`deriveStudentRecontactSummary`): qualsiasi email `true` → consentito;
-  altrimenti qualsiasi `false` → non consentito; altrimenti non richiesto. Serve
-  solo al triage — il valore per-email nel drawer resta autoritativo. Esempio:
-  primaria `true` + secondaria `false` → list mostra `Ricontatto consentito`, il
-  drawer mostra primaria Consentito / secondaria Non consentito.
+  `Consenso non richiesto`) derivata dalle email E dai telefoni **correnti**
+  dello studente (`deriveStudentRecontactSummary(emails, phones)`): qualsiasi
+  contatto `true` → consentito; altrimenti qualsiasi `false` → non consentito;
+  altrimenti non richiesto. Serve solo al triage — il valore per-contatto nel
+  drawer resta autoritativo su QUALE canale. Esempio: email primaria `false` +
+  telefono primario `true` → list mostra `Ricontatto consentito`, il drawer
+  mostra email Non consentito / telefono Consentito.
 
 ### Invariante duro
 
 - Modifica dei contatti nel drawer Student → **non** concede/revoca l'accesso ai
-  servizi, non altera `purposes`, non sposta il consenso tra record email.
-- Impostare un'altra email come principale → **non** trasferisce il consenso a
-  un altro record: il consenso resta sull'email a cui appartiene.
+  servizi, non altera `purposes`, non sposta il consenso tra record email o
+  telefono.
+- Impostare un'altra email o un altro telefono come principale → **non**
+  trasferisce il consenso a un altro record: il consenso resta sul contatto a
+  cui appartiene.
 - Flusso di accesso in `TimelineDrawer` → **non** altera `marketing_consent`.
-- Modifica del consenso commerciale di un'email → **non** altera accesso,
-  `purposes`, `is_primary`, né il consenso delle altre email.
+- Modifica del consenso commerciale di un contatto → **non** altera accesso,
+  `purposes`, `is_primary`, né il consenso degli altri contatti.
 
 ### Fuori scope
 Filtri consenso, azioni bulk marketing, timestamp/versioning/audit, log

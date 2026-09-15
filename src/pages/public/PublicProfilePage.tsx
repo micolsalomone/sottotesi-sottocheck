@@ -28,10 +28,11 @@ import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
  * (`tesicheckLeadEnrichment.ts`) is a separate, untouched concern — this page
  * never reads or writes it.
  *
- * Self-service IA rule: account email and the commercial-communications
- * preference belong to Account (`/public-view/account`), not Profile — this
- * page owns only personal info, phone, and academic history. See
- * `PublicAccountPage.tsx` for where the consent control now lives.
+ * Self-service IA rule: account email, phone (Recapiti) and the
+ * commercial-communications preference all belong to Account
+ * (`/public-view/account`), not Profile — this page owns only personal info
+ * and academic history. See `PublicAccountPage.tsx` for where phone and the
+ * consent controls now live.
  */
 
 // Same option vocabulary as the Admin academic forms / Student Profile, kept
@@ -59,7 +60,6 @@ export function PublicProfilePage() {
   // ─── Form state ───────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
   const [academic, setAcademic] = useState<EditableAcademic[]>([]);
   const [saved, setSaved] = useState(false);
 
@@ -76,7 +76,6 @@ export function PublicProfilePage() {
 
     setFirstName(profile.first_name || getAccountFirstName(session));
     setLastName(profile.last_name);
-    setPhone(profile.phone);
     setAcademic([
       ...profile.academic_records.filter((r) => r.is_current).map(toEditableStandaloneRecord),
       ...profile.academic_records.filter((r) => !r.is_current).map(toEditableStandaloneRecord),
@@ -121,7 +120,6 @@ export function PublicProfilePage() {
       ...profile,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
-      phone: phone.trim(),
       academic_records: applyStandaloneAcademicEdits(profile.academic_records, academic),
     }));
     setSaved(true);
@@ -165,12 +163,6 @@ export function PublicProfilePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <TextField id="profile-first-name" label="Nome" value={firstName} onChange={(v) => { setFirstName(v); markDirty(); }} autoComplete="given-name" />
             <TextField id="profile-last-name" label="Cognome" value={lastName} onChange={(v) => { setLastName(v); markDirty(); }} autoComplete="family-name" />
-          </div>
-        </FormSection>
-
-        <FormSection title="Contatti">
-          <div className="grid grid-cols-1 gap-4 md:max-w-[360px]">
-            <TextField id="profile-phone" label="Telefono (facoltativo)" type="tel" value={phone} onChange={(v) => { setPhone(v); markDirty(); }} autoComplete="tel" />
           </div>
         </FormSection>
 

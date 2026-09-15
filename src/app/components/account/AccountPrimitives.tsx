@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 // Neutral, presentation-only leaves shared by the standalone and Student Account
 // pages (`/public-view/account`, `/student-view/account`). They hold no state
@@ -46,39 +46,6 @@ export function AccountInfoRow({
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
-    </div>
-  );
-}
-
-export function LegalStatusRow({
-  label,
-  statusText,
-  recorded = false,
-}: {
-  label: string;
-  statusText: string;
-  /** True → the prototype has a recorded acceptance/acknowledgement for this. */
-  recorded?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0">
-      <span
-        className="text-[var(--foreground)]"
-        style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}
-      >
-        {label}
-      </span>
-      <span
-        className="inline-flex items-center gap-1.5"
-        style={{
-          fontFamily: 'var(--font-inter)',
-          fontSize: 'var(--text-label)',
-          color: recorded ? 'var(--foreground)' : 'var(--muted-foreground)',
-        }}
-      >
-        {recorded && <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden="true" />}
-        {statusText}
-      </span>
     </div>
   );
 }

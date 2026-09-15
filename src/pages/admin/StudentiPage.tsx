@@ -341,14 +341,18 @@ export function StudentiPage() {
     toast.success(student.status === 'active' ? 'Studente bloccato' : 'Studente attivato');
   };
 
-  // Commercial consent is PER EMAIL (`contacts.emails[].marketing_consent`). The
-  // list/card shows ONE derived triage summary over the student's CURRENT emails
-  // (any email granted → "Ricontatto consentito"; else any declined → "Ricontatto
-  // non consentito"; else "Consenso non richiesto"). Read from the shared
-  // `useLavorazioni().students` record so a Profile/drawer change is reflected in
-  // the same session. Per-email values in the Student drawer stay authoritative.
-  const resolveStudentRecontact = (id: string): RecontactSummary =>
-    deriveStudentRecontactSummary(students.find(s => s.id === id)?.contacts?.emails);
+  // Commercial consent is PER CONTACT DETAIL (`contacts.emails[].marketing_consent`
+  // and `contacts.phones[].marketing_consent`). The list/card shows ONE derived
+  // triage summary over the student's CURRENT emails + phones (any contact
+  // granted → "Ricontatto consentito"; else any declined → "Ricontatto non
+  // consentito"; else "Consenso non richiesto"). Read from the shared
+  // `useLavorazioni().students` record so a Profile/Account/drawer change is
+  // reflected in the same session. Per-contact values in the Student drawer
+  // stay authoritative.
+  const resolveStudentRecontact = (id: string): RecontactSummary => {
+    const target = students.find(s => s.id === id);
+    return deriveStudentRecontactSummary(target?.contacts?.emails, target?.contacts?.phones);
+  };
 
   // Per-email consent is edited only inside each email card of the Student
   // drawer (`CreateStudentDrawer` → `ContactManager`, reached via "Modifica"),

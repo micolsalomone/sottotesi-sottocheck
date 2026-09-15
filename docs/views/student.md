@@ -55,27 +55,54 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   risoluzione via email, sessione account o `resolveEnrichmentTarget`. Se il
   record non esiste → stato neutro "Profilo non disponibile", nessuna creazione
   a runtime.
-- **Regola IA canonica (self-service, standalone + Student): email di accesso
-  e preferenza di comunicazioni commerciali sono dati di ACCOUNT, non di
-  Profilo.** Sezioni del Profilo: `Informazioni personali` (Nome, Cognome),
-  `Contatti` (solo Telefono, facoltativo — **niente più email né consenso
-  commerciale**), `Percorso attuale`, `Percorsi precedenti`. Email, consenso
-  commerciale e Termini/Informativa privacy stanno tutti sull'Account
-  (`/student-view/account`).
-- Consenso comunicazioni commerciali: si modifica **solo** su Account, sezione
-  `Comunicazioni`, tra `Accesso` e `Termini e privacy`. Il controllo tri-state
-  (`CommercialConsentField` condiviso — `Sì` / `No`; stato sconosciuto =
-  nessuna opzione + `Preferenza non ancora espressa.`) ha didascalia
-  `Riferito all'indirizzo <email>.` e un pulsante `Salva preferenza` dedicato
-  (Account non ha un unico form/submit come il Profilo). Legge/scrive
-  **solo** il campo per-email `Student.contacts.emails[primaria].marketing_consent`
-  (`boolean | null`) via `updateStudent` — stessi helper di
-  `marketingConsent.ts` usati prima, solo spostati di superficie. Nessun tocco
-  ad altre email / `purposes` / record accademici / servizi / Pipeline /
-  stato legale Account. Il vecchio `Student.marketing_consent` globale resta
-  deprecato e non più usato. Se l'email primaria non è risolvibile, Account
-  mostra uno stato neutro (`Preferenza non disponibile: nessun indirizzo
-  email registrato per questo account.`) invece di fabbricare un consenso.
+- **Regola IA canonica (self-service, standalone + Student): email di accesso,
+  telefono (recapito) e preferenze di comunicazioni commerciali sono dati di
+  ACCOUNT, non di Profilo.** Sezioni del Profilo: `Informazioni personali`
+  (Nome, Cognome), `Percorso attuale`, `Percorsi precedenti` — **nessuna
+  sezione `Contatti`**: niente più email, telefono, né consenso commerciale.
+  Email, telefono, consenso commerciale e Termini/Informativa privacy stanno
+  tutti sull'Account (`/student-view/account`).
+- **MODEL B — consenso PER CONTATTO, non per persona.** Si modifica **solo**
+  su Account: ogni consenso vive subito sotto il contatto a cui appartiene
+  (CONTATTO → VALORE → PREFERENZA), dentro `Accesso` (email) e `Recapiti`
+  (telefono) — **non** esiste più una sezione `Comunicazioni commerciali`
+  separata. DUE controlli tri-state indipendenti (`CommercialConsentField`
+  condiviso — copy accorciata `Sì` / `No`, domanda resa come testo separato
+  sopra il controllo), **entrambi in autosave alla selezione**: nessun
+  bottone `Salva modifiche` per il consenso, scrittura immediata e conferma
+  transitoria condivisa (`sonner` `toast`, stesso meccanismo di Admin), mai un
+  `Salvato` fisso nella pagina:
+  - Email: riga breve `Per accesso, assistenza e comunicazioni di servizio.`
+    seguita dalla domanda `Vuoi ricevere la newsletter Sottotesi?` (Sì/No).
+    Legge/scrive **solo** `Student.contacts.emails[primaria].marketing_consent`
+    (`boolean | null`) via `updateStudent` — `marketingConsent.ts`
+    (`readStudentEmailConsent` / `withStudentEmailConsent`), stessi helper di
+    sempre, solo spostati di superficie. Se l'email primaria non è
+    risolvibile, mostra uno stato neutro (`Preferenza non disponibile: nessun
+    indirizzo email registrato per questo account.`) invece di fabbricare un
+    consenso.
+  - Telefono: riga breve `Per assistenza e comunicazioni di servizio.` seguita
+    dalla domanda `Vuoi ricevere aggiornamenti e offerte Sottotesi su
+    WhatsApp?` (Sì/No). **Significato in questo prototipo: SOLO WhatsApp
+    promozionale, non telefonate commerciali** — il contatto resta comunque
+    utilizzabile per assistenza/servizio a prescindere da questa preferenza
+    (dominio separato); un eventuale consenso per chiamate commerciali è una
+    decisione di produzione/legale, non modellata qui. Legge/scrive **solo**
+    `Student.contacts.phones[primario].marketing_consent` (`boolean | null`)
+    via `updateStudent` — helper simmetrici `readStudentPhoneConsent` /
+    `withStudentPhoneConsent` in `marketingConsent.ts`. Se non esiste ancora
+    un telefono primario, nessun controllo di consenso è mostrato (solo
+    l'assenza del recapito in `Recapiti`) — mai un consenso fabbricato per un
+    contatto inesistente. Il numero di telefono resta invece testo libero con
+    salvataggio esplicito (`Salva numero`, gap-fill-only, mai in autosave — vedi
+    "Account" sotto): salvarlo non richiede mai una scelta di marketing, e un
+    numero sostituito non eredita mai il consenso precedente.
+  - Nessun badge/pill di stato, nessun helper aggiuntivo sullo stato
+    sconosciuto: i radio non selezionati e la domanda stessa bastano.
+  - Cambiare il consenso di un contatto non tocca l'altro, né `is_primary` /
+    `purposes` / record accademici / servizi / Pipeline / stato legale
+    Account. Il vecchio `Student.marketing_consent` globale resta deprecato e
+    non più usato.
 - Vocabolario accademico approvato: `Livello di laurea` (`degree_level`),
   `Corso di laurea` (`course_name`), `Università` (`university_name`),
   `Tipologia` (`thesis_type` — valori Compilativa / Sperimentale / Esame),
@@ -88,9 +115,9 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
 - Semantica di scrittura:
   - Nome/Cognome editabili; un input vuoto preserva il valore memorizzato
     (nessuna affordance di "svuota"). `name` ricalcolato da nome + cognome.
-  - Email primaria, `purposes`, `is_primary`, `source` non modificabili.
-  - Telefono primario: solo gap-fill quando assente; un numero già presente
-    (es. inserito da Admin) non viene mai sovrascritto.
+  - Email primaria, telefono, `purposes`, `is_primary`, `source` non
+    modificabili qui — il Profilo non tocca più `contacts` (vedi `Recapiti`
+    in Account per il telefono, stessa semantica gap-fill di prima).
   - Contenuto accademico: lo Student **può correggere** i campi di contenuto
     del record attuale e dei record precedenti (es. Università Bologna → Padova)
     — modifica diretta dello stesso `StudentAcademicRecord`. `updated_at` viene
@@ -130,33 +157,74 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
 ## Account (`/student-view/account`)
 
 - Superficie **distinta** dal Profilo: Profilo = dati personali/accademici;
-  Account = accesso, preferenza di comunicazioni commerciali e stato legale.
-  Non duplicare i campi del Profilo (email e consenso commerciale vivono
-  **solo** qui — vedi la regola IA canonica in "Profilo" sopra).
+  Account = accesso, telefono (recapito), preferenze di comunicazioni
+  commerciali e stato legale. Non duplicare i campi del Profilo (email,
+  telefono e consenso commerciale vivono **solo** qui — vedi la regola IA
+  canonica in "Profilo" sopra).
 - Dominio: stesso `Student` strutturato del Profilo
   (`STUDENT_VIEW_STUDENT_RECORD_ID`). **Mai** il registry / la sessione
   dell'account standalone TesiCheck: lo Student non usa credenziali standalone.
-- Sezione `Accesso`: email primaria (dal contact model strutturato, read-only).
-  Nel prototipo non esiste un flusso password per lo Student → riga informativa
-  neutra (`Gestione password non disponibile da questa area`), nessun link al
-  recupero password standalone.
-- Sezione `Comunicazioni` (tra `Accesso` e `Termini e privacy`): il controllo
-  editabile del consenso commerciale — vedi il dettaglio completo nella sezione
-  "Profilo" sopra. Scrive `updateStudent` direttamente da questa pagina (non più
-  integrato nel salvataggio del Profilo).
-- Sezione `Termini e privacy`: lo Student **non ha** uno stato di accettazione
-  Termini/Privacy nel modello. Righe neutre `Stato non disponibile` + nota
-  `Lo stato delle accettazioni non è disponibile per questo account.` Non
-  fabbricare date, versioni o accettazioni. Non aggiungere campi Termini/Privacy
-  a `Student` per il prototipo. La produzione deve fornire lo stato legale/account
-  reale dello Student.
+- **Ordine visivo canonico**: `Accesso` (email → preferenza commerciale email →
+  password) → `Recapiti` (telefono → preferenza commerciale telefono) → una
+  frase secondaria di stato legale, in fondo (nessuna card dedicata — vedi
+  sotto). Non esiste una sezione `Comunicazioni commerciali` separata: ogni
+  consenso vive subito sotto il contatto a cui appartiene.
+- **Assunzione di ciclo di vita: questa vista rappresenta SEMPRE un account
+  self-service già attivo.** Flusso concettuale di produzione (non
+  implementato nel prototipo): Admin crea il record Student (operativo,
+  senza login) → invito/attivazione dell'account self-service → l'utente
+  accetta i Termini → l'utente prende visione dell'Informativa privacy →
+  l'accesso self-service diventa attivo. Raggiungere
+  `/student-view/account` presuppone che questo percorso sia già concluso;
+  la pagina non verifica né rappresenta stati intermedi (invito pendente,
+  Termini non ancora accettati, ecc.). Da questa assunzione derivano due
+  scelte deliberate, nessuna delle quali aggiunge campi al dominio `Student`:
+  - **Password gestibile.** La riga Password mostra `Gestisci password`, non
+    un avviso di funzionalità mancante — un account attivo deve poter
+    gestire la propria password, come qualunque altro account attivo. Apre
+    un form inline (password attuale / nuova / conferma + `Aggiorna
+    password`) con validazione locale, presentazionale al 100%: nessuna
+    verifica reale, nessuna password salvata, nessun token, nessun hashing.
+    Al successo il form si chiude e appare una conferma transitoria condivisa
+    (`sonner` `toast`, stesso meccanismo di Admin) — mai un `Password
+    aggiornata.` fisso nella pagina. Deliberatamente **non** instradato sul
+    registry/sessione dell'account standalone TesiCheck
+    (`tesicheckAccountSession.ts`): Student e standalone restano identità
+    separate. Non esisteva un flusso password Student-safe riutilizzabile,
+    quindi questo è il flusso locale più piccolo che comunica l'esperienza
+    attesa. La produzione deve delegare interamente al sistema di
+    autenticazione reale dello Student.
+  - **Termini/Privacy = stato attivo canonico, come frase unica** — non
+    `Stato non disponibile`, non una card `Termini e privacy` dedicata, non
+    righe di stato per-voce, nessun badge/icona: `Hai accettato i Termini e
+    condizioni e preso visione dell'Informativa privacy.`, incondizionata (mai
+    `Privacy accettata`: la presa visione dell'informativa non è consenso
+    commerciale). `Termini e condizioni` resta testo semplice, non
+    cliccabile: nessuna destinazione Termini reale esiste in questo
+    prototipo, nessuna viene inventata. `Informativa privacy` è un link reale
+    verso la privacy policy Sottotesi attualmente nota
+    (`https://www.sottotesi.it/cookie-privacy-policy/`). Mai letta da
+    `Student` — nessun campo legale aggiunto al dominio, nessuna
+    data/versione/accettazione fabbricata oltre questa frase. La produzione
+    deve fornire lo stato legale/account reale dello Student (versioning,
+    timestamp, un eventuale stato pendente/inattivo se esiste).
+- Sezione `Recapiti`: telefono, dalla STESSA fonte strutturata
+  `Student.contacts.phones[]` usata da sempre (nessuna fonte piatta
+  `Student.phone` introdotta). Stessa semantica gap-fill-only che prima
+  viveva nel Profilo: se esiste già un telefono primario con valore, riga
+  read-only; se il contatto primario esiste ma è vuoto, campo editabile +
+  `Salva numero` (esplicito, mai autosave) che valorizza SOLO quel contatto
+  esistente (non crea un nuovo `ContactPhone`, non sovrascrive mai un numero
+  già presente); conferma via `toast` transitorio.
 - Cross-link: `Vai al profilo personale` → `/student-view/profilo`.
 - Raggiungibile dal menu utente in alto a destra (`Informazioni Account`) e dal
   cross-link del Profilo; **non** dalla sidebar.
 - Leaf presentazionali condivise con l'Account standalone in
   `src/app/components/account/AccountPrimitives.tsx` (`AccountInfoRow`,
-  `LegalStatusRow`, `CrossSurfaceLink`) — sola presentazione; risoluzione dati di
-  ruolo, semantica auth e ownership dello stato legale restano nella pagina.
+  `CrossSurfaceLink`) — sola presentazione; risoluzione dati di ruolo,
+  semantica auth e ownership dello stato legale restano nella pagina. La
+  frase di stato legale è composta direttamente in ciascuna pagina (non un
+  componente condiviso): breve e local-only.
 
 ## Navigazione
 

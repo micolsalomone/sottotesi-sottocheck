@@ -6,7 +6,6 @@ import type { DegreeLevel, ThesisType } from '@/app/data/LavorazioniContext';
 import { STUDENT_VIEW_STUDENT_RECORD_ID } from '@/app/utils/studentView';
 import {
   FormSection,
-  ReadOnlyField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
 import { AcademicRecordsSections } from '@/app/components/profile/AcademicRecordsSection';
@@ -19,10 +18,11 @@ import {
 } from '@/app/data/studentAcademicRecords';
 
 /**
- * Self-service IA rule: account email and the commercial-communications
- * preference belong to Account (`/student-view/account`), not Profile — this
- * page owns only personal info, phone and academic history. See
- * `student/AccountPage.tsx` for where the consent control now lives.
+ * Self-service IA rule: account email, phone (Recapiti) and the
+ * commercial-communications preference all belong to Account
+ * (`/student-view/account`), not Profile — this page owns only personal info
+ * and academic history. See `student/AccountPage.tsx` for where phone and the
+ * consent controls now live.
  */
 
 // Client-approved academic vocabulary. Underlying fields keep their legacy names
@@ -52,18 +52,9 @@ export function ProfilePage() {
     [students],
   );
 
-  // Primary phone from the structured contacts model; the deprecated top-level
-  // field is only a read fallback.
-  const existingPrimaryPhone = useMemo(() => {
-    if (!student) return '';
-    return student.contacts?.phones?.find((entry) => entry.is_primary)?.phone ?? student.phone ?? '';
-  }, [student]);
-  const phoneIsGapFill = !existingPrimaryPhone.trim();
-
   // ─── Form state ───────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
   const [academic, setAcademic] = useState<EditableAcademic[]>([]);
   const [saved, setSaved] = useState(false);
 
@@ -78,12 +69,11 @@ export function ProfilePage() {
 
     setFirstName(student.first_name ?? '');
     setLastName(student.last_name ?? '');
-    setPhone(phoneIsGapFill ? '' : existingPrimaryPhone);
 
     const current = student.academic_records.filter((r) => r.is_current).map(toEditableAcademicRecord);
     const previous = student.academic_records.filter((r) => !r.is_current).map(toEditableAcademicRecord);
     setAcademic([...current, ...previous]);
-  }, [student, existingPrimaryPhone, phoneIsGapFill]);
+  }, [student]);
 
   const markDirty = () => setSaved(false);
 
@@ -128,20 +118,7 @@ export function ProfilePage() {
     const nextLast = lastName.trim() || student.last_name;
     const nextName = `${nextFirst} ${nextLast}`.trim() || student.name;
 
-    // Phone: gap-fill only. Never overwrite an existing primary number.
-    const gapFilledPhone = phoneIsGapFill ? phone.trim() : '';
-
     updateStudent(student.id, (prev) => {
-      let contacts = prev.contacts;
-      if (gapFilledPhone && contacts?.phones?.some((entry) => entry.is_primary)) {
-        contacts = {
-          ...contacts,
-          phones: contacts.phones.map((entry) =>
-            entry.is_primary ? { ...entry, phone: gapFilledPhone } : entry,
-          ),
-        };
-      }
-
       // Existing records: direct content edit of the SAME record (never `id` /
       // `student_id` / `is_current` / `created_at` / `foreign_language` /
       // `thesis_language` / service binding, `updated_at` bumped only when
@@ -154,7 +131,6 @@ export function ProfilePage() {
         first_name: nextFirst,
         last_name: nextLast,
         name: nextName,
-        contacts,
         academic_records: academicRecords,
       };
     });
@@ -212,23 +188,6 @@ export function ProfilePage() {
               onChange={(v) => { setLastName(v); markDirty(); }}
               autoComplete="family-name"
             />
-          </div>
-        </FormSection>
-
-        <FormSection title="Contatti">
-          <div className="grid grid-cols-1 gap-4 md:max-w-[360px]">
-            {phoneIsGapFill ? (
-              <TextField
-                id="student-profile-phone"
-                label="Telefono (facoltativo)"
-                type="tel"
-                value={phone}
-                onChange={(v) => { setPhone(v); markDirty(); }}
-                autoComplete="tel"
-              />
-            ) : (
-              <ReadOnlyField label="Telefono" value={existingPrimaryPhone} />
-            )}
           </div>
         </FormSection>
 

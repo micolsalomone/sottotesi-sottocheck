@@ -119,6 +119,59 @@ export function ContactManager({
     </div>
   );
 
+  // Same pattern as `setEmailConsent`/`renderStudentEmailConsent`, for the
+  // phone channel: means permission for promotional WhatsApp communication on
+  // that number — NOT commercial phone calls, which this prototype does not
+  // model separately (production/legal decision).
+  const setPhoneConsent = (phone: string, consent: boolean | null) => {
+    onUpdatePhones(
+      phones.map(entry =>
+        entry.phone === phone
+          ? (() => {
+              const next = { ...entry };
+              if (consent === null) delete next.marketing_consent;
+              else next.marketing_consent = consent;
+              return next;
+            })()
+          : entry,
+      ),
+    );
+  };
+
+  const renderStudentPhoneConsent = (phone: ContactPhone) => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        paddingTop: '0.5rem',
+        borderTop: '1px solid var(--border)',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--font-inter)',
+          fontSize: '11px',
+          fontWeight: 'var(--font-weight-medium)',
+          color: 'var(--muted-foreground)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          lineHeight: '1.5',
+          flex: 1,
+          minWidth: '140px',
+        }}
+      >
+        Comunicazioni commerciali
+      </span>
+      <MarketingConsentSelect
+        value={phone.marketing_consent ?? null}
+        onChange={(value) => setPhoneConsent(phone.phone, value)}
+        ariaLabel={`Consenso comunicazioni commerciali per ${phone.phone}`}
+      />
+    </div>
+  );
+
   // ─── Email Handlers ───────────────────────────────────────
   const handleAddEmail = () => {
     if (!newEmail.trim() || !newEmail.includes('@')) {
@@ -1148,6 +1201,11 @@ export function ContactManager({
               </div>
             )}
 
+            {/* Commercial consent for THIS phone — Student drawer only. Rides on
+                `ContactPhone.marketing_consent`; persisted with the rest of the
+                contacts by `Salva modifiche`. Never coupled to purposes / access. */}
+            {mode === 'student' && renderStudentPhoneConsent(primaryPhone)}
+
             {/* Purposes — hidden in the Student drawer (routing metadata, not a
                 user/admin task here). Kept for Coach. */}
             {showContactTaxonomyUI && (
@@ -1510,6 +1568,10 @@ export function ContactManager({
                     </div>
                   )}
                 </div>
+
+                {/* Commercial consent for THIS additional phone — Student drawer only. */}
+                {mode === 'student' && renderStudentPhoneConsent(phoneData)}
+
               </div>
             ))}
           </div>

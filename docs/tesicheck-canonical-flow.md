@@ -2311,3 +2311,280 @@ comunicazione.
 Dettaglio tecnico completo (implementazione, file, criteri di accettazione):
 [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §21.
 
+### 33.10 Consenso commerciale MODEL B (per contatto: email + telefono) — telefono si sposta da Profilo a Recapiti in Account
+
+Sostituisce, per la forma di Profilo/Account e per il modello di consenso, le
+parti di §33.9 che descrivono: (a) `Contatti` del Profilo come contenente
+"solo Telefono"; (b) Account con un'unica sezione `Comunicazioni` e un solo
+controllo di consenso per l'email. §33.9 resta valida per tutto il resto (il
+confine Profilo ≠ Account, l'invarianza di registrazione/acquisizione/Admin,
+la regola per il futuro Coach). §33.5 resta valida per i tre domini di
+consenso distinti e per il comportamento Pipeline (invariato).
+
+**Perché.** Sottotesi usa il telefono anche per WhatsApp e telefonate,
+potenzialmente commerciali. `CONTATTO ≠ PERMESSO DI MARKETING`: fornire un
+recapito non equivale ad autorizzarne l'uso promozionale. Il modello scelto
+per il prototipo è **MODEL B — un consenso per ciascun dettaglio di contatto**
+(non un consenso unico di persona, non un master + selezione canale): stessa
+forma già in uso per l'email, ora estesa al telefono, con lo storage
+già-esistente di Pipeline (per contatto, comprende già email e telefono) come
+precedente diretto.
+
+```text
+PROFILO possiede (invariato da §33.9, MENO il telefono):
+- informazioni personali
+- profilo accademico / storico accademico
+(nessuna sezione Contatti)
+
+ACCOUNT possiede (esteso):
+- email di accesso, gestione password           (Accesso)
+- telefono                                       (Recapiti — NUOVO)
+- preferenza di comunicazioni commerciali per
+  l'email account, INDIPENDENTE dalla preferenza
+  per il telefono corrente                       (Comunicazioni commerciali)
+- stato Termini e condizioni / Informativa privacy
+```
+
+**Telefono si sposta da Profilo ad Account.** Sezione `Recapiti`, tra
+`Accesso` e `Comunicazioni commerciali`. Stessa fonte dati di prima (standalone:
+`standaloneProfile.ts`, campo `phone`; Student: `Student.contacts.phones[]`),
+stessa semantica di editing di prima (standalone: campo libero; Student:
+gap-fill-only, mai sovrascrive un numero già presente) — cambia solo la
+pagina che lo espone, non il meccanismo. Il Profilo non tocca più in alcun
+modo il telefono.
+
+**Consenso commerciale: due controlli indipendenti, non uno.** La sezione
+Account si rinomina `Comunicazioni commerciali` e mostra `Email` e
+`Telefono e WhatsApp` come sottosezioni separate, ciascuna con il proprio
+`CommercialConsentField` tri-state e il proprio pulsante `Salva preferenza`.
+Cambiare l'una non tocca l'altra. Se non esiste ancora un telefono, la
+sottosezione telefono non mostra un controllo attivo, solo un helper
+(`Aggiungi un numero per gestire le preferenze per WhatsApp e telefonate.`) —
+mai un consenso fabbricato per un contatto che non esiste.
+
+**Semantica del consenso telefono in questo prototipo.** Copre WhatsApp
+commerciale E telefonate commerciali su quel numero come UN'UNICA
+preferenza. Non modelliamo consensi separati per WhatsApp e per le
+telefonate: è un raffinamento di produzione/legale, esplicitamente lasciato
+aperto (vedi in fondo).
+
+**Consenso non si sposta mai fra contatti — in nessuna direzione:**
+- cambiare l'email o il telefono primario non trasferisce il consenso a un
+  altro record;
+- un telefono aggiunto dopo (con qualunque consenso email preesistente, `Sì`
+  o `No`) parte SEMPRE a `Non richiesto`: non eredita mai il valore
+  dell'email, né viceversa;
+- un numero di telefono sostituito con uno diverso parte SEMPRE a
+  `Non richiesto` per il nuovo numero: non eredita il consenso del numero
+  precedente. Storage: standalone (`standaloneProfile.ts`) tiene un solo
+  valore di `phone`, quindi cambiare numero significa leggere/scrivere una
+  chiave diversa nella stessa mappa `commercial_consents` — il consenso del
+  vecchio numero resta una chiave inerte nella mappa, mai letta, stesso
+  comportamento già documentato per le chiavi stantie di
+  `Pipeline.marketing_consents` (§33.5); Student tiene invece un campo
+  `marketing_consent` sul singolo record `ContactPhone`, quindi sostituire il
+  valore del contatto primario azzera implicitamente il consenso associato a
+  quell'oggetto contatto (comportamento equivalente).
+
+**Registrazione (`RegisterForm`): lo scope resta email, ora reso esplicito
+in copy.** La registrazione standalone raccoglie solo un'email, mai un
+telefono — resta quindi un'invariante che la scelta Sì/No obbligatoria
+(§33.5, invariata nel meccanismo) si riferisca SOLO all'email. `RegisterForm`
+mostra ora una didascalia sotto il controllo che lo dichiara esplicitamente e
+chiarisce che la scelta non copre WhatsApp, telefonate, né un numero
+aggiunto in seguito. Un telefono aggiunto dopo in Account parte sempre con
+consenso proprio a `Non richiesto`.
+
+**Storage — estensione minima, nessuna migrazione distruttiva:**
+- `ContactPhone` (`LavorazioniContext.tsx`) guadagna
+  `marketing_consent?: boolean | null`, stessa semantica tri-state di
+  `ContactEmail.marketing_consent`. Nessun campo separato per WhatsApp o per
+  le telefonate.
+- `marketingConsent.ts` guadagna `readStudentPhoneConsent` /
+  `withStudentPhoneConsent`, simmetrici agli equivalenti email esistenti.
+  `deriveStudentRecontactSummary` accetta ora anche `phones` (secondo
+  parametro opzionale) e deriva la sintesi da email E telefoni correnti.
+- `standaloneProfile.ts`: `commercial_consents` resta lo stesso
+  `Record<string, boolean>`, ora letto/scritto chiave-neutro rispetto al
+  contatto (`readStandaloneContactConsent` / `writeStandaloneContactConsent`,
+  con `readStandaloneCommercialConsent`/`writeStandaloneCommercialConsent`
+  ed equivalenti `...Phone...` come wrapper sottili). Nessun valore
+  precedente perso: le chiavi email esistenti restano leggibili as-is.
+- Nessun consenso globale di persona introdotto in nessuno dei due domini.
+
+**Admin — unico cambiamento comportamentale approvato in questo workstream.**
+`ContactManager` (`mode='student'`) mostra ora lo stesso
+`MarketingConsentSelect` tri-state anche dentro ogni card telefono (primario
+e aggiuntivi), stesso pattern già in uso per le card email — additivo dentro
+l'architettura esistente del drawer (`Salva modifiche`), nessun cambiamento
+al footer/salvataggio, a `service_access`, a `purposes`, a `TimelineDrawer`.
+Pipeline **non** ha richiesto alcun cambiamento: il modello e l'editing per
+contatto (email e telefono) esistevano già in `CreatePipelineDrawer` /
+`PipelineDetailDrawer` prima di questo workstream.
+
+**Invariato:** i tre domini di consenso distinti (§33.5), l'acquisizione
+Pipeline/CRM, la modale di completamento profilo post-registrazione e la
+card promemoria Dashboard (§33.8 — solo accademiche), lo stato Termini/Privacy,
+il confine Contatto ≠ Permesso di marketing e Servizio ≠ Marketing (nessun
+accoppiamento con `service_access` / `purposes` / accesso coaching / accesso
+Timeline / login / report).
+
+**Lasciato esplicitamente alla produzione/legale, non simulato qui:**
+consenso separato per WhatsApp vs telefonate (oggi unico); wording legale
+finale per canale; base giuridica; titolare del trattamento; timestamp e
+versioning del consenso; audit log immutabile; eventuale double opt-in;
+requisiti specifici del provider WhatsApp Business; gestione di liste di
+sospensione telemarketing; sincronizzazione con un CRM/consent-ledger reale.
+
+### 33.11 Semplificazione copy Account + significato telefono ristretto a WhatsApp + ciclo di vita Student — supersede parziale di §33.10
+
+Runtime review ha mostrato che la struttura introdotta in §33.10 (sezione
+`Comunicazioni commerciali` con etichette amministrative, bottoni `Salva
+preferenza` sempre visibili, semantica telefono "WhatsApp E telefonate
+commerciali") era troppo tecnica e astratta per un utente self-service.
+Questa sezione **sostituisce** quella struttura di presentazione; **resta
+valida** tutto il resto di §33.10 (MODEL B, storage per-contatto/chiave
+neutra, nessuna ereditarietà del consenso tra contatti, estensione
+`ContactPhone.marketing_consent`, editing Admin per email E telefono,
+`deriveStudentRecontactSummary(emails, phones)`).
+
+**1 — Nessuna sezione `Comunicazioni commerciali` separata.** Ogni consenso
+vive subito sotto il contatto a cui appartiene (CONTATTO → VALORE →
+PREFERENZA), dentro `Accesso` (email) e `Recapiti` (telefono). Ordine visivo
+canonico di Account, sia standalone sia Student: email account → preferenza
+commerciale email → password → telefono → preferenza commerciale telefono →
+una frase secondaria di stato legale, in fondo (nessuna card dedicata — vedi
+punto 5).
+
+**2 — Interazione: due grammar distinte, nessuno stato `Salvato` permanente
+(SUPERSEDE quanto descritto sopra in questo stesso punto in versioni
+precedenti — non più dirty-state per il consenso).** La preferenza
+commerciale (Sì/No, sia email sia WhatsApp) **si autosalva alla selezione**:
+scrive subito, nessun bottone `Salva modifiche` esiste più per il consenso.
+Il numero di telefono resta invece testo libero con salvataggio esplicito —
+`Salva numero`, visibile solo quando il campo differisce dal valore
+persistito, mai in autosave. Ogni azione riuscita (preferenza email,
+preferenza WhatsApp, numero di telefono, e per Student anche la password)
+mostra una conferma transitoria condivisa — `sonner` `toast`, lo stesso
+meccanismo già usato in Admin, montato una sola volta a livello di app in
+`App.tsx` — e non lascia mai un `Salvato` fisso nella pagina.
+**Vincolo numero-non-salvato:** finché il campo telefono differisce dal
+valore persistito, il controllo Sì/No WhatsApp resta `disabled` — non è
+possibile impostare la preferenza per un numero non ancora salvato — con una
+nota inline (`Salva il numero per modificare questa preferenza.`). Dopo il
+salvataggio del numero, la preferenza WhatsApp si rilegge dalla chiave del
+NUOVO numero: un numero genuinamente nuovo non eredita mai il consenso del
+precedente (tipicamente torna `Non richiesto`).
+
+**3 — Copy finale, orientata all'utente:**
+
+```text
+Email
+<email>
+  Per accesso, assistenza e comunicazioni di servizio.
+  Vuoi ricevere la newsletter Sottotesi?
+  ( ) Sì   ( ) No
+
+Password
+  Gestisci password
+
+Telefono / WhatsApp (facoltativo)
+<telefono>
+  Per assistenza e comunicazioni di servizio.
+  Vuoi ricevere aggiornamenti e offerte Sottotesi su WhatsApp?
+  ( ) Sì   ( ) No
+
+Hai accettato i Termini e condizioni e preso visione dell'Informativa privacy.
+  (Termini e condizioni: testo semplice, non cliccabile — nessuna destinazione reale nel prototipo)
+  (Informativa privacy: link reale a https://www.sottotesi.it/cookie-privacy-policy/)
+```
+
+Nessuna etichetta amministrativa (`Preferenza commerciale`, `Comunicazioni
+commerciali`, `autorizzo comunicazioni commerciali`), nessun badge/pill di
+stato, nessun helper aggiuntivo sullo stato sconosciuto (rimosso anche
+`Scegli Sì o No per indicarci...`): i radio non selezionati e la domanda
+stessa bastano. La registrazione standalone (`RegisterForm`) usa la stessa
+domanda email (`Vuoi ricevere la newsletter Sottotesi?`), mai un riferimento
+a WhatsApp/telefono/contatti futuri — resta scope EMAIL, invariato nel
+meccanismo (scelta obbligatoria, valore opzionale, §33.5/§33.10).
+
+**4 — Significato del consenso telefono ristretto: SOLO WhatsApp
+promozionale, MAI telefonate commerciali.** Corregge §33.10, che descriveva
+"WhatsApp E telefonate commerciali come UN'unica preferenza". Il consenso
+telefono autorizza messaggi promozionali WhatsApp su quel numero; NON copre
+telefonate commerciali. Il contatto resta comunque utilizzabile per
+assistenza/servizio a prescindere da questa preferenza (dominio separato,
+sempre consentito — la riga di servizio sopra la domanda lo rende esplicito
+senza gergo legale). Un eventuale consenso per chiamate commerciali è una
+decisione di produzione/legale, non modellata qui: non introdurre una
+granularità per-canale (WhatsApp vs chiamata) senza tale decisione.
+
+**5 — Termini e privacy: nessuna card, una sola frase secondaria.** Rimossi
+completamente, sia standalone sia Student: la card `Termini e privacy`
+dedicata, le righe di stato per-voce, le icone di spunta verdi, le etichette
+`Accettati`/`Presa visione registrata` come righe separate, ogni paragrafo
+esplicativo (`Informazioni di sola lettura. Testo, versione e link...`).
+Sostituiti da UNA frase discreta in fondo alla pagina, sopra il cross-link al
+Profilo: `Hai accettato i Termini e condizioni e preso visione
+dell'Informativa privacy.` — sempre incondizionata (la registrazione
+standalone richiede già entrambe le accettazioni prima di poter creare
+l'account; per Student vedi il punto 6). Mai `Privacy accettata`: la presa
+visione dell'informativa non è consenso commerciale. `Termini e condizioni`
+resta testo semplice, non cliccabile — nessuna destinazione Termini reale
+esiste in questo prototipo/repo, e nessuna viene inventata (URL di
+produzione pending). `Informativa privacy` è un link reale verso la privacy
+policy Sottotesi attualmente nota
+(`https://www.sottotesi.it/cookie-privacy-policy/`), coerente con i link
+esterni `sottotesi.it` già usati altrove nel prototipo (landing, report,
+output-preview). Lo standalone non legge più `termsAccepted`/
+`privacyAcknowledged` dal registry `RegisteredAccount` per questa pagina
+(quella lettura è stata rimossa da `PublicAccountPage.tsx`).
+
+**6 — Ciclo di vita self-service Student: la vista rappresenta SEMPRE un
+account già attivo.** `/student-view/account` non implementa né verifica gli
+stati intermedi che precedono l'attivazione self-service — li assume già
+conclusi. Flusso concettuale di produzione, non implementato:
+
+```text
+Admin crea il record Student (operativo, senza login)
+→ invito / attivazione dell'account self-service
+→ l'utente accetta i Termini e condizioni
+→ l'utente prende visione dell'Informativa privacy
+→ l'accesso self-service Student diventa attivo
+```
+
+Due conseguenze UI, nessuna delle quali aggiunge campi al dominio `Student`:
+
+- Stato legale (Student) mostra la stessa frase secondaria incondizionata del
+  punto 5 (`Hai accettato i Termini e condizioni e preso visione
+  dell'Informativa privacy.`) al posto del precedente `Stato non
+  disponibile` — MAI `Privacy accettata`. Frase scritta direttamente nella
+  pagina, mai letta da `Student`.
+- Password (Student) mostra `Gestisci password`, non un avviso di
+  funzionalità mancante: apre un form inline presentazionale (password
+  attuale / nuova / conferma + `Aggiorna password`, validazione locale,
+  messaggio di conferma) — nessuna verifica reale, nessuna password salvata,
+  nessun token, nessun hashing, nulla sopravvive oltre il componente.
+  Deliberatamente **non** instradato sul registry/sessione dell'account
+  standalone TesiCheck (`tesicheckAccountSession.ts`): Student e standalone
+  restano identità separate. Non esisteva un flusso password Student-safe
+  riutilizzabile nel repository; questo è il flusso locale più piccolo che
+  comunica l'esperienza attesa.
+
+**Invariato:** MODEL B e tutto lo storage descritto in §33.10; i tre domini
+di consenso distinti (§33.5); l'acquisizione Pipeline/CRM; la modale di
+completamento profilo e la card promemoria Dashboard (§33.8); il confine
+Contatto ≠ Permesso di marketing e Servizio ≠ Marketing; Admin (nessun
+cambiamento architetturale, solo il vocabolario di visualizzazione
+"WhatsApp promozionale" nella documentazione — vedi `docs/views/admin.md`).
+
+**Lasciato esplicitamente alla produzione/legale, non simulato qui:**
+consenso per chiamate commerciali (oggi non modellato affatto, non solo
+"unico" come diceva §33.10); wording legale finale per canale; base
+giuridica; timestamp/versioning; audit log; double opt-in; requisiti del
+provider WhatsApp Business; liste di sospensione telemarketing;
+sincronizzazione con un CRM/consent-ledger reale; infrastruttura di
+invito/attivazione dell'account self-service Student; sistema di
+autenticazione/gestione password reale per lo Student; un eventuale stato
+Student "non ancora attivo" che debba raggiungere questa vista.
+

@@ -74,8 +74,9 @@ riferimento:
   mappabili restano vuoti.
 - **Dominio scritto.** Il Profilo legge/scrive **solo** il dominio Student
   (`updateStudent`) — anagrafica (`first_name` / `last_name` → `name`
-  ricalcolato), telefono primario (solo gap-fill), e i record in
-  `Student.academic_records[]`. Nessuna Pipeline, nessun lead CRM, nessuna
+  ricalcolato) e i record in `Student.academic_records[]`. Il telefono (solo
+  gap-fill) è stato spostato su Account, sezione `Recapiti` — vedi "Consenso
+  comunicazioni commerciali". Nessuna Pipeline, nessun lead CRM, nessuna
   sessione account standalone, nessun `resolveEnrichmentTarget`.
 - **Record accademici = stessa source of truth di Admin.** Student e Admin
   leggono/scrivono lo stesso `Student.academic_records[]`. Le modifiche dello
@@ -105,9 +106,10 @@ riferimento:
   provenienza/audit adeguate (chi ha modificato il record).
 - **Fuori scope:** gestione contatti multipli, eliminazione del record
   accademico corrente, cambio del record corrente, auth Student. Email
-  primaria, consenso alle comunicazioni commerciali e Termini/Privacy sono
-  tutti sull'Account (`/student-view/account`, sezione `Comunicazioni` per il
-  consenso) — non nel Profilo. Vedi "Consenso comunicazioni commerciali".
+  primaria, telefono (`Recapiti`), consenso alle comunicazioni commerciali
+  (`Comunicazioni commerciali`) e Termini/Privacy sono tutti sull'Account
+  (`/student-view/account`) — non nel Profilo. Vedi "Consenso comunicazioni
+  commerciali".
 - Presentational primitives condivise con il Public profile in
   `src/app/components/profile/ProfileFormPrimitives.tsx` (`FormSection`,
   `TextField`, `SelectField`, `ReadOnlyField`) — solo presentazione, nessuna
@@ -121,9 +123,10 @@ riferimento:
   (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
   mai `Pipeline` né `Student.academic_records[]`. La sua forma è sempre la
   stessa per ogni utente standalone autenticato — `Informazioni personali` →
-  `Contatti` (solo Telefono — email account e consenso commerciale vivono
-  ora su `/public-view/account`, sezione `Comunicazioni`, non qui) →
-  `Percorso attuale` + `Percorsi precedenti` — mai
+  `Percorso attuale` + `Percorsi precedenti` — nessuna sezione `Contatti`:
+  email account, telefono (`Recapiti`) e consenso commerciale
+  (`Comunicazioni commerciali`) vivono tutti ora su `/public-view/account`,
+  non qui — mai
   "un blocco se Pipeline, multi-record se Student". Riusa la stessa leaf
   condivisa (`AcademicRecordsSections`) di `/student-view/profilo`, che invece
   resta sul dominio Student reale (`Student.academic_records[]`, `is_current` e
@@ -172,62 +175,191 @@ TesiCheck job status, history/report status e service lifecycle sono domini dist
 Tre domini di consenso distinti (canonical §33.5): Termini & Condizioni,
 Informativa privacy, consenso commerciale. Nel prototipo:
 
-- **Termini/Privacy** → superfici Account (`/public-view/account`,
-  `/student-view/account`), sola lettura, stato letto dalla persistenza
-  prototipo Slice A (registry account); lo Student non ha modello legale →
-  `Stato non disponibile`.
-- **Consenso commerciale** → **Account** (non più Profilo — regola IA
-  canonica corretta, canonical §33.9), scelta esplicita tri-state, **per
-  email**, sezione `Comunicazioni` tra `Accesso` e `Termini e privacy`.
-  Standalone: scritto su `standaloneProfile.ts` (`commercial_consents[email]`,
-  store Profilo-locale, non Pipeline). Student: scritto su
-  `contacts.emails[emailPrimaria].marketing_consent` (`boolean | null`) via
-  `updateStudent`, stessi helper di `marketingConsent.ts` di sempre. Nessun
-  valore globale di persona. (L'acquisizione Pipeline/CRM riceve comunque la
-  stessa scelta in parallelo alla registrazione — dominio separato, vedi
-  sotto.)
-- **Registrazione standalone = scelta obbligatoria, valore opzionale.** Il
-  tri-state generale del CRM (chiave assente = mai chiesto, valido per contatti
-  di altri canali di acquisizione o dati CRM legacy) resta **distinto**
-  dall'invariante specifico della registrazione standalone TesiCheck: chi
-  completa la registrazione **deve esprimere** una preferenza esplicita —
-  `Sì` o `No` — per le comunicazioni commerciali prima di poter creare
-  l'account; il consenso positivo non è mai obbligatorio, **esprimerlo lo è**.
-  `RegisterForm` (condiviso da `/public/register` e dal checkout in-account)
-  blocca il submit finché non è selezionata un'opzione, riusando lo stesso
-  controllo tri-state (`CommercialConsentField`) del Profilo. Il risultato è
-  sempre un booleano esplicito, mai `null`, passato a
-  `applyStandaloneRegistrationConsent` dopo la verifica email: scrive
-  `Pipeline.marketing_consents[emailVerificata]` oppure, per uno Student
-  esistente, `contacts.emails[emailVerificata].marketing_consent` — sempre
-  `true`/`false`; in parallelo, `seedStandaloneProfileFromRegistration` scrive
-  la stessa scelta su `standaloneProfile.ts`. Di conseguenza l'Account
-  standalone non mostra mai `Preferenza non ancora espressa` per l'email
-  dell'account verificato di una registrazione TesiCheck completata; quello
-  stato resta legittimo solo per contatti CRM non originati da questa
-  registrazione (Pipeline/Student pre-esistenti risolti per email, o il
-  fallback `new_pipeline` per account pre-regola). Non è stato introdotto
-  alcun consenso "positivo" obbligatorio,
-  né alcuna coercizione di un valore sconosciuto a `false`.
-- **Admin (Slice D)** → Pipeline: consenso per contatto con controllo tri-state
-  esplicito (`Non richiesto` rimuove la chiave = ritorno a sconosciuto), più una
-  sintesi persona derivata nella list/card/drawer. Student: consenso tri-state
-  **dentro ogni card email** del drawer (`ContactManager`, `mode='student'`) come
-  unica superficie di editing (nessun toggle nel kebab), persistito dal normale
-  `Salva modifiche`; la list/card mostra una sola pill di triage derivata dalle
-  email correnti (`deriveStudentRecontactSummary`). `Non richiesto` / chiave
+- **Termini/Privacy — nessuna card dedicata, una sola frase secondaria.** Su
+  entrambe le superfici Account (`/public-view/account`,
+  `/student-view/account`), lo stato legale non è più una sezione `Termini e
+  privacy` con righe/icone: è UNA frase discreta in fondo alla pagina, sopra
+  il cross-link al Profilo — `Hai accettato i Termini e condizioni e preso
+  visione dell'Informativa privacy.`, sempre incondizionata (mai `Privacy
+  accettata`: la presa visione non è consenso commerciale). Standalone: la
+  registrazione richiede già entrambe le accettazioni prima di poter creare
+  l'account, quindi la frase non dipende più dalla persistenza prototipo
+  Slice A (registry `RegisteredAccount`/`termsAccepted`/`privacyAcknowledged`
+  — quella lettura è stata rimossa dalla pagina). Student: la vista
+  rappresenta SEMPRE un account self-service già attivo (vedi "Ciclo di vita
+  Student" più sotto), quindi la stessa frase incondizionata, mai letta da
+  `Student`. `Termini e condizioni` resta testo semplice, non cliccabile:
+  nessuna destinazione Termini reale esiste in questo prototipo, nessuna
+  viene inventata (URL di produzione pending). `Informativa privacy` è un
+  link reale verso la privacy policy Sottotesi attualmente nota
+  (`https://www.sottotesi.it/cookie-privacy-policy/`), coerente con i link
+  esterni `sottotesi.it` già usati altrove nel prototipo (landing, report,
+  output-preview).
+- **Consenso commerciale — MODEL B, per contatto (email + telefono).** Vive
+  **solo** su Account (non più Profilo — regola IA canonica, canonical
+  §33.9). **Non esiste una sezione `Comunicazioni commerciali` separata**:
+  ogni consenso vive subito sotto il contatto a cui appartiene (CONTATTO →
+  VALORE → PREFERENZA), dentro `Accesso` (email) e `Recapiti` (telefono).
+  DUE controlli tri-state **indipendenti**, con copy propria:
+  - Email: riga di servizio (`Per accesso, assistenza e comunicazioni di
+    servizio.`) + domanda (`Vuoi ricevere la newsletter Sottotesi?`, Sì/No).
+  - Telefono: riga di servizio (`Per assistenza e comunicazioni di
+    servizio.`) + domanda (`Vuoi ricevere aggiornamenti e offerte Sottotesi
+    su WhatsApp?`, Sì/No).
+  **Interazione — due grammar distinte, non una.** La preferenza (Sì/No, sia
+  email sia WhatsApp) **si autosalva alla selezione**: scrittura immediata,
+  nessun bottone `Salva modifiche` per il consenso. Il numero di telefono
+  resta invece testo libero con salvataggio esplicito — `Salva numero`,
+  visibile solo quando il campo differisce dal valore persistito, mai in
+  autosave: salvarlo non richiede mai una scelta di marketing. Ogni azione
+  riuscita (preferenza email, preferenza WhatsApp, numero di telefono) mostra
+  una conferma transitoria condivisa (`sonner` `toast`, lo stesso meccanismo
+  già usato in Admin) e non lascia mai uno stato `Salvato` fisso nella
+  pagina. **Vincolo numero-non-salvato:** finché il campo telefono differisce
+  dal valore persistito, il controllo Sì/No WhatsApp resta `disabled` — non è
+  possibile impostare la preferenza per un numero non ancora salvato — con
+  una nota inline (`Salva il numero per modificare questa preferenza.`). Dopo
+  il salvataggio, la preferenza WhatsApp si rilegge dalla chiave del NUOVO
+  numero.
+  Nessuna etichetta amministrativa (`Preferenza commerciale`, `Comunicazioni
+  commerciali`), nessun badge di stato, nessun helper aggiuntivo sullo stato
+  sconosciuto — i radio non selezionati e la domanda stessa bastano. Cambiare
+  l'uno non tocca l'altro; consenso non si sposta mai fra contatti (cambio
+  primario, cambio numero, aggiunta/rimozione di un contatto).
+  **Significato in questo prototipo — email: newsletter/promozionale via
+  email; telefono: SOLO WhatsApp promozionale, MAI telefonate commerciali.**
+  Il contatto resta comunque utilizzabile per assistenza/servizio a
+  prescindere da questo consenso (dominio separato, sempre consentito). Un
+  eventuale consenso per chiamate commerciali è una decisione di
+  produzione/legale, non modellata qui — non introdurre una granularità
+  per-canale (WhatsApp vs chiamata) senza tale decisione.
+  - Standalone: entrambe scritte su `standaloneProfile.ts`
+    (`commercial_consents: Record<string, boolean>`, ora chiave-neutro
+    rispetto al contatto — email O telefono — via
+    `readStandaloneContactConsent` / `writeStandaloneContactConsent`, con
+    `readStandaloneCommercialConsent`/`writeStandaloneCommercialConsent`
+    (email) e `readStandalonePhoneConsent`/`writeStandalonePhoneConsent`
+    (telefono) come wrapper sottili). Store Profilo-locale, non Pipeline.
+    Poiché `phone` è un valore singolo (non un array di contatti storici),
+    un numero sostituito legge/scrive una chiave diversa: NON eredita mai il
+    consenso del numero precedente, parte sempre da `Non richiesto`.
+  - Student: email scritta su `contacts.emails[emailPrimaria].marketing_consent`
+    (`boolean | null`) via `updateStudent`, stessi helper `marketingConsent.ts`
+    di sempre (`readStudentEmailConsent`/`withStudentEmailConsent`). Telefono
+    scritto su `contacts.phones[telefonoPrimario].marketing_consent`, stessa
+    semantica, nuovi helper simmetrici `readStudentPhoneConsent`/
+    `withStudentPhoneConsent`. Se non esiste ancora un telefono primario,
+    nessun controllo di consenso telefono è mostrato (mai un consenso
+    fabbricato per un contatto inesistente).
+  - Nessun valore globale di persona in nessuno dei due domini. (L'acquisizione
+    Pipeline/CRM riceve comunque la scelta email in parallelo alla
+    registrazione — dominio separato, vedi sotto.)
+- **Registrazione standalone = scelta obbligatoria, valore opzionale, scope
+  EMAIL.** Il tri-state generale del CRM (chiave assente = mai chiesto, valido
+  per contatti di altri canali di acquisizione o dati CRM legacy) resta
+  **distinto** dall'invariante specifico della registrazione standalone
+  TesiCheck: chi completa la registrazione **deve esprimere** una preferenza
+  esplicita — `Sì` o `No` alla domanda `Vuoi ricevere la newsletter
+  Sottotesi?` — prima di poter creare l'account; il consenso positivo non è
+  mai obbligatorio, **esprimerlo lo è**. La registrazione raccoglie solo
+  un'email (nessun telefono): la domanda non menziona MAI WhatsApp, telefono
+  o un contatto aggiunto in seguito; un telefono aggiunto dopo in Account
+  parte sempre con una propria preferenza separata a `Non richiesto`, mai
+  ereditata da questa scelta. `RegisterForm` (condiviso da
+  `/public/register` e dal checkout in-account) blocca il submit finché non è
+  selezionata un'opzione, riusando lo stesso controllo tri-state
+  (`CommercialConsentField`) di Account. Il risultato è sempre un booleano
+  esplicito, mai `null`, passato a `applyStandaloneRegistrationConsent` dopo
+  la verifica email: scrive `Pipeline.marketing_consents[emailVerificata]`
+  oppure, per uno Student esistente, `contacts.emails[emailVerificata].marketing_consent`
+  — sempre `true`/`false`; in parallelo, `seedStandaloneProfileFromRegistration`
+  scrive la stessa scelta su `standaloneProfile.ts` (chiave email). Di
+  conseguenza l'Account standalone non mostra mai lo stato sconosciuto (radio
+  non selezionati) per l'email dell'account verificato di una registrazione
+  TesiCheck completata; quello stato resta legittimo solo per contatti CRM
+  non originati da questa registrazione (Pipeline/Student pre-esistenti
+  risolti per email, o il fallback `new_pipeline` per account pre-regola) —
+  e resta sempre legittimo per il telefono, che la registrazione non tocca
+  mai. Non è stato introdotto alcun consenso "positivo" obbligatorio, né
+  alcuna coercizione di un valore sconosciuto a `false`.
+- **Admin (Slice D)** → Pipeline: consenso per contatto (email E telefono, già
+  supportato prima di questo workstream) con controllo tri-state esplicito
+  (`Non richiesto` rimuove la chiave = ritorno a sconosciuto), più una sintesi
+  persona derivata nella list/card/drawer. Student: consenso tri-state
+  **dentro ogni card email E ogni card telefono** del drawer (`ContactManager`,
+  `mode='student'`) come unica superficie di editing (nessun toggle nel
+  kebab), persistito dal normale `Salva modifiche`; la list/card mostra una
+  sola pill di triage derivata dalle email E dai telefoni correnti
+  (`deriveStudentRecontactSummary(emails, phones)`). `Non richiesto` / chiave
   assente ≠ `Non consentito`. L'accesso ai servizi dello Student **non** si
   gestisce dal drawer contatti: owner = `TimelineDrawer` (`/coaching/timeline`).
-  Contatti ⇎ accesso ⇎ consenso sono domini separati.
+  Contatti ⇎ accesso ⇎ consenso sono domini separati. Pipeline non ha
+  richiesto alcuna modifica di modello o di architettura del drawer: solo
+  l'estensione Student ha richiesto un cambiamento.
 
 I due modelli di storage (Pipeline `Record<string,boolean>` per-contatto vs
-Student `marketing_consent` per email sul contact record) **non** sono unificati
-in un'unica superficie di editing: condividono solo il vocabolario di
-visualizzazione e il componente `MarketingConsentSelect`. Il legacy globale
-`Student.marketing_consent` è deprecato e non più usato.
+Student `marketing_consent` per contatto sul record email/telefono) **non**
+sono unificati in un'unica superficie di editing: condividono solo il
+vocabolario di visualizzazione e il componente `MarketingConsentSelect`. Il
+legacy globale `Student.marketing_consent` è deprecato e non più usato.
 
 **La produzione possiede**: provenienza (chi ha registrato il consenso e da dove),
 timestamp, versioning del testo legale, audit log immutabile, evidenza legale,
 eventuale double opt-in. Il prototipo non li modella e non dichiara conformità
 legale. Wording finale delle checkbox, base giuridica, titolare del trattamento,
 retention e URL delle policy restano responsabilità di cliente/legale.
+
+## Ciclo di vita self-service Student — assunzione di prototipo
+
+`/student-view/account` (e, per estensione, l'intera vista Student
+autenticata) rappresenta **sempre un account self-service già attivo**. Il
+prototipo non implementa né verifica gli stati intermedi che precedono
+quell'attivazione — li assume già conclusi.
+
+Flusso concettuale di produzione (non implementato qui):
+
+```text
+Admin crea il record Student (operativo, senza login)
+→ invito / attivazione dell'account self-service
+→ l'utente accetta i Termini e condizioni
+→ l'utente prende visione dell'Informativa privacy
+→ l'accesso self-service Student diventa attivo
+```
+
+Da questa assunzione derivano due scelte UI deliberate, nessuna delle quali
+aggiunge campi al dominio `Student` (`LavorazioniContext.tsx`) solo per
+renderle:
+
+- **Stato legale (Student Account)**: nessuna card `Termini e privacy`,
+  nessuna riga per-voce — una sola frase secondaria incondizionata, `Hai
+  accettato i Termini e condizioni e preso visione dell'Informativa
+  privacy.` (mai `Privacy accettata`: la presa visione dell'informativa non
+  è consenso commerciale, vedi "Consenso comunicazioni commerciali" sopra).
+  Mai `Stato non disponibile`. La frase è scritta direttamente nella pagina,
+  non letta da `Student` — non esiste (e non è stato aggiunto) uno stato
+  legale nel dominio Student. `Termini e condizioni` resta testo semplice,
+  non cliccabile (nessuna destinazione reale nel prototipo); `Informativa
+  privacy` è un link reale (`https://www.sottotesi.it/cookie-privacy-policy/`).
+- **Password (Student Account)**: la riga Password mostra `Gestisci
+  password` ed espone un form inline presentazionale (password attuale /
+  nuova / conferma + `Aggiorna password`, validazione locale) — non un
+  avviso di funzionalità mancante. Al successo il form si chiude e appare
+  una conferma transitoria condivisa (`sonner` `toast`), mai uno stato
+  `Password aggiornata.` fisso nella pagina. Nessuna verifica reale, nessuna
+  password salvata, nessun token, nessun hashing: lo stato del form non
+  sopravvive oltre il componente. Deliberatamente **non**
+  instradato sul registry/sessione dell'account standalone TesiCheck
+  (`tesicheckAccountSession.ts`, `tesicheck-registered-accounts-v1`): Student
+  e standalone restano identità separate, sia nel prototipo che come
+  requisito di produzione. Non esisteva un flusso password Student-safe
+  riutilizzabile nel repository; questo è il flusso locale più piccolo che
+  comunica l'esperienza attesa senza inventare infrastruttura di auth.
+
+**La produzione deve fornire**: lo stato legale/account reale dello Student
+(inclusi eventuali stati pendenti/inattivi, se l'onboarding reale li prevede),
+l'infrastruttura di invito/attivazione dell'account self-service, e il
+sistema di autenticazione/gestione password reale per lo Student — nessuno
+dei quali è simulato oltre la UI descritta sopra. Se la produzione ha
+bisogno che questa vista rappresenti anche uno stato "non ancora attivo",
+questo è un gap reale da colmare con dati reali, non un caso per il testo
+hardcoded qui descritto.

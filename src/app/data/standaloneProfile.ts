@@ -60,7 +60,19 @@ export interface StandaloneProfile {
   first_name: string;
   last_name: string;
   phone: string;
-  /** Per-email commercial-communications consent. Key present = explicit choice; absent = never expressed. */
+  /**
+   * Per-CONTACT-DETAIL commercial-communications consent, keyed by the exact
+   * contact string (the account email, or the current `phone` value) —
+   * MODEL B: consent belongs to the individual contact, not to the person.
+   * Key present = explicit choice; absent = never expressed for that contact.
+   * Because `phone` is a single value here (no contact history array), a
+   * changed phone number simply reads/writes a different key: it never
+   * inherits the previous number's consent, and the previous number's key (if
+   * any) is left untouched — same "stale key is inert" behaviour as Pipeline's
+   * `marketing_consents`. Prototype phone semantics: means permission for
+   * promotional WhatsApp communication on that number — NOT commercial phone
+   * calls, which are out of scope of this prototype (production/legal decision).
+   */
   commercial_consents: Record<string, boolean>;
   academic_records: StandaloneAcademicRecord[];
   /**
@@ -86,6 +98,12 @@ export interface PostPaymentAcademicValues {
 
 function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
+}
+
+/** Smallest normalization for a `commercial_consents` map key — works for an
+ * email or a phone value alike (lowercasing a phone is a harmless no-op). */
+function normalizeContactKey(contact: string | null | undefined): string {
+  return (contact ?? '').trim().toLowerCase();
 }
 
 function todayIso(): string {
@@ -182,23 +200,73 @@ export function updateStandaloneProfile(
   return next;
 }
 
-/** Tri-state read of the commercial-communications preference for this email. */
-export function readStandaloneCommercialConsent(email: string | null | undefined): boolean | null {
-  const key = normalizeEmail(email);
-  if (!key) return null;
-  const profile = getStandaloneProfile(key);
-  if (!profile || !Object.prototype.hasOwnProperty.call(profile.commercial_consents, key)) return null;
-  return profile.commercial_consents[key];
+/**
+ * Tri-state read of ONE contact detail's commercial-communications preference
+ * — contact-key-neutral (an email address or a phone number), same pattern as
+ * Pipeline's `readMarketingConsentForContact`. The profile itself is still
+ * resolved by account email (the identity key); `contact` is only the
+ * consent-map key being read, which may be that same email or a phone value.
+ */
+export function readStandaloneContactConsent(
+  accountEmail: string | null | undefined,
+  contact: string | null | undefined,
+): boolean | null {
+  const contactKey = normalizeContactKey(contact);
+  if (!contactKey) return null;
+  const profile = getStandaloneProfile(accountEmail);
+  if (!profile || !Object.prototype.hasOwnProperty.call(profile.commercial_consents, contactKey)) return null;
+  return profile.commercial_consents[contactKey];
 }
 
-/** Explicit write only — the caller decides when a real choice was made. */
-export function writeStandaloneCommercialConsent(email: string | null | undefined, granted: boolean): void {
-  const key = normalizeEmail(email);
-  if (!key) return;
-  updateStandaloneProfile(key, (profile) => ({
+/** Explicit write only — the caller decides when a real choice was made. Only
+ * ever touches the ONE contact key being written; every other key is left
+ * untouched. */
+export function writeStandaloneContactConsent(
+  accountEmail: string | null | undefined,
+  contact: string | null | undefined,
+  granted: boolean,
+): void {
+  const contactKey = normalizeContactKey(contact);
+  if (!contactKey) return;
+  updateStandaloneProfile(accountEmail, (profile) => ({
     ...profile,
-    commercial_consents: { ...profile.commercial_consents, [key]: granted },
+    commercial_consents: { ...profile.commercial_consents, [contactKey]: granted },
   }));
+}
+
+/** Tri-state read of the commercial-communications preference for the account
+ * email itself. Thin wrapper over `readStandaloneContactConsent`. */
+export function readStandaloneCommercialConsent(email: string | null | undefined): boolean | null {
+  return readStandaloneContactConsent(email, email);
+}
+
+/** Explicit write of the account email's own consent. Thin wrapper over
+ * `writeStandaloneContactConsent`. */
+export function writeStandaloneCommercialConsent(email: string | null | undefined, granted: boolean): void {
+  writeStandaloneContactConsent(email, email, granted);
+}
+
+/**
+ * Tri-state read of the CURRENT phone's commercial-communications preference.
+ * `accountEmail` resolves the profile; `phone` is the contact key. Returns
+ * `null` (Non richiesto) whenever there is no phone yet, or no explicit choice
+ * has been made for the current phone value.
+ */
+export function readStandalonePhoneConsent(
+  accountEmail: string | null | undefined,
+  phone: string | null | undefined,
+): boolean | null {
+  return readStandaloneContactConsent(accountEmail, phone);
+}
+
+/** Explicit write of the CURRENT phone's consent. Never touches the email's
+ * consent entry or any other key. */
+export function writeStandalonePhoneConsent(
+  accountEmail: string | null | undefined,
+  phone: string | null | undefined,
+  granted: boolean,
+): void {
+  writeStandaloneContactConsent(accountEmail, phone, granted);
 }
 
 /**
