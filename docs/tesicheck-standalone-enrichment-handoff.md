@@ -2079,3 +2079,71 @@ with the email left unchanged, retry with the same previously-cancelled
 candidate email succeeding normally, the new email appearing immediately
 with `Email aggiornata`, and the newsletter question rendering unselected
 for the new address) — zero console errors observed.
+
+## 23. `Modifica email` follow-up — Step 0 "Conferma la tua identità"
+
+**Problem.** §22 shipped a verified two-step email-change flow, but changing
+the login identity is a sensitive action with no re-authentication gate at
+all — anyone with the page open could start the flow straight into typing a
+new address.
+
+**Fix.** `ChangeEmailModal.tsx`'s step type becomes `'reauth' | 'edit' |
+'verify'` (was `'edit' | 'verify'`), and `reauth` is now the modal's default
+opening step (the `isOpen` reset effect resets to `'reauth'`, not `'edit'`).
+New local state: `password` / `passwordError`, reset on every reopen exactly
+like the other per-step fields.
+
+- **Step 0 — `Conferma la tua identità`.** Body:
+  `Per modificare l'indirizzo di accesso, inserisci la tua password.` Field:
+  `Password attuale` (`TextField` `type="password"`, `autoComplete=
+  "current-password"`, same component already used for `Nuova email`).
+  Actions `Annulla` / `Continua`. `handleConfirmIdentity`: empty (trimmed)
+  password → inline error `Inserisci la password attuale.`, stays on the
+  step; any non-empty password → `setStep('edit')`. **Deliberately NOT a
+  real credential check** — it does not call `findRegisteredAccount` or
+  compare against the standalone registry's plaintext password (which is
+  technically available on the Public page), and Student gets the exact
+  same rule despite having no password/registry concept at all. Same UX on
+  both roles was the explicit point: inventing different "real" validation
+  per role would have been exactly the kind of asymmetry this step exists
+  to avoid.
+- **Close/cancel.** `reauth`'s X / `Annulla` close immediately, same as
+  `edit` — no confirmation, since a password that's never persisted or
+  checked against anything real has nothing to silently lose. Only `verify`
+  keeps the §22 close-confirm gate; `Annulla modifica` there discards the
+  whole flow INCLUDING the completed re-auth step — restarting needs the
+  password step again. `Indietro` still only moves `verify` → `edit`, never
+  back to `reauth`.
+- **Everything from `edit` onward is byte-for-byte the same as §22**: new
+  email validation, `isEmailTaken`, the verification rule, the mutation
+  boundary (`onVerified` fires only on a well-formed 6-digit code),
+  candidate-email retry semantics, consent reset, Profile/Student data
+  preservation, and the §topbar-sync fix (`subscribeToAccountSession`) are
+  all unchanged — this slice only added a step BEFORE the existing flow.
+
+**Scope protection.** Only `ChangeEmailModal.tsx` changed code-wise; neither
+Account page (`PublicAccountPage.tsx`, `student/AccountPage.tsx`) needed any
+change, since both already just render `<ChangeEmailModal isOpen={...} ...
+onVerified={...} />` — the new step is entirely internal to the modal.
+
+**Production handoff (documented, not built).** The prototype's Step 0
+communicates ONLY that account-email replacement requires
+re-authentication — it does not prescribe HOW. Production may implement
+current-password verification, recent-session re-authentication, MFA, or
+another auth-provider mechanism; none of that (password storage, MFA rules,
+session-age thresholds, provider APIs) is modelled or implied here. See
+`production-handoff.md` → "Modifica email" for the full note.
+
+### 23.1 Files changed
+
+| File | Change |
+| --- | --- |
+| `src/app/components/account/ChangeEmailModal.tsx` | New `reauth` step (first, before `edit`), `password`/`passwordError` state, `handleConfirmIdentity`, header/body/field/footer branches for the new step, updated module doc comment. |
+| `docs/production-handoff.md` | "Modifica email" section rewritten for three steps; explicit production note on re-authentication ownership. |
+| `docs/views/public.md`, `docs/views/student.md` | `Modifica email` bullets updated to describe the three-step flow. |
+
+### 23.2 Verification
+
+`npm run build` passes; `git diff --check` clean (only the same pre-existing
+LF→CRLF advisory pattern); `npx tsc --noEmit` at the **42-error baseline**,
+unchanged, zero new errors in the touched file.

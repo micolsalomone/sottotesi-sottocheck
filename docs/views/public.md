@@ -51,16 +51,20 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
     consenso commerciale si modificano — nessun controllo duplicato sul
     Profilo.
   - **`Modifica email`.** La riga `Email account` porta ora un'azione
-    `Modifica email` che apre un modale condiviso a due step (nuova email →
-    verifica, stessa regola prototipale della verifica di registrazione —
-    un codice a 6 cifre qualsiasi è sufficiente, nessun codice demo, nessuna
+    `Modifica email` che apre un modale condiviso a tre step: `Conferma la
+    tua identità` (password attuale — qualunque valore non vuoto basta nel
+    prototipo, nessun controllo di credenziali reale) → nuova email →
+    verifica (stessa regola prototipale della verifica di registrazione — un
+    codice a 6 cifre qualsiasi è sufficiente, nessun codice demo, nessuna
     nota per sviluppatori in UI). La sostituzione è confermata solo al
-    successo della verifica; annullare prima (Step 1 immediato, Step 2 con
-    un piccolo dialogo di conferma impilato) lascia l'account invariato. Al
-    successo: nuovo indirizzo mostrato subito, toast `Email aggiornata`,
-    nessun redirect — e la preferenza newsletter del nuovo indirizzo parte
-    sempre non espressa (mai ereditata dal vecchio indirizzo). Vedi
-    `production-handoff.md` → "Modifica email" per il dettaglio completo.
+    successo della verifica; annullare prima (Step 0/Step 1 immediato, Step
+    2 con un piccolo dialogo di conferma impilato che scarta anche lo Step 0)
+    lascia l'account invariato. Al successo: nuovo indirizzo mostrato subito,
+    toast `Email aggiornata`, nessun redirect — e la preferenza newsletter
+    del nuovo indirizzo parte sempre non espressa (mai ereditata dal vecchio
+    indirizzo). Vedi `production-handoff.md` → "Modifica email" per il
+    dettaglio completo, incluso cosa la produzione deve fornire per la
+    ri-autenticazione reale.
   - **Interazione: due grammar distinte, nessuno stato "Salvato" permanente.**
     La preferenza commerciale (Sì/No, sia email sia WhatsApp) **si autosalva
     alla selezione**: scrive subito, nessun bottone `Salva modifiche` esiste

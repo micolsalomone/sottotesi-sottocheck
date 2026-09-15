@@ -4,7 +4,7 @@ import { SottocheckActionButton } from '@/app/components/SottocheckActionButton'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input-otp';
 import { EMAIL_PATTERN, TextField } from '@/pages/public/standaloneAuthForms';
 
-type ChangeEmailModalStep = 'edit' | 'verify';
+type ChangeEmailModalStep = 'reauth' | 'edit' | 'verify';
 
 interface ChangeEmailModalProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ interface ChangeEmailModalProps {
 }
 
 /**
- * Shared two-step "Modifica email" modal, used by both the Public and
+ * Shared three-step "Modifica email" modal, used by both the Public and
  * Student Account pages (each supplies its own `isEmailTaken` / `onVerified`
  * for its own persistence domain). Modelled on the existing bespoke
  * fixed-overlay modal shell (`StandaloneProfileCompletionModal`) and the
@@ -40,37 +40,53 @@ interface ChangeEmailModalProps {
  * error only) and its `InputOTP` field. No new visual language, no new
  * verification convention, no demo-code hint anywhere in the UI.
  *
+ * Flow: `reauth` (confirm identity) → `edit` (new email) → `verify` (6-digit
+ * code) → confirmed replacement. `reauth` is a NEW first step: changing the
+ * login identity is sensitive, so the prototype asks for the CURRENT
+ * password before even letting the user type a new email — same intent on
+ * both Public and Student, never coupled to the standalone account registry
+ * or any real credential store (see the `reauth` step's own note below).
+ * Everything from `edit` onward is unchanged from the previous two-step
+ * version.
+ *
  * **Verification is the ONLY mutation boundary.** Nothing is written
  * anywhere — no session, registry, Profile or Student write, no reserved /
  * pending email — until `onVerified` fires on a well-formed code. Every
  * close path before that is a pure local-state reset:
- *  - Step 1 (`Annulla` or X): closes immediately, no confirmation — nothing
- *    entered here is at risk of looking silently lost.
- *  - Step 2 (X or the overlay): the user has gone further, so closing asks
+ *  - `reauth` and `edit` (`Annulla` or X): close immediately, no
+ *    confirmation — nothing entered on either step is at risk of looking
+ *    silently lost (a password is never persisted or checked against
+ *    anything real; a draft email is still right there to re-type).
+ *  - `verify` (X or the overlay): the user has gone further, so closing asks
  *    first via a small inline confirm (`Annullare la modifica dell'email?`).
  *    `Continua modifica` just dismisses it; `Annulla modifica` discards the
- *    whole flow. `Indietro` is NOT a close — it stays inside the flow
- *    (Step 2 → Step 1), so it never asks.
+ *    whole flow, including the re-auth step — starting over needs the
+ *    password step again. `Indietro` is NOT a close — it stays inside the
+ *    flow (`verify` → `edit`), so it never asks.
  * A cancelled attempt reserves nothing: retrying with the very same
  * candidate email afterwards re-runs `isEmailTaken` / the "must differ"
  * check exactly as a first attempt would (there is no attempt history to
  * consult — the component holds no state once closed).
  */
 export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, onVerified }: ChangeEmailModalProps) {
-  const [step, setStep] = useState<ChangeEmailModalStep>('edit');
+  const [step, setStep] = useState<ChangeEmailModalStep>('reauth');
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
-  // Only asked on Step 2 — the user has already entered a new address, so a
-  // bare X there could look like it silently discards progress. Step 1's X /
-  // Annulla stay immediate: nothing has been entered that isn't still on
-  // screen to just re-type.
+  // Only asked on the `verify` step — the user has already entered a new
+  // address, so a bare X there could look like it silently discards
+  // progress. `reauth` and `edit`'s X / Annulla stay immediate: nothing
+  // entered on either is at risk of looking silently lost.
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setStep('edit');
+    setStep('reauth');
+    setPassword('');
+    setPasswordError(null);
     setNewEmail('');
     setEmailError(null);
     setCode('');
@@ -80,11 +96,12 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
 
   if (!isOpen) return null;
 
-  // The X / overlay-click "close" gesture: immediate on Step 1 (nothing is
-  // at risk of looking silently lost), gated behind a lightweight confirm on
-  // Step 2. Either way NOTHING has been persisted yet — verification is the
-  // only mutation boundary (see `onVerified`) — so both paths are pure local
-  // state resets, never a partial account/session/CRM write.
+  // The X / overlay-click "close" gesture: immediate on `reauth` and `edit`
+  // (nothing is at risk of looking silently lost), gated behind a
+  // lightweight confirm on `verify`. Either way NOTHING has been persisted
+  // yet — verification is the only mutation boundary (see `onVerified`) —
+  // so both paths are pure local state resets, never a partial
+  // account/session/CRM write.
   const handleAttemptClose = () => {
     if (step === 'verify') {
       setShowCloseConfirm(true);
@@ -96,6 +113,23 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
   const handleConfirmCloseDiscard = () => {
     setShowCloseConfirm(false);
     onClose();
+  };
+
+  // Prototype-only "confirm identity" gate — communicates that changing the
+  // login identity is sensitive, NOT a real credential check. A non-empty
+  // password is sufficient on both Public and Student: this deliberately
+  // does NOT validate against the standalone registry's plaintext password
+  // (or anything Student-side) — production picks its own real
+  // re-authentication mechanism (current password, recent-session check,
+  // MFA, or another auth-provider flow); this step only exists to signal
+  // that a real one is required before the email can change.
+  const handleConfirmIdentity = () => {
+    if (!password.trim()) {
+      setPasswordError('Inserisci la password attuale.');
+      return;
+    }
+    setPasswordError(null);
+    setStep('edit');
   };
 
   const handleContinue = () => {
@@ -159,7 +193,11 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
                 color: 'var(--foreground)',
               }}
             >
-              {step === 'edit' ? 'Modifica email' : 'Verifica la nuova email'}
+              {step === 'reauth'
+                ? 'Conferma la tua identità'
+                : step === 'edit'
+                  ? 'Modifica email'
+                  : 'Verifica la nuova email'}
             </h2>
             <button
               onClick={handleAttemptClose}
@@ -174,7 +212,9 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
             className="mt-2"
             style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--muted-foreground)' }}
           >
-            {step === 'edit' ? (
+            {step === 'reauth' ? (
+              "Per modificare l'indirizzo di accesso, inserisci la tua password."
+            ) : step === 'edit' ? (
               'La nuova email diventerà il tuo indirizzo di accesso.'
             ) : (
               <>
@@ -189,7 +229,17 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
         </div>
 
         <div className="overflow-y-auto p-6">
-          {step === 'edit' ? (
+          {step === 'reauth' ? (
+            <TextField
+              id="change-email-current-password"
+              label="Password attuale"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+              error={passwordError ?? undefined}
+            />
+          ) : step === 'edit' ? (
             <TextField
               id="change-email-new-email"
               label="Nuova email"
@@ -238,7 +288,16 @@ export function ChangeEmailModal({ isOpen, currentEmail, onClose, isEmailTaken, 
           className="border-t p-6 flex items-center justify-end gap-3"
           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}
         >
-          {step === 'edit' ? (
+          {step === 'reauth' ? (
+            <>
+              <SottocheckActionButton variant="secondary" onClick={onClose}>
+                Annulla
+              </SottocheckActionButton>
+              <SottocheckActionButton variant="primary" onClick={handleConfirmIdentity}>
+                Continua
+              </SottocheckActionButton>
+            </>
+          ) : step === 'edit' ? (
             <>
               <SottocheckActionButton variant="secondary" onClick={onClose}>
                 Annulla

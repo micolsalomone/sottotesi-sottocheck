@@ -171,14 +171,17 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   consenso vive subito sotto il contatto a cui appartiene.
 - **`Modifica email`.** La riga `Email` porta un'azione `Modifica email`
   (visibile solo quando esiste già un'email primaria) che apre lo STESSO
-  modale condiviso a due step della vista Public (nuova email → verifica,
-  qualunque codice a 6 cifre ben formato). Sostituisce **solo** il valore
-  dell'email primaria in `contacts.emails[]` (`is_primary`, `purposes`,
-  `source`/`added_at`, ogni altro contatto invariati); il `marketing_consent`
-  di quella voce si azzera nella stessa scrittura — mai ereditato dal vecchio
-  indirizzo. Nessun registry Student di email "già registrate" esiste, quindi
-  nessun controllo di collisione è offerto (a differenza della vista Public).
-  Vedi `production-handoff.md` → "Modifica email".
+  modale condiviso a tre step della vista Public: `Conferma la tua
+  identità` (password attuale, qualunque valore non vuoto — nessun
+  controllo reale, mai accoppiato a un registry Student che non esiste) →
+  nuova email → verifica (qualunque codice a 6 cifre ben formato).
+  Sostituisce **solo** il valore dell'email primaria in `contacts.emails[]`
+  (`is_primary`, `purposes`, `source`/`added_at`, ogni altro contatto
+  invariati); il `marketing_consent` di quella voce si azzera nella stessa
+  scrittura — mai ereditato dal vecchio indirizzo. Nessun registry Student di
+  email "già registrate" esiste, quindi nessun controllo di collisione è
+  offerto (a differenza della vista Public). Vedi `production-handoff.md` →
+  "Modifica email".
 - **Assunzione di ciclo di vita: questa vista rappresenta SEMPRE un account
   self-service già attivo.** Flusso concettuale di produzione (non
   implementato nel prototipo): Admin crea il record Student (operativo,

@@ -318,35 +318,57 @@ sostituzione silenziosa inline: l'email è sia identità di accesso sia contatto
 di servizio, quindi cambiarla richiede lo stesso rigore di un cambio identità,
 non la stessa semantica di un campo di testo qualunque.
 
-- **Modale condiviso a due step** (`ChangeEmailModal.tsx`, nuovo), stesso
-  guscio prototipale già in uso (`StandaloneProfileCompletionModal`), nessun
-  nuovo linguaggio visivo. Step 1: nuova email (validazione: non vuota,
-  formato valido, diversa dall'attuale, più un controllo di collisione
-  economico dove disponibile — solo standalone, via il registry
-  `tesicheck-registered-accounts-v1`; lo Student non ha un registry
-  equivalente, quindi nessun controllo di unicità è offerto lì). Step 2:
-  verifica — **stessa regola prototipale della verifica di registrazione
-  esistente** (`VerifyEmailForm`): un codice a 6 cifre qualsiasi, ben
-  formato, è sufficiente; nessun codice "corretto" nascosto, nessun
-  suggerimento/nota per sviluppatori visibile nella UI (una bozza iniziale
-  introduceva un codice demo `123456` con una nota inline — rimossi in
-  revisione per allinearsi esattamente alla convenzione di registrazione:
+- **Modale condiviso a tre step** (`ChangeEmailModal.tsx`), stesso guscio
+  prototipale già in uso (`StandaloneProfileCompletionModal`), nessun nuovo
+  linguaggio visivo. **Step 0 — `Conferma la tua identità`** (nuovo): chiede
+  la password attuale prima di lasciar digitare una nuova email — comunica
+  che cambiare l'identità di accesso è un'azione sensibile, la STESSA UX su
+  Public e Student, mai accoppiata al registry standalone
+  `tesicheck-registered-accounts-v1` né a un equivalente Student (che non
+  esiste); nel prototipo qualunque password non vuota fa proseguire
+  (`Inserisci la password attuale.` se vuota, resta sullo step) — **non è
+  un controllo di credenziali reale**, vedi sotto. Step 1: nuova email
+  (validazione: non vuota, formato valido, diversa dall'attuale, più un
+  controllo di collisione economico dove disponibile — solo standalone, via
+  il registry `tesicheck-registered-accounts-v1`; lo Student non ha un
+  registry equivalente, quindi nessun controllo di unicità è offerto lì).
+  Step 2: verifica — **stessa regola prototipale della verifica di
+  registrazione esistente** (`VerifyEmailForm`): un codice a 6 cifre
+  qualsiasi, ben formato, è sufficiente; nessun codice "corretto" nascosto,
+  nessun suggerimento/nota per sviluppatori visibile nella UI (una bozza
+  iniziale introduceva un codice demo `123456` con una nota inline — rimossi
+  in revisione per allinearsi esattamente alla convenzione di registrazione:
   una superficie rivolta all'utente non deve mostrare copy da sviluppatore).
-- **La verifica è l'UNICO punto di mutazione.** Nessuna scrittura — sessione,
-  registry, Profilo standalone, contatto Student, o una qualsiasi forma di
-  "email in sospeso" — avviene prima che il codice passi il controllo di
-  formato. Annullare prima della verifica (Step 1: X/Annulla, chiusura
-  immediata, nessuna conferma) lascia l'account invariato. Allo Step 2,
-  l'utente ha già proceduto oltre, quindi chiudere (X o click
-  sull'overlay) chiede prima conferma con un piccolo dialogo impilato
-  (`Annullare la modifica dell'email?` / `La nuova email non verrà
-  salvata.`, azioni `Continua modifica` / `Annulla modifica`);
-  `Indietro` resta un passo indietro nel flusso, non una chiusura, e non
-  chiede mai conferma. In ogni caso nessuna email "in sospeso" viene mai
-  persistita: annullare allo Step 2 non riserva l'indirizzo tentato — un
-  nuovo tentativo con lo stesso indirizzo successivamente ripete
-  semplicemente la normale validazione/controllo di collisione, come se
-  fosse il primo tentativo.
+- **La verifica resta l'UNICO punto di mutazione**, invariato dall'aggiunta
+  dello Step 0. Nessuna scrittura — sessione, registry, Profilo standalone,
+  contatto Student, o una qualsiasi forma di "email in sospeso" — avviene
+  prima che il codice passi il controllo di formato. Annullare prima della
+  verifica (Step 0 o Step 1: X/Annulla, chiusura immediata, nessuna
+  conferma — la password digitata allo Step 0 non è mai persistita né
+  controllata contro nulla di reale, quindi non c'è nulla da perdere
+  silenziosamente) lascia l'account invariato. Allo Step 2, l'utente ha già
+  proceduto oltre, quindi chiudere (X o click sull'overlay) chiede prima
+  conferma con un piccolo dialogo impilato (`Annullare la modifica
+  dell'email?` / `La nuova email non verrà salvata.`, azioni `Continua
+  modifica` / `Annulla modifica`) — `Annulla modifica` scarta l'intero
+  flusso, Step 0 incluso: ricominciare richiede di nuovo la password.
+  `Indietro` resta un passo indietro nel flusso (solo Step 2 → Step 1, non
+  torna allo Step 0), non una chiusura, e non chiede mai conferma. In ogni
+  caso nessuna email "in sospeso" viene mai persistita: annullare allo Step
+  2 non riserva l'indirizzo tentato — un nuovo tentativo con lo stesso
+  indirizzo successivamente ripete semplicemente la normale
+  validazione/controllo di collisione, come se fosse il primo tentativo.
+- **Step 0 — nota di produzione esplicita.** Questo step comunica SOLO che
+  una sostituzione dell'identità di accesso richiede ri-autenticazione prima
+  di procedere — non prescrive COME: la produzione può implementarla con
+  password attuale, ri-autenticazione basata su recency della sessione, MFA,
+  o un altro meccanismo del proprio auth-provider. Il prototipo non
+  implementa e non dichiara nessuna di queste scelte (storage password, regole
+  MFA, soglie di età sessione, API di un provider) — chiede deliberatamente
+  la STESSA UX su Public e Student, senza validare la password contro il
+  registry standalone (che pure esiste ed è tecnicamente ispezionabile) né
+  inventare un equivalente Student: farlo avrebbe implicato semantiche di
+  validazione diverse tra i due ruoli, che questo step evita apposta.
 - **Al successo**: il modale si chiude, la pagina Account mostra
   immediatamente il nuovo indirizzo, appare la conferma transitoria condivisa
   (`Email aggiornata`, stesso meccanismo `sonner` `toast` già in uso), si
@@ -373,7 +395,9 @@ non la stessa semantica di un campo di testo qualunque.
     azzerato (tornando a non espresso) nella stessa scrittura. Nessun
     consenso globale Student è stato introdotto; nessuna infrastruttura di
     autenticazione è stata aggiunta al modello Student.
-- **Fuori scope, deliberatamente non costruito**: ri-autenticazione reale,
+- **Fuori scope, deliberatamente non costruito**: ri-autenticazione reale
+  (lo Step 0 comunica solo il requisito, vedi sopra — nessuno storage
+  password, nessuna regola MFA, nessuna soglia di sessione è implementata),
   invio email reale, gestione conflitti di unicità lato produzione,
   scadenza/reinvio del codice, rate limiting, token di sicurezza,
   invalidazione sessione lato produzione, persistenza di un'email "in
