@@ -32,6 +32,21 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
 - Mostra: data inizio, step completati, step corrente (evidenziato), prossimo step, data fine prevista
 - Step passati e futuri possono essere collassati
 
+### Sidebar Timeline — Dati accademici e Contatti del coach
+
+- `Dati accademici`: proiezione read-only del record accademico **corrente** dello
+  Student (`Livello di laurea`, `Corso di laurea`, `Università`, `Tipologia`,
+  `Professore`, `Materia`, `Argomento`) — stesso vocabolario canonico di Profilo e
+  Admin. Nessuna modifica da Timeline; l'editing resta su `/student-view/profilo`
+  e su Admin.
+- `Contatti del coach`: nome e contatti primari operativi del Coach assegnato al
+  servizio (telefono/WhatsApp, email) — non i contatti dello Student stesso.
+  Contratto dati: Student/servizio autenticato → Coach assegnato dal dominio
+  esistente → contatto primario operativo del Coach dal dominio Coach/contatti
+  reale → Timeline lo mostra in sola lettura. Nessun contatto secondario del
+  Coach, nessuna disponibilità/payout/area tematica: quei dati restano
+  esclusivamente Admin-managed.
+
 ## Azioni per step
 
 - Upload documento (drawer solo per selezione file)

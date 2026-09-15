@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { ChevronRight, Folder, User, Upload, Pencil, Check, X, Phone, MessageCircle, Mail, Copy } from 'lucide-react';
+import { ChevronRight, Folder, User, Upload, Check, X, Phone, MessageCircle, Mail, Copy } from 'lucide-react';
 import { AssignStepModal, StepOption } from './coach/AssignStepModal';
 
 /* ─── Info Coaching Card ─── */
@@ -11,15 +11,22 @@ interface InfoCoachingCardProps {
   thesisLevel: string;
   thesisType: string;
   supervisor: string;
-  studentPhone?: string;
-  studentEmail?: string;
+  university?: string;
   // Kept in props for future use, not displayed here
   startDate?: string;
   endDate?: string;
   referent?: string;
-  onSaveThesisSubject?: (newSubject: string) => void;
 }
 
+// Read-only projection of the CURRENT academic record only (Profile/Admin/CRM
+// remain authoritative). Editing lives on the Profile page — this card must
+// never become a second editor, and never shows contacts (see ContactCard
+// below for the role-specific contact cards). Labels mirror the canonical
+// academic-record vocabulary used by Student Profile and Admin (see
+// src/app/components/profile/AcademicRecordsSection.tsx): Livello di laurea
+// (degree_level), Corso di laurea (course_name), Università (university_name),
+// Tipologia (thesis_type), Professore (thesis_professor), Materia
+// (thesis_subject), Argomento (thesis_topic).
 export function InfoCoachingCard({
   thesisSubject,
   thesisMatter,
@@ -27,28 +34,8 @@ export function InfoCoachingCard({
   thesisLevel,
   thesisType,
   supervisor,
-  studentPhone,
-  studentEmail,
-  onSaveThesisSubject,
+  university,
 }: InfoCoachingCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(thesisSubject);
-
-  function handleStartEdit() {
-    setDraft(thesisSubject);
-    setIsEditing(true);
-  }
-
-  function handleSave() {
-    onSaveThesisSubject?.(draft);
-    setIsEditing(false);
-  }
-
-  function handleCancel() {
-    setDraft(thesisSubject);
-    setIsEditing(false);
-  }
-
   return (
     <div
       className="bg-[var(--card)] border border-[var(--border)] relative"
@@ -57,182 +44,102 @@ export function InfoCoachingCard({
       {/* Header row */}
       <div className="flex items-center justify-between mb-0">
         <p
-          className="text-[var(--foreground)]"
+          className="uppercase tracking-wider text-[var(--muted-foreground)]"
           style={{
             fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-h4)',
+            fontSize: 'var(--text-xs)',
             fontWeight: 'var(--font-weight-medium)',
-            lineHeight: '27px',
-            letterSpacing: '-0.44px',
           }}
         >
-          Info coaching
+          Dati accademici
         </p>
-        {onSaveThesisSubject && !isEditing && (
-          <button
-            onClick={handleStartEdit}
-            className="shrink-0 flex items-center justify-center border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 'var(--radius)',
-            }}
-            title="Modifica oggetto tesi"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-        )}
       </div>
 
-      {/* Oggetto tesi */}
-      <div className="mt-[24px]">
-        <p
-          className="text-[var(--muted-foreground)] mb-[6px]"
-          style={{
-            fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
-            fontWeight: 'var(--font-weight-medium)',
-            lineHeight: '18px',
-            letterSpacing: '0.6px',
-            textTransform: 'uppercase',
-          }}
-        >
-          Oggetto tesi
-        </p>
-        {isEditing ? (
-          <div className="flex flex-col gap-[8px]">
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
-              rows={3}
-              className="w-full bg-[var(--input-background)] border border-[var(--border)] text-[var(--foreground)] px-[12px] py-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-[var(--ring)]"
-              style={{
-                fontFamily: 'var(--font-alegreya)',
-                fontSize: '18px',
-                fontWeight: 'var(--font-weight-medium)',
-                lineHeight: '26px',
-                borderRadius: 'var(--radius)',
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSave();
-                }
-                if (e.key === 'Escape') {
-                  handleCancel();
-                }
-              }}
-            />
-            <div className="flex gap-[6px] justify-end">
-              <button
-                onClick={handleCancel}
-                className="shrink-0 px-[12px] py-[6px] border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors flex items-center gap-[6px]"
-                style={{
-                  borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-medium)',
-                }}
-              >
-                <X className="w-3.5 h-3.5" />
-                Annulla
-              </button>
-              <button
-                onClick={handleSave}
-                className="shrink-0 px-[12px] py-[6px] bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition-opacity flex items-center gap-[6px]"
-                style={{
-                  borderRadius: 'var(--radius)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-medium)',
-                }}
-              >
-                <Check className="w-3.5 h-3.5" />
-                Salva
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p
-            className="text-[var(--foreground)]"
-            style={{
-              fontFamily: 'var(--font-alegreya)',
-              fontSize: '18px',
-              fontWeight: 'var(--font-weight-medium)',
-              lineHeight: '26px',
-            }}
-          >
-            {thesisSubject || (
-              <span
-                className="text-[var(--muted-foreground)] italic"
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-medium)',
-                  lineHeight: '20px',
-                  letterSpacing: '-0.14px',
-                }}
-              >
-                Nessun oggetto tesi definito
-              </span>
-            )}
-          </p>
-        )}
-      </div>
-
-      {/* Info grid - 2 columns */}
+      {/* Academic record — canonical vocabulary, current record only */}
       <div
         className="grid grid-cols-2 mt-[24px]"
         style={{ gap: '24px' }}
       >
+        <InfoField label="Livello di laurea" value={thesisLevel} />
         <InfoField label="Corso di laurea" value={degree} />
-        <InfoField label="Materia di tesi" value={thesisMatter || '(mancante)'} isMissing={!thesisMatter} />
-        <InfoField label="Livello tesi" value={thesisLevel} />
-        <InfoField label="Tipologia tesi" value={thesisType} />
-        <InfoField
-          label="Relatore"
-          value={supervisor}
-          isMissing={!supervisor || supervisor === '(mancante)'}
-        />
+        <InfoField label="Università" value={university || 'Non specificato'} />
+        <InfoField label="Tipologia" value={thesisType} />
+        <InfoField label="Professore" value={supervisor || 'Non assegnato'} />
+        <InfoField label="Materia" value={thesisMatter || 'Non specificato'} />
+        <div className="col-span-2">
+          <InfoField label="Argomento" value={thesisSubject || 'Non specificato'} />
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Contatti studente */}
-      {(studentPhone || studentEmail) && (
-        <div className="mt-[24px] pt-[8px]">
-          <p
-            className="text-[var(--muted-foreground)] mb-[10px]"
-            style={{
-              fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
-              fontWeight: 'var(--font-weight-medium)',
-              lineHeight: '18px',
-              letterSpacing: '0.6px',
-              textTransform: 'uppercase',
-            }}
-          >
-            Contatti studente
-          </p>
-          <div className="flex flex-col gap-[12px]">
-            {studentPhone && (
-              <ContactRow
-                value={studentPhone}
-                actions={[
-                  { icon: <Phone className="w-[14px] h-[14px]" />, label: 'Chiama', href: `tel:${studentPhone}` },
-                  { icon: <MessageCircle className="w-[14px] h-[14px]" />, label: 'SMS', href: `sms:${studentPhone}` },
-                  { icon: <WhatsAppIcon />, label: 'WhatsApp', href: `https://wa.me/${studentPhone.replace(/\s+/g, '').replace('+', '')}` },
-                ]}
-              />
-            )}
-            {studentEmail && (
-              <ContactRow
-                value={studentEmail}
-                actions={[
-                  { icon: <Mail className="w-[14px] h-[14px]" />, label: 'Invia email', href: `mailto:${studentEmail}` },
-                ]}
-              />
-            )}
-          </div>
+/* ─── Contact Card ───────────────────────────────────────────
+ * Read-only presentation of a single party's primary contacts.
+ * Student Timeline uses it for the assigned coach's contacts;
+ * Coach Timeline uses it for the student's contacts. Each Timeline
+ * page passes only the primary phone/email it has already resolved —
+ * this component owns no contact data itself. */
+interface ContactCardProps {
+  title: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+}
+
+export function ContactCard({ title, name, phone, email }: ContactCardProps) {
+  if (!name && !phone && !email) return null;
+
+  return (
+    <div
+      className="bg-[var(--card)] border border-[var(--border)] relative"
+      style={{ borderRadius: 'var(--radius)', padding: '17px' }}
+    >
+      <p
+        className="uppercase tracking-wider text-[var(--muted-foreground)]"
+        style={{
+          fontFamily: 'var(--font-inter)',
+          fontSize: 'var(--text-xs)',
+          fontWeight: 'var(--font-weight-medium)',
+        }}
+      >
+        {title}
+      </p>
+
+      {name && (
+        <p
+          className="text-[var(--foreground)] mt-[16px]"
+          style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-label)',
+            fontWeight: 'var(--font-weight-medium)',
+            lineHeight: '20px',
+          }}
+        >
+          {name}
+        </p>
+      )}
+
+      {(phone || email) && (
+        <div className={`flex flex-col gap-[12px] ${name ? 'mt-[12px]' : 'mt-[16px]'}`}>
+          {phone && (
+            <ContactRow
+              value={phone}
+              actions={[
+                { icon: <Phone className="w-[14px] h-[14px]" />, label: 'Chiama', href: `tel:${phone}` },
+                { icon: <MessageCircle className="w-[14px] h-[14px]" />, label: 'SMS', href: `sms:${phone}` },
+                { icon: <WhatsAppIcon />, label: 'WhatsApp', href: `https://wa.me/${phone.replace(/\s+/g, '').replace('+', '')}` },
+              ]}
+            />
+          )}
+          {email && (
+            <ContactRow
+              value={email}
+              actions={[
+                { icon: <Mail className="w-[14px] h-[14px]" />, label: 'Invia email', href: `mailto:${email}` },
+              ]}
+            />
+          )}
         </div>
       )}
     </div>
@@ -242,11 +149,9 @@ export function InfoCoachingCard({
 function InfoField({
   label,
   value,
-  isMissing,
 }: {
   label: string;
   value: string;
-  isMissing?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-px">
@@ -268,10 +173,10 @@ function InfoField({
           fontWeight: 'var(--font-weight-medium)',
           lineHeight: '20px',
           letterSpacing: '-0.14px',
-          color: isMissing ? 'var(--destructive)' : 'var(--foreground)',
+          color: 'var(--foreground)',
         }}
       >
-        {isMissing ? '(mancante)' : value}
+        {value}
       </p>
     </div>
   );
@@ -318,7 +223,7 @@ function ContactRow({ value, actions }: { value: string; actions: ContactAction[
         className="text-[var(--foreground)] min-w-0 truncate"
         style={{
           fontFamily: 'var(--font-inter)',
-          fontSize: '14px',
+          fontSize: 'var(--text-label)',
           fontWeight: 'var(--font-weight-regular)',
           lineHeight: '20px',
         }}
@@ -483,13 +388,11 @@ export function ShareWithStudentCard({
       {/* Header */}
       <div className="pt-[24px] px-[24px]">
         <p
-          className="text-[var(--foreground)]"
+          className="uppercase tracking-wider text-[var(--muted-foreground)]"
           style={{
             fontFamily: 'var(--font-inter)',
-            fontSize: 'var(--text-h4)',
+            fontSize: 'var(--text-xs)',
             fontWeight: 'var(--font-weight-medium)',
-            lineHeight: '27px',
-            letterSpacing: '-0.44px',
           }}
         >
           {title}
@@ -542,7 +445,7 @@ export function ShareWithStudentCard({
             className="text-[var(--muted-foreground)] text-center mt-[10px]"
             style={{
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-regular)',
               lineHeight: '16px',
             }}
@@ -634,7 +537,7 @@ export function ShareWithStudentCard({
                 style={{
                   borderRadius: '4px',
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '12px',
+                  fontSize: 'var(--text-sm)',
                   fontWeight: 'var(--font-weight-medium)',
                   lineHeight: '16px',
                   height: 24,

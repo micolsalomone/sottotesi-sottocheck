@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { LayoutDashboard, Users, ClipboardCheck, History, Archive, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, History, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStudentViewTimelinePath } from '@/app/utils/studentView';
 
 interface NavItem {
@@ -28,11 +28,6 @@ const navItems: NavItem[] = [
     label: 'Storico',
     icon: <History size={20} />,
     path: '/student-view/history',
-  },
-  {
-    label: 'Archivio',
-    icon: <Archive size={20} />,
-    path: '/student-view/archivio',
   },
 ];
 

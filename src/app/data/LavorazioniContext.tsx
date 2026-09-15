@@ -619,7 +619,7 @@ const INITIAL_STUDENTS: Student[] = ([
   // `src/pages/coach/studentsData.ts`; resolved by `STUDENT_VIEW_STUDENT_RECORD_ID`
   // in `src/app/utils/studentView.ts`. Only grounded values already present in
   // the flat mock are carried over; unmapped fields stay empty by design.
-  { id: 'STU-052', name: 'Alex Johnson', first_name: 'Alex', last_name: 'Johnson', email: 'alex.johnson32@gmail.com', phone: '+39 3283756889', status: 'active', created_at: '2026-01-05', marketing_consent: false, contacts: { emails: [{ email: 'alex.johnson32@gmail.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2026-01-05' }], phones: [{ phone: '+39 3283756889', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-01-05' }] }, academic_records: [{ id: 'AR-052', student_id: 'STU-052', degree_level: '', course_name: 'Letteratura Comparata', university_name: 'UniMI', thesis_professor: 'Prof. Rossi', thesis_topic: 'Il doppio nella narrativa moderna', thesis_subject: 'Letteratura comparata', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-01-05', updated_at: '2026-01-05' }] },
+  { id: 'STU-052', name: 'Alex Johnson', first_name: 'Alex', last_name: 'Johnson', email: 'alex.johnson32@gmail.com', phone: '+39 3283756889', status: 'active', created_at: '2026-01-05', marketing_consent: false, contacts: { emails: [{ email: 'alex.johnson32@gmail.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2026-01-05' }], phones: [{ phone: '+39 3283756889', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-01-05' }] }, academic_records: [{ id: 'AR-052', student_id: 'STU-052', degree_level: 'magistrale', course_name: 'Letteratura Comparata', university_name: 'UniMI', thesis_professor: 'Prof. Rossi', thesis_topic: 'Il doppio nella narrativa moderna', thesis_subject: 'Letteratura comparata', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-01-05', updated_at: '2026-01-05' }] },
   // ── Studenti con coaching_access_enabled (service_access sull'email primaria) ──
   { id: 'STU-445', name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', status: 'active', created_at: '2025-10-15', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', marketing_consent: true, contacts: { emails: [{ email: 'giulia.verdi@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-10-15' }, { email: 'giulia.verdi@studenti.unibol.it', is_primary: false, purposes: ['generic'], source: 'manual', added_at: '2025-10-20' }], phones: [{ phone: '+39 333 1234567', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2025-10-15' }] }, academic_records: [{ id: 'AR-001', student_id: 'STU-445', degree_level: 'magistrale', course_name: 'Economia Aziendale', university_name: 'Università di Bologna', thesis_professor: 'Prof. Rossi', thesis_topic: 'Strategie di digitalizzazione e sostenibilità nel retail italiano', thesis_subject: 'Economia aziendale', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-10-15', updated_at: '2025-10-15' }] },
   { id: 'STU-478', name: 'Luca Neri', first_name: 'Luca', last_name: 'Neri', email: 'luca.neri@email.com', phone: '+39 340 9876543', status: 'active', created_at: '2025-11-02', updated_at: '2026-02-14T09:15:00', updated_by: 'Giada', marketing_consent: false, contacts: { emails: [{ email: 'luca.neri@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-11-02' }], phones: [{ phone: '+39 340 9876543', is_primary: true, purposes: ['communications', 'coaching'], source: 'manual', added_at: '2025-11-02' }] }, academic_records: [{ id: 'AR-010', student_id: 'STU-478', degree_level: 'magistrale', course_name: 'Ingegneria Gestionale', university_name: 'Politecnico di Torino', thesis_professor: 'Prof. Colombo', thesis_topic: 'Ottimizzazione della supply chain mediante blockchain e IoT', thesis_subject: 'Ingegneria dei processi', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-11-02', updated_at: '2025-11-02' }] },
@@ -870,6 +870,34 @@ const INITIAL_PIPELINES: Pipeline[] = [
 
 // ─── Mock data ──────────────────────────────────────────────
 const initialData: StudentService[] = [
+  // PROTOTYPE BRIDGE: minimal service record providing plan_start_date/plan_end_date
+  // and academic_record_id for the Student-view Timeline demo (Alex Johnson / STU-052,
+  // legacy flat id S-052 — see the "PROTOTYPE BRIDGE" comment on the matching Student
+  // record above). Deliberately has no coaching_timeline_full/shared_documents: the
+  // richer step/document data for this student already comes from the legacy fixture
+  // in studentTimelines.ts ('S-052') via the existing fallback path, and must keep
+  // doing so. Dates are coherent with that fixture's phase range (Fase 1 "Inizio 5
+  // gennaio 2026" through Fase 6 "Scadenza 5 aprile 2026").
+  {
+    id: 'SS-052',
+    student_id: 'STU-052',
+    student_name: 'Alex Johnson',
+    service_id: 'SRV-002',
+    service_name: 'Coaching',
+    service_category: 'Coaching',
+    quote_id: 'Q-052',
+    academic_record_id: 'AR-052',
+    status: 'active',
+    created_at: '2026-01-05',
+    updated_at: '2026-01-05',
+    installments: [],
+    referente: 'Claudia',
+    // Matches the coach already authoring notes/documents throughout the
+    // 'S-052' legacy timeline fixture (studentTimelines.ts) — not a new identity.
+    coach_name: 'Marco Bianchi',
+    plan_start_date: '2026-01-05',
+    plan_end_date: '2026-04-05',
+  },
   {
     id: 'SS-101',
     pipeline_id: 'PIP-001',

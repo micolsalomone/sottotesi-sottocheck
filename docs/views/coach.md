@@ -9,7 +9,9 @@ Pagine: `src/pages/coach/`
 
 ## Scopo
 Il coach controlla il completamento degli step, revisiona documenti,
-aggiunge note, avvia check plagio. Solo il coach può marcare uno step come completato.
+aggiunge note. Solo il coach può marcare uno step come completato.
+Il check plagio/TesiCheck è un prodotto indipendente (`/coach-view/sottocheck`),
+non un'azione, uno stato o un contatore della Timeline.
 
 ## Principi
 - MVP, preferire riuso di pattern dalla Student Dashboard
@@ -23,11 +25,23 @@ aggiunge note, avvia check plagio. Solo il coach può marcare uno step come comp
 - Step = thread contestuale (documenti + note + revisioni)
 - Non separare activity log in sezione separata
 
+### Sidebar Timeline — Dati accademici e Contatti studente
+
+- `Dati accademici`: proiezione read-only del record accademico **corrente**
+  dello Student (`Livello di laurea`, `Corso di laurea`, `Università`,
+  `Tipologia`, `Professore`, `Materia`, `Argomento`) — stesso vocabolario
+  canonico di Profilo e Admin. Nessuna modifica da Timeline.
+- `Contatti studente`: contatti primari dello Student (telefono/WhatsApp,
+  email) dal record `Student` strutturato — non i contatti del Coach stesso.
+  Contratto dati: record Student corrente → contatto primario telefono/email →
+  Timeline lo mostra in sola lettura. Nessun contatto secondario dello
+  Student, nessuna gestione contatti da qui: resta Admin-managed
+  (`ContactManager` in `/lavorazioni`).
+
 ## Azioni disponibili per step
 - Leggi / scarica documenti
 - Carica documenti revisionati
 - Aggiungi note (asincrone, non chat)
-- Avvia check plagio
 - Marca step come completato (esplicito e manuale)
 
 ## Navigazione

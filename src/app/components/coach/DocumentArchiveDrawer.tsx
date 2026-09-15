@@ -37,6 +37,10 @@ interface DocumentArchiveDrawerProps {
   onAddNote?: (docId: string, note: string) => void;
   onAssignToStep?: (docId: string, stepId: string) => void;
   onUploadDocuments?: (files: File[], note?: string, fileStepAssignments?: Record<number, string | null>) => void;
+  // Presentation-only switch. Some consumers (e.g. Admin) show TesiCheck/plagiarism
+  // result and actions on documents; Timeline must never render this — default keeps
+  // existing non-Timeline consumers unchanged.
+  showPlagiarism?: boolean;
 }
 
 const getPlagiarismLabel = (status?: string) => {
@@ -61,6 +65,7 @@ export function DocumentArchiveDrawer({
   onAddNote,
   onAssignToStep,
   onUploadDocuments,
+  showPlagiarism = true,
 }: DocumentArchiveDrawerProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['uncategorized']));
   const [noteBeingEdited, setNoteBeingEdited] = useState<string | null>(null);
@@ -224,7 +229,7 @@ export function DocumentArchiveDrawer({
   const renderDocumentItem = (doc: Document) => {
     const fileInfo = getFileTypeFromName(doc.name);
     const FileIcon = fileInfo.icon;
-    const plagiarism = getPlagiarismLabel(doc.plagiarismStatus);
+    const plagiarism = showPlagiarism ? getPlagiarismLabel(doc.plagiarismStatus) : null;
     const isUncategorized = !doc.stepId;
 
     return (
@@ -257,7 +262,7 @@ export function DocumentArchiveDrawer({
                 className="flex-shrink-0 inline-block px-1.5 py-0.5"
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 'var(--font-weight-medium)',
                   borderRadius: 'calc(var(--radius) - 4px)',
                   backgroundColor: doc.sender === 'coach'
@@ -279,7 +284,7 @@ export function DocumentArchiveDrawer({
               className="flex items-center gap-2 flex-wrap mt-1"
               style={{
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--font-weight-regular)',
                 color: 'var(--muted-foreground)',
               }}
@@ -302,7 +307,7 @@ export function DocumentArchiveDrawer({
                 <span
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: plagiarism.color,
                   }}
@@ -313,7 +318,7 @@ export function DocumentArchiveDrawer({
                   <span
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '11px',
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 'var(--font-weight-regular)',
                       color: 'var(--muted-foreground)',
                     }}
@@ -336,7 +341,7 @@ export function DocumentArchiveDrawer({
                   className="flex-1 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--ring)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-regular)',
                     color: 'var(--foreground)',
                     backgroundColor: 'var(--input-background)',
@@ -373,7 +378,7 @@ export function DocumentArchiveDrawer({
                     placeholder="Aggiungi una nota su questo documento..."
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-regular)',
                       lineHeight: 1.5,
                       color: 'var(--foreground)',
@@ -386,7 +391,7 @@ export function DocumentArchiveDrawer({
                   <p
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-regular)',
                       lineHeight: 1.5,
                       color: 'var(--muted-foreground)',
@@ -406,7 +411,7 @@ export function DocumentArchiveDrawer({
                   className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: 'var(--muted-foreground)',
                     borderRadius: 'calc(var(--radius) - 4px)',
@@ -422,7 +427,7 @@ export function DocumentArchiveDrawer({
                   className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: 'var(--muted-foreground)',
                     borderRadius: 'calc(var(--radius) - 4px)',
@@ -432,13 +437,13 @@ export function DocumentArchiveDrawer({
                   Scarica
                 </button>
               )}
-              {onRunPlagiarismCheck && doc.plagiarismStatus !== 'clear' && (
+              {showPlagiarism && onRunPlagiarismCheck && doc.plagiarismStatus !== 'clear' && (
                 <button
                   onClick={() => onRunPlagiarismCheck(doc.id)}
                   className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: 'var(--muted-foreground)',
                     borderRadius: 'calc(var(--radius) - 4px)',
@@ -454,7 +459,7 @@ export function DocumentArchiveDrawer({
                   className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: 'var(--muted-foreground)',
                     borderRadius: 'calc(var(--radius) - 4px)',
@@ -474,7 +479,7 @@ export function DocumentArchiveDrawer({
                   className="flex items-center gap-1.5 px-2 py-1 ml-auto transition-colors hover:bg-[rgba(220,38,38,0.10)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                     color: 'var(--destructive)',
                     borderRadius: 'calc(var(--radius) - 4px)',
@@ -516,7 +521,7 @@ export function DocumentArchiveDrawer({
           <p
             style={{
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-regular)',
               color: 'var(--muted-foreground)',
             }}
@@ -566,7 +571,7 @@ export function DocumentArchiveDrawer({
                 className="uppercase tracking-wider mb-1"
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 'var(--font-weight-medium)',
                   color: 'var(--muted-foreground)',
                 }}
@@ -588,7 +593,7 @@ export function DocumentArchiveDrawer({
                 className="mt-1"
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '12px',
+                  fontSize: 'var(--text-sm)',
                   fontWeight: 'var(--font-weight-regular)',
                   color: 'var(--muted-foreground)',
                   lineHeight: 1.5,
@@ -657,7 +662,7 @@ export function DocumentArchiveDrawer({
                 <p
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-regular)',
                     color: 'var(--muted-foreground)',
                   }}
@@ -706,7 +711,7 @@ export function DocumentArchiveDrawer({
                           <span
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               fontWeight: 'var(--font-weight-regular)',
                               color: 'var(--muted-foreground)',
                             }}
@@ -722,12 +727,12 @@ export function DocumentArchiveDrawer({
                           <X className="w-3.5 h-3.5" style={{ color: 'var(--muted-foreground)' }} />
                         </button>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-sm)' }}>
                         <button
                           onClick={() => handleAssignFileToStep(idx, file.name)}
                           style={{
                             fontFamily: 'var(--font-inter)',
-                            fontSize: '12px',
+                            fontSize: 'var(--text-sm)',
                             fontWeight: 'var(--font-weight-medium)',
                             color: assignedStep ? 'var(--muted-foreground)' : 'var(--primary)',
                             border: 'none',
@@ -743,7 +748,7 @@ export function DocumentArchiveDrawer({
                           <span
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               fontWeight: 'var(--font-weight-regular)',
                               color: 'var(--primary)',
                             }}
@@ -755,7 +760,7 @@ export function DocumentArchiveDrawer({
                           <span
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               fontWeight: 'var(--font-weight-regular)',
                               color: 'var(--muted-foreground)',
                             }}
@@ -775,7 +780,7 @@ export function DocumentArchiveDrawer({
                     className="flex items-center gap-1.5 px-2 py-1.5 transition-colors hover:bg-[var(--muted)]"
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-medium)',
                       color: 'var(--muted-foreground)',
                       borderRadius: 'calc(var(--radius) - 2px)',
@@ -860,7 +865,7 @@ export function DocumentArchiveDrawer({
                     <span
                       style={{
                         fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
+                        fontSize: 'var(--text-sm)',
                         fontWeight: 'var(--font-weight-regular)',
                         color: 'var(--muted-foreground)',
                       }}
@@ -892,7 +897,7 @@ export function DocumentArchiveDrawer({
               <span
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '12px',
+                  fontSize: 'var(--text-sm)',
                   fontWeight: 'var(--font-weight-regular)',
                   color: 'var(--muted-foreground)',
                 }}
@@ -926,7 +931,7 @@ export function DocumentArchiveDrawer({
                   className="text-center"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-regular)',
                     color: 'var(--muted-foreground)',
                   }}
@@ -1019,7 +1024,7 @@ export function DocumentArchiveDrawer({
                                   <p
                                     style={{
                                       fontFamily: 'var(--font-inter)',
-                                      fontSize: '12px',
+                                      fontSize: 'var(--text-sm)',
                                       color: 'var(--muted-foreground)',
                                       marginBottom: '8px'
                                     }}

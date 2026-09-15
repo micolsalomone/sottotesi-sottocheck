@@ -36,6 +36,25 @@
   margin-left: var(--sidebar-collapsed-width);
 }
 
+/*
+ * .admin-main's overflow-y: auto never actually engages as a scroll container:
+ * .admin-layout only sets min-height: 100vh (not height), so nothing in this
+ * flex chain gives .admin-main a bounded height — the window/body is the real
+ * scroll owner on every page. Because overflow-y is not `visible`, .admin-main
+ * still becomes the CSS `position: sticky` containing block for any sticky
+ * descendant per spec, even though it never scrolls — so sticky content inside
+ * it silently never sticks (it just scrolls away with the page).
+ * Scoped fix, Timeline only: neutralize that phantom containing block for the
+ * one sticky element that currently exists (the Timeline right-hand content
+ * column, marked with .timeline-sticky-sidebar), so it resolves against the
+ * real scrolling context (the viewport) instead. This changes nothing for any
+ * other page — .admin-main's actual (already non-functional) overflow
+ * behavior is untouched everywhere else.
+ */
+.admin-main:has(.timeline-sticky-sidebar) {
+  overflow: visible;
+}
+
 /* Page container */
 .page-container {
   padding-left: 40px;
