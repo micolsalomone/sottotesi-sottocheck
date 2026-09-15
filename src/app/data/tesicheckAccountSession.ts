@@ -146,12 +146,41 @@ export function getAccountSession(): TesiCheckAccountSession | null {
   }
 }
 
+// Tiny in-memory notification channel for standalone account/session identity
+// changes (sign-in, registration, email confirmation, `changeAccountEmail`) —
+// NOT a general event bus. Exists because the persistent shell (`PublicHeader`,
+// mounted once by `PublicLayout` and never remounted by route navigation)
+// reads `getAccountSession()` at render time with no other way to learn that
+// a sibling route (e.g. the Account page) just wrote a new session. Centralized
+// here (the single module that owns `STORAGE_KEY`) rather than a `window`
+// CustomEvent scattered across pages.
+const sessionListeners = new Set<() => void>();
+
+function notifyAccountSessionListeners() {
+  sessionListeners.forEach((listener) => listener());
+}
+
+/**
+ * Subscribe to standalone account/session identity changes. Returns an
+ * unsubscribe function. Fires after every write through `saveAccountSession`
+ * (sign-in, registration, email confirmation, `changeAccountEmail`) — never
+ * on unrelated storage (registry, Profile, Student). Callers re-read
+ * `getAccountSession()` themselves on notification; no payload is passed.
+ */
+export function subscribeToAccountSession(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
 function saveAccountSession(session: TesiCheckAccountSession): TesiCheckAccountSession {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   } catch {
     // Prototype-only persistence.
   }
+  notifyAccountSessionListeners();
   return session;
 }
 

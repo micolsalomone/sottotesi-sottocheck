@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
 import { UserTopbarMenu } from '@/app/components/UserTopbarMenu';
@@ -5,6 +6,7 @@ import {
   clearStandaloneSession,
   getAccountFirstName,
   getAccountSession,
+  subscribeToAccountSession,
 } from '@/app/data/tesicheckAccountSession';
 
 interface PublicHeaderProps {
@@ -13,7 +15,16 @@ interface PublicHeaderProps {
 
 export function PublicHeader({ sidebarCollapsed }: PublicHeaderProps) {
   const navigate = useNavigate();
-  const session = getAccountSession();
+
+  // `PublicHeader` is mounted once by the persistent `PublicLayout` shell and
+  // is never remounted by route navigation — a plain `getAccountSession()`
+  // call here would only ever reflect the value from this component's OWN
+  // last render, not a session write made from a sibling route (e.g. the
+  // Account page's `Modifica email`). Subscribing re-renders the topbar the
+  // moment the session actually changes, without a page refresh.
+  const [session, setSession] = useState(() => getAccountSession());
+  useEffect(() => subscribeToAccountSession(() => setSession(getAccountSession())), []);
+
   const accountLabel = getAccountFirstName(session) || session?.email || 'Cliente TesiCheck';
 
   function handleLogout() {
