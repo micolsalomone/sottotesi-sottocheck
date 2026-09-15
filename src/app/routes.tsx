@@ -48,6 +48,7 @@ import { PublicReportPage } from '@/pages/public/PublicReportPage';
 import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
 import { PublicAccountPage } from '@/pages/public/PublicAccountPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
+import { AccountPage as CoachAccountPage } from '@/pages/coach/AccountPage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
@@ -146,6 +147,7 @@ export const router = createHashRouter([
       { path: 'history', Component: CoachHistoryPage },
       { path: 'archivio', Component: CoachHistoryPage },
       { path: 'profilo', Component: CoachProfilePage },
+      { path: 'account', Component: CoachAccountPage },
       { path: '*', Component: NotFoundPage },
     ],
   },

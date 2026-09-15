@@ -11,9 +11,8 @@ interface UserTopbarMenuProps {
   displayName: string;
   /**
    * Destination for the "Informazioni Account" item — the role's Account page
-   * (`/public-view/account`, `/student-view/account`, `/impostazioni/account`).
-   * Coach has no Account page yet and passes its Profile route as a documented
-   * interim (see `CoachHeader`).
+   * (`/public-view/account`, `/student-view/account`, `/coach-view/account`,
+   * `/impostazioni/account`).
    */
   accountPath: string;
   /** Fallback navigation target on logout when `onLogout` is not provided. */

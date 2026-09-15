@@ -119,7 +119,8 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/coach-view/sottocheck` | Coach | CoachLayout | Sottocheck vista coach |
 | `/coach-view/history` | Coach | CoachLayout | Alias cronologia coach (stessa pagina archivio) |
 | `/coach-view/archivio` | Coach | CoachLayout | Archivio vista coach |
-| `/coach-view/profilo` | Coach | CoachLayout | Profilo coach |
+| `/coach-view/profilo` | Coach | CoachLayout | Profilo coach (identità personale: Nome/Cognome; + aree tematiche di specializzazione in sola lettura). Legge/scrive `CoachViewProfileContext`, una fixture prototipale leggera locale a `CoachLayout` — NON il Coach di Admin `/coach` (nessun CRM condiviso; le due superfici non sono sincronizzate). Le aree tematiche sono dati fixture rappresentativi nella stessa fixture (`profile.areas`), non una lettura live di `AreeTematicheContext`. Nessun dato di accesso/contatto qui: email, telefono e password stanno su `/coach-view/account`. Nel sidebar è nello slot secondario in basso (etichetta `Profilo`). Cross-link a `/coach-view/account`. Vedi `docs/views/coach.md` |
+| `/coach-view/account` | Coach | CoachLayout | Account coach (accesso + recapiti) — superficie distinta dal Profilo. Stessa fixture `CoachViewProfileContext` per email/telefono/password. Nessun controllo di consenso commerciale né stato legale: non modellati nella fixture Coach. Raggiungibile dal menu utente in alto a destra e dal cross-link del Profilo, non dal sidebar. Vedi `docs/views/coach.md` |
 | `/coach-view/*` | Coach | CoachLayout | NotFound coach |
 | `/student-view` | Student | StudentLayout | Dashboard student dedicata — solo URL diretto |
 | `/student-view/studenti` | Student | StudentLayout | Studenti vista student (riuso pagine coach) |

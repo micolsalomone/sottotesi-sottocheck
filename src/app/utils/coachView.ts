@@ -1,12 +1,17 @@
 /**
  * Prototype identity shim for the Coach view (`/coach-view`).
  *
- * The Coach shell has no auth/session in the prototype — `CoachHeader` only
- * renders hardcoded display strings. This constant gives the Coach a single
- * stable id so path-bound TesiCheck records can declare an owner.
+ * `COACH_VIEW_COACH_ID` is a TesiCheck OWNERSHIP shim only. It lets
+ * path-bound TesiCheck check records (`CoachPathBoundCheck` /
+ * `CoachFreeCheck` in `tesicheckCoachCheck.ts`) declare an `owner.id`.
+ * Deliberately NOT derived from any real Coach identity and deliberately
+ * does NOT follow the Admin `C-XX` id scheme. It is unrelated to the Coach
+ * shell's own displayed identity (name/email/phone), which comes from a
+ * separate, Coach-view-local prototype fixture
+ * (`CoachViewProfileContext`, scoped to `CoachLayout`) — not from this id.
  *
- * It is deliberately NOT derived from "Teresa P." and deliberately does NOT
- * follow the Admin `C-XX` id scheme. Production must replace it with the real
- * authenticated Coach id.
+ * Production must replace this with a real id resolved from the
+ * authenticated Coach's backend record; see `docs/production-handoff.md` →
+ * "Coach Profile/Account" for the intended data/UX contract.
  */
 export const COACH_VIEW_COACH_ID = 'coach-view-demo';

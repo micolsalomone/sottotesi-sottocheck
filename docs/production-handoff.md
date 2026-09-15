@@ -57,7 +57,8 @@ Il `.txt` generato dal prototipo e' un artifact di simulazione. Production deve 
 Le route profile/account che mostrano `Pagina in costruzione` sono incomplete nel prototipo e non devono essere replicate come comportamento finale senza una decisione di scope:
 
 - Admin account/info.
-- Coach profile.
+
+Coach profile/account non sono più placeholder — vedi "Coach Profile/Account — comportamento prototipale implementato" più sotto.
 
 ## Student Profile — comportamento prototipale implementato
 
@@ -309,10 +310,109 @@ eventuale double opt-in. Il prototipo non li modella e non dichiara conformità
 legale. Wording finale delle checkbox, base giuridica, titolare del trattamento,
 retention e URL delle policy restano responsabilità di cliente/legale.
 
+## Coach Profile/Account — comportamento prototipale implementato
+
+`/coach-view/profilo` non è più un placeholder e `/coach-view/account` è una
+route nuova. Questa sezione descrive il CONTRATTO dati/UX che production deve
+implementare — non l'architettura prototipale interna, che è deliberatamente
+minima e non prescrittiva (vedi "Stato prototipale" più sotto).
+
+### Contratto — cosa deve fare production
+
+- **Coach Profile**: informazioni personali editabili (Nome/Cognome);
+  specializzazioni per area tematica in sola lettura, assegnate da Sottotesi
+  (Admin/operations).
+- **Coach Account**: email di accesso (con cambio email verificato), gestione
+  password, **un solo** recapito telefonico primario/operativo.
+- **Regola di prodotto — recapito singolo.** Admin può gestire più numeri di
+  telefono per un Coach; il self-service espone e modifica **solo** il
+  recapito operativo primario, mai un elenco. Modificarlo da Coach Account
+  aggiorna solo quel valore — non implica ed non deve implicare
+  l'eliminazione o la sostituzione di altri numeri gestiti da Admin, che
+  restano fuori dalla portata del self-service. Production deve legare
+  questo campo al recapito/contatto primario Coach già esistente nel
+  proprio dominio (contatti aggiuntivi restano Admin-managed); questo
+  recapito primario può essere esposto agli studenti assegnati secondo le
+  regole di prodotto/business già esistenti — non modellate qui.
+- Production deve legare entrambe le superfici al record Coach autenticato
+  reale / al backend esistente — non al fixture di questo prototipo.
+- Production deve usare gli stessi dati di assegnazione Admin/dominio già
+  esistenti per le aree tematiche (stessa fonte che alimenta la gestione
+  Admin dei coach) — non un elenco separato.
+- Lo stato/storage di questo prototipo (vedi sotto) non è prescrittivo: non
+  implica un particolare schema, contesto condiviso, o meccanismo di
+  sincronizzazione Admin↔self-service. Quella decisione spetta a
+  production.
+
+### Stato prototipale (implementazione, non contratto)
+
+- **Nessun Coach CRM condiviso.** Admin `/coach` (`CoachPage.tsx`) possiede
+  la propria lista mock locale, invariata da questo workstream (stesso
+  `useState` di sempre). Coach self-service (`/coach-view`) ha una propria
+  fixture minima e separata, `CoachViewProfileContext.tsx`
+  (`src/app/components/coach/`), montata SOLO dentro `CoachLayout` — non in
+  `App.tsx`, quindi invisibile e ininfluente per Admin. Le due superfici NON
+  sono sincronizzate nel prototipo: modificare il Profilo/Account Coach non
+  cambia nulla in Admin `/coach`, e viceversa. Questa è una scelta
+  deliberata — il dominio Coach reale è responsabilità dello sviluppo
+  production, non di questo prototipo UX.
+- **Identità Coach self-service.** `CoachViewProfileContext` contiene solo
+  `{ fullName, email, phone, areas }`, seminato con valori che
+  corrispondono visivamente al mock Admin `C-07` (Martina Rossi) — solo per
+  coerenza visiva tra le due superfici prototipali indipendenti, non un
+  binding vivo. `coachView.ts` espone solo `COACH_VIEW_COACH_ID`
+  (`'coach-view-demo'`), shim di sola OWNERSHIP per i check TesiCheck
+  (`tesicheckCoachCheck.ts`), invariato e scollegato dalla fixture.
+- **Aree tematiche — dati fixture, non una lettura condivisa.** `areas`
+  (`['Area Umanistica', 'Scienze Politiche']`) è un array di stringhe
+  rappresentative dentro `CoachViewProfileContext` — NON una lettura di
+  `AreeTematicheContext`. `AreeTematicheProvider` resta montato solo dentro
+  `AdminLayout.tsx`, come prima di questo workstream: nessuna
+  sincronizzazione runtime Admin↔Coach, nessuna istanza condivisa, nessuna
+  modifica al codice di `AreeTematicheContext.tsx`. Coach self-service non
+  assegna/rimuove aree; Admin resta l'unica superficie di editing (`/coach`,
+  `CreateCoachDrawer.tsx`, invariato). Production deve sostituire questi
+  valori fissi con gli stessi dati di assegnazione Admin/dominio già
+  esistenti (vedi "Contratto" sopra).
+- **Header.** `CoachHeader.tsx` legge `CoachViewProfileContext` (non più
+  stringhe hardcoded) e si aggiorna immediatamente dopo un salvataggio dal
+  Profilo, nella stessa sessione SPA — ma solo all'interno della vista
+  Coach. L'etichetta di ruolo `coach` resta invariata.
+- **Dominio scritto.** Profilo legge/scrive **solo** `fullName` (sezione
+  `Informazioni personali`: Nome/Cognome, con `Salva modifiche` nel footer
+  della card, visibile solo a modulo sporco). La fixture non ha mai avuto
+  uno split first/last name; `fullName` viene derotto solo per la UI di
+  editing e ricomposto al salvataggio. Account legge/scrive `email` e
+  `phone` (stringhe piatte, nessun modello di contatti strutturati) e un
+  form password presentazionale — nessuna persistenza reale.
+- **Deliberatamente assenti, a differenza di Student/Public:**
+  - **Consenso commerciale.** La fixture Coach non modella alcun campo di
+    consenso: nessun controllo è stato aggiunto in Account.
+  - **Stato legale (Termini/Privacy).** Nessuna assunzione di ciclo di vita
+    "account già attivo" è stata stabilita per Coach in questo prototipo:
+    Account non mostra alcuna riga di stato legale, invece di fabbricarne
+    una senza fondamento.
+  - **Campi operativi/admin-only.** Disponibilità, aree tematiche
+    (assegnazione), stato attivo/inattivo, data attivazione,
+    `payment_reference`, note interne e audit restano esclusivamente su
+    Admin `/coach` — nessuno di questi esiste nella fixture self-service.
+- **Sidebar/topbar.** `Profilo` è nello slot secondario in basso della
+  sidebar Coach (stesso pattern di Student/Public/Admin); `Account` è
+  raggiungibile solo dal menu utente in alto a destra (`Informazioni
+  Account`), non dalla sidebar.
+- **Fuori scope, invariato:** Student, Pipeline, Timeline, logica payout
+  Coach, logica di assegnazione servizi, architettura del drawer Admin
+  (`CreateCoachDrawer.tsx`), CRUD/dati Admin Coach (`CoachPage.tsx`), flussi
+  TesiCheck a pagamento/gratuiti — nessuno di questi è stato toccato da
+  questo workstream.
+
 ## Modifica email (cambio email account)
 
 Entrambe le superfici Account (`/public-view/account`, `/student-view/account`)
-espongono ora `Modifica email` sulla riga dell'email account/primaria. Regola
+espongono ora `Modifica email` sulla riga dell'email account/primaria.
+`/coach-view/account` riusa lo stesso modale condiviso (`ChangeEmailModal`,
+vedi sopra), senza controllo di collisione (nessun registry Coach) — stessa
+scelta già fatta per Student. Regola
 canonica: **nuovo indirizzo → verifica → sostituzione confermata**. Nessuna
 sostituzione silenziosa inline: l'email è sia identità di accesso sia contatto
 di servizio, quindi cambiarla richiede lo stesso rigore di un cambio identità,
