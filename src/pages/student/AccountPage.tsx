@@ -1,8 +1,8 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useLavorazioni, type ContactEmail } from '@/app/data/LavorazioniContext';
+import { useLavorazioni, type ContactEmail, type ContactPhone } from '@/app/data/LavorazioniContext';
 import { STUDENT_VIEW_STUDENT_RECORD_ID } from '@/app/utils/studentView';
-import { FormSection, ReadOnlyField, TextField } from '@/app/components/profile/ProfileFormPrimitives';
+import { FormSection, TextField } from '@/app/components/profile/ProfileFormPrimitives';
 import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { AccountInfoRow, CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
@@ -31,6 +31,39 @@ function withStudentPrimaryEmailChanged(emails: ContactEmail[] | undefined, newE
   if (index === -1) return list;
   const { marketing_consent: _resetConsent, ...rest } = list[index];
   list[index] = { ...rest, email: newEmail };
+  return list;
+}
+
+/**
+ * Return a NEW phone array with the PRIMARY entry's `phone` value replaced
+ * (`Salva numero` only) — same shape as `withStudentPrimaryEmailChanged`.
+ * Preserves that entry's `is_primary`, `purposes`, `source`/`added_at` and
+ * every other phone contact untouched. Because consent belongs to the exact
+ * number (MODEL B), the changed entry's `marketing_consent` is reset to
+ * unset (unknown) rather than carried over — the caller then re-reads
+ * consent for the new number via `readStudentPhoneConsent`, which only
+ * comes back non-null if some OTHER stored contact happens to already carry
+ * that exact number. When no primary phone contact exists yet (this page
+ * exposes only one), a new one is created — this is the same "gap-fill"
+ * creation the previous implementation only allowed while the field was
+ * empty; it is preserved here so a Student with no phone at all can still
+ * add one from this now-always-editable field.
+ */
+function withStudentPrimaryPhoneChanged(phones: ContactPhone[] | undefined, newPhone: string): ContactPhone[] {
+  const list: ContactPhone[] = phones ? phones.map((entry) => ({ ...entry })) : [];
+  const index = list.findIndex((entry) => entry.is_primary);
+  if (index === -1) {
+    list.push({
+      phone: newPhone,
+      is_primary: true,
+      purposes: ['communications'],
+      source: 'student-account',
+      added_at: new Date().toISOString(),
+    });
+    return list;
+  }
+  const { marketing_consent: _resetConsent, ...rest } = list[index];
+  list[index] = { ...rest, phone: newPhone };
   return list;
 }
 
@@ -65,9 +98,13 @@ function withStudentPrimaryEmailChanged(emails: ContactEmail[] | undefined, newE
  * production/legal decision, not modelled here.
  *
  * Phone uses the SAME structured `Student.contacts.phones[]` source as the
- * Student Profile used to, with the SAME gap-fill-only edit semantics (a
- * phone can be added only when no primary phone value exists yet; an existing
- * one is read-only here). No flat `Student.phone` write path is introduced.
+ * Student Profile used to, now with the SAME always-editable + explicit-save
+ * grammar as the standalone Account page's phone field: an existing primary
+ * number is editable and replaceable here, not read-only (an earlier
+ * gap-fill-only version of this page only allowed adding a phone when none
+ * existed yet — corrected as a regression, since it made an already-stored
+ * number permanently uneditable from self-service). No flat `Student.phone`
+ * write path is introduced.
  *
  * Active-account lifecycle assumption (documented, not modelled in the
  * `Student` domain): an authenticated `/student-view/*` session IS an active
@@ -104,18 +141,23 @@ function withStudentPrimaryEmailChanged(emails: ContactEmail[] | undefined, newE
  * self-explanatory, never treated as an error/validation state.
  *
  * Interaction: two grammars, same as the standalone Account page.
- *  - **CONTACT VALUE edit (phone, gap-fill only) → explicit save.** `Salva
- *    numero` appears only while `phoneDraft` is non-empty (there is no
- *    persisted phone yet to compare against); saving is the ONLY way a
- *    primary phone contact gets created here.
+ *  - **CONTACT VALUE edit (phone number) → explicit save.** `phoneDraft` vs
+ *    `existingPrimaryPhone`: `Salva numero` appears only while they differ,
+ *    hides again once saved. No autosave while typing. Works identically
+ *    whether a primary phone already exists (replacing it) or not yet
+ *    (creating it) — no longer two different code paths for those cases.
  *  - **BINARY COMMERCIAL PREFERENCE (Sì/No, email or phone) → immediate
  *    autosave.** Selecting Sì/No writes straight to `Student.contacts` and
- *    fires a transient toast — no Save button. The gap-fill/read-only split
- *    already keeps phone-value editing and phone-consent editing mutually
- *    exclusive in this UI (a primary phone can be set once, then only its
- *    consent is ever editable here), so there is no scenario where the
- *    WhatsApp preference could be edited against an unsaved number — unlike
- *    the standalone Account page, no extra `disabled` guard is needed.
+ *    fires a transient toast — no Save button. **Dirty-phone guard**, same
+ *    as the standalone Account page: while `phoneValueDirty` (an unsaved
+ *    edit sits in the phone field), the WhatsApp preference control is
+ *    `disabled` — the displayed preference still belongs to the currently
+ *    PERSISTED number, and must never be edited against a number that
+ *    hasn't been saved yet. A short inline note explains why. The moment
+ *    the number is saved, `phoneConsent` is re-read from the store using
+ *    the NEW phone as the key — a genuinely new number never inherits the
+ *    old one's consent; it normally comes back "Non richiesto" (`null`),
+ *    and the WhatsApp control re-enables, unknown.
  *  - Every successful action fires a transient confirmation via the app-wide
  *    `sonner` `toast` (already mounted in `App.tsx`, already used throughout
  *    Admin — reused as-is, nothing new invented) — no persistent inline
@@ -161,14 +203,15 @@ export function AccountPage() {
     return student.contacts?.emails?.find((entry) => entry.is_primary)?.email ?? student.email ?? '';
   }, [student]);
 
-  // Same structured source and gap-fill-only semantics the Student Profile
-  // used: a primary phone contact that already has a value is read-only here;
-  // an empty/absent one can be filled in once.
+  // Same structured `contacts.phones[]` source the Student Profile used to
+  // read, but now the SAME always-editable + explicit-save grammar as the
+  // standalone Account page's phone field (`PublicAccountPage.tsx`): an
+  // already-stored number is editable and replaceable, not read-only. See
+  // `phoneValueDirty` below for the dirty-tracking this enables.
   const existingPrimaryPhone = useMemo(() => {
     if (!student) return '';
     return student.contacts?.phones?.find((entry) => entry.is_primary)?.phone ?? student.phone ?? '';
   }, [student]);
-  const phoneIsGapFill = !existingPrimaryPhone.trim();
 
   const [commercialConsent, setCommercialConsent] = useState<boolean | null>(() =>
     readStudentEmailConsent(student?.contacts?.emails, primaryEmail),
@@ -176,7 +219,7 @@ export function AccountPage() {
 
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
-  const [phoneDraft, setPhoneDraft] = useState('');
+  const [phoneDraft, setPhoneDraft] = useState(existingPrimaryPhone);
 
   const [phoneConsent, setPhoneConsent] = useState<boolean | null>(() =>
     readStudentPhoneConsent(student?.contacts?.phones, existingPrimaryPhone),
@@ -204,10 +247,11 @@ export function AccountPage() {
     );
   }
 
-  // While gap-fill applies (no primary phone yet), the phone VALUE can be
-  // dirty; once a primary phone exists it becomes read-only here and only
-  // its CONSENT is editable (autosave) — the two are mutually exclusive.
-  const phoneValueDirty = phoneIsGapFill && phoneDraft.trim() !== '';
+  // Same dirty-tracking as the standalone Account page: `Salva numero`
+  // appears only while the draft differs from the persisted primary phone,
+  // whether that persisted value is empty (first phone) or already set
+  // (replacing it) — no longer gated on "empty only".
+  const phoneValueDirty = phoneDraft.trim() !== existingPrimaryPhone;
 
   // Binary preference: autosave, no dirty-tracking needed.
   const handleChangeCommercialConsent = (next: boolean) => {
@@ -226,7 +270,7 @@ export function AccountPage() {
   };
 
   const handleChangePhoneConsent = (next: boolean) => {
-    if (!existingPrimaryPhone) return;
+    if (!existingPrimaryPhone || phoneValueDirty) return; // guarded by `disabled` below too
     setPhoneConsent(next);
     updateStudent(student.id, (prev) => ({
       ...prev,
@@ -257,30 +301,24 @@ export function AccountPage() {
     toast.success('Email aggiornata');
   };
 
-  // Gap-fill only, same as the former Student Profile behaviour: fills the
-  // EXISTING primary phone contact's value; never creates a new phone contact,
-  // never overwrites an already-present number. Never requires a marketing
-  // choice — the phone may be saved with consent still unknown.
+  // Explicit save for the phone VALUE only — free text, never autosaved.
+  // Same grammar as the standalone Account page's `handleSavePhoneValue`:
+  // replaces the persisted number outright (no longer gap-fill-only) and
+  // never carries the old number's consent over — re-reads whatever the
+  // (possibly brand new) number already has on file, normally "Non
+  // richiesto". Never requires a marketing choice to save.
   const handleSavePhone = () => {
-    if (!phoneIsGapFill) return;
-    const gapFilledPhone = phoneDraft.trim();
-    if (!gapFilledPhone) return;
-    updateStudent(student.id, (prev) => {
-      const contacts = prev.contacts;
-      if (!gapFilledPhone || !contacts?.phones?.some((entry) => entry.is_primary)) return prev;
-      return {
-        ...prev,
-        contacts: {
-          ...contacts,
-          phones: contacts.phones.map((entry) =>
-            entry.is_primary ? { ...entry, phone: gapFilledPhone } : entry,
-          ),
-        },
-      };
-    });
-    // The phone becomes read-only immediately on the next render (the
-    // structured record now has a primary value), which is when its own
-    // consent question first appears.
+    const trimmedPhone = phoneDraft.trim();
+    if (trimmedPhone === existingPrimaryPhone) return;
+    const nextPhones = withStudentPrimaryPhoneChanged(student.contacts?.phones, trimmedPhone);
+    updateStudent(student.id, (prev) => ({
+      ...prev,
+      contacts: {
+        emails: prev.contacts?.emails ?? [],
+        phones: nextPhones,
+      },
+    }));
+    setPhoneConsent(readStudentPhoneConsent(nextPhones, trimmedPhone));
     toast.success('Recapito aggiornato');
   };
 
@@ -464,20 +502,16 @@ export function AccountPage() {
           <div className="flex flex-col gap-6">
             <div>
               <div className="grid grid-cols-1 gap-4 md:max-w-[360px]">
-                {phoneIsGapFill ? (
-                  <TextField
-                    id="student-account-phone"
-                    label="Telefono / WhatsApp (facoltativo)"
-                    type="tel"
-                    value={phoneDraft}
-                    onChange={setPhoneDraft}
-                    autoComplete="tel"
-                  />
-                ) : (
-                  <ReadOnlyField label="Telefono / WhatsApp" value={existingPrimaryPhone} />
-                )}
+                <TextField
+                  id="student-account-phone"
+                  label="Telefono / WhatsApp (facoltativo)"
+                  type="tel"
+                  value={phoneDraft}
+                  onChange={setPhoneDraft}
+                  autoComplete="tel"
+                />
               </div>
-              {!phoneIsGapFill && (
+              {existingPrimaryPhone && (
                 <p
                   className="mt-4 text-[var(--muted-foreground)]"
                   style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
@@ -493,14 +527,7 @@ export function AccountPage() {
             </div>
 
             <div className="border-t border-[var(--border)] pt-6">
-              {phoneIsGapFill ? (
-                <p
-                  className="text-[var(--muted-foreground)]"
-                  style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.6 }}
-                >
-                  Aggiungi un numero per gestire la preferenza WhatsApp.
-                </p>
-              ) : (
+              {existingPrimaryPhone ? (
                 <>
                   <p
                     className="text-[var(--foreground)]"
@@ -514,6 +541,7 @@ export function AccountPage() {
                       value={phoneConsent}
                       onChange={handleChangePhoneConsent}
                       variant="segmented"
+                      disabled={phoneValueDirty}
                       showLabel={false}
                       showUnknownHint={false}
                       yesLabel="Sì"
@@ -522,7 +550,22 @@ export function AccountPage() {
                       ariaLabel="Vuoi ricevere aggiornamenti e offerte Sottotesi su WhatsApp?"
                     />
                   </div>
+                  {phoneValueDirty && (
+                    <p
+                      className="mt-2 text-[var(--muted-foreground)]"
+                      style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}
+                    >
+                      Salva il numero per modificare questa preferenza.
+                    </p>
+                  )}
                 </>
+              ) : (
+                <p
+                  className="text-[var(--muted-foreground)]"
+                  style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.6 }}
+                >
+                  Aggiungi un numero per gestire la preferenza WhatsApp.
+                </p>
               )}
             </div>
           </div>
