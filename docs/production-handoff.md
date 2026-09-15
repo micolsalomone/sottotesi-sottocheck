@@ -104,9 +104,10 @@ riferimento:
   qui non se ne inventa uno). La produzione deve conservare informazioni di
   provenienza/audit adeguate (chi ha modificato il record).
 - **Fuori scope:** gestione contatti multipli, eliminazione del record
-  accademico corrente, cambio del record corrente, auth Student. Il consenso alle
-  comunicazioni commerciali è ora nel Profilo (sezione `Comunicazioni`);
-  Termini/Privacy sono sull'Account. Vedi "Consenso comunicazioni commerciali".
+  accademico corrente, cambio del record corrente, auth Student. Email
+  primaria, consenso alle comunicazioni commerciali e Termini/Privacy sono
+  tutti sull'Account (`/student-view/account`, sezione `Comunicazioni` per il
+  consenso) — non nel Profilo. Vedi "Consenso comunicazioni commerciali".
 - Presentational primitives condivise con il Public profile in
   `src/app/components/profile/ProfileFormPrimitives.tsx` (`FormSection`,
   `TextField`, `SelectField`, `ReadOnlyField`) — solo presentazione, nessuna
@@ -120,8 +121,9 @@ riferimento:
   (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
   mai `Pipeline` né `Student.academic_records[]`. La sua forma è sempre la
   stessa per ogni utente standalone autenticato — `Informazioni personali` →
-  `Contatti` (consenso commerciale per-email inline, non una sezione
-  `Comunicazioni` separata) → `Percorso attuale` + `Percorsi precedenti` — mai
+  `Contatti` (solo Telefono — email account e consenso commerciale vivono
+  ora su `/public-view/account`, sezione `Comunicazioni`, non qui) →
+  `Percorso attuale` + `Percorsi precedenti` — mai
   "un blocco se Pipeline, multi-record se Student". Riusa la stessa leaf
   condivisa (`AcademicRecordsSections`) di `/student-view/profilo`, che invece
   resta sul dominio Student reale (`Student.academic_records[]`, `is_current` e
@@ -174,12 +176,16 @@ Informativa privacy, consenso commerciale. Nel prototipo:
   `/student-view/account`), sola lettura, stato letto dalla persistenza
   prototipo Slice A (registry account); lo Student non ha modello legale →
   `Stato non disponibile`.
-- **Consenso commerciale** → Profilo, scelta esplicita tri-state, **per email**.
-  Scritto all'identità risolta: Pipeline `marketing_consents[email]` (per
-  contatto) oppure, per uno Student, `contacts.emails[].marketing_consent`
-  (`boolean | null`) della sola email pertinente (nel Profilo Student: l'email
-  primaria, accanto all'indirizzo; nel Profilo standalone risolto a Student:
-  l'email account verificata). Nessun valore globale di persona.
+- **Consenso commerciale** → **Account** (non più Profilo — regola IA
+  canonica corretta, canonical §33.9), scelta esplicita tri-state, **per
+  email**, sezione `Comunicazioni` tra `Accesso` e `Termini e privacy`.
+  Standalone: scritto su `standaloneProfile.ts` (`commercial_consents[email]`,
+  store Profilo-locale, non Pipeline). Student: scritto su
+  `contacts.emails[emailPrimaria].marketing_consent` (`boolean | null`) via
+  `updateStudent`, stessi helper di `marketingConsent.ts` di sempre. Nessun
+  valore globale di persona. (L'acquisizione Pipeline/CRM riceve comunque la
+  stessa scelta in parallelo alla registrazione — dominio separato, vedi
+  sotto.)
 - **Registrazione standalone = scelta obbligatoria, valore opzionale.** Il
   tri-state generale del CRM (chiave assente = mai chiesto, valido per contatti
   di altri canali di acquisizione o dati CRM legacy) resta **distinto**
@@ -194,12 +200,14 @@ Informativa privacy, consenso commerciale. Nel prototipo:
   `applyStandaloneRegistrationConsent` dopo la verifica email: scrive
   `Pipeline.marketing_consents[emailVerificata]` oppure, per uno Student
   esistente, `contacts.emails[emailVerificata].marketing_consent` — sempre
-  `true`/`false`. Di conseguenza il Profilo standalone non mostra mai
-  `Preferenza non ancora espressa` per l'email dell'account verificato di una
-  registrazione TesiCheck completata; quello stato resta legittimo solo per
-  contatti CRM non originati da questa registrazione (Pipeline/Student
-  pre-esistenti risolti per email, o il fallback `new_pipeline` per account
-  pre-regola). Non è stato introdotto alcun consenso "positivo" obbligatorio,
+  `true`/`false`; in parallelo, `seedStandaloneProfileFromRegistration` scrive
+  la stessa scelta su `standaloneProfile.ts`. Di conseguenza l'Account
+  standalone non mostra mai `Preferenza non ancora espressa` per l'email
+  dell'account verificato di una registrazione TesiCheck completata; quello
+  stato resta legittimo solo per contatti CRM non originati da questa
+  registrazione (Pipeline/Student pre-esistenti risolti per email, o il
+  fallback `new_pipeline` per account pre-regola). Non è stato introdotto
+  alcun consenso "positivo" obbligatorio,
   né alcuna coercizione di un valore sconosciuto a `false`.
 - **Admin (Slice D)** → Pipeline: consenso per contatto con controllo tri-state
   esplicito (`Non richiesto` rimuove la chiave = ritorno a sconosciuto), più una

@@ -1,12 +1,16 @@
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { Link } from 'react-router';
+import { CheckCircle2 } from 'lucide-react';
 import { FormSection } from '@/app/components/profile/ProfileFormPrimitives';
+import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import {
   AccountInfoRow,
   CrossSurfaceLink,
   LegalStatusRow,
 } from '@/app/components/account/AccountPrimitives';
 import { findRegisteredAccount, getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { readStandaloneCommercialConsent, writeStandaloneCommercialConsent } from '@/app/data/standaloneProfile';
 
 /**
  * Authenticated standalone Account page (`/public-view/account`).
@@ -15,12 +19,20 @@ import { findRegisteredAccount, getAccountSession } from '@/app/data/tesicheckAc
  * (`/public-view/profilo`, personal/profile data). It does NOT reuse
  * `/public/account`, which is and stays the paid-checkout account gate.
  *
+ * Self-service IA rule: account email, the commercial-communications
+ * preference, and Terms/Privacy status all belong here, not on Profile —
+ * Profile owns only personal info, phone and academic history.
+ *
  * Legal state is read from the Slice A prototype persistence: the
  * registered-account registry (source of truth), falling back to the mirrored
  * account session. Absent booleans (legacy accounts) render as
  * "Stato non registrato nel prototipo" — never silently treated as accepted.
  * No dates / versions / URLs / legal text are invented; Terms & Privacy are
  * informational here. Production must supply real account/legal semantics.
+ *
+ * The commercial preference is read/written through the SAME standalone
+ * Profile-local store (`standaloneProfile.ts`, `commercial_consents`) the
+ * registration flow already seeds — never a new store, never CRM/Pipeline.
  */
 
 const PASSWORD_RECOVERY_PATH = '/public/password-recovery?returnTo=/public-view/account';
@@ -31,6 +43,11 @@ export function PublicAccountPage() {
     () => (session ? findRegisteredAccount(session.email) : null),
     [session],
   );
+
+  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(() =>
+    session ? readStandaloneCommercialConsent(session.email) : null,
+  );
+  const [commercialSaved, setCommercialSaved] = useState(false);
 
   // `PublicLayout` already guards the session; keep a neutral fallback anyway.
   if (!session) {
@@ -46,6 +63,12 @@ export function PublicAccountPage() {
 
   const termsAccepted = registered?.termsAccepted ?? session.termsAccepted;
   const privacyAcknowledged = registered?.privacyAcknowledged ?? session.privacyAcknowledged;
+
+  const handleSaveCommercialConsent = () => {
+    if (commercialConsent === null) return;
+    writeStandaloneCommercialConsent(session.email, commercialConsent);
+    setCommercialSaved(true);
+  };
 
   return (
     <PageShell>
@@ -71,6 +94,37 @@ export function PublicAccountPage() {
                 </Link>
               }
             />
+          </div>
+        </FormSection>
+
+        <FormSection title="Comunicazioni">
+          <CommercialConsentField
+            idPrefix="standalone-account-commercial-consent"
+            value={commercialConsent}
+            onChange={(v) => {
+              setCommercialConsent(v);
+              setCommercialSaved(false);
+            }}
+          />
+          <p
+            className="mt-2 text-[var(--muted-foreground)]"
+            style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
+          >
+            Riferito all&apos;indirizzo {session.email}.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <SottocheckActionButton onClick={handleSaveCommercialConsent} disabled={commercialConsent === null}>
+              Salva preferenza
+            </SottocheckActionButton>
+            {commercialSaved && (
+              <span
+                className="inline-flex items-center gap-1.5 text-[var(--foreground)]"
+                style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}
+              >
+                <CheckCircle2 className="h-4 w-4 text-[var(--primary)]" aria-hidden="true" />
+                Salvata
+              </span>
+            )}
           </div>
         </FormSection>
 
@@ -127,7 +181,8 @@ function PageShell({ children }: { children: ReactNode }) {
           className="mt-2 text-[var(--muted-foreground)]"
           style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}
         >
-          Gestisci l&apos;accesso al tuo account e consulta lo stato di Termini e Informativa privacy.
+          Gestisci l&apos;accesso al tuo account, la preferenza di comunicazioni commerciali e consulta lo
+          stato di Termini e Informativa privacy.
         </p>
       </header>
       <div className="max-w-[760px]">{children}</div>

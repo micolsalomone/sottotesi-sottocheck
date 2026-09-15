@@ -1660,11 +1660,11 @@ Nei contesti coaching:
 - I booleani `termsAccepted` / `privacyAcknowledged` sul registered-account registry sono persistenza di prototipo: assente = non registrato, mai accettato; nessuna retroattività sugli account legacy; la produzione richiede versione + timestamp + audit (§33.5).
 - Wording legale finale, versioni e URL delle policy sono responsabilità di cliente/legale; il prototipo non inventa versioni, link o testo legale (§33.5).
 - Profilo e Account sono superfici distinte con route separate: `/public-view/profilo` + `/public-view/account`, `/student-view/profilo` + `/student-view/account`. `/public/account` resta esclusivamente il gate account del checkout (§33.5).
-- Termini e Informativa privacy vivono sulla pagina Account (sola lettura); il consenso commerciale vive sul Profilo (Slice C). Nessuna duplicazione di contenuti tra Profilo e Account (§33.5).
+- **Regola IA canonica self-service (standalone + Student), corretta rispetto a Slice C — vedi §33.9:** email di accesso e preferenza di comunicazioni commerciali sono dati di Account, non di Profilo. Termini e Informativa privacy vivono sulla pagina Account (sola lettura); il consenso commerciale vive ora anch'esso su Account, sezione `Comunicazioni`. Nessuna duplicazione di contenuti tra Profilo e Account (§33.5, §33.9).
 - La pagina Account standalone legge lo stato Termini/Privacy dalla persistenza prototipo Slice A (registry → mirror sessione); assente = `Stato non registrato nel prototipo`, mai accettato per default. Lo Student non ha stato legale nel prototipo → righe neutre, niente date/versioni/accettazioni fabbricate (§33.5).
 - Nel sidebar `Profilo` è nello slot secondario in basso per standalone autenticato e Student (come Admin); Account non è nel sidebar, si raggiunge dal menu utente in alto a destra (`Informazioni Account` → `accountPath`) e dal cross-link del Profilo (§33.5).
-- Il consenso alle comunicazioni commerciali vive nel Profilo — **dentro** la sezione `Contatti`, accanto all'email a cui si riferisce (non una sezione `Comunicazioni` separata) — mai in Account. Terms/Privacy restano in Account (§33.5).
-- **Ordine sezioni normalizzato del Profilo standalone:** `Informazioni personali` → `Contatti` (con il consenso commerciale inline) → percorso accademico. Target Pipeline → un solo blocco `Percorso universitario` da `pipeline.academic_data` (nessun record multiplo, la Pipeline non lo supporta). Target Student esistente → **stesso modello Student**, mai una copia appiattita: `Percorso attuale` + `Percorsi precedenti` da `Student.academic_records[]`, con la stessa leaf condivisa (`AcademicRecordsSections`) usata da `/student-view/profilo` — editing di contenuto, aggiunta di un percorso precedente, eliminazione dei soli record precedenti non vincolati a un `StudentService`; `is_current` e i binding `StudentService` restano operativi/Admin, mai modificabili dal Profilo standalone (§33.5).
+- **SUPERSEDUTO da §33.9 — mantenuto per traccia storica.** Il consenso alle comunicazioni commerciali viveva nel Profilo — dentro la sezione `Contatti`, accanto all'email a cui si riferisce — mai in Account. Ora vive **solo** in Account, sezione `Comunicazioni`; Profilo non mostra più né email né consenso (§33.9).
+- **Ordine sezioni del Profilo standalone (corrente, post-§33.9):** `Informazioni personali` → `Contatti` (solo Telefono) → percorso accademico. L'email account e il consenso commerciale non compaiono più qui. Target Pipeline → un solo blocco `Percorso universitario` da `pipeline.academic_data` (nessun record multiplo, la Pipeline non lo supporta). Target Student esistente → **stesso modello Student**, mai una copia appiattita: `Percorso attuale` + `Percorsi precedenti` da `Student.academic_records[]`, con la stessa leaf condivisa (`AcademicRecordsSections`) usata da `/student-view/profilo` — editing di contenuto, aggiunta di un percorso precedente, eliminazione dei soli record precedenti non vincolati a un `StudentService`; `is_current` e i binding `StudentService` restano operativi/Admin, mai modificabili dal Profilo standalone (§33.5, §33.9).
 - **Registrazione standalone: la scelta è obbligatoria, il consenso no.** Distinto dal tri-state generale CRM (chiave/valore assente = mai chiesto, legittimo per contatti di altri canali o dati CRM legacy): chi completa la registrazione standalone TesiCheck deve esprimere esplicitamente `Sì` o `No` per le comunicazioni commerciali prima che l'account possa essere creato — il consenso positivo resta facoltativo, **esprimere una preferenza non lo è**. Il `RegisterForm` condiviso blocca il submit finché non è selezionata un'opzione (stesso controllo tri-state del Profilo, mai `null` all'invio); il valore è quindi sempre un booleano esplicito scritto da `applyStandaloneRegistrationConsent` dopo la verifica email. Di conseguenza il Profilo standalone non mostra mai `Preferenza non ancora espressa` per l'email di una registrazione TesiCheck completata; quello stato resta legittimo solo per identità CRM non originate da questa registrazione (§33.5).
 - Il controllo è a scelta esplicita tri-state (`Sì` / `No` / non espresso): unknown non va mai collassato in `No`. Non spuntato di default; mai gate a registrazione/pagamento/report/servizi (§33.5).
 - `Pipeline.marketing_consents` mantiene il tipo `Record<string, boolean>`: chiave assente = sconosciuto, `false` = chiesto/non concesso, `true` = concesso. Read tri-state via `readEmailMarketingConsent`; niente `map[email] || false` (§33.5).
@@ -1889,6 +1889,16 @@ Persistenza prototipo:
     acquisizione.
 
 **Profilo ≠ Account (direzione di prodotto).** Sono superfici separate:
+
+> **Corretto da §33.9: il consenso commerciale è passato da Profilo ad
+> Account.** L'elenco immediatamente sotto (e le Slice C/D che seguono)
+> descrivono la direzione originale, che assegnava il consenso al Profilo.
+> Product direction ha poi stabilito la regola IA canonica valida per ogni
+> superficie self-service — email di accesso e consenso commerciale sono
+> dati di Account, non di Profilo — vedi §33.9 per lo stato attuale e
+> autoritativo. Il resto di questa narrazione (modello tri-state, owner
+> dell'identità risolta, scrittura non distruttiva) resta tecnicamente
+> accurato; cambia solo quale pagina lo espone.
 
 - **Profilo** (`/public-view/profilo`, `/student-view/profilo`) → identità,
   contatti, dati accademici, **consenso alle comunicazioni commerciali**.
@@ -2229,4 +2239,75 @@ registrazione + verifica email
 
 Dettaglio tecnico completo (implementazione, file, criteri di accettazione):
 [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20.
+
+### 33.9 Regola IA canonica self-service: email account + consenso commerciale vivono in Account, non in Profilo
+
+Sostituisce, per email account e consenso commerciale, quanto descritto sopra
+in §33.5 ("Profilo ≠ Account", Slice C/D) e nel commento inline della §33.5
+su "consenso commerciale dentro Contatti". Regola valida per **ogni**
+superficie self-service attuale e futura (standalone, Student, e — solo
+documentato, non implementato — Coach):
+
+```text
+PROFILO possiede:
+- informazioni personali
+- telefono / contatti non di accesso
+- profilo accademico / storico accademico
+
+ACCOUNT possiede:
+- email di accesso
+- gestione password
+- preferenza di comunicazioni commerciali per quell'email account
+- stato Termini e condizioni
+- stato presa visione Informativa privacy
+```
+
+Le comunicazioni commerciali restano **distinte** da Termini/Privacy:
+spostarle su Account non le trasforma in accettazione legale — restano una
+preferenza di marketing tri-state, mai obbligatoria, mai bloccante.
+
+**Non si applica** ai drawer/superfici CRM di Admin (`PipelineDetailDrawer`,
+`CreatePipelineDrawer`, `CreateStudentDrawer`, `ContactManager` in modalità
+Admin): lì email e consenso per-contatto restano legittimamente insieme,
+perché quelle superfici gestiscono un *contatto*, non un'identità
+self-service. Admin è invariato da questa correzione.
+
+**Standalone (`/public-view/profilo` + `/public-view/account`):** Profilo
+perde la riga `Email account` e il blocco consenso da `Contatti` (che ora
+contiene solo Telefono). Account guadagna una sezione `Comunicazioni` tra
+`Accesso` e `Termini e privacy`, con lo stesso `CommercialConsentField`,
+stessa didascalia `Riferito all'indirizzo <email>.`, un pulsante dedicato
+`Salva preferenza` (Account non ha un unico form/submit come il Profilo).
+Legge/scrive lo stesso store Profilo-locale di prima
+(`standaloneProfile.ts`, `commercial_consents`, seedato dalla registrazione
+— §33.5, invariato) — cambia solo la pagina che lo espone, non il
+meccanismo di persistenza né la registrazione.
+
+**Student (`/student-view/profilo` + `/student-view/account`):** stessa
+correzione. Profilo perde la riga email primaria e il blocco consenso da
+`Contatti` (solo Telefono resta). Account guadagna la sezione
+`Comunicazioni`, leggendo/scrivendo **lo stesso** campo per-email
+`Student.contacts.emails[primaria].marketing_consent` tramite gli helper
+esistenti di `marketingConsent.ts` — mai un valore globale, mai
+`is_primary` / `purposes` / `service_access` / altre email. Se l'email
+primaria non è risolvibile, Account mostra uno stato neutro invece di
+fabbricare un consenso.
+
+**Cross-link invariati:** Profilo → `Gestisci account e privacy` → Account;
+Account → `Vai al profilo personale` → Profilo. Nessun controllo duplicato
+su entrambe le pagine.
+
+**Invariato:** registrazione (Sì/No obbligatorio, §33.5), acquisizione
+Pipeline/CRM, la modale di completamento profilo post-registrazione e la
+card promemoria Dashboard (§33.8 — restano solo accademiche, nessun
+controllo email/marketing nell'onboarding), Admin.
+
+**Regola per il futuro Coach self-service** (solo documentazione, non
+implementato ora): quando verrà costruita una UI self-service Coach, dovrà
+seguire lo stesso confine — Profilo = dati personali/professionali; Account
+= email di accesso, password, stato privacy/legale, preferenza di
+comunicazione.
+
+Dettaglio tecnico completo (implementazione, file, criteri di accettazione):
+[tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §21.
 

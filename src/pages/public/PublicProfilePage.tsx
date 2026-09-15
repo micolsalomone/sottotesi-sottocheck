@@ -7,19 +7,15 @@ import {
   applyStandaloneAcademicEdits,
   createDraftAcademicRecord,
   ensureStandaloneProfile,
-  readStandaloneCommercialConsent,
   toEditableStandaloneRecord,
   updateStandaloneProfile,
-  writeStandaloneCommercialConsent,
 } from '@/app/data/standaloneProfile';
 import type { EditableAcademic } from '@/app/data/studentAcademicRecords';
 import {
   FormSection,
-  ReadOnlyField,
   TextField,
 } from '@/app/components/profile/ProfileFormPrimitives';
 import { AcademicRecordsSections } from '@/app/components/profile/AcademicRecordsSection';
-import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
 
 /**
@@ -31,6 +27,11 @@ import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
  * Acquisition Pipeline creation/dedupe at registration
  * (`tesicheckLeadEnrichment.ts`) is a separate, untouched concern — this page
  * never reads or writes it.
+ *
+ * Self-service IA rule: account email and the commercial-communications
+ * preference belong to Account (`/public-view/account`), not Profile — this
+ * page owns only personal info, phone, and academic history. See
+ * `PublicAccountPage.tsx` for where the consent control now lives.
  */
 
 // Same option vocabulary as the Admin academic forms / Student Profile, kept
@@ -59,10 +60,6 @@ export function PublicProfilePage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  // `touched` separates an explicit choice from an untouched unknown so a
-  // Profile save never turns an absent/`null` value into `false`.
-  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
-  const [commercialTouched, setCommercialTouched] = useState(false);
   const [academic, setAcademic] = useState<EditableAcademic[]>([]);
   const [saved, setSaved] = useState(false);
 
@@ -80,8 +77,6 @@ export function PublicProfilePage() {
     setFirstName(profile.first_name || getAccountFirstName(session));
     setLastName(profile.last_name);
     setPhone(profile.phone);
-    setCommercialConsent(readStandaloneCommercialConsent(accountEmail));
-    setCommercialTouched(false);
     setAcademic([
       ...profile.academic_records.filter((r) => r.is_current).map(toEditableStandaloneRecord),
       ...profile.academic_records.filter((r) => !r.is_current).map(toEditableStandaloneRecord),
@@ -121,12 +116,6 @@ export function PublicProfilePage() {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!accountEmail) return;
-
-    // Write the touched consent choice only when the user made one this
-    // session — an untouched value round-trips unchanged.
-    if (commercialTouched && commercialConsent !== null) {
-      writeStandaloneCommercialConsent(accountEmail, commercialConsent);
-    }
 
     updateStandaloneProfile(accountEmail, (profile) => ({
       ...profile,
@@ -180,29 +169,8 @@ export function PublicProfilePage() {
         </FormSection>
 
         <FormSection title="Contatti">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ReadOnlyField label="Email account" value={session.email} />
+          <div className="grid grid-cols-1 gap-4 md:max-w-[360px]">
             <TextField id="profile-phone" label="Telefono (facoltativo)" type="tel" value={phone} onChange={(v) => { setPhone(v); markDirty(); }} autoComplete="tel" />
-          </div>
-
-          {/* Commercial-communications consent for the verified account email —
-              kept adjacent to the email it applies to, not in a separate section. */}
-          <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <CommercialConsentField
-              idPrefix="standalone-commercial-consent"
-              value={commercialConsent}
-              onChange={(v) => {
-                setCommercialConsent(v);
-                setCommercialTouched(true);
-                markDirty();
-              }}
-            />
-            <p
-              className="mt-2 text-[var(--muted-foreground)]"
-              style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
-            >
-              Riferito all&apos;indirizzo {session.email}.
-            </p>
           </div>
         </FormSection>
 

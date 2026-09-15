@@ -33,10 +33,16 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
 - Sidebar — slot secondario in basso (separato, stesso pattern di Student/Admin):
   `Profilo`. `Account` **non** è nella sidebar.
 - `Profilo` (`/public-view/profilo`) e `Account` (`/public-view/account`) sono
-  superfici distinte: Profilo = `Informazioni personali` → `Contatti` → percorso
-  accademico, in quest'ordine. Account = accesso (email, recupero password) +
-  stato Termini/Privacy in sola lettura. Termini/Privacy non stanno nel
-  Profilo.
+  superfici distinte, secondo una regola IA canonica valida per ogni superficie
+  self-service (standalone e Student): **email di accesso e preferenza di
+  comunicazioni commerciali sono dati di ACCOUNT, non di Profilo.**
+  - Profilo = `Informazioni personali` → `Contatti` (solo Telefono, facoltativo)
+    → `Percorso attuale` → `Percorsi precedenti`, in quest'ordine. **Non**
+    mostra più l'email account né il controllo di consenso commerciale.
+  - Account = `Accesso` (email, recupero password) → `Comunicazioni`
+    (preferenza commerciale, editabile) → `Termini e privacy` (sola lettura),
+    in quest'ordine. È l'**unica** superficie self-service dove il consenso
+    commerciale si modifica — nessun controllo duplicato sul Profilo.
   - **Dominio proprio, indipendente dal CRM.** Il Profilo standalone legge e
     scrive **solo** un prototipo dedicato
     (`src/app/data/standaloneProfile.ts`, keyed sull'email account verificata),
@@ -52,10 +58,12 @@ Per la landing pubblica non loggata, l'obiettivo e' conversione + fiducia: spieg
     (`Student.academic_records[]`, con `is_current` e binding `StudentService`
     operativi/Admin) — i due Profili non sono uniti né sincronizzati da questo
     prototipo.
-  - Il consenso commerciale (scelta esplicita tri-state) vive **dentro**
-    `Contatti`, accanto all'email a cui si riferisce — non in una sezione
-    `Comunicazioni` separata. È scritto sullo stesso store Profilo
-    (`commercial_consents`), seedato dalla scelta esplicita fatta in
+  - Il consenso commerciale (scelta esplicita tri-state, `CommercialConsentField`
+    riusato as-is) vive ora nella sezione `Comunicazioni` di Account, con la
+    caption `Riferito all'indirizzo <email>.` e un pulsante `Salva preferenza`
+    dedicato (Account non ha un unico form/submit come il Profilo). È scritto
+    sullo stesso store Profilo-locale (`commercial_consents` in
+    `standaloneProfile.ts`), seedato dalla scelta esplicita fatta in
     registrazione; la Pipeline/lo Student CRM ricevono comunque la stessa
     scelta in parallelo (dominio acquisizione, invariato — vedi
     `tesicheck-standalone-enrichment-handoff.md` §19).

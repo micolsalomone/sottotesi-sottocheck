@@ -358,6 +358,15 @@ See §11 for the Profile vs Account IA. See §12 for the Slice B implementation.
 
 ## 11. Profile vs Account — surface responsibilities (product direction)
 
+> **Commercial-consent ownership corrected — see §21.** This section
+> originally placed commercial-communications consent on Profile (implemented
+> by Slice C/D below). Product direction later corrected this: account email
+> and the commercial-communications preference both belong to **Account**, on
+> both the standalone and Student surfaces — Profile owns only identity,
+> contacts (phone) and academic info. The table and rules immediately below
+> are kept for historical trace of the Slice C/D implementation; §21 is the
+> current, authoritative IA.
+
 Profile and Account are **separate surfaces**. Terms/Privacy state is written to
 the account registry; commercial consent is Profile-domain and **per email**,
 written to the resolved identity — Pipeline `marketing_consents[email]`, or a
@@ -370,7 +379,7 @@ control; Slice D added Admin visibility and moved the Student model to per-email
 | **Profile** (`/public-view/profilo`, `/student-view/profilo`) | identity, contacts, academic info, **commercial communications consent** (per email; standalone: `Comunicazioni` section; Student profile: under the primary email in `Contatti`) |
 | **Account** (`/public-view/account`, `/student-view/account`) | account email, password / recovery entry points, **Terms acceptance status**, **Privacy acknowledgement status**, future account-management actions |
 
-Rules:
+Rules (historical — see §21 for the current split):
 
 - Commercial consent is tri-state and **unknown is never collapsed into `false`**:
   `Pipeline.marketing_consents` key-absent = unknown; a Student email's
@@ -417,6 +426,12 @@ tri-state, Admin visibility (Slice D), policy pages, footer legal links,
 production password/auth, Coach Account/Profile.
 
 ## 13. Slice C — commercial-communications consent in Profiles (implementation)
+
+> **Surface moved — see §21.** This slice put the commercial-consent control
+> on Profile. It has since moved to Account (both standalone and Student) —
+> the *model* this slice built (tri-state, per-email, `CommercialConsentField`)
+> is still exactly what Account now uses; only which page renders/writes it
+> changed. Kept for historical trace of the model's origin.
 
 Commercial consent (domain 3) is the **only** consent surfaced in Profile;
 Terms/Privacy stay on the Account page.
@@ -538,8 +553,8 @@ the caller maps `null` onto its storage (for a Pipeline map: **remove the key**)
 | `StudentiPage.tsx` | `resolveStudentConsent` → `resolveStudentRecontact(id): RecontactSummary` via `deriveStudentRecontactSummary(shared.contacts?.emails)`. List + mobile card show one read-only triage pill `recontactSummaryLabel(...)` (`Ricontatto consentito` / `Ricontatto non consentito` / `Consenso non richiesto`). `marketingConsentLabel` import replaced. Still no kebab toggle. |
 | `PipelinesPage.tsx` / `CreateLavorazioneDrawer.tsx` | Pipeline→Student conversion: each built email carries `marketing_consent: readMarketingConsentForContact(pipeline.marketing_consents, thatEmail)`; the top-level `newStudent.marketing_consent` is dropped. Per-contact, never collapsed. |
 | `tesicheckLeadEnrichment.ts` | `applyStandaloneRegistrationConsent` Student-match branch writes `withStudentEmailConsent(student.contacts?.emails, verifiedEmail, granted, { source: 'tesicheck-registration' })` — the verified email contact only, never a global value, never other emails. Module + fn docstrings updated. |
-| `student/ProfilePage.tsx` | The standalone `Comunicazioni` `FormSection` is **removed**. `CommercialConsentField` now sits **inside `Contatti`, under the email**, with caption `Riferito all'indirizzo <email>.` Prefill via `readStudentEmailConsent(student.contacts?.emails, primaryEmail)`; `handleSubmit` writes the primary email's `marketing_consent` via `withStudentEmailConsent` (guarded by `commercialTouched`). No global field written. |
-| `PublicProfilePage.tsx` | `target.mode === 'student'` branch: prefill via `readStudentEmailConsent(matched?.contacts?.emails, accountEmail)`; `saveStudentConsent` writes `withStudentEmailConsent(s.contacts?.emails, accountEmail, choice, { source: 'tesicheck-standalone-profile' })` — the verified matching email only, no Pipeline, no global value. `pipeline` / `new_pipeline` branches unchanged. |
+| `student/ProfilePage.tsx` | The standalone `Comunicazioni` `FormSection` is **removed**. `CommercialConsentField` now sits **inside `Contatti`, under the email**, with caption `Riferito all'indirizzo <email>.` Prefill via `readStudentEmailConsent(student.contacts?.emails, primaryEmail)`; `handleSubmit` writes the primary email's `marketing_consent` via `withStudentEmailConsent` (guarded by `commercialTouched`). No global field written. **Superseded by §21** — the email row and this consent block have since moved off Profile entirely, onto `student/AccountPage.tsx`. |
+| `PublicProfilePage.tsx` | `target.mode === 'student'` branch: prefill via `readStudentEmailConsent(matched?.contacts?.emails, accountEmail)`; `saveStudentConsent` writes `withStudentEmailConsent(s.contacts?.emails, accountEmail, choice, { source: 'tesicheck-standalone-profile' })` — the verified matching email only, no Pipeline, no global value. `pipeline` / `new_pipeline` branches unchanged. **Superseded twice over**: §19 replaced this CRM-branching shape with `standaloneProfile.ts`-only reads/writes, and §21 then moved consent off Profile onto `PublicAccountPage.tsx` entirely. |
 
 ### Authoritative service-access surface (audit)
 
@@ -1306,13 +1321,19 @@ staying just as minimal.
   auto-creating a blank one on first use. A standalone Profile is never "not
   applicable"; it always has something to review or complete.
 
-### 19.3 Public Profile (`/public-view/profilo`) — final shape
+### 19.3 Public Profile (`/public-view/profilo`) — final shape (HISTORICAL layout — see §21)
+
+> **Layout superseded by §21.** Email account and the consent control shown
+> in the `Contatti` block below have since moved to `PublicAccountPage.tsx`
+> — Profile's `Contatti` now holds only Telefono. Everything else in this
+> subsection (academic sections, save semantics, first-name fallback) is
+> unaffected and still accurate.
 
 Same conceptual layout as §17 established, now CRM-free:
 
 ```text
 Informazioni personali   (Nome, Cognome)
-Contatti                 (Email account read-only, Telefono, consenso inline)
+Contatti                 (Telefono)
 Percorso attuale         (AcademicRecordsSections)
 Percorsi precedenti      (AcademicRecordsSections)
 ```
@@ -1334,7 +1355,7 @@ Percorsi precedenti      (AcademicRecordsSections)
   `applyStandaloneAcademicEdits(profile.academic_records, academic)` — the
   same direct-correction merge shape §17 introduced, now operating on
   `StandaloneAcademicRecord[]` instead of `Student.academic_records[]`.
-  Consent is written separately, only when `commercialTouched`.
+  Consent is no longer part of this save at all — see §21.
 - **First-name prefill fallback:** `profile.first_name || getAccountFirstName(session)`
   — if the Profile store's `first_name` is still blank (e.g. an account whose
   registration predates this store), fall back to the account session's first
@@ -1342,6 +1363,11 @@ Percorsi precedenti      (AcademicRecordsSections)
   CRM — this is not a Pipeline/Student read.
 
 ### 19.4 Commercial consent — smallest prototype-local mechanism
+
+> **UI surface superseded by §21** — the control itself moved from Profile to
+> `PublicAccountPage.tsx`. The storage mechanism and registration-seeding
+> described below are unaffected: §21 changes only which page renders and
+> writes `writeStandaloneCommercialConsent`, not the store itself.
 
 The approved per-email UX (`CommercialConsentField`, tri-state, "Puoi
 modificare questa scelta in qualsiasi momento.") is unchanged. What changed is
@@ -1770,3 +1796,194 @@ cards are byte-for-byte unchanged.
   without console/build errors, but the modal, reminder card and both hosts
   were verified by code review + `tsc`/`build` only, not by exercising them
   in a live browser. This should be manually verified before shipping.
+
+---
+
+## 21. Cross-role self-service IA correction — account email + commercial consent move to Account
+
+**Problem found.** §11 (and its Slice C/D implementation, §13–§14) placed the
+commercial-communications preference on Profile, and both self-service
+Profile pages additionally displayed the account/login email inline in
+`Contatti`. Product direction established a canonical rule that applies to
+every current and future self-service surface (standalone, Student, and —
+documented for later — Coach): **account/login email and the
+commercial-communications preference are ACCOUNT data, not Profile data.**
+Profile is personal/professional information about the person; Account is
+how they log in, how they're contacted commercially, and their legal state.
+Mixing the two meant Profile's shape depended partly on account/consent
+concerns, and the (already-established, §12) Profile/Account split wasn't
+actually load-bearing for consent.
+
+This does **not** apply to Admin CRM/contact surfaces (`PipelineDetailDrawer`,
+`CreatePipelineDrawer`, `CreateStudentDrawer`, `ContactManager` in Admin
+mode) — those legitimately show a contact's email and its commercial consent
+together, because they are managing a *contact record*, not a self-service
+identity. Admin is untouched by this task.
+
+### 21.1 Canonical IA (applies to every self-service surface)
+
+| Surface | Owns |
+| --- | --- |
+| **Profile** (`/public-view/profilo`, `/student-view/profilo`) | personal information, phone / non-login contact info, academic profile / history |
+| **Account** (`/public-view/account`, `/student-view/account`) | account/login email, password/access management, **commercial-communications preference for that account email**, Terms & Conditions state, Privacy notice acknowledgement state |
+
+Commercial communications remain **distinct** from Terms/Privacy — moving
+the preference onto Account does not make it legal acceptance; it is still a
+plain marketing preference, tri-state, never required, never gating
+anything.
+
+### 21.2 Standalone Public Profile (`/public-view/profilo`)
+
+Removed from the Profile UI: the `Email account` read-only row and the
+`CommercialConsentField` block (including its `Riferito all'indirizzo …`
+caption) that used to sit in `Contatti`. `Contatti` now holds only Telefono.
+Nothing else changed: `Informazioni personali` → `Contatti` (Telefono) →
+`Percorso attuale` → `Percorsi precedenti`, same academic behaviour, same
+`handleSubmit`/`applyStandaloneAcademicEdits` write, same
+`updateStandaloneProfile` store. The underlying Profile-local commercial
+state (`standaloneProfile.ts`'s `commercial_consents` map,
+`readStandaloneCommercialConsent` / `writeStandaloneCommercialConsent`) is
+**not deleted** — only no longer read/written from this page. The
+Profile-completion modal (`StandaloneProfileCompletionModal`, §20) is
+**unchanged** — it remains academic-only (the same four fields) and was not
+touched by this task.
+
+### 21.3 Standalone Account (`/public-view/account`)
+
+New `FormSection "Comunicazioni"` inserted between the existing `Accesso`
+and `Termini e privacy` sections. Renders the SAME `CommercialConsentField`
+Profile used to render (no new consent-interaction pattern), with the SAME
+caption `Riferito all'indirizzo <account email>.`, plus a `Puoi modificare
+questa scelta in qualsiasi momento.` line (built into the shared component).
+Since `PublicAccountPage` has no single page-level form/submit (Accesso and
+Termini e privacy are both read-only), the Comunicazioni section gets its
+own local `commercialConsent`/`commercialSaved` state and a dedicated
+`Salva preferenza` button (`SottocheckActionButton`, disabled until a choice
+is made) with an inline "Salvata" confirmation on success — matching the
+save-confirmation pattern already used elsewhere (Profile's own save
+banner), not a new one.
+
+Reads/writes the exact same store the Profile page used to:
+`readStandaloneCommercialConsent(session.email)` /
+`writeStandaloneCommercialConsent(session.email, value)`
+(`standaloneProfile.ts`) — **no CRM/Pipeline read or write was introduced
+here.** A correctly registered standalone user never sees an
+unknown/unexpressed preference (registration already forces an explicit
+Sì/No, §18) — the tri-state "Preferenza non ancora espressa" state
+(built into `CommercialConsentField`) remains reachable only for accounts
+that predate this feature, same as before.
+
+### 21.4 Student Profile (`/student-view/profilo`)
+
+Removed from the Profile UI: the primary-email `ReadOnlyField` and the
+`CommercialConsentField` block (with its `Riferito all'indirizzo …`
+caption) that used to sit in `Contatti`, under the email. `Contatti` now
+holds only Telefono (gap-fill text field, or a read-only row when a primary
+number already exists — unchanged from before). The `primaryEmail`
+computation, `commercialConsent`/`commercialTouched` state, and the
+`withStudentEmailConsent` write inside `handleSubmit` are all removed from
+this file entirely — consent no longer rides along with an academic/personal
+save here. `academic_records`, `is_current`, `StudentService` bindings and
+all existing academic-history management (add/edit/delete previous records,
+service-bound delete protection) are **completely unchanged** —
+`applyAcademicRecordEdits` and `AcademicRecordsSections` are untouched.
+
+### 21.5 Student Account (`/student-view/account`)
+
+New `FormSection "Comunicazioni"` inserted between `Accesso` and `Termini e
+privacy`, mirroring §21.3. `AccountPage` now also destructures `updateStudent`
+from `useLavorazioni()` (previously only `students`). Resolves the exact same
+`primaryEmail` the page already computed for the `Accesso` row
+(`student.contacts?.emails?.find(is_primary)?.email ?? student.email ?? ''`)
+and reads/writes commercial consent via the **same** `marketingConsent.ts`
+helpers Profile used to call — `readStudentEmailConsent` for prefill,
+`withStudentEmailConsent(prev.contacts?.emails, primaryEmail, consent, {
+source: 'student-account' })` for save, wrapped in the page's own
+`updateStudent(student.id, …)` call. This writes **only**
+`Student.contacts.emails[primaryEmail].marketing_consent` — never
+`is_primary`, `purposes`, `service_access`, or any other email contact; never
+a global `Student.marketing_consent` (still deprecated, still unused). If
+`primaryEmail` cannot be resolved (empty string — a Student record with no
+email contact at all, not expected in the current fixtures but handled
+defensively), the section renders a neutral, non-fabricating message
+(`Preferenza non disponibile: nessun indirizzo email registrato per questo
+account.`) instead of a consent control — no invented email, no invented
+consent.
+
+### 21.6 Account ↔ Profile cross-links
+
+Unchanged: Profile's `Gestisci account e privacy` → Account; Account's `Vai
+al profilo personale` → Profile (`CrossSurfaceLink`, both directions, both
+roles). These links are now more load-bearing than before — Account is
+where email and consent visibility/editing live, so Profile relies on the
+cross-link to point users there rather than duplicating anything. No
+duplicate email/consent control exists on both pages for either role.
+
+### 21.7 Registration — unchanged
+
+Standalone registration still requires an explicit Sì/No for commercial
+communications (§18, `RegisterForm`'s `commercialConsent === null` guard,
+untouched). `seedStandaloneProfileFromRegistration` still seeds
+`standaloneProfile.ts`'s `commercial_consents` map with that choice
+(§19.4/§20.3) — Account simply reads/edits the same seeded value now,
+instead of Profile. Terms acceptance, Privacy acknowledgement, and Pipeline
+acquisition (`applyStandaloneRegistrationConsent`, `ensureTesiCheckPipeline`)
+are byte-for-byte untouched.
+
+### 21.8 Onboarding — unchanged
+
+`StandaloneProfileCompletionModal`, the Dashboard reminder card, the
+`profile_completion_prompt_pending` flag and `isCurrentAcademicRecordComplete`
+(§20) are all untouched by this task. The modal remains academic-only (the
+four fields it has always had); no email/marketing control was added to
+onboarding.
+
+### 21.9 Future Coach rule (documentation only — not implemented)
+
+No Coach Account/Profile work was implemented or scoped by this task. For
+when Coach self-service UI is eventually built, it should follow the same
+boundary established here: Profile owns personal/professional Profile data;
+Account owns login email, password, privacy state and communications
+preference. This is a documentation note for that future work, not a
+current requirement.
+
+### 21.10 Shared components — audit outcome
+
+`CommercialConsentField` (`src/app/components/profile/CommercialConsentField.tsx`)
+was already fully presentation-only (no Pipeline/Student/session/CRM
+knowledge, tri-state `value`/`onChange` props) — reused as-is on both Account
+pages, no new consent-interaction pattern introduced.
+`AccountPrimitives.tsx` (`AccountInfoRow`, `LegalStatusRow`,
+`CrossSurfaceLink`) and `ProfileFormPrimitives.tsx` (`FormSection`) are also
+reused unmodified. `PublicAccountPage.tsx` and `student/AccountPage.tsx`
+remain two separate page components, each resolving its own role's identity
+source (standalone account session vs. structured `Student`) — not merged.
+
+### 21.11 Scope protection
+
+Untouched: Admin Student drawer, Pipeline drawer, `ContactManager` in Admin
+mode, Pipeline consent management, `Student.academic_records[]`,
+`is_current`, `StudentService`, registration behaviour, Terms/Privacy state,
+Pipeline acquisition/CRM logic, the Profile-completion modal, the Dashboard
+reminder card, academic-completeness logic, `profile_completion_prompt_pending`.
+Verified by an empty `git diff --stat` against every one of those files/areas.
+
+### 21.12 Files changed
+
+| File | Change |
+| --- | --- |
+| `src/pages/public/PublicProfilePage.tsx` | Removed `Email account` row and the commercial-consent block from `Contatti`; removed `commercialConsent`/`commercialTouched` state, the consent prefill and the consent write from `handleSubmit`. `Contatti` now holds only Telefono. |
+| `src/pages/public/PublicAccountPage.tsx` | New `Comunicazioni` section between `Accesso` and `Termini e privacy`, with its own `commercialConsent`/`commercialSaved` state, `CommercialConsentField`, caption and `Salva preferenza` button, reading/writing `standaloneProfile.ts`'s `commercial_consents` map directly. |
+| `src/pages/student/ProfilePage.tsx` | Removed the primary-email row and the commercial-consent block from `Contatti`; removed `primaryEmail`, `commercialConsent`/`commercialTouched` and the `withStudentEmailConsent` write from `handleSubmit`. `Contatti` now holds only Telefono. Academic-record management untouched. |
+| `src/pages/student/AccountPage.tsx` | New `Comunicazioni` section between `Accesso` and `Termini e privacy`; now destructures `updateStudent`; reads/writes `Student.contacts.emails[primaryEmail].marketing_consent` via the existing `marketingConsent.ts` helpers, with a neutral fallback when no primary email resolves. |
+
+No other file changed for this task.
+
+### 21.13 Verification
+
+`npm run build` passes; `git diff --check` clean (only pre-existing LF→CRLF
+advisory warnings); `npx tsc --noEmit` at the **42-error baseline**,
+unchanged, no new errors in any of the four touched files. `git diff --stat`
+against Admin, Pipeline/CRM, `StandaloneProfileCompletionModal.tsx`,
+`DashboardPage.tsx`, and the registration controller pages — empty, confirming
+§21.11.

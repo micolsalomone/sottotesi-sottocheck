@@ -11,14 +11,19 @@ import {
 } from '@/app/components/profile/ProfileFormPrimitives';
 import { AcademicRecordsSections } from '@/app/components/profile/AcademicRecordsSection';
 import { CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
-import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
-import { readStudentEmailConsent, withStudentEmailConsent } from '@/app/data/marketingConsent';
 import {
   applyAcademicRecordEdits,
   createDraftAcademicRecord,
   toEditableAcademicRecord,
   type EditableAcademic,
 } from '@/app/data/studentAcademicRecords';
+
+/**
+ * Self-service IA rule: account email and the commercial-communications
+ * preference belong to Account (`/student-view/account`), not Profile — this
+ * page owns only personal info, phone and academic history. See
+ * `student/AccountPage.tsx` for where the consent control now lives.
+ */
 
 // Client-approved academic vocabulary. Underlying fields keep their legacy names
 // (`thesis_type` / `thesis_professor` / `thesis_subject` / `thesis_topic`).
@@ -47,11 +52,6 @@ export function ProfilePage() {
     [students],
   );
 
-  const primaryEmail = useMemo(() => {
-    if (!student) return '';
-    return student.contacts?.emails?.find((entry) => entry.is_primary)?.email ?? student.email ?? '';
-  }, [student]);
-
   // Primary phone from the structured contacts model; the deprecated top-level
   // field is only a read fallback.
   const existingPrimaryPhone = useMemo(() => {
@@ -67,13 +67,6 @@ export function ProfilePage() {
   const [academic, setAcademic] = useState<EditableAcademic[]>([]);
   const [saved, setSaved] = useState(false);
 
-  // Commercial-communications consent for the PRIMARY email
-  // (`contacts.emails[].marketing_consent`). `commercialTouched` separates "the
-  // user made a choice this session" from "untouched" so an unrelated Profile
-  // save never turns an untouched `null` into `false`.
-  const [commercialConsent, setCommercialConsent] = useState<boolean | null>(null);
-  const [commercialTouched, setCommercialTouched] = useState(false);
-
   const prefillKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!student) return;
@@ -86,13 +79,11 @@ export function ProfilePage() {
     setFirstName(student.first_name ?? '');
     setLastName(student.last_name ?? '');
     setPhone(phoneIsGapFill ? '' : existingPrimaryPhone);
-    setCommercialConsent(readStudentEmailConsent(student.contacts?.emails, primaryEmail));
-    setCommercialTouched(false);
 
     const current = student.academic_records.filter((r) => r.is_current).map(toEditableAcademicRecord);
     const previous = student.academic_records.filter((r) => !r.is_current).map(toEditableAcademicRecord);
     setAcademic([...current, ...previous]);
-  }, [student, existingPrimaryPhone, phoneIsGapFill, primaryEmail]);
+  }, [student, existingPrimaryPhone, phoneIsGapFill]);
 
   const markDirty = () => setSaved(false);
 
@@ -148,18 +139,6 @@ export function ProfilePage() {
           phones: contacts.phones.map((entry) =>
             entry.is_primary ? { ...entry, phone: gapFilledPhone } : entry,
           ),
-        };
-      }
-
-      // Commercial consent: write ONLY the primary email's per-email value, and
-      // only when the Student changed it this session. No other email, no
-      // `purposes`, no service access is touched.
-      if (commercialTouched && primaryEmail) {
-        contacts = {
-          emails: withStudentEmailConsent(contacts?.emails, primaryEmail, commercialConsent, {
-            source: 'student-profile',
-          }),
-          phones: contacts?.phones ?? [],
         };
       }
 
@@ -237,8 +216,7 @@ export function ProfilePage() {
         </FormSection>
 
         <FormSection title="Contatti">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ReadOnlyField label="Email" value={primaryEmail} />
+          <div className="grid grid-cols-1 gap-4 md:max-w-[360px]">
             {phoneIsGapFill ? (
               <TextField
                 id="student-profile-phone"
@@ -250,28 +228,6 @@ export function ProfilePage() {
               />
             ) : (
               <ReadOnlyField label="Telefono" value={existingPrimaryPhone} />
-            )}
-          </div>
-
-          {/* Commercial-communications consent for the primary email — kept
-              adjacent to the email it applies to, not in a separate section. */}
-          <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <CommercialConsentField
-              idPrefix="student-commercial-consent"
-              value={commercialConsent}
-              onChange={(v) => {
-                setCommercialConsent(v);
-                setCommercialTouched(true);
-                markDirty();
-              }}
-            />
-            {primaryEmail && (
-              <p
-                className="mt-2 text-[var(--muted-foreground)]"
-                style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
-              >
-                Riferito all&apos;indirizzo {primaryEmail}.
-              </p>
             )}
           </div>
         </FormSection>

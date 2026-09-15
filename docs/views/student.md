@@ -55,21 +55,27 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   risoluzione via email, sessione account o `resolveEnrichmentTarget`. Se il
   record non esiste → stato neutro "Profilo non disponibile", nessuna creazione
   a runtime.
-- Sezioni: `Informazioni personali` (Nome, Cognome), `Contatti` (Email primaria
-  read-only dal contact model; Telefono; + consenso commerciale dell'email
-  primaria), `Percorso attuale`, `Percorsi precedenti`. Termini e Informativa
-  privacy **non** stanno nel Profilo: sono sull'Account (`/student-view/account`).
-- Consenso comunicazioni commerciali: **nessuna sezione globale a sé**. Il
-  controllo tri-state (`CommercialConsentField` condiviso — `Sì` / `No`; stato
-  sconosciuto = nessuna opzione + `Preferenza non ancora espressa.`) è **dentro
-  la sezione `Contatti`, subito sotto l'email**, con la didascalia
-  `Riferito all'indirizzo <email>.` Legge/scrive **solo** il campo per-email
-  `Student.contacts.emails[primaria].marketing_consent` (`boolean | null`) via
-  `updateStudent`, integrato nel salvataggio del Profilo. Una preferenza non
-  toccata non viene riscritta salvando altri campi (unknown resta unknown).
-  Nessun tocco ad altre email / `purposes` / record accademici / servizi /
-  Pipeline / stato legale Account. Il vecchio `Student.marketing_consent` globale
-  è deprecato e non più usato.
+- **Regola IA canonica (self-service, standalone + Student): email di accesso
+  e preferenza di comunicazioni commerciali sono dati di ACCOUNT, non di
+  Profilo.** Sezioni del Profilo: `Informazioni personali` (Nome, Cognome),
+  `Contatti` (solo Telefono, facoltativo — **niente più email né consenso
+  commerciale**), `Percorso attuale`, `Percorsi precedenti`. Email, consenso
+  commerciale e Termini/Informativa privacy stanno tutti sull'Account
+  (`/student-view/account`).
+- Consenso comunicazioni commerciali: si modifica **solo** su Account, sezione
+  `Comunicazioni`, tra `Accesso` e `Termini e privacy`. Il controllo tri-state
+  (`CommercialConsentField` condiviso — `Sì` / `No`; stato sconosciuto =
+  nessuna opzione + `Preferenza non ancora espressa.`) ha didascalia
+  `Riferito all'indirizzo <email>.` e un pulsante `Salva preferenza` dedicato
+  (Account non ha un unico form/submit come il Profilo). Legge/scrive
+  **solo** il campo per-email `Student.contacts.emails[primaria].marketing_consent`
+  (`boolean | null`) via `updateStudent` — stessi helper di
+  `marketingConsent.ts` usati prima, solo spostati di superficie. Nessun tocco
+  ad altre email / `purposes` / record accademici / servizi / Pipeline /
+  stato legale Account. Il vecchio `Student.marketing_consent` globale resta
+  deprecato e non più usato. Se l'email primaria non è risolvibile, Account
+  mostra uno stato neutro (`Preferenza non disponibile: nessun indirizzo
+  email registrato per questo account.`) invece di fabbricare un consenso.
 - Vocabolario accademico approvato: `Livello di laurea` (`degree_level`),
   `Corso di laurea` (`course_name`), `Università` (`university_name`),
   `Tipologia` (`thesis_type` — valori Compilativa / Sperimentale / Esame),
@@ -124,7 +130,9 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
 ## Account (`/student-view/account`)
 
 - Superficie **distinta** dal Profilo: Profilo = dati personali/accademici;
-  Account = accesso e stato legale. Non duplicare i campi del Profilo.
+  Account = accesso, preferenza di comunicazioni commerciali e stato legale.
+  Non duplicare i campi del Profilo (email e consenso commerciale vivono
+  **solo** qui — vedi la regola IA canonica in "Profilo" sopra).
 - Dominio: stesso `Student` strutturato del Profilo
   (`STUDENT_VIEW_STUDENT_RECORD_ID`). **Mai** il registry / la sessione
   dell'account standalone TesiCheck: lo Student non usa credenziali standalone.
@@ -132,6 +140,10 @@ Deve sempre capire dove si trova, qual è lo step corrente, cosa può fare ora.
   Nel prototipo non esiste un flusso password per lo Student → riga informativa
   neutra (`Gestione password non disponibile da questa area`), nessun link al
   recupero password standalone.
+- Sezione `Comunicazioni` (tra `Accesso` e `Termini e privacy`): il controllo
+  editabile del consenso commerciale — vedi il dettaglio completo nella sezione
+  "Profilo" sopra. Scrive `updateStudent` direttamente da questa pagina (non più
+  integrato nel salvataggio del Profilo).
 - Sezione `Termini e privacy`: lo Student **non ha** uno stato di accettazione
   Termini/Privacy nel modello. Righe neutre `Stato non disponibile` + nota
   `Lo stato delle accettazioni non è disponibile per questo account.` Non
