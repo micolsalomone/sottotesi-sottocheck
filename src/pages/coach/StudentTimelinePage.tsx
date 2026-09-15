@@ -6,13 +6,12 @@ import {
   THESIS_TYPE_LABELS
 } from './studentsData';
 import { useParams, useNavigate } from 'react-router';
-import { InfoCoachingCard, ShareWithStudentCard } from '../../app/components/StudentProfile';
+import { InfoCoachingCard, ContactCard, ShareWithStudentCard } from '../../app/components/StudentProfile';
 import { DocumentArchiveDrawer, Document } from '../../app/components/coach/DocumentArchiveDrawer';
 import { TimelineEditDrawer, TimelineStepEdit, TimelineOverview } from '../../app/components/coach/TimelineEditDrawer';
 import { CoachTimelineList, TimelineStepData, ActivityItem } from '../../app/components/coach/CoachTimelineList';
 import { StepArchiveDrawer, StepDocument } from '../../app/components/coach/StepArchiveDrawer';
 import { TimelineControls } from '../../app/components/coach/TimelineControls';
-import { PlagiarismCheckDrawer } from '../../app/components/coach/PlagiarismCheckDrawer';
 import { StepOption } from '../../app/components/coach/AssignStepModal';
 import { TimelineSupportLabel } from '@/app/components/TimelineSupportLabel';
 import { CoachSupportTicketDrawer } from '@/app/components/coach/CoachSupportTicketDrawer';
@@ -20,6 +19,27 @@ import { Calendar, Plus, ClipboardList, ListPlus } from 'lucide-react';
 import { getStudentTimeline } from './studentTimelines';
 import { BulkImportModal, ParsedPhase } from '../../app/components/coach/BulkImportModal';
 import { useLavorazioni } from '@/app/data/LavorazioniContext';
+import { toast } from 'sonner';
+
+// Timeline never surfaces TesiCheck/plagiarism data, even when the underlying
+// shared/legacy document record carries it for other surfaces (e.g. Admin) — this
+// includes plagiarism-themed prose that ends up in the generic free-text `note`
+// field (fixture content only; ordinary notes are left untouched).
+function stripPlagiarismFields(docs: Document[]): Document[] {
+  return docs.map(({ plagiarismStatus, plagiarismCheckDate, plagiarismCheckedBy, note, ...rest }) => ({
+    ...rest,
+    note: note && /plagio/i.test(note) ? undefined : note,
+  }));
+}
+
+// Same convention already used for plan_start_date/plan_end_date elsewhere
+// (e.g. src/pages/admin/ServiziStudentiPage.tsx) — do not invent a new format here.
+function formatDateIT(dateStr?: string): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 export function StudentTimelinePage() {
   const { studentId } = useParams();
@@ -28,7 +48,6 @@ export function StudentTimelinePage() {
     data: services,
     students: realStudents,
     updateService,
-    updateStudent,
     getServiceTimelineSteps,
     getServiceArchiveDocuments,
   } = useLavorazioni();
@@ -86,7 +105,6 @@ export function StudentTimelinePage() {
 
   const [isArchiveDrawerOpen, setIsArchiveDrawerOpen] = useState(false);
   const [isTimelineEditDrawerOpen, setIsTimelineEditDrawerOpen] = useState(false);
-  const [isPlagiarismDrawerOpen, setIsPlagiarismDrawerOpen] = useState(false);
   const [stepArchiveId, setStepArchiveId] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isSupportTicketDrawerOpen, setIsSupportTicketDrawerOpen] = useState(false);
@@ -97,7 +115,7 @@ export function StudentTimelinePage() {
       : { steps: [], documents: [] as Document[] };
 
     if (!matchedService) {
-      return legacyTimeline;
+      return { steps: legacyTimeline.steps, documents: stripPlagiarismFields(legacyTimeline.documents as Document[]) };
     }
 
     const sharedSteps = getServiceTimelineSteps(matchedService.id);
@@ -106,14 +124,14 @@ export function StudentTimelinePage() {
     if (sharedSteps.length > 0 || sharedDocuments.length > 0) {
       return {
         steps: sharedSteps as TimelineStepData[],
-        documents: sharedDocuments as Document[],
+        documents: stripPlagiarismFields(sharedDocuments as Document[]),
       };
     }
 
     if (legacyTimeline.steps.length > 0 || legacyTimeline.documents.length > 0) {
       return {
         steps: legacyTimeline.steps as TimelineStepData[],
-        documents: legacyTimeline.documents as Document[],
+        documents: stripPlagiarismFields(legacyTimeline.documents as Document[]),
       };
     }
 
@@ -181,13 +199,12 @@ export function StudentTimelinePage() {
 
   function handleOpenArchive() { setIsArchiveDrawerOpen(true); }
   function handleOpenStudentProfile() {
-    alert('Questa azione porterebbe a una pagina separata di profilo studente esteso (read-only per il coach).');
+    toast.info('Questa azione porterebbe a una pagina separata di profilo studente esteso (read-only per il coach).');
   }
-  function handleOpenPlagiarismCheck() { setIsPlagiarismDrawerOpen(true); }
   function handleEditTimeline() { setIsTimelineEditDrawerOpen(true); }
   function handleSaveTimelineChanges(updatedSteps: TimelineStepEdit[]) {
     console.log('Saving timeline changes:', updatedSteps);
-    alert('Le modifiche alla timeline sono state salvate con successo.');
+    toast.success('Timeline salvata');
   }
 
   function handleAssignFileToStep(fileId: string, fileName: string, stepId: string | null) {
@@ -198,29 +215,21 @@ export function StudentTimelinePage() {
   function handleAssignDocToStep(docId: string, stepId: string) {
     const step = timelineSteps.find(s => s.id === stepId);
     updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, stepId, stepTitle: step?.title || null } : doc));
-    alert(`Documento assegnato a: ${step?.title}`);
+    toast.success(`Documento assegnato a: ${step?.title}`);
   }
 
-  function handleViewDocument(docId: string) { const doc = documents.find(d => d.id === docId); alert(`Visualizzazione documento: ${doc?.name}`); }
-  function handleDownloadDocument(docId: string) { const doc = documents.find(d => d.id === docId); alert(`Download documento: ${doc?.name}`); }
+  function handleViewDocument(docId: string) { const doc = documents.find(d => d.id === docId); toast.info(`Visualizzazione documento: ${doc?.name}`); }
+  function handleDownloadDocument(docId: string) { const doc = documents.find(d => d.id === docId); toast.info(`Download documento: ${doc?.name}`); }
   function handleDeleteDocument(docId: string) {
     if (confirm('Sei sicuro di voler eliminare questo documento?')) {
       updateSharedDocuments(prev => prev.filter(d => d.id !== docId));
-      alert('Documento eliminato');
+      toast.success('Documento eliminato');
     }
-  }
-
-  function handleRunPlagiarismCheck(docId: string) {
-    updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'pending' as const } : doc));
-    setIsPlagiarismDrawerOpen(true);
-    setTimeout(() => {
-      updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, plagiarismStatus: 'clear' as const } : doc));
-    }, 2000);
   }
 
   function handleAddNote(docId: string, note: string) {
     updateSharedDocuments(prev => prev.map(doc => doc.id === docId ? { ...doc, note } : doc));
-    alert('Nota salvata');
+    toast.success('Nota salvata');
   }
 
   // Timeline management handlers
@@ -255,7 +264,7 @@ export function StudentTimelinePage() {
 
   function handleRemoveStep(stepId: string) {
     updateSharedTimeline(prev => prev.filter(s => s.id !== stepId));
-    alert('Fase rimossa con successo');
+    toast.success('Fase rimossa con successo');
   }
 
   function handleToggleStepStatus(stepId: string, newStatus: 'active' | 'upcoming') {
@@ -315,7 +324,7 @@ export function StudentTimelinePage() {
         }
         return step;
       }));
-      alert('Fase marcata come completata');
+      toast.success('Fase marcata come completata');
     }
   }
 
@@ -451,7 +460,6 @@ export function StudentTimelinePage() {
         date: `${uploadDate} h:${now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }).replace(':', '.')}`,
         size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
         uploadedBy: 'Coach',
-        plagiarismStatus: 'none',
         note: note || undefined,
       });
     });
@@ -498,17 +506,22 @@ export function StudentTimelinePage() {
   const planEndDate = matchedService?.plan_end_date || '';
 
   const daysRemaining = useMemo(() => {
-    const months: Record<string, number> = {
-      'gennaio': 0, 'febbraio': 1, 'marzo': 2, 'aprile': 3, 'maggio': 4, 'giugno': 5,
-      'luglio': 6, 'agosto': 7, 'settembre': 8, 'ottobre': 9, 'novembre': 10, 'dicembre': 11
-    };
-    const match = planEndDate.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
-    if (!match) return null;
-    const endDate = new Date(parseInt(match[3]), months[match[2].toLowerCase()] ?? 0, parseInt(match[1]));
+    // Date arithmetic must run on the raw stored ISO date, never on the
+    // Italian-formatted display string (formatDateIT is presentation-only).
+    // A date-only 'YYYY-MM-DD' string is a calendar date, not a timestamp —
+    // parse the components explicitly and build a LOCAL date, since
+    // `new Date('YYYY-MM-DD')` parses as UTC and can shift a day off in
+    // timezones behind UTC.
+    if (!planEndDate) return null;
+    const isoMatch = planEndDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const endDate = isoMatch
+      ? new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]))
+      : new Date(planEndDate);
+    if (Number.isNaN(endDate.getTime())) return null;
+    endDate.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const diff = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
+    return Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }, [planEndDate]);
 
   const studentInitials = useMemo(() => {
@@ -573,7 +586,7 @@ export function StudentTimelinePage() {
               <span
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '20px',
+                  fontSize: 'var(--text-xl)',
                   fontWeight: 'var(--font-weight-medium)',
                   lineHeight: '30px',
                   letterSpacing: '-0.45px',
@@ -584,18 +597,18 @@ export function StudentTimelinePage() {
               </span>
             </div>
 
-            {/* Name */}
-            <span
+            {/* Page title (H1) */}
+            <h1
               style={{
                 fontFamily: 'var(--font-alegreya)',
-                fontSize: '32px',
+                fontSize: 'var(--text-h1)',
                 fontWeight: 'var(--font-weight-bold)',
                 lineHeight: '36px',
                 color: 'var(--foreground)',
               }}
             >
-              {studentName}
-            </span>
+              Percorso di {studentName}
+            </h1>
 
             {/* Service badge */}
             <div
@@ -613,7 +626,7 @@ export function StudentTimelinePage() {
               <span
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 'var(--font-weight-medium)',
                   lineHeight: '16.5px',
                   textTransform: 'uppercase',
@@ -640,7 +653,7 @@ export function StudentTimelinePage() {
               <span
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 'var(--font-weight-medium)',
                   lineHeight: '16.5px',
                   textTransform: 'uppercase',
@@ -652,97 +665,41 @@ export function StudentTimelinePage() {
             </div>
           </div>
 
-          {/* Date pill */}
-          {(planStartDate || planEndDate) ? (
-          <div
-            className="bg-[var(--card)] shrink-0"
-            style={{
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <div className="flex items-center gap-[4px] px-[12px] py-[8px]">
-              <div className="flex items-center gap-[8px] shrink-0">
-                <Calendar className="w-[14px] h-[14px] text-[var(--muted-foreground)]" />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)',
-                    lineHeight: '21px',
-                    color: 'var(--muted-foreground)',
-                  }}
-                >
-                  Inizio{' '}
-                  <span
-                    style={{
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--foreground)',
-                    }}
-                  >
-                    {planStartDate}
-                  </span>
-                  {' · Scadenza '}
-                  <span
-                    style={{
-                      fontWeight: 'var(--font-weight-medium)',
-                      color: 'var(--foreground)',
-                    }}
-                  >
-                    {planEndDate}
-                  </span>
-                </span>
-              </div>
-              {daysRemaining !== null && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)',
-                    lineHeight: '20px',
-                    letterSpacing: '-0.14px',
-                    color: 'var(--muted-foreground)',
-                  }}
-                >
-                  {daysRemaining > 0
-                    ? `(mancan${daysRemaining === 1 ? 'a' : 'o'} ${daysRemaining} giorn${daysRemaining === 1 ? 'o' : 'i'})`
-                    : daysRemaining === 0
-                      ? '(scade oggi)'
-                      : `(scadut${Math.abs(daysRemaining) === 1 ? 'o' : 'i'} da ${Math.abs(daysRemaining)} giorn${Math.abs(daysRemaining) === 1 ? 'o' : 'i'})`
-                  }
-                </span>
-              )}
-            </div>
+          <div className="ml-auto shrink-0">
+            <TimelineControls
+              filterMode={filterMode}
+              onFilterChange={setFilterMode}
+            />
           </div>
-          ) : (
-          <div
-            className="bg-[var(--card)] shrink-0"
-            style={{
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <div className="flex items-center gap-[8px] px-[12px] py-[8px]">
-              <Calendar className="w-[14px] h-[14px] text-[var(--muted-foreground)]" />
-              <span
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: 'var(--font-weight-regular)',
-                  color: 'var(--muted-foreground)',
-                }}
-              >
-                Date piano non definite
-              </span>
-            </div>
-          </div>
-          )}
-          <TimelineControls
-            filterMode={filterMode}
-            onFilterChange={setFilterMode}
-          />
         </div>
-        
+
+        {/* Plan dates — secondary metadata, not a competing card */}
+        <div className="flex items-center gap-[6px] mt-[6px]">
+          <Calendar className="w-[12px] h-[12px] text-[var(--muted-foreground)]" />
+          <span
+            style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--font-weight-regular)',
+              color: 'var(--muted-foreground)',
+            }}
+          >
+            {(planStartDate || planEndDate) ? (
+              <>
+                Inizio {formatDateIT(planStartDate)} · Scadenza {formatDateIT(planEndDate)}
+                {daysRemaining !== null && (
+                  daysRemaining > 0
+                    ? ` (mancan${daysRemaining === 1 ? 'a' : 'o'} ${daysRemaining} giorn${daysRemaining === 1 ? 'o' : 'i'})`
+                    : daysRemaining === 0
+                      ? ' (scade oggi)'
+                      : ` (scadut${Math.abs(daysRemaining) === 1 ? 'o' : 'i'} da ${Math.abs(daysRemaining)} giorn${Math.abs(daysRemaining) === 1 ? 'o' : 'i'})`
+                )}
+              </>
+            ) : (
+              'Date piano non definite'
+            )}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8">
@@ -768,7 +725,7 @@ export function StudentTimelinePage() {
                 <p
                   style={{
                     fontFamily: 'var(--font-alegreya)',
-                    fontSize: '20px',
+                    fontSize: 'var(--text-h4)',
                     fontWeight: 'var(--font-weight-bold)',
                     lineHeight: '28px',
                     color: 'var(--foreground)',
@@ -849,41 +806,26 @@ export function StudentTimelinePage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="timeline-sticky-sidebar flex flex-col gap-6 lg:sticky lg:top-[calc(var(--header-height)+24px)] lg:self-start">
           <InfoCoachingCard
             thesisSubject={thesisSubject}
             thesisMatter={currentAcademicRecord?.thesis_subject || ''}
             degree={currentAcademicRecord?.course_name || 'Non specificato'}
-            thesisLevel={currentAcademicRecord?.degree_level ? `${currentAcademicRecord.degree_level.charAt(0).toUpperCase()}${currentAcademicRecord.degree_level.slice(1)}` : 'Magistrale'}
+            thesisLevel={currentAcademicRecord?.degree_level ? `${currentAcademicRecord.degree_level.charAt(0).toUpperCase()}${currentAcademicRecord.degree_level.slice(1)}` : 'Non specificato'}
             thesisType={currentAcademicRecord?.thesis_type ? THESIS_TYPE_LABELS[currentAcademicRecord.thesis_type] : 'Non specificata'}
             supervisor={currentAcademicRecord?.thesis_professor || 'Non assegnato'}
-            studentPhone={realStudent?.contacts?.phones.find(phone => phone.is_primary)?.phone || realStudent?.phone || ''}
-            studentEmail={realStudent?.contacts?.emails.find(email => email.is_primary)?.email || realStudent?.email || ''}
+            university={currentAcademicRecord?.university_name || ''}
             startDate={planStartDate}
             endDate={planEndDate}
             referent={matchedService?.referente || 'Non assegnato'}
-            onSaveThesisSubject={(newSubject) => {
-              setThesisSubject(newSubject);
-              if (realStudent && currentAcademicRecord) {
-                updateStudent(realStudent.id, entry => ({
-                  ...entry,
-                  academic_records: entry.academic_records.map(record =>
-                    record.id === currentAcademicRecord.id
-                      ? {
-                        ...record,
-                        thesis_topic: newSubject,
-                        thesis_subject: newSubject,
-                        updated_at: new Date().toISOString(),
-                      }
-                      : record
-                  ),
-                }));
-              }
-            }}
+          />
+          <ContactCard
+            title="Contatti studente"
+            phone={realStudent?.contacts?.phones.find(phone => phone.is_primary)?.phone || realStudent?.phone || ''}
+            email={realStudent?.contacts?.emails.find(email => email.is_primary)?.email || realStudent?.email || ''}
           />
           <ShareWithStudentCard
             archiveCount={documents.length}
-            newDocCount={documents.filter(d => d.plagiarismStatus === 'none' || !d.plagiarismStatus).length}
             onOpenArchive={handleOpenArchive}
             onOpenProfile={handleOpenStudentProfile}
             steps={stepOptions}
@@ -899,7 +841,6 @@ export function StudentTimelinePage() {
                   date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                   size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
                   uploadedBy: 'Coach',
-                  plagiarismStatus: 'none',
                 };
                 updateSharedDocuments(prev => [newDoc, ...prev]);
               });
@@ -913,7 +854,8 @@ export function StudentTimelinePage() {
         isOpen={isArchiveDrawerOpen} onClose={() => setIsArchiveDrawerOpen(false)}
         studentName={studentName} documents={documents} availableSteps={stepOptions}
         onViewDocument={handleViewDocument} onDownloadDocument={handleDownloadDocument}
-        onDeleteDocument={handleDeleteDocument} onRunPlagiarismCheck={handleRunPlagiarismCheck}
+        onDeleteDocument={handleDeleteDocument}
+        showPlagiarism={false}
         onAddNote={handleAddNote} onAssignToStep={handleAssignDocToStep}
         onUploadDocuments={(files, note) => {
           files.forEach(file => {
@@ -926,14 +868,12 @@ export function StudentTimelinePage() {
               date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }),
               size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
               uploadedBy: 'Coach',
-              plagiarismStatus: 'none',
               note: note,
             };
             updateSharedDocuments(prev => [newDoc, ...prev]);
           });
         }}
       />
-      <PlagiarismCheckDrawer isOpen={isPlagiarismDrawerOpen} onClose={() => setIsPlagiarismDrawerOpen(false)} />
       {stepArchiveId && (() => {
         const step = computedTimelineSteps.find(s => s.id === stepArchiveId);
         if (!step) return null;
@@ -948,7 +888,6 @@ export function StudentTimelinePage() {
               uploadedBy: a.author,
               size: matchingDoc?.size,
               isNew: a.isNew,
-              plagiarismStatus: matchingDoc?.plagiarismStatus,
               note: a.description || matchingDoc?.note,
             };
           });
@@ -965,7 +904,7 @@ export function StudentTimelinePage() {
             onViewDocument={handleViewDocument}
             onDownloadDocument={handleDownloadDocument}
             onDeleteDocument={handleDeleteDocument}
-            onRunPlagiarismCheck={handleRunPlagiarismCheck}
+            showPlagiarism={false}
           />
         );
       })()}

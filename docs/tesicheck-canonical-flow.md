@@ -1571,7 +1571,6 @@ Nei contesti coaching:
 - Se la quota Coach è esaurita, può passare a un check libero a pagamento.
 - Il check libero Coach non viene associato automaticamente a un percorso coaching.
 - Admin seleziona studente + percorso e non usa gateway.
-- Student Archivio resta separato dallo Storico TesiCheck.
 - `/public` e `/public-view` restano contesti distinti.
 - La landing espone login e registrazione standalone diretti (`/public/login`,
   `/public/register`), indipendenti dal checkout upload-first, che resta valido e

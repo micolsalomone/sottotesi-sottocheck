@@ -26,6 +26,10 @@ interface StepArchiveDrawerProps {
   onDownloadDocument?: (docId: string) => void;
   onDeleteDocument?: (docId: string) => void;
   onRunPlagiarismCheck?: (docId: string) => void;
+  // Presentation-only switch. Some consumers (e.g. Admin) show TesiCheck/plagiarism
+  // result and actions on documents; Timeline must never render this — default keeps
+  // existing non-Timeline consumers unchanged.
+  showPlagiarism?: boolean;
 }
 
 export function StepArchiveDrawer({
@@ -41,6 +45,7 @@ export function StepArchiveDrawer({
   onDownloadDocument,
   onDeleteDocument,
   onRunPlagiarismCheck,
+  showPlagiarism = true,
 }: StepArchiveDrawerProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadNote, setUploadNote] = useState('');
@@ -145,7 +150,7 @@ export function StepArchiveDrawer({
                 className="uppercase tracking-wider mb-1"
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 'var(--font-weight-medium)',
                   color: 'var(--muted-foreground)',
                 }}
@@ -168,7 +173,7 @@ export function StepArchiveDrawer({
                   className="inline-flex items-center px-2 py-0.5"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '11px',
+                    fontSize: 'var(--text-xs)',
                     fontWeight: 'var(--font-weight-medium)',
                     borderRadius: 'var(--radius-badge)',
                     backgroundColor: statusColors.bg,
@@ -240,7 +245,7 @@ export function StepArchiveDrawer({
                 <p
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-regular)',
                     color: 'var(--muted-foreground)',
                   }}
@@ -281,7 +286,7 @@ export function StepArchiveDrawer({
                       <span
                         style={{
                           fontFamily: 'var(--font-inter)',
-                          fontSize: '12px',
+                          fontSize: 'var(--text-sm)',
                           fontWeight: 'var(--font-weight-regular)',
                           color: 'var(--muted-foreground)',
                         }}
@@ -306,7 +311,7 @@ export function StepArchiveDrawer({
                     className="flex items-center gap-1.5 px-2 py-1.5 transition-colors hover:bg-[var(--muted)]"
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-medium)',
                       color: 'var(--muted-foreground)',
                       borderRadius: 'calc(var(--radius) - 2px)',
@@ -398,7 +403,7 @@ export function StepArchiveDrawer({
               <span
                 style={{
                   fontFamily: 'var(--font-inter)',
-                  fontSize: '12px',
+                  fontSize: 'var(--text-sm)',
                   fontWeight: 'var(--font-weight-regular)',
                   color: 'var(--muted-foreground)',
                 }}
@@ -432,7 +437,7 @@ export function StepArchiveDrawer({
                   className="text-center"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-regular)',
                     color: 'var(--muted-foreground)',
                   }}
@@ -445,7 +450,7 @@ export function StepArchiveDrawer({
                 {documents.map((doc) => {
                   const fileInfo = getFileTypeFromName(doc.fileName);
                   const FileIcon = fileInfo.icon;
-                  const plagiarism = getPlagiarismLabel(doc.plagiarismStatus);
+                  const plagiarism = showPlagiarism ? getPlagiarismLabel(doc.plagiarismStatus) : null;
 
                   return (
                     <div
@@ -477,7 +482,7 @@ export function StepArchiveDrawer({
                                 className="flex-shrink-0 inline-block px-1.5 py-0.5 uppercase"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '11px',
+                                  fontSize: 'var(--text-xs)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
                                   backgroundColor: 'rgba(11, 182, 63, 0.1)',
@@ -493,7 +498,7 @@ export function StepArchiveDrawer({
                             className="flex items-center gap-2 flex-wrap mt-1"
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               fontWeight: 'var(--font-weight-regular)',
                               color: 'var(--muted-foreground)',
                             }}
@@ -516,7 +521,7 @@ export function StepArchiveDrawer({
                               <span
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   color: plagiarism.color,
                                 }}
@@ -538,7 +543,7 @@ export function StepArchiveDrawer({
                               <p
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-regular)',
                                   lineHeight: 1.5,
                                   color: 'var(--muted-foreground)',
@@ -557,7 +562,7 @@ export function StepArchiveDrawer({
                                 className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   color: 'var(--muted-foreground)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
@@ -573,7 +578,7 @@ export function StepArchiveDrawer({
                                 className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   color: 'var(--muted-foreground)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
@@ -583,13 +588,13 @@ export function StepArchiveDrawer({
                                 Scarica
                               </button>
                             )}
-                            {onRunPlagiarismCheck && doc.plagiarismStatus !== 'clear' && (
+                            {showPlagiarism && onRunPlagiarismCheck && doc.plagiarismStatus !== 'clear' && (
                               <button
                                 onClick={() => onRunPlagiarismCheck(doc.id)}
                                 className="flex items-center gap-1.5 px-2 py-1 transition-colors hover:bg-[var(--muted)]"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   color: 'var(--muted-foreground)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
@@ -609,7 +614,7 @@ export function StepArchiveDrawer({
                                 className="flex items-center gap-1.5 px-2 py-1 ml-auto transition-colors hover:bg-[rgba(220,38,38,0.10)]"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '12px',
+                                  fontSize: 'var(--text-sm)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   color: 'var(--destructive)',
                                   borderRadius: 'calc(var(--radius) - 4px)',

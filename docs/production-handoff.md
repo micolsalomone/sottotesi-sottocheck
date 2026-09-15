@@ -167,9 +167,31 @@ La landing afferma che i file non sono conservati e non sono visibili a Sottotes
 
 Il placeholder Coach Dashboard `Illustrazione / Animazione` e' un artifact del prototipo e non deve essere interpretato automaticamente come UI finale.
 
+## Fuori scope: archivio documenti generale
+
+La voce sidebar Student `Archivio` (`/student-view/archivio`) e la relativa pagina sono state rimosse: mostravano uno `Storico TesiCheck` obsoleto ("controlli plagio effettuati sui percorsi coaching"), in contraddizione con la separazione approvata Timeline/TesiCheck. Un archivio documenti standalone/globale non fa parte del prototipo attuale; la Timeline mantiene i drawer documento contestuali (Archivio condiviso, drawer completo, drawer per fase). Un archivio più strutturato potrà essere progettato come feature futura — questa nota non ne costituisce un requisito di prodotto.
+
 ## Known intentional distinctions
 
 TesiCheck job status, history/report status e service lifecycle sono domini distinti. Label come `Completato` non implicano lo stesso colore o la stessa semantic tone. Non creare un universal StatusBadge per uniformarli.
+
+## Timeline sidebar — Dati accademici / Contatti
+
+Sia `/student-view/studenti/:studentId` sia `/coach-view/studenti/:studentId` mostrano una sidebar a due card, sola lettura, mai un secondo editor:
+
+- `Dati accademici`: proiezione del record accademico **corrente** dello Student (`Livello di laurea`, `Corso di laurea`, `Università`, `Tipologia`, `Professore`, `Materia`, `Argomento` — stesso vocabolario canonico di `/student-view/profilo` e Admin). Nessun record precedente, nessuno switch, nessuna modifica da qui.
+- Contatti, distinti per ruolo e mai i propri:
+  - Student vede `Contatti del coach` — nome e contatto primario operativo (telefono/WhatsApp, email) del Coach assegnato al servizio.
+  - Coach vede `Contatti studente` — contatto primario (telefono, email) dello Student corrente.
+
+Contratto dati per production:
+
+- Dati accademici → Profile/Admin/CRM restano l'unica fonte autorevole; Timeline legge soltanto il record corrente.
+- Contatti primari dello Student → dominio Student/CRM esistente; Timeline (lato Coach) li legge in sola lettura.
+- Contatti primari operativi del Coach → dominio Coach/contatti reale (assegnazione Student→Coach già esistente + record Coach); Timeline (lato Student) li legge in sola lettura.
+- Nessun contatto secondario, disponibilità, payout, area tematica o stato di marketing appartiene a questa sidebar: quei dati restano esclusivamente Admin-managed.
+
+Nel prototipo, il contatto del Coach assegnato lato Student è una fixture minima locale a `src/pages/student/StudentTimelinePage.tsx` (un solo Coach, quello già usato dalla fixture Timeline di Alex Johnson) — non un elenco Coach, non condivisa con `LavorazioniContext` o con Admin `/coach`. Production deve sostituirla con la risoluzione reale Student→Coach→contatto.
 
 ## Consenso comunicazioni commerciali
 

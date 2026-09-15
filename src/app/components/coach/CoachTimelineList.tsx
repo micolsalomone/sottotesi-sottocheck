@@ -199,7 +199,7 @@ export function CoachTimelineList({
               className="text-[var(--muted-foreground)]"
               style={{
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--font-weight-regular)',
                 fontStyle: 'italic',
               }}
@@ -213,7 +213,7 @@ export function CoachTimelineList({
                   className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                   }}
                   onClick={(e) => {
@@ -229,7 +229,7 @@ export function CoachTimelineList({
               {docCount > 0 && noteCount > 0 && (
                 <span
                   className="text-[var(--border)]"
-                  style={{ fontSize: '12px' }}
+                  style={{ fontSize: 'var(--text-sm)' }}
                 >
                   ·
                 </span>
@@ -239,7 +239,7 @@ export function CoachTimelineList({
                   className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)]"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '12px',
+                    fontSize: 'var(--text-sm)',
                     fontWeight: 'var(--font-weight-medium)',
                   }}
                 >
@@ -252,7 +252,7 @@ export function CoachTimelineList({
                   className="inline-flex items-center gap-1 px-1.5 py-0.5"
                   style={{
                     fontFamily: 'var(--font-inter)',
-                    fontSize: '11px',
+                    fontSize: 'var(--text-xs)',
                     fontWeight: 'var(--font-weight-medium)',
                     borderRadius: 'calc(var(--radius) - 4px)',
                     backgroundColor: 'rgba(11, 182, 63, 0.1)',
@@ -270,7 +270,7 @@ export function CoachTimelineList({
           className="text-[var(--muted-foreground)]"
           style={{
             fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
+            fontSize: 'var(--text-sm)',
             fontWeight: 'var(--font-weight-medium)',
           }}
         >
@@ -310,7 +310,7 @@ export function CoachTimelineList({
               style={{
                 borderRadius: 'var(--radius)',
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--font-weight-medium)',
               }}
               title={isReady ? 'Conferma e rendi visibile allo studente' : 'Compila almeno titolo e scadenza per confermare'}
@@ -329,7 +329,7 @@ export function CoachTimelineList({
             style={{
               borderRadius: 'var(--radius)',
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-medium)',
             }}
             title="Segna come completata"
@@ -347,7 +347,7 @@ export function CoachTimelineList({
             style={{
               borderRadius: 'var(--radius)',
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-medium)',
             }}
             title="Attiva questa fase per lo studente"
@@ -365,7 +365,7 @@ export function CoachTimelineList({
             style={{
               borderRadius: 'var(--radius)',
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-medium)',
             }}
             title="Riapri questa fase"
@@ -522,63 +522,108 @@ export function CoachTimelineList({
           style={{ borderRadius: 'var(--radius) var(--radius) 0 0' }}
           onClick={() => toggleStep(step.id)}
         >
-          <div className="flex items-center gap-3">
-            <p
-              className="uppercase tracking-wider text-[var(--muted-foreground)] flex-shrink-0"
-              style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: '11px',
-                fontWeight: 'var(--font-weight-medium)',
-              }}
-            >
-              {step.phaseNumber}
-            </p>
-            {step.isDraft && (
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 flex-shrink-0"
+          {step.status === 'completed' ? (
+            <div className="flex flex-col gap-1.5">
+              {/* Metadata row: phase position (left) · completion date + actions (right) */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p
+                  className="uppercase tracking-wider text-[var(--muted-foreground)] flex-shrink-0"
+                  style={{
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 'var(--font-weight-medium)',
+                  }}
+                >
+                  {step.phaseNumber}
+                </p>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {hasNewDocs && (
+                    <div className="w-2 h-2 rounded-full bg-[var(--accent)] border border-[var(--foreground)] flex-shrink-0" />
+                  )}
+                  <span
+                    className="text-[var(--muted-foreground)] flex-shrink-0"
+                    style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 'var(--font-weight-regular)',
+                    }}
+                  >
+                    {formatCollapsedDeadline(step)}
+                  </span>
+                  {renderStepActions(step, index)}
+                </div>
+              </div>
+              {/* Title row: semantic phase title on its own line */}
+              <h3
                 style={{
-                  borderRadius: 'var(--radius-badge)',
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: '11px',
-                  fontWeight: 'var(--font-weight-medium)',
-                  lineHeight: 1.5,
-                  backgroundColor: 'rgba(247, 144, 9, 0.08)',
-                  border: '1px solid rgba(247, 144, 9, 0.35)',
-                  color: 'var(--chart-3)',
+                  fontFamily: 'var(--font-alegreya)',
+                  fontSize: 'var(--text-h4)',
+                  fontWeight: 'var(--font-weight-bold)',
+                  color: 'var(--foreground)',
                 }}
               >
-                Bozza
+                {step.title}
+              </h3>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <p
+                className="uppercase tracking-wider text-[var(--muted-foreground)] flex-shrink-0"
+                style={{
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 'var(--font-weight-medium)',
+                }}
+              >
+                {step.phaseNumber}
+              </p>
+              {canManageSteps && step.isDraft && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 flex-shrink-0"
+                  style={{
+                    borderRadius: 'var(--radius-badge)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    lineHeight: 1.5,
+                    backgroundColor: 'rgba(247, 144, 9, 0.08)',
+                    border: '1px solid rgba(247, 144, 9, 0.35)',
+                    color: 'var(--chart-3)',
+                  }}
+                >
+                  Bozza
+                </span>
+              )}
+              <h3
+                className="flex-1"
+                style={{
+                  fontFamily: 'var(--font-alegreya)',
+                  fontSize: 'var(--text-body)',
+                  fontWeight: 'var(--font-weight-bold)',
+                  color: 'var(--foreground)',
+                }}
+              >
+                {step.title}
+              </h3>
+              {hasNewDocs && (
+                <div className="w-2 h-2 rounded-full bg-[var(--accent)] border border-[var(--foreground)] flex-shrink-0" />
+              )}
+              <span
+                className="text-[var(--muted-foreground)] flex-shrink-0"
+                style={{
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 'var(--font-weight-regular)',
+                }}
+              >
+                {formatCollapsedDeadline(step)}
               </span>
-            )}
-            <h3
-              className="flex-1"
-              style={{
-                fontFamily: 'var(--font-alegreya)',
-                fontSize: 'var(--text-body)',
-                fontWeight: 'var(--font-weight-bold)',
-                color: 'var(--foreground)',
-              }}
-            >
-              {step.title}
-            </h3>
-            {hasNewDocs && (
-              <div className="w-2 h-2 rounded-full bg-[var(--accent)] border border-[var(--foreground)] flex-shrink-0" />
-            )}
-            <span
-              className="text-[var(--muted-foreground)] flex-shrink-0"
-              style={{
-                fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
-                fontWeight: 'var(--font-weight-regular)',
-              }}
-            >
-              {formatCollapsedDeadline(step)}
-            </span>
-            {!step.isDraft && !step.isVisibleToStudent && (
-              <EyeOff className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--chart-3)' }} />
-            )}
-            {renderStepActions(step, index)}
-          </div>
+              {canManageSteps && !step.isDraft && !step.isVisibleToStudent && (
+                <EyeOff className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--chart-3)' }} />
+              )}
+              {renderStepActions(step, index)}
+            </div>
+          )}
         </div>
         {renderActivitySummaryBar(step, false)}
       </div>
@@ -607,7 +652,7 @@ export function CoachTimelineList({
                     className="uppercase tracking-wider text-[var(--foreground)]"
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-medium)',
                     }}
                   >
@@ -926,7 +971,7 @@ export function CoachTimelineList({
                           className="inline-flex items-center gap-1 px-2 py-0.5"
                           style={{
                             fontFamily: 'var(--font-inter)',
-                            fontSize: '11px',
+                            fontSize: 'var(--text-xs)',
                             fontWeight: 'var(--font-weight-medium)',
                             borderRadius: 'var(--radius-badge)',
                             backgroundColor: colors.bg,
@@ -944,73 +989,72 @@ export function CoachTimelineList({
                 )}
                 
                 {step.status === 'completed' && step.completionStatus && (
-                  <div
-                    className="px-2 py-0.5 text-[11px] uppercase flex items-center gap-1"
-                    style={{
-                      fontFamily: 'var(--font-inter)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      borderRadius: 'calc(var(--radius) - 2px)',
-                      backgroundColor: 
-                        step.completionStatus === 'early' ? 'rgba(11, 182, 63, 0.1)' :
-                        step.completionStatus === 'on-time' ? 'rgba(11, 182, 63, 0.1)' :
-                        'var(--destructive)',
-                      color: 
-                        step.completionStatus === 'early' ? 'var(--primary)' :
-                        step.completionStatus === 'on-time' ? 'var(--primary)' :
-                        'var(--destructive-foreground)',
-                    }}
-                  >
-                    {step.completionStatus === 'early' && '✓ Completata in anticipo'}
-                    {step.completionStatus === 'on-time' && '✓ Completata in tempo'}
-                    {step.completionStatus === 'late' && '⚠ Completata in ritardo'}
-                  </div>
+                  step.completionStatus === 'late' ? (
+                    <div
+                      className="px-2 py-0.5 text-[11px] uppercase flex items-center gap-1"
+                      style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontWeight: 'var(--font-weight-medium)',
+                        borderRadius: 'calc(var(--radius) - 2px)',
+                        backgroundColor: 'var(--destructive)',
+                        color: 'var(--destructive-foreground)',
+                      }}
+                    >
+                      ⚠ Completata in ritardo
+                    </div>
+                  ) : (
+                    <p
+                      className="text-[var(--muted-foreground)]"
+                      style={{
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 'var(--font-weight-regular)',
+                      }}
+                    >
+                      {step.completionStatus === 'early' ? 'Completata in anticipo' : 'Completata in tempo'}
+                    </p>
+                  )
                 )}
               </div>
-              
+
               {/* === ACTION AREA === */}
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                {/* Row 1: Status indicator chips (read-only) */}
-                <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                  {/* Draft chip */}
-                  {step.isDraft && (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 border"
-                      style={{
-                        borderRadius: 'var(--radius-badge)',
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
-                        fontWeight: 'var(--font-weight-medium)',
-                        lineHeight: 1.5,
-                        backgroundColor: 'rgba(247, 144, 9, 0.08)',
-                        borderColor: 'rgba(247, 144, 9, 0.35)',
-                        color: 'var(--chart-3)',
-                      }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Bozza
-                    </span>
-                  )}
+                {/* Row 1: Status indicator (Coach only — not shown to Student) */}
+                {canManageSteps && (
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {/* Draft indicator */}
+                    {step.isDraft && (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)]"
+                        style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: 'var(--font-weight-medium)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Bozza
+                      </span>
+                    )}
 
-                  {/* Hidden chip (confirmed phases manually hidden) */}
-                  {!step.isDraft && !step.isVisibleToStudent && step.status !== 'completed' && (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 border"
-                      style={{
-                        borderRadius: 'var(--radius-badge)',
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
-                        fontWeight: 'var(--font-weight-medium)',
-                        lineHeight: 1.5,
-                        backgroundColor: 'rgba(247, 144, 9, 0.08)',
-                        borderColor: 'rgba(247, 144, 9, 0.35)',
-                        color: 'var(--chart-3)',
-                      }}
-                    >
-                      <EyeOff className="w-3.5 h-3.5" />
-                      Nascosta
-                    </span>
-                  )}
-                </div>
+                    {/* Hidden indicator (confirmed phases manually hidden) */}
+                    {!step.isDraft && !step.isVisibleToStudent && step.status !== 'completed' && (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)]"
+                        style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: 'var(--font-weight-medium)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                        Nascosta
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Row 2: Primary action + overflow menu + chevron */}
                 {renderStepActions(step, index)}
@@ -1039,7 +1083,7 @@ export function CoachTimelineList({
                 backgroundColor: addingNoteToStep === step.id ? 'var(--muted)' : 'var(--background)',
                 borderRadius: 'var(--radius)',
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--font-weight-medium)',
                 color: 'var(--foreground)',
               }}
@@ -1056,7 +1100,7 @@ export function CoachTimelineList({
               style={{
                 borderRadius: 'var(--radius)',
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 'var(--font-weight-medium)',
                 color: 'var(--foreground)',
               }}
@@ -1112,7 +1156,7 @@ export function CoachTimelineList({
                   <p
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '11px',
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 'var(--font-weight-regular)',
                       color: 'var(--muted-foreground)',
                     }}
@@ -1128,7 +1172,7 @@ export function CoachTimelineList({
                       className="px-3 py-1.5 transition-colors hover:bg-[var(--background)]"
                       style={{
                         fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
+                        fontSize: 'var(--text-sm)',
                         fontWeight: 'var(--font-weight-medium)',
                         color: 'var(--muted-foreground)',
                         borderRadius: 'calc(var(--radius) - 2px)',
@@ -1152,7 +1196,7 @@ export function CoachTimelineList({
                       }`}
                       style={{
                         fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
+                        fontSize: 'var(--text-sm)',
                         fontWeight: 'var(--font-weight-medium)',
                         borderRadius: 'calc(var(--radius) - 2px)',
                       }}
@@ -1268,7 +1312,7 @@ export function CoachTimelineList({
             background: cfg.chipBg,
             border: `1px solid ${cfg.chipBorder}`,
             fontFamily: 'var(--font-inter)',
-            fontSize: '12px',
+            fontSize: 'var(--text-sm)',
             fontWeight: 'var(--font-weight-medium)',
             color: cfg.chipText,
           }}
@@ -1283,7 +1327,7 @@ export function CoachTimelineList({
               background: cfg.dotColor,
               color: status === 'upcoming' ? 'var(--background)' : '#fff',
               fontFamily: 'var(--font-inter)',
-              fontSize: '11px',
+              fontSize: 'var(--text-xs)',
               fontWeight: 'var(--font-weight-medium)',
               padding: '0 5px',
             }}
@@ -1317,7 +1361,7 @@ export function CoachTimelineList({
           className="uppercase tracking-wider"
           style={{
             fontFamily: 'var(--font-inter)',
-            fontSize: '11px',
+            fontSize: 'var(--text-xs)',
             fontWeight: 'var(--font-weight-medium)',
             color: 'var(--muted-foreground)',
             letterSpacing: '0.5px',
@@ -1392,7 +1436,7 @@ export function CoachTimelineList({
                     style={{
                       borderRadius: 'var(--radius)',
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-medium)',
                     }}
                     title={status === 'active' ? 'Aggiungi fase aperta' : 'Aggiungi prossima fase'}
@@ -1407,7 +1451,7 @@ export function CoachTimelineList({
                       style={{
                         borderRadius: 'var(--radius)',
                         fontFamily: 'var(--font-inter)',
-                        fontSize: '12px',
+                        fontSize: 'var(--text-sm)',
                         fontWeight: 'var(--font-weight-medium)',
                       }}
                       title="Aggiungi più fasi"
@@ -1526,7 +1570,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
             className="text-[var(--muted-foreground)]"
             style={{
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-medium)',
             }}
           >
@@ -1541,7 +1585,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
               className="px-2 py-1 border-b-2 transition-colors"
               style={{
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: sortOrder === 'recent' ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
                 backgroundColor: sortOrder === 'recent' ? 'var(--border)' : 'var(--card)',
                 borderBottomColor: sortOrder === 'recent' ? 'var(--foreground)' : 'var(--border)',
@@ -1556,7 +1600,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
               className="px-2 py-1 border-b transition-colors"
               style={{
                 fontFamily: 'var(--font-inter)',
-                fontSize: '12px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: sortOrder === 'oldest' ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)',
                 backgroundColor: sortOrder === 'oldest' ? 'var(--border)' : 'var(--card)',
                 borderBottomColor: sortOrder === 'oldest' ? 'var(--foreground)' : 'var(--border)',
@@ -1600,7 +1644,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
                     className="text-[var(--muted-foreground)] whitespace-nowrap"
                     style={{
                       fontFamily: 'var(--font-inter)',
-                      fontSize: '12px',
+                      fontSize: 'var(--text-sm)',
                       fontWeight: 'var(--font-weight-regular)',
                     }}
                   >
@@ -1659,7 +1703,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
                             className="text-[var(--muted-foreground)]"
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               fontWeight: 'var(--font-weight-regular)',
                             }}
                           >
@@ -1671,7 +1715,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
                                 className="inline-block px-1.5 py-1 uppercase"
                                 style={{
                                   fontFamily: 'var(--font-inter)',
-                                  fontSize: '11px',
+                                  fontSize: 'var(--text-xs)',
                                   fontWeight: 'var(--font-weight-medium)',
                                   borderRadius: 'calc(var(--radius) - 4px)',
                                   lineHeight: 1.5,
@@ -1690,7 +1734,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
                             className="px-2 py-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               borderRadius: 'calc(var(--radius) - 4px)',
                             }}
                           >
@@ -1700,7 +1744,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
                             className="px-2 py-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                             style={{
                               fontFamily: 'var(--font-inter)',
-                              fontSize: '12px',
+                              fontSize: 'var(--text-sm)',
                               borderRadius: 'calc(var(--radius) - 4px)',
                             }}
                           >
@@ -1735,7 +1779,7 @@ function ActivityFeedSection({ step, onOpenStepArchive }: { step: TimelineStepDa
             className="text-[var(--muted-foreground)] mb-5 text-center max-w-xs"
             style={{
               fontFamily: 'var(--font-inter)',
-              fontSize: '12px',
+              fontSize: 'var(--text-sm)',
               fontWeight: 'var(--font-weight-regular)',
             }}
           >
