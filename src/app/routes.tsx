@@ -31,6 +31,8 @@ import { DashboardPage } from '../pages/coach/DashboardPage';
 import { StudentiPage as CoachStudentiPage } from '../pages/coach/StudentiPage';
 import { StudentTimelinePage } from '../pages/coach/StudentTimelinePage';
 import { SottocheckPage } from '../pages/coach/SottocheckPage';
+import { CoachReportPage } from '../pages/coach/CoachReportPage';
+import { CoachHistoryPage } from '../pages/coach/CoachHistoryPage';
 import { ArchivioPage } from '../pages/coach/ArchivioPage';
 import { NotFoundPage } from '../pages/coach/NotFoundPage';
 import { DashboardPage as StudentDashboardPage } from '@/pages/student/DashboardPage';
@@ -39,11 +41,20 @@ import { DashboardPage as PublicDashboardPage } from '@/pages/public/DashboardPa
 import { PublicLandingPage } from '@/pages/public/PublicLandingPage';
 import { PublicOutputPreviewPage } from '@/pages/public/PublicOutputPreviewPage';
 import { PublicSuccessPage } from '@/pages/public/PublicSuccessPage';
+import { PublicAccountGatePage } from '@/pages/public/PublicAccountGatePage';
+import { PublicStandaloneAuthPage } from '@/pages/public/PublicStandaloneAuthPage';
+import { PublicPasswordRecoveryPage } from '@/pages/public/PublicPasswordRecoveryPage';
+import { PublicReportPage } from '@/pages/public/PublicReportPage';
+import { PublicProfilePage } from '@/pages/public/PublicProfilePage';
+import { PublicAccountPage } from '@/pages/public/PublicAccountPage';
 import { ProfilePage as CoachProfilePage } from '@/pages/coach/ProfilePage';
 import { STUDENT_VIEW_STUDENT_ID, getStudentViewTimelinePath } from '@/app/utils/studentView';
-import { SottocheckPage as StudentSottocheckPage } from '@/pages/student/SottocheckPage';
 import { HistoryPage as StudentHistoryPage } from '@/pages/student/HistoryPage';
 import { ProfilePage as StudentProfilePage } from '@/pages/student/ProfilePage';
+import { AccountPage as StudentAccountPage } from '@/pages/student/AccountPage';
+import { StudentPaidSottocheckPage } from '@/pages/student/StudentPaidSottocheckPage';
+import { StudentReportPage } from '@/pages/student/StudentReportPage';
+import { PublicPaidSottocheckPage } from '@/pages/public/PublicPaidSottocheckPage';
 
 export const router = createHashRouter([
   // Public non-authenticated landing page
@@ -52,8 +63,32 @@ export const router = createHashRouter([
     Component: PublicLandingPage,
   },
   {
+    // Legacy paid UI retired: the authenticated standalone paid flow now lives at
+    // `/public-view/sottocheck`. Nothing in-app links here anymore.
     path: '/public/sottocheck',
-    Component: StudentSottocheckPage,
+    loader: () => redirect('/public'),
+  },
+  {
+    path: '/public/account',
+    Component: PublicAccountGatePage,
+  },
+  // Direct standalone account entry from the landing — no checkout/pre-check.
+  {
+    path: '/public/login',
+    element: <PublicStandaloneAuthPage mode="login" />,
+  },
+  {
+    path: '/public/register',
+    element: <PublicStandaloneAuthPage mode="register" />,
+  },
+  // Prototype password-recovery GUI (handoff only): no email, no token, no reset.
+  {
+    path: '/public/password-recovery',
+    element: <PublicPasswordRecoveryPage mode="recovery" />,
+  },
+  {
+    path: '/public/reset-password',
+    element: <PublicPasswordRecoveryPage mode="reset" />,
   },
   {
     path: '/public/history',
@@ -106,9 +141,10 @@ export const router = createHashRouter([
       { path: 'studenti', Component: CoachStudentiPage },
       { path: 'studenti/:studentId', Component: StudentTimelinePage },
       { path: 'sottocheck', Component: SottocheckPage },
+      { path: 'report/:checkId', Component: CoachReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
-      { path: 'history', Component: ArchivioPage },
-      { path: 'archivio', Component: ArchivioPage },
+      { path: 'history', Component: CoachHistoryPage },
+      { path: 'archivio', Component: CoachHistoryPage },
       { path: 'profilo', Component: CoachProfilePage },
       { path: '*', Component: NotFoundPage },
     ],
@@ -130,11 +166,13 @@ export const router = createHashRouter([
         },
         Component: StudentTimelinePageView,
       },
-      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'sottocheck', Component: StudentPaidSottocheckPage },
+      { path: 'report/:checkId', Component: StudentReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
-      { path: 'history', Component: StudentHistoryPage },
+      { path: 'history', element: <StudentHistoryPage context="student" /> },
       { path: 'archivio', Component: ArchivioPage },
       { path: 'profilo', Component: StudentProfilePage },
+      { path: 'account', Component: StudentAccountPage },
       { path: '*', Component: NotFoundPage },
     ],
   },
@@ -144,10 +182,12 @@ export const router = createHashRouter([
     Component: PublicLayout,
     children: [
       { index: true, Component: PublicDashboardPage },
-      { path: 'sottocheck', Component: StudentSottocheckPage },
+      { path: 'sottocheck', Component: PublicPaidSottocheckPage },
+      { path: 'report/:checkId', Component: PublicReportPage },
       { path: 'output-preview', Component: PublicOutputPreviewPage },
-      { path: 'history', Component: StudentHistoryPage },
-      { path: 'profilo', Component: StudentProfilePage },
+      { path: 'history', element: <StudentHistoryPage context="standalone" /> },
+      { path: 'profilo', Component: PublicProfilePage },
+      { path: 'account', Component: PublicAccountPage },
       { path: '*', Component: NotFoundPage },
     ],
   },

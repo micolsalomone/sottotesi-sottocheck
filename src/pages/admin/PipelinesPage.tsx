@@ -5,6 +5,12 @@ import { Plus, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, Users, CheckC
 import { toast } from 'sonner';
 import { useLavorazioni, SERVICE_CATALOG } from '../../app/data/LavorazioniContext';
 import type { Pipeline, Quote, StudentService, Student, StudentAcademicRecord } from '../../app/data/LavorazioniContext';
+import {
+  deriveRecontactSummary,
+  pipelineContactKeys,
+  readMarketingConsentForContact,
+  recontactSummaryLabel,
+} from '../../app/data/marketingConsent';
 import { PipelineDetailDrawer } from '../../app/components/PipelineDetailDrawer';
 import { CreatePipelineDrawer } from '../../app/components/CreatePipelineDrawer';
 import { CreateStudentDrawer } from '../../app/components/CreateStudentDrawer';
@@ -411,12 +417,17 @@ export function PipelinesPage() {
       } : null;
 
       const pipelineSource = `pipeline:${pipelineCurrent.id}`;
+      // Per-email consent carries over per contact from the Pipeline map: an
+      // explicit `true`/`false` under that email's key transfers as-is; a missing
+      // key stays unknown (`null`) — never fabricate `false`, never collapse the
+      // map to one global value.
       const contactEmails = pipelineCurrent.email ? [{
         email: pipelineCurrent.email,
         is_primary: true,
         purposes: ['generic', 'service_access'] as ('generic' | 'service_access')[],
         source: pipelineSource,
         added_at: today,
+        marketing_consent: readMarketingConsentForContact(pipelineCurrent.marketing_consents, pipelineCurrent.email),
       }] : [];
       const additionalEmails = (pipelineCurrent.emails || []).map(email => ({
         email,
@@ -424,6 +435,7 @@ export function PipelinesPage() {
         purposes: ['generic'] as ('generic' | 'service_access')[],
         source: pipelineSource,
         added_at: today,
+        marketing_consent: readMarketingConsentForContact(pipelineCurrent.marketing_consents, email),
       }));
       const contactPhones = pipelineCurrent.phone ? [{
         phone: pipelineCurrent.phone,
@@ -452,7 +464,6 @@ export function PipelinesPage() {
           phones: [...contactPhones, ...additionalPhones],
         },
         status: 'active',
-        marketing_consent: !!(pipelineCurrent.marketing_consents && pipelineCurrent.email && pipelineCurrent.marketing_consents[pipelineCurrent.email]),
         academic_records: newAcademicRecord ? [newAcademicRecord] : [],
         created_at: today,
       };
@@ -699,7 +710,7 @@ export function PipelinesPage() {
 
       {/* ACTION TOOLBAR */}
       <div className="action-toolbar" style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', flex: 1, width: '100%' }}>
+        <div className="action-toolbar-left" style={{ gap: 'var(--spacing-2)', width: '100%' }}>
           <input
             type="text"
             placeholder="Cerca per nome, email, telefono o ID..."
@@ -791,6 +802,7 @@ export function PipelinesPage() {
           return (
             <button
               key={tab.key}
+              className="control-focus-ring"
               onClick={() => {
                 setGroupingPeriod(tab.key);
                 setSelectedIds([]);
@@ -922,6 +934,7 @@ export function PipelinesPage() {
               </TableRow>,
               ...group.pipelines.map(pipeline => {
                 const quote = pipeline.quotes?.[0];
+                const recontact = deriveRecontactSummary(pipeline.marketing_consents, pipelineContactKeys(pipeline));
 
                 return (
                   <TableRow
@@ -974,6 +987,7 @@ export function PipelinesPage() {
                         {pipeline.sources.map(source => (
                           <StatusPill key={source} label={source} variant="neutral" />
                         ))}
+                        <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
                       </div>
                     </TableCell>
 
@@ -1061,6 +1075,7 @@ export function PipelinesPage() {
                 </ResponsiveMobileCard>,
                 ...group.pipelines.map((pipeline) => {
                   const quote = pipeline.quotes?.[0];
+                  const recontact = deriveRecontactSummary(pipeline.marketing_consents, pipelineContactKeys(pipeline));
                   const isSelected = selectedIds.includes(pipeline.id);
 
                   return (
@@ -1127,6 +1142,7 @@ export function PipelinesPage() {
                           {pipeline.sources.map((source) => (
                             <StatusPill key={source} label={source} variant="neutral" />
                           ))}
+                          <StatusPill label={recontactSummaryLabel(recontact)} variant="neutral" />
                         </div>
 
                         {pipeline.service_link && (

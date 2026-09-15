@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar } from './AdminSidebar';
-import { LavorazioniProvider } from '../data/LavorazioniContext';
 import { AreeTematicheProvider } from '../data/AreeTematicheContext';
 
 const SIDEBAR_STORAGE_KEY = 'admin-sidebar-collapsed';
@@ -29,7 +28,6 @@ export function AdminLayout() {
   const toggleCollapse = () => setSidebarCollapsed(prev => !prev);
 
   return (
-    <LavorazioniProvider>
     <AreeTematicheProvider>
     <div className="admin-layout">
       <AdminHeader sidebarCollapsed={sidebarCollapsed} />
@@ -47,6 +45,5 @@ export function AdminLayout() {
       </div>
     </div>
     </AreeTematicheProvider>
-    </LavorazioniProvider>
   );
 }

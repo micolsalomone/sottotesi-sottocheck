@@ -1,0 +1,564 @@
+# TesiCheck — Paid Consumer Handoff (technical)
+
+> **Not a source of truth.** UX/product source of truth stays [tesicheck-canonical-flow.md](./tesicheck-canonical-flow.md).
+> This file only preserves the implementation knowledge gathered while building the paid consumer flow, so a new agent chat can resume without re-exploring the repo. Product rules are referenced, not restated.
+
+---
+
+## 1. Scope of the workstream
+
+**Implemented (paid consumer TesiCheck):**
+
+- Guest pre-check on `/public` (upload → validation → character count → price) with a resumable session.
+- Account-gated checkout on `/public/account` — the account step is now a real form, not a two-button gate.
+- Inline **login / registration** inside the checkout (mode swap, never leaves the page).
+- **Email verification** step (OTP) required after registration, before payment.
+- Shared **payment gateway boundary** (simulated): minimal Sottotesi-branded interstitial that auto-returns `success` after 1500 ms in normal mode; `?paymentDemo=1` disables the timer and exposes manual success / failed / cancelled.
+- Persistent **paid checks** written after verified payment (`owner.context: 'standalone'`).
+- Authenticated **standalone report** at `/public-view/report/:checkId` inside `PublicLayout`.
+- **Student self-service paid flow** at `/student-view/sottocheck` (`owner.context: 'student'`).
+- **Student report** at `/student-view/report/:checkId` inside `StudentLayout`.
+- Persistent **order summary** ("Riepilogo TesiCheck") visible across `checkout_account → checkout_verify_email → checkout_payment` (`SottocheckCheckoutSummary`); **not** rendered during `redirecting`. Compact summary precedes the form on mobile.
+- Shared **price formatter** `formatCheckoutPrice()` — every paid-consumer amount displays as `€14,90`.
+- **Post-payment report recovery** — if persistent-check materialization fails after a (simulated) verified payment, both guest and Student keep the paid state and show a recoverable screen (`Non siamo riusciti a generare il report` + `Riprova a generare il report`); retry re-runs **only** the materialization, never the payment. Idempotency keys differ by origin: guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference`.
+
+**Also implemented (consumer History redesign — see §12):**
+
+- `/public-view/history` and `/student-view/history` now read the real persistent paid checks; `mockHistory` no longer feeds them.
+- `Apri report` into the role-specific report route.
+
+**Formerly implemented, now REMOVED (post-payment academic-profile review — see §14, superseded):**
+
+- §14 below documents a post-**payment** academic-profile review interstitial that used to appear between check materialization and the report on both `/public-view/sottocheck` and `/public/account`. It has been **deleted** — see [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20. Academic-profile completion now happens at **registration**, via a one-time modal (`StandaloneProfileCompletionModal`) hosted on the Dashboard or the Report page — never inside the paid-checkout controllers this document covers. Both paid pages now navigate straight from materialization to the report, with no academic step in between; the `tesicheck-pending-enrichment-v1` breadcrumb it depended on was removed too.
+- Acquisition Pipeline creation/dedupe at registration (`ensureTesiCheckPipeline`, `applyStandaloneRegistrationConsent`) is **unchanged** — untouched by either the old review or its removal.
+- The Student paid flow (`StudentPaidSottocheckPage`) is **not** touched.
+
+**Updated by Slice A (permanent History + title foundation):**
+
+- No report expiry. `isExpired`, the `Scaduto` row state, the expiry line and the availability badge were removed from the consumer History; every record shows `Apri report`. See the "No report expiry" bullet in §3.
+- Every persistent check carries a semantic `title` (`PersistentTesiCheck.title?: string`, always set by the creators; legacy records fall back to `deriveDefaultCheckTitle(document.name)` at read time via `normalizePersistentTesiCheck`). History primary identity is the title; `document.name` is secondary. The report "Conserva il report" card became "Salvato nel tuo Storico TesiCheck"; the downloaded `.txt` now has `Titolo:` + `Documento:` and no `Disponibile fino al`.
+
+**Updated by Slice B (editable title + rename-from-History):**
+
+- `TesiCheckPrecheckSession` gained a required `title: string`. `getPrecheckSession()` normalizes a missing/blank value to `deriveDefaultCheckTitle(document.name)` so legacy sessions stay valid; it is not added to the reject conditions.
+- `PublicLandingPage` seeds the title from the filename when the quote is ready, renders a `CheckTitleField` ("Titolo del controllo") next to the uploaded document, and persists edits onto the pre-check session (`commitTitle` → `savePrecheckSession`). Blank-on-blur restores the filename default. A new upload re-derives the default. The "Hai un TesiCheck in corso" resume block leads with the title.
+- `createPersistentCheckFromPaidPrecheck()` now passes `title: precheck.title` into the creator (which still falls back to the filename default if somehow blank). Title survives upload → quote → account → verify → payment → materialization unchanged.
+- `StudentPaidSottocheckPage` holds a local `title` state (seeded on file selection, `CheckTitleField` in step 2) and passes it to `createPersistentStudentCheck({ …, title })` on the initial materialization **and** the recovery retry — same title across retry. No payment/idempotency change.
+- `SottocheckCheckoutSummary` gained a `title` prop and shows it as the purchase's primary line, filename secondary. Read-only — no editable input in payment UI.
+- New shared components: `src/app/components/CheckTitleField.tsx` (prep-step field; presentation only, caller owns state/seed/reset/persist) and `src/app/components/HistoryCheckTitle.tsx` (History inline rename; local edit UI only, parent owns the store mutation + refresh). Neither is role-aware.
+- Rename: `renamePersistentCheckTitle(checkId, nextTitle)` in `tesicheckPersistentCheck.ts` mutates only `title` (trimmed; blank → current title, else filename default). `HistoryPage` (`ConsumerTesiCheckHistory`) wires it with a `renameVersion` counter in the `useMemo` deps for an immediate reload-free refresh.
+
+**Explicitly NOT part of this workstream:**
+
+- Coach entitlement / coaching-path flow.
+- Coach paid vs free "modalità" selector.
+- Coach History / Storico redesign — separate future workstream; must **not** reuse the consumer persistent store (canonical §19.1).
+- Admin TesiCheck flow.
+- `In scadenza` History condition — removed with the rest of the expiry model (Slice A); no longer relevant.
+- Legal / data-retention / account-deletion architecture — out of scope; removing the 30-day UI rule is not a retention policy (canonical §20).
+- Legacy `/public/history` — left on its isolated mock; not wired to the persistent store.
+- General legacy cleanup (`/public/sottocheck`, `/public/success`, `getViewBasePath` bug, duplicate report pages, etc.).
+
+---
+
+## 2. Current canonical journey (as implemented)
+
+**Guest** — files: `PublicLandingPage.tsx`, `PublicAccountGatePage.tsx`, `tesicheckPrecheckSession.ts`, `tesicheckAccountSession.ts`, `tesicheckPersistentCheck.ts`
+
+```
+/public
+  → upload (SottocheckUploadForm: pdf/docx, ≤ 50 MB)
+  → validation
+  → character count / price (700 ms fake loader → savePrecheckSession, flowStage = quote_ready)
+  → "Procedi al pagamento":
+      NOT authenticated at entry → flowStage = checkout_account → navigate('/public/account')
+        → login OR register (inline, same page)
+            register → flowStage = checkout_verify_email → OTP → confirmAccountEmail()
+            login    → (returning verified account)
+        → flowStage = checkout_payment → "Vai al pagamento" (recap kept: auth interrupted the purchase)
+      ALREADY verified session at entry → claimPrecheckSession(id) + flowStage = redirecting → navigate('/public/account')
+        → straight to the gateway, NO checkout_payment recap (one-CTA grammar, like Student / Coach free / /public-view/sottocheck)
+  → flowStage = redirecting → PublicAccountGatePage early-returns a minimal branded page
+       (no card chrome, no summary rail) hosting SottocheckPaymentGatewayBoundary
+       normal mode: auto onSuccess after 1500 ms
+       ?paymentDemo=1: manual success | failed | cancelled buttons
+  → success → flowStage = payment_success
+  → transient "Pagamento ricevuto / Stiamo generando il report..." (no standalone success page)
+  → createPersistentCheckFromPaidPrecheck()  (dedupe by sourceTemporaryDocumentRef)
+       success → clearPrecheckSession() → navigate('/public-view/report/:checkId')  (~1200 ms, inside PublicLayout)
+       failure → completionError recovery screen → "Riprova a generare il report"
+                 → retries materialization only (pre-check session + paid state kept; no re-payment)
+```
+
+**Student** — files: `StudentPaidSottocheckPage.tsx`, `StudentReportPage.tsx`, `tesicheckPersistentCheck.ts`, `studentView.ts`
+
+```
+/student-view/sottocheck   (student already authenticated — no account step, no pre-check session)
+  → upload → validation → character count / price (local 700 ms fake loader) — count + price shown in prep step 3
+  → StudentFlowStage: form → redirecting   (React state, not sessionStorage)
+       step 3 "Vai al pagamento" goes STRAIGHT to the gateway — no intermediate "Completa il pagamento" recap
+       gateway onFailed/onCancelled → flowStage='form', paymentNotice shown in step 3, doc/title/quote kept, CTA "Riprova pagamento"
+  → SottocheckPaymentGatewayBoundary (still wrapped in the local GatewayPanel card — visual polish only, see §8)
+       same 1500 ms auto-success / ?paymentDemo=1 behaviour as guest
+  → success → paymentReferenceRef = createStudentPaymentReference() (minted once) → isProcessing
+  → createPersistentStudentCheck({ studentId: STUDENT_VIEW_STUDENT_ID, ..., sourcePaymentReference })  (dedupe by sourcePaymentReference)
+       success → navigate('/student-view/report/:checkId')  (~1200 ms, inside StudentLayout)
+       failure → isProcessing = false → completionError recovery screen → "Riprova a generare il report"
+                 → retries materialization only (document / quote / payment reference kept; no re-payment)
+```
+
+**Authenticated standalone** — files: `PublicPaidSottocheckPage.tsx`, `PublicReportPage.tsx`, `tesicheckPersistentCheck.ts`, `tesicheckAccountSession.ts`
+
+```
+/public-view/sottocheck   (standalone account session already present — PublicLayout guard; NO account/login/verify step)
+  → upload → validation → character count / price (local 700 ms fake loader) — count + price shown in prep step 3
+  → FlowStage: form → redirecting   (React state; no sessionStorage)
+       step 3 "Vai al pagamento" goes STRAIGHT to the gateway — no "Completa il pagamento" recap
+       gateway onFailed/onCancelled → flowStage='form', paymentNotice in step 3, doc/title/quote kept, failed CTA "Riprova pagamento"
+  → SottocheckPaymentGatewayBoundary (in a GatewayPanel card; 1500 ms auto-success / ?paymentDemo=1)
+  → success → paymentReferenceRef = createStandalonePaymentReference() (std-pay-…, minted once) → isProcessing
+  → transient "Pagamento ricevuto / Stiamo generando il report..."
+  → createPersistentStandaloneCheck({ accountId: DEMO_ACCOUNT_ID, title, document, characterCount, price, sourcePaymentReference })
+       (owner.context: 'standalone', dedupe by sourcePaymentReference scoped to standalone)
+       success → navigate('/public-view/report/:checkId')  (~1200 ms, inside PublicLayout)
+       failure → isProcessing=false → completionError recovery screen → "Riprova a generare il report"
+                 → retries materialization only (no re-payment). ?paymentDemo=reportfail forces one failure.
+```
+
+Role-specific page — deliberately **not** the Student wrapper. Record shows in `/public-view/history` (`context="standalone"`) and opens via `/public-view/report/:checkId` (guard `standalone` + `DEMO_ACCOUNT_ID`, same as guest-paid records).
+
+---
+
+## 3. Important implementation decisions
+
+- **Pre-check session vs persistent check.** Two distinct objects (canonical §3). Pre-check = temporary, guest-only, `sessionStorage`, thrown away once claimed. Persistent check = paid, owned, `localStorage`, source for the report. Only the guest flow uses a pre-check session; Student creates a persistent check directly.
+- **`temporaryDocumentRef`.** Prototype token (`tmp-doc-<ts>-<rand>`) on the pre-check session standing in for a recoverable server-side temporary upload. Also used as the idempotency key (`sourceTemporaryDocumentRef`) when converting to a persistent check.
+- **`sourcePaymentReference` (Student).** Student has no guest pre-check, so it cannot reuse `sourceTemporaryDocumentRef`. `createStudentPaymentReference()` (`tesicheckPersistentCheck.ts`) mints a `stu-pay-<ts>-<rand>` token once, when the (simulated) payment succeeds; `StudentPaidSottocheckPage` holds it in `paymentReferenceRef` for the lifetime of the mounted flow so every materialization retry passes the **same** key. It is stored on the Student `PersistentTesiCheck` and is the dedupe key for `createPersistentStudentCheck()`. The two idempotency mechanisms are deliberately **not** unified: guest = `sourceTemporaryDocumentRef` (from the pre-check session), Student = `sourcePaymentReference` (from payment success).
+- **`sourcePaymentReference` (authenticated standalone).** Same pattern as Student, different prefix + creator: `createStandalonePaymentReference()` mints `std-pay-<ts>-<rand>` on payment success; `PublicPaidSottocheckPage` holds it in `paymentReferenceRef`; `createPersistentStandaloneCheck({ accountId: DEMO_ACCOUNT_ID, … })` writes an `owner.context: 'standalone'` record and dedupes by `sourcePaymentReference` **scoped to `owner.context === 'standalone'`**. No collision with the guest pre-check flow (which keys on `sourceTemporaryDocumentRef`) or the Student flow (dedupe scoped to `'student'`). One shared consumer store, `public-tesicheck-checks-v1` — no second store.
+- **Landing checkout: authenticated *before* entry vs *during*.** `PublicLandingPage.handlePayment` reads `getAccountSession()` at checkout entry. If `isPaymentEnabled(session)` (a verified standalone session already exists), it `claimPrecheckSession(session.id)` and sets `flowStage = 'redirecting'` (instead of `'checkout_account'`), so `PublicAccountGatePage` mounts straight into its `isRedirecting` early-return (the gateway) — the `checkout_payment` recap is skipped. Anyone not authenticated, or who logs in / registers *inside* `/public/account` (`advanceAfterAuth(..., 'checkout_payment')`), still gets the recap. The distinction is carried purely by which `flowStage` the landing writes — **no new flag, no navigation state, no second payment path**. Ownership claim, `sourceTemporaryDocumentRef` idempotency and `completionError` materialization recovery are unchanged (all still in `PublicAccountGatePage`). `PublicAccountGatePage` itself was **not** modified for this — its skip-forms effect already `return`s for any non-`checkout_account`/`quote_ready` stage.
+- **`flowStage` lifecycle** (`PrecheckFlowStage`): `quote_ready → checkout_account → checkout_verify_email → checkout_payment → redirecting → payment_success`. `checkout_verify_email` was added in this workstream and must stay in the `isPrecheckFlowStage` guard or stored sessions fail validation. `payment_success` is a latch: it means "paid but persistent check not yet created".
+- **Account session** (`tesicheckAccountSession.ts`): `{ id, email, name?, emailVerified }` in `localStorage`. `signInAccount` → `emailVerified: true` (returning user is trusted). `registerAccount` → `emailVerified: false`. `confirmAccountEmail()` flips it. `isPaymentEnabled(session)` = `authenticated && emailVerified` and gates `startRedirect`, not just the button's disabled state.
+- **`DEMO_ACCOUNT_ID`** = `'public-account-demo'`, exported from `tesicheckAccountSession.ts`. Single shared prototype identity. Used as `owner.id` for every standalone check **and** as the ownership constant in `PublicReportPage.tsx` — kept as one exported constant so the two never drift.
+- **`owner.context`** on `PersistentTesiCheck` is `'standalone' | 'student'` only. No `coach` / `admin` value — those flows are entitlement/privileged and out of scope.
+- **No report expiry (Slice A — permanent History).** The 30-day rule is gone. `RETENTION_DAYS`, `expiresAt = completedAt + 30d` and every `isExpired` check were removed from `tesicheckPersistentCheck.ts`, `PublicReportPage`, `StudentReportPage` and the consumer History. `PersistentTesiCheck.expiresAt` is now `expiresAt?: string` — a **legacy optional** kept only so old stored records still validate; it is never read. A record whose old `expiresAt` is in the past is fully accessible again. Legal retention / account deletion are separate production concerns, not modelled here.
+- **Storage responsibilities.** `sessionStorage` = the in-progress guest checkout (disposable, per-tab). `localStorage` = things that must outlive the checkout: the account identity and the paid checks. See §4.
+- **Standalone session lifecycle (three persistence domains).** (A) account identity — `tesicheck-account-session-v1`, cleared on logout. (B) transient purchase/pre-check — `tesicheck-precheck-session-v1`, may survive a refresh *while the same user is completing checkout*, but is discarded on explicit logout **and** once a paid pre-check has materialized into a persistent check. (C) completed product data — `public-tesicheck-checks-v1`, `tesicheck-registered-accounts-v1`, CRM pipelines — survives logout, never cleared by it. `clearStandaloneSession()` (`tesicheckAccountSession.ts`) is the single logout helper: it composes `clearAccountSession()` + `clearPrecheckSession()` (A + B) and touches nothing in C. Payment failure / cancellation / post-payment materialization failure are **not** discard events — they keep the pre-check session for retry (no re-payment). Only `PublicHeader.handleLogout` calls `clearStandaloneSession()`; do not scatter `removeItem` in components.
+- **Why `File` / `Blob` is not persisted.** Web storage holds JSON only. `UploadedDocument` is metadata (`name`, `size`, `format`); the real bytes are represented by `temporaryDocumentRef` / the check `report.reference`. Production must resolve those to real storage.
+- **Shared payment gateway boundary.** `SottocheckPaymentGatewayBoundary` — props `onSuccess` / `onFailed` / `onCancelled`; the host page still owns stage transitions and navigation. It renders a minimal Sottotesi brand mark (`SottotesiLogodefDefault`), the `Reindirizzamento al pagamento` heading, a `Reindirizzamento in corso…` status line and a spinner — no topbar, no summary, no fake bank/card UI. It now owns **one** timer: in normal mode it calls `onSuccess` after `SIMULATED_REDIRECT_MS = 1500` (via a ref so the callback stays fresh without resetting the timer; StrictMode double-invoke still fires once). `?paymentDemo=1` (read from `window.location.search`) skips the timer and shows manual **Esito positivo / Esito negativo / Annullato** buttons so every return path stays reproducible on the deployed prototype. Reused by guest and Student; supersedes the earlier "no state / no timers" note.
+- **`redirecting` is a system boundary, not a checkout step.** `PublicAccountGatePage` early-returns for `flowStage === 'redirecting'`: a bare `max-w-[440px]` container with no card border and **no `SottocheckCheckoutSummary`** (canonical §5 / §7.2 updated to match). Student wraps the same boundary in its existing `GatewayPanel` card — left as-is, visual polish only (§8).
+- **Mobile order-summary placement.** `SottocheckCheckoutSummary` is passed `className="order-first md:order-none"` in `PublicAccountGatePage`; on `grid-cols-1` the compact collapsible summary sits **above** the auth/payment form, on `md+` the sticky right rail keeps source order.
+- **Shared price formatting.** `formatCheckoutPrice(n)` in `src/app/utils/formatCheckoutPrice.ts` → `€${n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` = `€14,90`. Presentation only — does not compute or round. Used by `SottocheckCheckoutSummary`, `SottocheckPricingPreview` (total), `PublicLandingPage` resume state, and `StudentPaidSottocheckPage` `PaymentPanel`. The `EUR 0,52/1000cc` rate line in `SottocheckPricingPreview` is deliberately left untouched (different amount + open arithmetic issue, §7).
+- **Separate report wrappers.** `PublicReportPage` (guard: `owner.context === 'standalone'` + `DEMO_ACCOUNT_ID`, shell: `PublicLayout`) and `StudentReportPage` (guard: `owner.context === 'student'` + `STUDENT_VIEW_STUDENT_ID`, shell: `StudentLayout`) are deliberately separate wrappers around the **same** static report content (`public/sottocheck-output-preview.html`, `mode=authenticated-public`).
+- **StrictMode duplicate-creation guards.** `PublicAccountGatePage` uses `hasCreatedCheckRef` (persistent-check creation effect) and `didResolveAccountRef` (skip-authenticated effect). `StudentPaidSottocheckPage` uses `hasCreatedCheckRef`. Without these the double-invoked effect either double-creates or clears the session mid-run and shows the empty state.
+- **Payment success → persistent check conversion.** `returnFromPayment('success')` sets `isCompletingPayment` + `flowStage = payment_success`. An effect then calls `createPersistentCheckFromPaidPrecheck()`, which requires `flowStage === 'payment_success' && claim.status === 'claimed' && claim.accountId`, dedupes by `sourceTemporaryDocumentRef`, builds the `PersistentTesiCheck` (`owner.context: 'standalone'`, `status: 'completed'`, `payment.status: 'paid'`, `report.availability: 'available'`, `expiresAt`), writes it to `public-tesicheck-checks-v1`, and only then `clearPrecheckSession()`.
+- **Post-payment materialization recovery.** Materialization can fail after a verified payment (prototype: `saveChecks` / `localStorage` throwing, or `?paymentDemo=reportfail`). Both flows keep the paid state and surface a recoverable screen instead of a dead end:
+  - **Guest** (`PublicAccountGatePage`): the pre-check session stays at `flowStage = payment_success`, still claimed; `completionError` renders a full-screen early return ("Non siamo riusciti a generare il report" / "Il pagamento è stato ricevuto. Puoi riprovare senza effettuare un nuovo pagamento." + "Riprova a generare il report"). Retry calls `createPersistentCheckFromPaidPrecheck()` only — no gateway, no new session, no re-claim. `clearPrecheckSession()` still runs only on success.
+  - **Student** (`StudentPaidSottocheckPage`): previously hung forever on "Stiamo generando il report..."; on failure it now sets `isProcessing → false` and renders the same semantic recovery screen inside `StudentLayout`. Retry calls `createPersistentStudentCheck({ ..., sourcePaymentReference })` only.
+  - Guard: `hasCreatedCheckRef` is reset on a real failure so a retry can run; kept closed on the `?paymentDemo=reportfail` branch so no silent auto-retry / StrictMode re-fire — recovery is the button. `reportFailDemoRef` latches the one-shot demo failure. No path double-creates: guard + per-origin dedupe + `completedCheck` short-circuit + the button unmounts once processing / `completedCheck` takes over.
+- **Returning / already-authenticated users skip the forms.** On `/public/account`, if an account session exists: verified → jump to `checkout_payment`; unverified → jump to `checkout_verify_email`. Guarded by `didResolveAccountRef`.
+
+---
+
+## 4. Storage keys
+
+| Key | Store | Contents |
+| --- | --- | --- |
+| `tesicheck-precheck-session-v1` | **sessionStorage** | `TesiCheckPrecheckSession`: `document` (metadata), `temporaryDocumentRef`, `validationState: 'valid'`, `characterCount`, `price`, `flowStage`, `claim: { status, accountId? }`. Disposable; cleared on claim-to-persistent, on a new upload, on file clear, **and on explicit standalone logout** (`clearStandaloneSession`). |
+| `tesicheck-account-session-v1` | **localStorage** | `TesiCheckAccountSession`: `id` (always `DEMO_ACCOUNT_ID`), `email`, `name?`, `emailVerified`. Prototype identity + verification flag. Introduced in this workstream. |
+| `public-tesicheck-checks-v1` | **localStorage** | `PersistentTesiCheck[]` (newest first). Paid, owned checks for both `standalone` and `student` contexts. Read by the two report pages via `getPersistentTesiCheck(checkId)`. Each record carries its origin's materialization idempotency key — `sourceTemporaryDocumentRef` (standalone) **or** `sourcePaymentReference` (student); a retry looks up the existing record by that key instead of writing a duplicate. |
+
+Out of scope but adjacent (do **not** treat as part of this flow): `localStorage['admin-sottocheck-jobs-v1']` (admin only, different schema), `*-sidebar-collapsed` (shell UI state).
+
+---
+
+## 5. Relevant files
+
+- **`src/app/data/tesicheckPrecheckSession.ts`** — guest checkout session model + `sessionStorage` accessors; `PrecheckFlowStage` union and its guard; `claimPrecheckSession`, `setPrecheckFlowStage`, `clearPrecheckSession`.
+- **`src/app/data/tesicheckAccountSession.ts`** — prototype account identity + email-verification state in `localStorage`; `signInAccount` / `registerAccount` / `confirmAccountEmail` / `isPaymentEnabled`; exports `DEMO_ACCOUNT_ID`. `clearAccountSession()` clears only domain A; `clearStandaloneSession()` is the explicit-logout helper (A + B: `clearAccountSession` + `clearPrecheckSession`), used by `PublicHeader.handleLogout`. New in this workstream.
+- **`src/app/data/tesicheckPersistentCheck.ts`** — `PersistentTesiCheck` model (incl. optional `sourceTemporaryDocumentRef` / `sourcePaymentReference`), `localStorage` array; `createPersistentCheckFromPaidPrecheck()` (guest conversion, dedupe by `sourceTemporaryDocumentRef`), `createPersistentStudentCheck()` (student, dedupe by `sourcePaymentReference` scoped to `'student'`), `createPersistentStandaloneCheck()` (authenticated standalone, `owner.context: 'standalone'`, dedupe by `sourcePaymentReference` scoped to `'standalone'`), `createStudentPaymentReference()` / `createStandalonePaymentReference()` (mint the per-flow keys), `getPersistentTesiCheck()`, `getPersistentTesiChecksForOwner()`.
+- **`src/pages/public/PublicLandingPage.tsx`** — `/public` landing + guest upload/validation/pricing; writes the pre-check session; renders the "Hai un TesiCheck in corso" resume state when `flowStage !== 'quote_ready'`. `handlePayment` branches at checkout entry: verified session already present → `claimPrecheckSession` + `flowStage='redirecting'` (skip the account step *and* the payment recap); otherwise `flowStage='checkout_account'`.
+- **`src/pages/public/PublicAccountGatePage.tsx`** — `/public/account`; single page hosting stages `checkout_account` (inline `LoginForm` / `RegisterForm`), `checkout_verify_email` (`VerifyEmailForm` + OTP), `checkout_payment`, the transient success panel, and the `completionError` post-payment recovery early return (retry of `createPersistentCheckFromPaidPrecheck()` only). **No progress/checklist block** — orientation is the page heading + current step + the persistent `SottocheckCheckoutSummary` rail (the old Account / Email / Pagamento pseudo-progress and its `ChecklistRow` helper were removed; the flow-stage state machine is untouched). `LoginForm` gets `onForgotPassword` → `/public/password-recovery?returnTo=/public/account`. `redirecting` is an **early return** — minimal branded page, no card, no summary. Owns all guest checkout transitions.
+- **`src/app/components/SottocheckCheckoutSummary.tsx`** — the persistent "Riepilogo TesiCheck": one `SummaryFields` (document, character count, total via `formatCheckoutPrice`) rendered as a desktop sticky rail and a mobile collapsible `<details>`. Forwards `className` — `PublicAccountGatePage` uses `order-first md:order-none` for mobile placement. Not rendered during `redirecting`. New in this workstream.
+- **`src/app/components/SottocheckPaymentGatewayBoundary.tsx`** — minimal Sottotesi-branded gateway interstitial (brand mark + heading + `Reindirizzamento in corso…` + spinner); props `onSuccess` / `onFailed` / `onCancelled`. Owns a single 1500 ms auto-success timer in normal mode; `?paymentDemo=1` disables it and shows manual outcome buttons. Host page owns stage transitions + navigation. Shared by guest and Student.
+- **`src/pages/public/PublicReportPage.tsx`** — standalone authenticated report wrapper inside `PublicLayout`; owner guard `standalone` + `DEMO_ACCOUNT_ID`; expired-state redirect; iframe of the demo report.
+- **`src/pages/student/StudentPaidSottocheckPage.tsx`** — `/student-view/sottocheck`; local `StudentFlowStage` machine (`form | redirecting` — the intermediate `payment` recap stage / `PaymentPanel` / `PaymentNoticePanel` were removed; prep step 3 already shows count + price, so its single **`Vai al pagamento`** goes straight to the gateway) + `isProcessing` + `completionError`; reuses `SottocheckUploadForm`, `SottocheckPricingPreview`, `SottocheckPaymentGatewayBoundary`. Gateway `onFailed` / `onCancelled` → `flowStage='form'`; the `failed` / `cancelled` notice renders inside step 3 (doc / title / quote preserved; failed CTA reads `Riprova pagamento`). On payment success mints one `sourcePaymentReference` (`paymentReferenceRef`) and creates a `student`-context persistent check. On materialization failure: `isProcessing → false`, `completionError` early return ("Non siamo riusciti a generare il report" + "Riprova a generare il report"), retry re-runs `createPersistentStudentCheck({ ..., sourcePaymentReference })` only. `?paymentDemo=reportfail` forces one materialization failure for testing.
+- **`src/pages/student/StudentReportPage.tsx`** — student authenticated report wrapper inside `StudentLayout`; owner guard `student` + `STUDENT_VIEW_STUDENT_ID`; ~90% identical to `PublicReportPage` by intent (different shell + support copy).
+- **`src/pages/public/PublicPaidSottocheckPage.tsx`** — `/public-view/sottocheck`; authenticated standalone self-service paid flow inside `PublicLayout`. Local `FlowStage` (`form | redirecting`) + `isProcessing` + `completionError`; reuses `SottocheckUploadForm`, `CheckTitleField`, `SottocheckPricingPreview`, `SottocheckPaymentGatewayBoundary`, `SottocheckActionButton`. Owner = `DEMO_ACCOUNT_ID`, `owner.context: 'standalone'`. Mirrors the cleaned `StudentPaidSottocheckPage` grammar (one CTA prep→gateway; failed/cancelled notice in step 3; recovery retries `createPersistentStandaloneCheck` only). No account/login/verify step — `PublicLayout` guard owns the session check. Deliberately **not** the Student wrapper.
+- **`src/app/routes.tsx`** — route table. Key rows: `/public/account` → `PublicAccountGatePage`; `/public-view/sottocheck` → `PublicPaidSottocheckPage` (under `PublicLayout`); `/public-view/report/:checkId` → `PublicReportPage` (under `PublicLayout`); `/student-view/sottocheck` → `StudentPaidSottocheckPage`; `/student-view/report/:checkId` → `StudentReportPage` (under `StudentLayout`). `/public/sottocheck` → `loader: redirect('/public')` (legacy retired); the `student/SottocheckPage` import was removed.
+- **`public/sottocheck-output-preview.html`** — static demo report content (~622 lines), parameterised by query string (`mode`, `back`, `documentName`, `completedAt`, repeated `css`). Embedded via `<iframe>` by both report pages with `mode=authenticated-public`.
+
+Supporting (shared primitives, not modified for behaviour this workstream):
+
+- **`src/app/components/SottocheckUploadForm.tsx`** — the only real validator (extension whitelist `pdf/docx`, `MAX_FILE_SIZE_BYTES = 50 MB`); emits `UploadedDocument` + status.
+- **`src/app/components/SottocheckPricingPreview.tsx`** — pricing/character-count display component (pure); the total uses `formatCheckoutPrice`. The `Costo indicativo: EUR 0,52/1000cc.` rate line is left in its own format (open arithmetic issue, §7).
+- **`src/app/utils/formatCheckoutPrice.ts`** — shared presentation-only price formatter → `€14,90`. New in this polish pass. Do **not** move it into `tesicheckPrecheckSession.ts`.
+- **`src/app/components/ui/input-otp.tsx`** — shadcn OTP primitive; first real usage is `VerifyEmailForm` in `PublicAccountGatePage`.
+- **`src/app/utils/studentView.ts`** — `STUDENT_VIEW_STUDENT_ID = 'S-052'` identity shim used by the Student flow and report guard.
+- **`src/pages/public/standaloneAuthForms.tsx`** — shared `LoginForm` / `RegisterForm` / `VerifyEmailForm`. `mode: 'checkout' | 'direct'` (default `'checkout'`) **only swaps copy** — it never renders checkout data. `LoginForm` also takes `onForgotPassword?` (caller owns navigation + `returnTo`); the `Password dimenticata?` link sits right-aligned below the password field, above the primary CTA.
+- **`src/pages/public/PublicStandaloneAuthPage.tsx`** — direct `/public/login` + `/public/register`; passes `mode="direct"`; no order summary, no payment status, no checkout progress.
+- **`src/pages/public/PublicPasswordRecoveryPage.tsx`** — prototype password-recovery GUI for handoff (see §13); `mode="recovery"` → `/public/password-recovery`, `mode="reset"` → `/public/reset-password`. GUI + navigation only; no email, token, storage or verification.
+- **`.github/skills/tesicheck-checkout-smoke/SKILL.md`** — manual browser smoke-test checklist for this flow (`disable-model-invocation: true`; run only when explicitly asked).
+
+---
+
+## 6. Shared vs intentionally separate
+
+**Shared (single implementation, reused):**
+
+- Upload + document validation — `SottocheckUploadForm` (guest, Student).
+- Pricing / character-count display — `SottocheckPricingPreview`; demo constants `DEMO_CHARACTER_COUNT = 28500` / `DEMO_PRICE = 14.9` (currently duplicated in `PublicLandingPage` and `StudentPaidSottocheckPage` — see §7).
+- Price formatting — `formatCheckoutPrice()` (`src/app/utils/formatCheckoutPrice.ts`); guest checkout, landing resume, pricing preview total, Student `PaymentPanel`.
+- Payment gateway boundary — `SottocheckPaymentGatewayBoundary` (guest, Student); same 1500 ms auto-success + `?paymentDemo=1` behaviour in both. Guest hosts it bare; Student still wraps it in a card (§8, visual polish only).
+- Persistent paid-check infrastructure — `tesicheckPersistentCheck.ts` for both `standalone` and `student` contexts.
+- Report content — `public/sottocheck-output-preview.html` (all authenticated report pages).
+- Order summary — `SottocheckCheckoutSummary` (guest checkout; available for reuse). Hidden during `redirecting`.
+
+**Intentionally separate (do not merge):**
+
+- **Public shell vs Student shell** — `PublicLayout` / `PublicHeader` / `PublicSidebar` vs `StudentLayout` / `StudentHeader` / `StudentSidebar`. Architecture invariant (`AGENTS.md`, `docs/architecture.md`).
+- **Report wrappers** — `PublicReportPage` vs `StudentReportPage`: different shell, ownership context, and role-specific support/actions. Only the *content* is shared.
+- **Guest account step** — belongs to the guest checkout only. Student/Coach/Admin are already authenticated and must not render login/registration.
+- **Role-specific support / actions / metadata** — canonical §13–15: report content may be shared, shell + support boxes + operational metadata must not.
+- **Coach and Admin future flows** — entitlement/quota (Coach coaching path) and privileged (Admin) flows are `payment_required = false`; they must not inherit the guest/Student payment machinery.
+
+Architectural reasons already surfaced: same domain data (a "check") does **not** imply the same page or shell; `/public` (acquisition + guest pre-check) and `/public-view` (authenticated standalone area) are different contexts despite the shared word "public"; a universal TesiCheck component/model would collapse ownership, entitlement and shell differences that are real.
+
+---
+
+## 7. Known prototype limitations
+
+**PROTOTYPE LIMITATION** (by design; do not "fix"):
+
+- **Auth is simulated.** `signInAccount` / `registerAccount` accept any email; no backend, no token. Single identity `DEMO_ACCOUNT_ID`. A later slice added a prototype-only local registered-accounts registry (`tesicheck-registered-accounts-v1`, plaintext password) so `register → logout → login same account` is deterministic in a walkthrough: the **direct** landing login page (`/public/login`) checks the stored password when the email is a known local registration and shows an error on mismatch (unknown emails still sign in); the in-checkout `PublicAccountGatePage` login stays fully permissive. `PublicLayout` now redirects to `/public` when there is no standalone session (prototype guard, `/public-view` only). Production auth is delegated to the real application.
+- **Email verification is simulated.** `VerifyEmailForm` accepts any 6-digit string; `confirmAccountEmail()` just flips the flag. "Invia di nuovo il codice" only shows a note.
+- **Payment gateway is simulated.** Normal mode: no real redirect, no bank UI (deliberate — canonical §7); `SottocheckPaymentGatewayBoundary` just waits 1500 ms and calls `onSuccess`. Failed / cancelled are only reachable via `?paymentDemo=1`, which also disables the auto-success timer and shows manual **Esito positivo / Esito negativo / Annullato** buttons. Production must verify payment state through a real integration; the client is not source of truth.
+- **Report is static.** Both report pages iframe the same fixed `sottocheck-output-preview.html`; no per-check data, scores are hard-coded in the HTML.
+- **Pricing / character count are mock.** `DEMO_CHARACTER_COUNT = 28500`, `DEMO_PRICE = 14.9`, applied after a 700 ms `setTimeout`; no real extraction.
+- **No `File` / `Blob` persistence.** Only document metadata survives a reload.
+- **Student recovery is session-scoped.** The in-progress Student checkout (document, quote, `paymentReferenceRef`, `completionError`) lives only in React state — there is no `sessionStorage` / `localStorage` for the Student flow. A full page reload while on the recovery screen returns to the upload form; the paid state and the `sourcePaymentReference` are lost. (Guest recovery survives reload because the pre-check session is in `sessionStorage`.)
+
+**BUG / OPEN ISSUE** (observed, out of scope here — log for later):
+
+- `tsc --noEmit` baseline: **47 errors across 16 files** (e.g. `import.meta.env` typing in `PublicReportPage.tsx:69`, `PublicOutputPreviewPage`, `SottocheckOutputPreviewPage`; missing `figma:asset` / `*.png` module declarations; `thesis_topic` / `CoachPayout.status` in admin). Pre-existing; **not introduced by this workstream**. `vite build` does not typecheck.
+- Vite build warning: main JS chunk > 500 kB (~1.6 MB raw / ~367 kB gzip). Pre-existing.
+- `getViewBasePath` (`src/pages/coach/viewBasePath.ts`) checks `startsWith('/public')` before `/public-view`, so the `/public-view` branch is dead. No longer reached by the standalone paid flow (`PublicPaidSottocheckPage` navigates to explicit `/public-view/...` paths, not via `getViewBasePath`); still latent for any legacy caller.
+- **RESOLVED — `/public-view/sottocheck` is now the canonical authenticated standalone paid flow.** It renders `PublicPaidSottocheckPage` (upload → title → mock quote → one `Vai al pagamento` → `SottocheckPaymentGatewayBoundary` → `createPersistentStandaloneCheck` → `/public-view/report/:checkId`). The legacy `src/pages/student/SottocheckPage.tsx` (`Il controllo è in corso` / `Check completato` / manual `Visualizza il report` / `Vai allo storico`) is no longer mounted anywhere. `/public/sottocheck` now `redirect('/public')`.
+- **RESOLVED — consumer Storico wired to the persistent store (see §12).** `/public-view/history` and `/student-view/history` now read `public-tesicheck-checks-v1` filtered by owner; a just-paid check appears in History. Legacy `/public/history` still renders `mockHistory` by design (isolated, not in scope).
+- **OPEN PRODUCT ISSUE — pricing arithmetic mismatch.** `SottocheckPricingPreview.tsx` advertises `EUR 0,52/1000cc` (→ 14.82 for 28 500 cc) which does not reconcile with the mock total `DEMO_PRICE = 14.9`. The polish pass deliberately did **not** touch this line or invent a price — it needs a product decision on the real rate/total relationship.
+- **RESOLVED — post-payment report recovery (guest + Student).** Materialization failure after a verified (simulated) payment no longer dead-ends. Guest: `PublicAccountGatePage` keeps the paid pre-check session and shows a recoverable `completionError` screen with "Riprova a generare il report" that re-runs `createPersistentCheckFromPaidPrecheck()` only. Student: `StudentPaidSottocheckPage` previously hung forever on "Stiamo generando il report..."; it now clears `isProcessing`, shows the same recovery screen, and retries `createPersistentStudentCheck({ ..., sourcePaymentReference })` only. Neither retry re-runs payment. Idempotency is per-origin and **not** unified — guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference` — so a retry reuses an already-written record rather than duplicating. `?paymentDemo=reportfail` simulates one materialization failure in **both** flows.
+- `DEMO_CHARACTER_COUNT` / `DEMO_PRICE` duplicated in `PublicLandingPage.tsx`, `StudentPaidSottocheckPage.tsx`, `PublicPaidSottocheckPage.tsx` and `coach/SottocheckPage.tsx` — still no shared pricing module.
+- Orphaned `/public/success` (`PublicSuccessPage`) still routed, unreferenced.
+- `src/pages/student/SottocheckPage.tsx` is now **dead code** — no route mounts it (was `/public/sottocheck` + `/public-view/sottocheck`). Left in place per task scope (retire from journeys, not codebase cleanup); safe to delete in a later cleanup pass. `SottocheckSuccessPanel` it used is still used by `SottocheckAdminPage` / `PublicSuccessPage`.
+
+---
+
+## 8. Known UX polish
+
+**Resolved in the polish pass:**
+
+- **Payment redirect branding** — `SottocheckPaymentGatewayBoundary` now shows a minimal `SottotesiLogodefDefault` mark, no topbar, no summary. Boundary reads clearly.
+- **Developer-facing outcome `<details>`** — removed from the primary UI; manual success / failed / cancelled now live behind `?paymentDemo=1` only.
+- **Mobile summary placement** — the compact `SottocheckCheckoutSummary` now precedes the form on mobile (`order-first md:order-none`).
+- **Price format inconsistency** — all paid-consumer amounts go through `formatCheckoutPrice()` → `€14,90`.
+- **Post-payment report recovery** — the guest `completionError` dead-end is now a recoverable retry screen, and the Student infinite "Stiamo generando il report..." hang is fixed with the same recovery state. Retry re-runs materialization only (guest key `sourceTemporaryDocumentRef`, Student key `sourcePaymentReference`), never re-payment. `?paymentDemo=reportfail` covers both.
+
+**Also resolved (later cleanup pass):**
+
+- **Redundant pre-gateway recap removed** — Coach free (`CoachFreePaymentPanel`) and Student (`PaymentPanel` / `PaymentNoticePanel`) no longer show a second "Completa il pagamento" screen. Prep step 3 (which already shows count + price) leads straight to the gateway with one CTA. `failed`/`cancelled` return to the prep step, keep doc/title/quote, and show the notice there; failed CTA reads `Riprova pagamento`.
+- **Checkout pseudo-progress removed** — `PublicAccountGatePage`'s Account / Email / Pagamento block + `ChecklistRow` helper deleted (designer decision). Orientation is heading + current step + persistent summary. Flow-stage state machine untouched.
+- **Direct vs checkout auth kept distinct** — `standaloneAuthForms` `mode='direct'` swaps only copy; direct `/public/login` + `/public/register` never render the order summary / payment status / progress. `/public/account` keeps `SottocheckCheckoutSummary`.
+- **Password recovery** — `Password dimenticata?` repositioned (right-aligned, below the password field) and wired to the prototype recovery GUI (§13).
+
+**Still open:**
+
+- **Checkout visual refinement** — spacing/rhythm of the left column vs the summary rail.
+- **Student gateway card wrapper** — `StudentPaidSottocheckPage`'s `GatewayPanel` still wraps the shared boundary in a bordered `max-w-[760px]` card, so the Student interstitial looks more "card-like" than the bare guest one. Visual polish only — no flow/state difference; not changed to keep the Student view out of scope.
+- **Terse copy** — the no-session fallback ("Inizia un nuovo check") block is minimal.
+- **Landing header** — "Accedi" / "Registrati" still link to `sottotesi.it` (external marketing), not the in-app checkout; intentional for now, worth revisiting.
+
+Do not resolve the open items here — they are the next workstream (§11).
+
+---
+
+## 9. Testing / verification status
+
+- **`npm run build`**: last run **succeeded** (Vite v6.4.2, 1809 modules, ~18 s, no errors) after the polish pass **and** the post-payment recovery fixes (guest `completionError` retry, Student `sourcePaymentReference` + recovery screen, `?paymentDemo=reportfail`).
+- **`tsc --noEmit`**: **47-error pre-change baseline unchanged**; no typed code added beyond the `formatCheckoutPrice` / `createStudentPaymentReference` helpers, the optional `sourcePaymentReference` field, and JSX/handler swaps.
+- **`git diff --check`**: clean (exit 0). Working tree is **not clean** — uncommitted: the polish-pass changes (+ new `src/app/utils/formatCheckoutPrice.ts`), the `docs/tesicheck-canonical-flow.md` §5/§7.2/§29 realignment, the post-payment recovery fixes (`PublicAccountGatePage.tsx`, `StudentPaidSottocheckPage.tsx`, `tesicheckPersistentCheck.ts`), and this handoff. The earlier inline-account-checkout work is committed as `6bf4422`.
+- **Runtime / browser walkthrough**: **NOT performed.** Dev server boots clean (`:5174`), `/` and `/public/account` return 200, and every changed module transforms (200), but no interactive click-through (upload, form submit, OTP, gateway, report) was executed. **No step of the flow has been confirmed PASS in a browser.**
+- **Automated browser tests**: **none in the repo** (no vitest / jest / playwright / cypress; `package.json` scripts are only `dev`, `build`, `preview`). A manual checklist exists at `.github/skills/tesicheck-checkout-smoke/SKILL.md`.
+
+---
+
+## 10. Important invariants for future agents
+
+(Product rationale: see [tesicheck-canonical-flow.md](./tesicheck-canonical-flow.md) §29–§31.)
+
+- No guest payment without a persistent identity to own the check.
+- Registration requires email verification **before** payment is enabled (`isPaymentEnabled = authenticated && emailVerified`).
+- No standalone success pages between payment and report — only a transient inline processing state.
+- No redundant pre-gateway "Completa il pagamento" recap for already-authenticated paid roles (authenticated standalone, Student, Coach free): the prep step shows count + price and its single CTA opens the gateway directly. `failed`/`cancelled` return to the prep step with the notice + preserved doc/title/quote.
+- Landing checkout keeps the `checkout_payment` recap **only** when the user was not authenticated at checkout entry (auth interrupted the purchase). A visitor already carrying a verified session when they press "Procedi al pagamento" goes straight to `redirecting` — the landing writes that `flowStage` and claims the pre-check. Decide this from the session state at entry, not "a session exists now"; never add a persistent flag or a second payment path for it.
+- `/public-view/sottocheck` is the canonical authenticated standalone paid flow (`PublicPaidSottocheckPage`). It has **no** account/login/registration/email-verification step — `PublicLayout`'s session guard is the only gate; do not add another. The legacy `student/SottocheckPage.tsx` must never be re-mounted on a canonical journey.
+- Authenticated standalone paid checks use `createPersistentStandaloneCheck` → `owner.context: 'standalone'`, `owner.id: DEMO_ACCOUNT_ID`, dedupe by `sourcePaymentReference` scoped to `'standalone'`. Same `public-tesicheck-checks-v1` store, same `/public-view/history` + `/public-view/report/:checkId` as guest-paid records. Do not add a second store or a fourth idempotency scheme.
+- `PublicAccountGatePage` renders **no progress/checklist UI**. Orientation = heading + current step + persistent `SottocheckCheckoutSummary`. This is display-only; do not re-add a progress component, and do not confuse it with the `PrecheckFlowStage` state machine (which stays).
+- Direct auth surfaces (`/public/login`, `/public/register`) never render the order summary, payment status, quote/price, or checkout progress. `standaloneAuthForms` `mode` only swaps copy — do not pass checkout data into the shared forms.
+- `/public/account` **keeps** `SottocheckCheckoutSummary` (user is authenticating against a configured purchase) — do not remove it for parity with Student/Coach, which have no account step.
+- During `redirecting` the checkout summary is **not** rendered; the interstitial is a minimal Sottotesi-branded system boundary (canonical §5 / §7.2 / §29).
+- Paid-consumer amounts render only via `formatCheckoutPrice()` → `€14,90`; never re-introduce ad-hoc `EUR ${n.toFixed(2)}`.
+- `SottocheckPaymentGatewayBoundary` owns exactly one timer (1500 ms auto-success, normal mode); `?paymentDemo=1` is the only way to reach failed / cancelled. Do not move stage transitions or navigation into the boundary.
+- Post-payment materialization failure must stay **recoverable without repeating payment**: keep the paid state, show the recovery screen, retry the persistent-check creation only.
+- Explicit standalone logout discards the transient purchase (pre-check session) as well as the account session — via `clearStandaloneSession()`. It must never clear domain C (persistent checks, History, `tesicheck-registered-accounts-v1`, CRM). A started-but-unfinished purchase must not reappear as active after logout, nor leak into the next user's session, nor leave a mid-checkout `flowStage` that strands a fresh checkout on `/public/account`. Ordinary payment failure / cancellation / materialization failure are **not** logout and must not trigger this cleanup.
+- Keep the two materialization idempotency keys separate — guest `sourceTemporaryDocumentRef`, Student `sourcePaymentReference`. Do not unify them.
+- Student self-service TesiCheck is **paid** (`payment_required = true`).
+- Student must **not** consume the coaching TesiCheck quota; that quota is Coach-only.
+- Coach / Admin rules must not be inferred from the Student / Public flow.
+- The payment gateway appears **only** where `payment_required = true`.
+- `/public` and `/public-view` stay separate contexts.
+- Same domain data does not imply the same shell or page.
+- Do not create a universal TesiCheck component/model without a demonstrated shared responsibility.
+- Keep `checkout_verify_email` in both the `PrecheckFlowStage` union and `isPrecheckFlowStage`.
+- Keep `DEMO_ACCOUNT_ID` a single exported constant shared by the account session and the report ownership check.
+- Consumer History reads `public-tesicheck-checks-v1` through `getPersistentTesiChecksForOwner`, filtered by the same owner guard as the matching report page; it never mutates records. **No expiry derivation** (Slice A) — every record is openable.
+- Consumer History primary action is `Apri report` into the role-specific report route — never `Scarica report`, no download action.
+- Consumer History primary identity is the effective `title`; `document.name` is secondary. It shows no price / pages / character count / internal refs / scores, and **no availability badge** (every record is `Completato` — the badge is redundant; Slice A).
+- `PersistentTesiCheck.title` is optional in the type for legacy tolerance but always set by the creators; reads normalize a missing title to `deriveDefaultCheckTitle(document.name)` without persisting it. Do not add a `title` check to `isPersistentTesiCheck` (unsound — a legacy record has no stored title).
+- `TesiCheckPrecheckSession.title` is required in the type; `getPrecheckSession()` guarantees it (normalizes blank → filename default) so a legacy session never fails validation on a missing title.
+- The semantic title is edited only in the preparation/upload context (`CheckTitleField`), never inside payment UI or the checkout summary. It travels on the pre-check session (guest) or React state (Student); it is **not** stored on the account model.
+- `renamePersistentCheckTitle` mutates only `title`; History refreshes via a local counter, no reload, no event bus. The report reads the record, so a rename shows on reopen with no separate report mutation; the iframe keeps `documentName = document.name`, the `.txt` uses the current title, the download filename stays id-based.
+- `expiresAt` is a legacy optional never read; new records do not generate it. Do not re-introduce `RETENTION_DAYS` or any `isExpired` gate.
+- Legacy `/public/history` stays on its isolated mock (`HistoryPage` with no `context` prop) — do not wire it to the persistent store.
+- Coach History is a separate workstream and must not reuse the consumer persistent store or its report routes (canonical §19.1).
+
+---
+
+## 11. Recommended next work
+
+**Workstream: TesiCheck paid consumer final polish.**
+
+Done: payment redirect branding, mobile summary order, `?paymentDemo=1`, shared price format, `redirecting` early-return, post-payment report recovery (guest + Student, `?paymentDemo=reportfail`).
+
+Priority order for what remains:
+
+1. Checkout visual / interaction polish (`PublicAccountGatePage`, `SottocheckCheckoutSummary`) — left-column spacing/rhythm vs the summary rail, Account / Email / Pagamento checklist placement, no-session fallback copy.
+2. Pricing arithmetic decision (§7) — real rate vs total.
+3. Student `GatewayPanel` card wrapper — decide whether the Student interstitial should match the bare guest one (§8).
+4. Final paid-consumer browser walkthrough (run `.github/skills/tesicheck-checkout-smoke/SKILL.md` end to end; guest + returning + resume + responsive; verify `?paymentDemo=1` reaches failed/cancelled and `?paymentDemo=reportfail` reaches the recovery screen in both flows).
+5. Only after the above: move to Coach entitlement flow. (Consumer History is done — see §12. Coach History is its own workstream and is blocked on a Coach persistent-check model + Coach report route + free-check mode.)
+
+Do not implement these now.
+
+---
+
+## 12. Consumer History / Storico — implementation state
+
+> **Partly superseded by Slice A (permanent History + title foundation).** The
+> expiry model this section describes is gone: no `RETENTION_DAYS`, no `expiresAt`
+> generation, no `isExpired`, no `Scaduto` / `Disponibile fino al` line, no
+> availability badge in the consumer History. `expiresAt` is now
+> `PersistentTesiCheck.expiresAt?: string`, a legacy-only field never read; a
+> record with a past `expiresAt` is fully accessible. Each row's primary identity
+> is the effective `title` (creator-assigned, or `deriveDefaultCheckTitle(document.name)`
+> for legacy records via `normalizePersistentTesiCheck`), with `document.name` as
+> secondary metadata. `Apri report` is always shown. The paragraphs below are the
+> pre-Slice-A record and are kept for history only.
+
+**Scope:** authenticated standalone `/public-view/history` and Student `/student-view/history` only. Coach, Admin, checkout, payment, recovery, report content, retention duration, pricing and legacy-route cleanup were not touched.
+
+**Data source.** Both routes render from the real persistent paid checks in `public-tesicheck-checks-v1`, via a read-only accessor `getPersistentTesiChecksForOwner(context, ownerId)` (`tesicheckPersistentCheck.ts`): validates each record with `isPersistentTesiCheck`, exact `owner.context` + `owner.id` match, newest `completedAt` first. No schema change, no migration, no expiry-driven mutation.
+
+**Ownership filtering (mirrors the report-page guards).**
+
+- `/public-view/history` → `context="standalone"` → `owner.context === 'standalone' && owner.id === DEMO_ACCOUNT_ID`.
+- `/student-view/history` → `context="student"` → `owner.context === 'student' && owner.id === STUDENT_VIEW_STUDENT_ID`.
+- Each list requires both an exact context and an exact id match, so checks never leak between contexts.
+
+**Per-item information shown.**
+
+- Primary: document name (`document.name`); availability status badge (`Completato` / `Scaduto`); explicit expiry line — `Disponibile fino al {d MMMM yyyy}` when available, `Scaduto il {d MMMM yyyy}` when expired (Italian long date, same format as the report pages), always visible, never a tooltip.
+- Primary action (available only): `Apri report` → `/public-view/report/:checkId` or `/student-view/report/:checkId` (role-specific route; label is exactly `Apri report`, never `Scarica report`; no download action in History).
+- Secondary: `Completato il {d MMMM yyyy}` (from `completedAt`).
+- **Not shown:** price, character count, pages, internal id, `payment.reference`, `sourceTemporaryDocumentRef` / `sourcePaymentReference`, plagiarism / AI scores.
+
+**Availability / expiry.** Derived at render time: `new Date(check.expiresAt).getTime() <= Date.now()`. The stored record is never mutated. Available → `Completato` badge + `Disponibile fino al …` + `Apri report`. Expired → `Scaduto` badge + `Scaduto il …` + **no action element at all** (not a disabled button). Expired records stay in the list.
+
+**`In scadenza`.** Not implemented. No canonical threshold is defined (canonical §30). Only the explicit expiry date is shown; no “X days remaining” logic.
+
+**Empty state.** Shared structure/copy — heading `Nessun TesiCheck nello storico`, body `I TesiCheck completati compariranno qui insieme alla data di disponibilità del report.` Student CTA `Nuovo TesiCheck` → `/student-view/sottocheck`. Standalone CTA `Nuovo TesiCheck` → `/public-view/sottocheck` — now a safe entry point (`PublicPaidSottocheckPage`, canonical paid flow); `CONTEXT_CONFIG.standalone.newCheckPath` was `null`, now set.
+
+**Legacy `/public/history`.** Unchanged. `HistoryPage` takes an optional `context` prop; with no prop it renders `LegacyPublicHistory` — the previous `mockHistory` implementation verbatim (mock price / pages / `.txt` download / `In elaborazione`). It is deliberately **not** connected to `public-tesicheck-checks-v1`. Route and component binding untouched.
+
+**Status badge.** `SottocheckHistoryStatusBadge` gained an additive `'expired'` member → `Scaduto`, restrained neutral styling (`--muted` / `--muted-foreground`, no danger colour). `processing` / `error` remain in the union but the redesigned consumer History never emits them. The component is also used by `src/pages/coach/ArchivioPage.tsx` (Coach + Student Archivio); it passes only `completed`, so that surface is unaffected. A component-reuse audit confirmed no existing generic/visual badge primitive fits without duplicating styling, and every semantic status component belongs to another domain — so `SottocheckHistoryStatusBadge` is kept.
+
+**Files changed for this piece:** `src/app/data/tesicheckPersistentCheck.ts` (accessor), `src/app/components/SottocheckHistoryStatusBadge.tsx` (`expired`), `src/pages/student/HistoryPage.tsx` (redesign + legacy split), `src/app/routes.tsx` (pass `context` to the two in-scope mounts). `npm run build` succeeds; `git diff --check` clean; `tsc --noEmit` at the unchanged 47-error baseline. Committed as `256a948` — *feat(tesicheck): connect consumer history to paid checks*.
+
+### Coach History (not done)
+
+Coach TesiCheck History (`src/pages/coach/ArchivioPage.tsx`, mounted at `/coach-view/history` and `/coach-view/archivio`) still renders a 2-item `mockHistory` (`{ id, documentName, pagesSelected, status, createdAt }`). The Coach check flow (`src/pages/coach/SottocheckPage.tsx`) persists nothing. To reach canonical Coach History (§19.1) the following do not exist yet and must be built as a separate workstream: a Coach persistent-check model (with Student, coaching path, credits-used-by-this-check, free-check price, `completedAt`, `expiresAt`, report ref, and a path-bound / `Check libero` discriminator), a `/coach-view/report/:checkId` route, and the Coach free-check mode. Coach History must **not** reuse `public-tesicheck-checks-v1`. No `TesiCheckHistoryItem` leaf was extracted — with standalone + Student already sharing one implementation and Coach having no data, extraction is not yet demonstrated duplication reduction.
+
+---
+
+## 13. Password recovery — prototype GUI (handoff only)
+
+**Not functional.** GUI + navigation only, so a developer can see the intended
+screens and journey. **No email is sent, no reset token is generated or checked,
+no password is stored or changed.** Production must implement recovery in the
+real application. Copy in the UI is the simulated end-state ("Abbiamo inviato le
+istruzioni…"); it does not mean anything was actually sent.
+
+**File:** `src/pages/public/PublicPasswordRecoveryPage.tsx` — one component, public
+unauthenticated shell (same visual language as `PublicStandaloneAuthPage`).
+
+**Routes:**
+
+| Path | `mode` | States |
+| --- | --- | --- |
+| `/public/password-recovery` | `recovery` | `request` (Recupera la password — Email + `Invia istruzioni`) → `sent` (Controlla la tua email — masked email, `Torna ad accedere` / `Invia di nuovo`) |
+| `/public/reset-password` | `reset` | `form` (Imposta una nuova password — `Nuova password` + `Conferma nuova password` + `Salva nuova password`) → `done` (Password aggiornata — `Accedi`) |
+
+Validation is client-only: `EMAIL_PATTERN` for the email, min 8 chars + match for
+the new password (reused from `standaloneAuthForms`).
+
+**Origin context.** The entry link passes `?returnTo=`; `PublicPasswordRecoveryPage`
+whitelists it to `/public/login` or `/public/account` (else `/public/login`).
+`Torna ad accedere` / `Accedi` navigate back there. From the checkout
+(`/public/account`) the in-progress pre-check session in `sessionStorage` is
+untouched by the round trip, so the checkout resumes intact — no auth-state
+mechanism was added.
+
+**Entry point.** `LoginForm` gained `onForgotPassword?` (caller owns navigation).
+`Password dimenticata?` now sits right-aligned directly under the password field,
+above the primary CTA, as a secondary text link — consistent across the direct
+`/public/login` and the in-checkout `/public/account` login.
+
+---
+
+## 14. Post-payment academic-profile review interstitial — authenticated standalone + guest (REMOVED — see §15)
+
+> **FULLY SUPERSEDED — see §15.** This entire section describes a post-payment
+> interstitial (`PostPaymentEnrichmentInterstitial`, the
+> `tesicheck-pending-enrichment-v1` breadcrumb) that has been **deleted**.
+> Neither paid page (`PublicPaidSottocheckPage`, `PublicAccountGatePage`) gates
+> navigation on any academic step anymore — both go straight from
+> materialization to the report. Kept below for historical trace only; every
+> component/function this section names has been removed from the codebase.
+> Full technical detail of the replacement:
+> [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md)
+> §20.
+
+**Scope:** `/public-view/sottocheck` (`PublicPaidSottocheckPage`) **and**
+`/public/account` (`PublicAccountGatePage`). Student paid flow
+(`StudentPaidSottocheckPage`) is a later slice, not touched. Nothing about the
+payment/materialization/recovery machinery of either page changed.
+
+**Domain: academic context only, review-and-update (not gap-fill), always
+applicable.** Four fields — `Livello di laurea` (`degree_level`), `Università`
+(`university_name`), `Corso di laurea` (`course_name`), `Tipologia`
+(`thesis_type`) — always shown, **prefilled** with current values from the
+user's own standalone Profile. A Profile with >1 academic record also gets a
+`Percorso accademico` selector (existing-record edit target only). A Profile
+with 0 academic records gets one auto-initialized blank current record instead
+of skipping the review. **No** surname / phone / contact / identity / consent —
+Profile concerns. No PersistentTesiCheck ↔ academic-record association.
+
+**Where it plugs in.** The pre-existing `completedCheck → setTimeout(navigate('/public-view/report/:id'), 1200)`
+effect is the *only* thing gated. After `setCompletedCheck(check)` (materialization
+effect, **unchanged**) each page now:
+
+1. writes a transient breadcrumb `{ checkId }` to `sessionStorage['tesicheck-pending-enrichment-v1']`;
+2. runs `resolveStandaloneAcademicReview(email)` (`standaloneProfile.ts`) →
+   `{ initialValues, records?, selectedRecordId } | null` — `null` only when
+   there is no verified account email to resolve;
+3. if resolved → sets `academicReview` + `selectedRecordId` + `reviewEmail`,
+   renders `PostPaymentEnrichmentInterstitial` (all four fields prefilled;
+   selector when `records.length > 1`) and does **not** arm the navigation
+   timer;
+4. otherwise → keeps the 1200 ms "Pagamento ricevuto" beat and navigates.
+
+`Aggiorna profilo` calls `applyStandaloneAcademicReview(reviewEmail,
+selectedRecordId, values)` (try/catch; non-destructive — a submitted non-empty
+value that differs replaces, unchanged is a no-op, empty never erases; patches
+only the one selected record by stable id in the standalone Profile store;
+never Pipeline, never Student, never identity / contacts / consent) then
+navigates regardless of the result. `Salta` navigates only. Both clear the
+breadcrumb.
+
+**Invariants added to §10:**
+
+- The interstitial never appears before `completedCheck`; a materialization
+  failure keeps the existing `completionError` recovery and shows no interstitial.
+- Review-and-update, not gap-fill: all four fields are always shown prefilled
+  for the selected record; a Profile with 0 records gets one auto-initialized
+  rather than skipping.
+- Academic context only: no surname / phone / contact / identity / commercial
+  consent write anywhere in this flow.
+- Multi-record selector: an edit-target chooser only — never associates the
+  check with a record. The write targets the selected record by **stable id**;
+  a missing/stale id writes nothing. No `StudentService` concept exists in this
+  domain at all.
+- Values are **never** written to `PersistentTesiCheck` /
+  `public-tesicheck-checks-v1`, **never** to Pipeline, **never** to
+  `Student.academic_records[]` — only to the resolved record in
+  `standaloneProfile.ts`.
+- The review save must never block or gate the paid report; there is no recovery
+  screen for this data.
+- The `tesicheck-pending-enrichment-v1` breadcrumb holds only a `checkId`, is
+  never a payment idempotency key, and never triggers re-payment or
+  re-materialization. It is cleared on save / skip / auto-forward and after it is
+  consumed on mount (refresh → straight to the paid report).
+- `sourceTemporaryDocumentRef` / `sourcePaymentReference`, the gateway boundary,
+  the materialization effect, the `completionError` recovery, the
+  persistent-check schema, the report pages, acquisition Pipeline creation at
+  registration, and Admin are all unchanged.
+
+**Guest-specific:** registration still creates/deduplicates the Pipeline **at
+email verification** (`handleConfirmEmail` → `applyStandaloneRegistrationConsent`,
+canonical §33.3, byte-for-byte unchanged) — that acquisition write is entirely
+separate from, and never read by, this review. `handleConfirmEmail` (both
+`PublicAccountGatePage` and `PublicStandaloneAuthPage`) additionally calls the
+new `seedStandaloneProfileFromRegistration({ email, firstName, commercialConsent })`
+right after it, mirroring the SAME already-explicit registration choice onto
+the standalone Profile store, in parallel. The pre-check session
+(`tesicheck-precheck-session-v1`) is already cleared the moment
+`createPersistentCheckFromPaidPrecheck` succeeds, so the shared
+`tesicheck-pending-enrichment-v1` breadcrumb is what protects post-materialization
+continuation from that point (same module, same single key, both flows).
+
+**Files:** `src/app/data/standaloneProfile.ts` (new — the store + review
+helpers), `src/app/data/pendingEnrichmentBreadcrumb.ts` (unchanged logic,
+docstring updated), `src/app/components/tesicheck/PostPaymentEnrichmentInterstitial.tsx`
+(import source only, no behaviour change), `src/pages/public/PublicPaidSottocheckPage.tsx`
+(review wiring repointed, `useLavorazioni` removed entirely), `src/pages/public/PublicAccountGatePage.tsx`
+(review wiring repointed, `useLavorazioni` kept for the untouched registration
+call, `seedStandaloneProfileFromRegistration` added), `src/pages/public/PublicStandaloneAuthPage.tsx`
+(same additive seed call). `src/app/data/tesicheckLeadEnrichment.ts` reverted
+to its pre-review shape — zero changes to any acquisition function. Build
+passes; `tsc` baseline of 42 unchanged; `git diff --check` clean.
+
+Full trace: [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §19.7.
+
+---
+
+## 15. §14 removed — academic-profile completion moved to registration onboarding
+
+The post-payment review §14 documented was removed in full. Both paid
+controllers (`PublicPaidSottocheckPage.tsx`, `PublicAccountGatePage.tsx`) had
+their academic-review state/effects/handlers/render-branch stripped and are
+back to a plain `completedCheck → setTimeout(navigate, 1200)` effect — the
+materialization effect, `handleRetryReportCreation`, the payment gateway, both
+idempotency keys (`sourceTemporaryDocumentRef` / `sourcePaymentReference`) and
+the `completionError` recovery screen are all **unchanged** by this removal.
+`PostPaymentEnrichmentInterstitial.tsx` and `pendingEnrichmentBreadcrumb.ts`
+were deleted outright (zero remaining importers, confirmed by grep).
+
+Academic-profile completion now happens at **registration**, not payment: a
+one-time modal (`StandaloneProfileCompletionModal`) shown over the Dashboard
+or the Report page — whichever the user reaches first — driven by a
+`profile_completion_prompt_pending` flag set once by
+`seedStandaloneProfileFromRegistration`. This paid-consumer flow's only
+remaining connection to it is that reaching the report via
+`/public-view/report/:checkId` is one of the two possible modal hosts; the
+paid flow itself neither triggers, gates, nor reads that flag.
+
+Full detail (modal, Dashboard reminder card, registration seeding, both
+hosts, scope verification): [tesicheck-standalone-enrichment-handoff.md](./tesicheck-standalone-enrichment-handoff.md) §20.

@@ -54,6 +54,7 @@ export interface Pipeline {
     course_name?: string;
     university_name?: string;
     thesis_professor?: string;
+    thesis_topic?: string;
     thesis_subject?: string;
     thesis_type?: ThesisType;
     foreign_language?: boolean;
@@ -72,6 +73,7 @@ export const AVAILABLE_SOURCES = [
   'Form Coaching',
   'Form Coaching Plus',
   'Gmail',
+  'TesiCheck',
   'Altro'
 ];
 
@@ -117,7 +119,9 @@ export interface CoachPayout {
 
 // ─── Student types ──────────────────────────────────────────
 export type DegreeLevel = 'triennale' | 'magistrale' | 'ciclo_unico' | 'master' | 'dottorato';
-export type ThesisType = 'compilativa' | 'sperimentale';
+// `thesis_type` also carries the exam context ('esame'); the field name is kept
+// for compatibility — the same academic structure serves thesis and exam.
+export type ThesisType = 'compilativa' | 'sperimentale' | 'esame';
 export type ContactPurpose = 'generic' | 'service_access' | 'communications' | 'coaching';
 
 export interface ContactEmail {
@@ -126,6 +130,16 @@ export interface ContactEmail {
   purposes: ('generic' | 'service_access')[]; // generic o service_access
   source?: string; // 'pipeline:PIP-001', 'manual', etc.
   added_at: string;
+  /**
+   * Commercial-communications consent for THIS email channel (tri-state):
+   *  - `true`      = granted (Consentito);
+   *  - `false`     = explicitly declined / revoked (Non consentito);
+   *  - `null` / absent = never asked / not recorded (Non richiesto) —
+   *    MUST NOT be collapsed into `false`.
+   * Consent belongs to the individual email, independently of `purposes` /
+   * service access. Read/derive via `src/app/data/marketingConsent.ts`.
+   */
+  marketing_consent?: boolean | null;
 }
 
 export interface ContactPhone {
@@ -134,6 +148,22 @@ export interface ContactPhone {
   purposes: ('communications' | 'coaching')[]; // communications o coaching
   source?: string;
   added_at: string;
+  /**
+   * Commercial-communications consent for THIS phone channel (tri-state), same
+   * semantics as `ContactEmail.marketing_consent`:
+   *  - `true`      = granted (Consentito);
+   *  - `false`     = explicitly declined / revoked (Non consentito);
+   *  - `null` / absent = never asked / not recorded (Non richiesto) —
+   *    MUST NOT be collapsed into `false`.
+   * In this prototype, phone consent means permission for promotional
+   * WhatsApp communication from Sottotesi on that number — NOT commercial
+   * phone calls; commercial voice-call permission is out of scope here and
+   * is a production/legal decision, not modelled separately. Consent belongs
+   * to the individual phone, independently of `purposes` / service access
+   * (which cover operational/service contact, a separate concern). Read/
+   * derive via `src/app/data/marketingConsent.ts`.
+   */
+  marketing_consent?: boolean | null;
 }
 
 export interface StudentAcademicRecord {
@@ -165,7 +195,14 @@ export interface Student {
     phones: ContactPhone[];
   };
   status: 'active' | 'invited' | 'blocked';
-  marketing_consent: boolean;
+  /**
+   * @deprecated LEGACY global commercial-communications preference. Commercial
+   * consent is now PER-EMAIL on `contacts.emails[].marketing_consent`. No
+   * canonical UI / read / write path uses this field any more; it is retained
+   * only so historical/seeded records still type-check. `migrateLegacyStudentConsent`
+   * moves any seeded value onto the primary email at module load.
+   */
+  marketing_consent?: boolean | null;
   academic_records: StudentAcademicRecord[];
   created_at: string;
   updated_at?: string;
@@ -548,9 +585,41 @@ export const AVAILABLE_STUDENTS = [
   { id: 'STU-608', name: 'Federico Rinaldi' },
 ];
 
-const INITIAL_STUDENTS: Student[] = [
+/**
+ * LEGACY MIGRATION (prototype). Commercial consent used to be one global
+ * `Student.marketing_consent`; it is now per-email on `contacts.emails[]`.
+ * Conservative, documented rule: a seeded global value is attributed to the
+ * PRIMARY email only (the single channel a historical global preference can be
+ * safely mapped to) and only when that email has no explicit per-email value;
+ * every other email stays "not required". A Student with no primary email keeps
+ * no per-email consent and the legacy value is simply dropped (documented
+ * limitation — a global value cannot be safely attached to every email).
+ */
+function migrateLegacyStudentConsent(student: Student): Student {
+  const legacy = student.marketing_consent;
+  const rest: Student = { ...student };
+  delete rest.marketing_consent;
+  if (legacy === null || legacy === undefined) return rest;
+  const emails = student.contacts?.emails ?? [];
+  const primaryIndex = emails.findIndex((entry) => entry.is_primary);
+  if (primaryIndex < 0 || !student.contacts) return rest;
+  const nextEmails = emails.map((entry, index) =>
+    index === primaryIndex && entry.marketing_consent === undefined
+      ? { ...entry, marketing_consent: legacy }
+      : entry,
+  );
+  return { ...rest, contacts: { ...student.contacts, emails: nextEmails } };
+}
+
+const INITIAL_STUDENTS: Student[] = ([
   // MOCK: Davide Ferretti per test apertura drawer profilo studente
   { id: 'STU-605', name: 'Davide Ferretti', first_name: 'Davide', last_name: 'Ferretti', email: 'davide.ferretti@email.com', phone: '+39 333 0001111', status: 'active', created_at: '2026-03-01', updated_at: '2026-04-01T10:00:00', updated_by: 'Francesca', marketing_consent: false, contacts: { emails: [{ email: 'davide.ferretti@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2026-03-01' }], phones: [{ phone: '+39 333 0001111', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-03-01' }] }, academic_records: [{ id: 'AR-999', student_id: 'STU-605', degree_level: 'magistrale', course_name: 'Lettere Moderne', university_name: 'Università di Bologna', thesis_professor: 'Prof. Testa', thesis_topic: 'Letteratura italiana contemporanea', thesis_subject: 'Letteratura', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-03-01', updated_at: '2026-03-01' }] },
+  // PROTOTYPE BRIDGE: structured Student for the /student-view identity.
+  // Mirrors the flat Student-view mock `S-052` (Alex Johnson) from
+  // `src/pages/coach/studentsData.ts`; resolved by `STUDENT_VIEW_STUDENT_RECORD_ID`
+  // in `src/app/utils/studentView.ts`. Only grounded values already present in
+  // the flat mock are carried over; unmapped fields stay empty by design.
+  { id: 'STU-052', name: 'Alex Johnson', first_name: 'Alex', last_name: 'Johnson', email: 'alex.johnson32@gmail.com', phone: '+39 3283756889', status: 'active', created_at: '2026-01-05', marketing_consent: false, contacts: { emails: [{ email: 'alex.johnson32@gmail.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2026-01-05' }], phones: [{ phone: '+39 3283756889', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-01-05' }] }, academic_records: [{ id: 'AR-052', student_id: 'STU-052', degree_level: '', course_name: 'Letteratura Comparata', university_name: 'UniMI', thesis_professor: 'Prof. Rossi', thesis_topic: 'Il doppio nella narrativa moderna', thesis_subject: 'Letteratura comparata', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-01-05', updated_at: '2026-01-05' }] },
   // ── Studenti con coaching_access_enabled (service_access sull'email primaria) ──
   { id: 'STU-445', name: 'Giulia Verdi', first_name: 'Giulia', last_name: 'Verdi', email: 'giulia.verdi@email.com', phone: '+39 333 1234567', status: 'active', created_at: '2025-10-15', updated_at: '2026-01-20T10:30:00', updated_by: 'Claudia', marketing_consent: true, contacts: { emails: [{ email: 'giulia.verdi@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-10-15' }, { email: 'giulia.verdi@studenti.unibol.it', is_primary: false, purposes: ['generic'], source: 'manual', added_at: '2025-10-20' }], phones: [{ phone: '+39 333 1234567', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2025-10-15' }] }, academic_records: [{ id: 'AR-001', student_id: 'STU-445', degree_level: 'magistrale', course_name: 'Economia Aziendale', university_name: 'Università di Bologna', thesis_professor: 'Prof. Rossi', thesis_topic: 'Strategie di digitalizzazione e sostenibilità nel retail italiano', thesis_subject: 'Economia aziendale', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-10-15', updated_at: '2025-10-15' }] },
   { id: 'STU-478', name: 'Luca Neri', first_name: 'Luca', last_name: 'Neri', email: 'luca.neri@email.com', phone: '+39 340 9876543', status: 'active', created_at: '2025-11-02', updated_at: '2026-02-14T09:15:00', updated_by: 'Giada', marketing_consent: false, contacts: { emails: [{ email: 'luca.neri@email.com', is_primary: true, purposes: ['generic', 'service_access'], source: 'manual', added_at: '2025-11-02' }], phones: [{ phone: '+39 340 9876543', is_primary: true, purposes: ['communications', 'coaching'], source: 'manual', added_at: '2025-11-02' }] }, academic_records: [{ id: 'AR-010', student_id: 'STU-478', degree_level: 'magistrale', course_name: 'Ingegneria Gestionale', university_name: 'Politecnico di Torino', thesis_professor: 'Prof. Colombo', thesis_topic: 'Ottimizzazione della supply chain mediante blockchain e IoT', thesis_subject: 'Ingegneria dei processi', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2025-11-02', updated_at: '2025-11-02' }] },
@@ -574,7 +643,7 @@ const INITIAL_STUDENTS: Student[] = [
   { id: 'STU-570', name: 'Davide Barbieri', first_name: 'Davide', last_name: 'Barbieri', email: 'davide.barbieri@email.com', phone: '+39 327 6667700', status: 'blocked', created_at: '2025-05-20', updated_at: '2025-09-03T17:00:00', updated_by: 'Francesca', marketing_consent: false, contacts: { emails: [{ email: 'davide.barbieri@email.com', is_primary: true, purposes: ['generic'], source: 'manual', added_at: '2025-05-20' }], phones: [{ phone: '+39 327 6667700', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2025-05-20' }] }, academic_records: [{ id: 'AR-025', student_id: 'STU-570', degree_level: 'triennale', course_name: 'Lettere Moderne', university_name: 'Università di Roma', thesis_professor: 'Prof.ssa Rinaldi', thesis_topic: 'L\'evoluzione della narrativa italiana contemporanea nel periodo post-2010', thesis_subject: 'Narrazione post-coloniale nella letteratura italiana', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2025-05-20', updated_at: '2025-05-20' }] },
   { id: 'STU-590', name: 'Beatrice Vitale', first_name: 'Beatrice', last_name: 'Vitale', email: 'beatrice.vitale@email.com', phone: '+39 346 7778800', status: 'active', created_at: '2026-02-15', updated_at: '2026-03-01T10:00:00', updated_by: 'Claudia', marketing_consent: true, contacts: { emails: [{ email: 'beatrice.vitale@email.com', is_primary: true, purposes: ['generic'], source: 'manual', added_at: '2026-02-15' }], phones: [{ phone: '+39 346 7778800', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-02-15' }] }, academic_records: [{ id: 'AR-028', student_id: 'STU-590', degree_level: 'triennale', course_name: 'Sociologia', university_name: 'Università di Bologna', thesis_professor: 'Prof.ssa Ferro', thesis_topic: 'Analisi sociologica della coesione sociale nelle comunità immigrate italiane', thesis_subject: 'Disuguaglianze digitali nelle aree rurali', foreign_language: false, thesis_language: '', thesis_type: 'compilativa', is_current: true, created_at: '2026-02-15', updated_at: '2026-02-15' }] },
   { id: 'STU-596', name: 'Simone Caruso', first_name: 'Simone', last_name: 'Caruso', email: 'simone.caruso@email.com', phone: '+39 341 4445500', status: 'invited', created_at: '2026-03-01', updated_at: '2026-03-05T14:30:00', updated_by: 'Francesca', marketing_consent: false, contacts: { emails: [{ email: 'simone.caruso@email.com', is_primary: true, purposes: ['generic'], source: 'manual', added_at: '2026-03-01' }], phones: [{ phone: '+39 341 4445500', is_primary: true, purposes: ['communications'], source: 'manual', added_at: '2026-03-01' }] }, academic_records: [{ id: 'AR-029', student_id: 'STU-596', degree_level: 'magistrale', course_name: 'Scienze Politiche', university_name: 'Università di Padova', thesis_professor: 'Prof. Ferraris', thesis_topic: 'Governance ambientale e politiche climatiche nell\'Unione Europea', thesis_subject: 'Governance multilivello e politiche migratorie europee', foreign_language: false, thesis_language: '', thesis_type: 'sperimentale', is_current: true, created_at: '2026-03-01', updated_at: '2026-03-01' }] },
-];
+] as Student[]).map(migrateLegacyStudentConsent);
 
 // ─── Catalogo servizi ───────────────────────────────────────
 export const SERVICE_CATALOG = [

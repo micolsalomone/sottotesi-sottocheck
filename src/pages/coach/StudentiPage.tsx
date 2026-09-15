@@ -239,7 +239,7 @@ export function StudentiPage() {
   /* ──────────────────────────────── RENDER ──────────────────────────────── */
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       {/* ── Page Header ── */}
       <div className="mb-6">
         <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.5, color: 'var(--foreground)' }}>
@@ -278,6 +278,7 @@ export function StudentiPage() {
 
         <div className="relative">
           <select
+            aria-label="Filtra studenti per stato"
             value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="appearance-none bg-[var(--input-background)] border border-[var(--border)] text-[var(--foreground)] pr-8 pl-4 h-[46px] min-w-[200px] cursor-pointer"
             style={{ borderRadius: 'var(--radius)', fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}
@@ -453,6 +454,7 @@ export function StudentiPage() {
                         className="flex items-center justify-center w-[32px] h-[32px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
                         style={{ borderRadius: 'var(--radius)' }}
                         onClick={() => setOpenMenuId(prev => prev === student.id ? null : student.id)}
+                        aria-label="Azioni"
                         title="Azioni"
                       >
                         <MoreVertical className="w-[16px] h-[16px]" />
@@ -547,6 +549,7 @@ export function StudentiPage() {
                 className="flex items-center justify-center w-[28px] h-[28px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                 style={{ borderRadius: 'var(--radius)' }}
                 onClick={() => setConfirmModal(null)}
+                aria-label="Chiudi"
               >
                 <X className="w-[16px] h-[16px]" />
               </button>
@@ -841,6 +844,7 @@ function TicketModalContent({
                         style={{ borderRadius: 'calc(var(--radius) - 4px)' }}
                         onClick={() => setTicketFiles(prev => prev.filter((_, i) => i !== index))}
                         disabled={ticketSent}
+                        aria-label="Rimuovi allegato"
                         title="Rimuovi"
                       >
                         <Trash2 className="w-[13px] h-[13px]" />
@@ -1022,6 +1026,7 @@ function TicketBadgeButton({ count, onClick }: { count: number; onClick: () => v
         e.stopPropagation();
         onClick();
       }}
+      aria-label={`Richiedi assistenza (${count} ticket)`}
       title={`${count} ticket`}
       style={{
         background: 'none',

@@ -29,7 +29,7 @@ export function StudentHeader({ sidebarCollapsed }: StudentHeaderProps) {
           <span className="admin-username">studente</span>
           <UserTopbarMenu
             displayName={currentStudent.name}
-            profilePath="/student-view/profilo"
+            accountPath="/student-view/account"
             logoutPath="/"
           />
         </div>

@@ -3,13 +3,14 @@ import { ArrowRight, ClipboardCheck, ExternalLink } from 'lucide-react';
 import PlanningSticker from '@/imports/Planning.png';
 import MatchSticker from '@/imports/Match.png';
 import { getStudentViewStudent, getStudentViewTimelinePath } from '@/app/utils/studentView';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const currentStudent = getStudentViewStudent();
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-10">
         <h1
           style={{
@@ -61,7 +62,7 @@ export function DashboardPage() {
                 lineHeight: 1.3,
               }}
             >
-              Tesi Check
+              TesiCheck
             </h2>
             <p
               className="mt-1 text-[var(--muted-foreground)]"
@@ -136,7 +137,7 @@ export function DashboardPage() {
           >
             <img
               src={PlanningSticker}
-              alt="Sticker mappa Tesi Check"
+              alt="Sticker mappa TesiCheck"
               className="w-[150px] h-auto md:w-[190px]"
             />
           </div>
@@ -144,21 +145,14 @@ export function DashboardPage() {
 
         <div className="mt-5 pt-4 border-t border-[var(--border)]">
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+            <SottocheckActionButton
               onClick={() => navigate('/student-view/sottocheck')}
-              className="inline-flex items-center gap-2 px-[16px] py-[11px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-              }}
+              icon={<ClipboardCheck className="w-4 h-4" />}
+              className="px-[16px] py-[11px]"
             >
-              <ClipboardCheck className="w-4 h-4" />
               Vai al check plagio
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </SottocheckActionButton>
 
             <a
               href="https://sottotesi.it"

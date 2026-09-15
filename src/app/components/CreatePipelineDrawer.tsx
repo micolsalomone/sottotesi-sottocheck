@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, TrendingUp, Mail, MessageCircle, Phone, Trash2, Save, CheckCircle, Circle, Pencil, X, Search, GraduationCap, UserPlus, User, Calendar, Tag, FileText, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, Mail, MessageCircle, Phone, Trash2, Save, CheckCircle, Circle, MinusCircle, Pencil, X, Search, GraduationCap, UserPlus, User, Calendar, Tag, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, Student, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
+import { readMarketingConsentForContact } from '../data/marketingConsent';
+import { MarketingConsentSelect } from './MarketingConsentSelect';
 import {
   DrawerOverlay,
   DrawerShell,
@@ -40,6 +42,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 const SERVICE_LINK_OPTIONS: { value: string; label: string }[] = SERVICE_CATALOG.map((service) => {
@@ -61,7 +64,11 @@ const consentRowStyle: React.CSSProperties = {
   marginTop: '0.375rem',
 };
 
-// ─── Marketing consent row ────────────────────────────────────
+// ─── Marketing consent row (per contact — tri-state) ─────────────────────────
+// Same click-to-edit → editor → inline confirm pattern as before; only the
+// editor changed from a binary checkbox to an explicit tri-state select
+// (`Non richiesto` = key absent / `Consentito` = true / `Non consentito` = false).
+// All local until the drawer's "Crea" action.
 function MarketingConsentRow({
   contactKey,
   consents,
@@ -75,25 +82,22 @@ function MarketingConsentRow({
   editingKey: string | null;
   onEdit: (key: string) => void;
   onSave: () => void;
-  onChange: (key: string, value: boolean) => void;
+  onChange: (key: string, value: boolean | null) => void;
 }) {
   const isEditing = editingKey === contactKey;
-  const hasConsent = consents[contactKey] || false;
+  const state = readMarketingConsentForContact(consents, contactKey);
 
   if (isEditing) {
     return (
       <div style={{ ...consentRowStyle, backgroundColor: 'var(--muted)' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}>
-          <input
-            type="checkbox"
-            checked={hasConsent}
-            onChange={e => onChange(contactKey, e.target.checked)}
-            style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
-          />
-          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
-            Consenso marketing
-          </span>
-        </label>
+        <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>
+          Comunicazioni commerciali
+        </span>
+        <MarketingConsentSelect
+          value={state}
+          onChange={value => onChange(contactKey, value)}
+          ariaLabel={`Consenso comunicazioni commerciali per ${contactKey}`}
+        />
         <button
           type="button"
           onClick={onSave}
@@ -108,7 +112,7 @@ function MarketingConsentRow({
             alignItems: 'center',
             flexShrink: 0,
           }}
-          title="Salva consenso"
+          title="Chiudi"
         >
           <Save size={12} />
         </button>
@@ -116,6 +120,7 @@ function MarketingConsentRow({
     );
   }
 
+  const ConsentIcon = state === true ? CheckCircle : state === false ? MinusCircle : Circle;
   return (
     <div
       role="button"
@@ -125,22 +130,18 @@ function MarketingConsentRow({
       style={{ ...consentRowStyle, cursor: 'pointer' }}
       title="Clicca per modificare consenso"
     >
-      {hasConsent ? (
-        <CheckCircle size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-      ) : (
-        <Circle size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
-      )}
+      <ConsentIcon size={14} style={{ color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)', flexShrink: 0 }} />
       <span
         style={{
           fontFamily: 'var(--font-inter)',
           fontSize: '11px',
-          color: hasConsent ? 'var(--primary)' : 'var(--muted-foreground)',
+          color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
           lineHeight: '1.5',
           flex: 1,
-          fontWeight: hasConsent ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+          fontWeight: state === true ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
         }}
       >
-        {hasConsent ? 'Consenso marketing attivo' : 'Nessun consenso marketing'}
+        {state === true ? 'Consentito' : state === false ? 'Non consentito' : 'Non richiesto'}
       </span>
       <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />
     </div>
@@ -228,6 +229,7 @@ function PipelineAcademicCard({
         <div style={drawerFieldGroupStyle}>
           <label style={drawerLabelStyle}>Livello</label>
           <select
+            className="drawer-control-focus"
             value={data.degree_level}
             onChange={e => onChange('degree_level', e.target.value)}
             style={drawerSelectStyle}
@@ -239,8 +241,9 @@ function PipelineAcademicCard({
           </select>
         </div>
         <div style={drawerFieldGroupStyle}>
-          <label style={drawerLabelStyle}>Tipo tesi</label>
+          <label style={drawerLabelStyle}>Tipologia</label>
           <select
+            className="drawer-control-focus"
             value={data.thesis_type}
             onChange={e => onChange('thesis_type', e.target.value)}
             style={drawerSelectStyle}
@@ -256,6 +259,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Corso di studi</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Economia Aziendale"
           value={data.course_name}
@@ -267,6 +271,7 @@ function PipelineAcademicCard({
       <div style={drawerFieldGroupStyle}>
         <label style={drawerLabelStyle}>Università (opzionale)</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Università di Bologna"
           value={data.university_name}
@@ -276,8 +281,9 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Relatore tesi</label>
+        <label style={drawerLabelStyle}>Professore</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Prof. Rossi"
           value={data.thesis_professor}
@@ -287,8 +293,9 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Oggetto tesi</label>
+        <label style={drawerLabelStyle}>Argomento</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. L'impatto dell'AI nel marketing digitale"
           value={data.thesis_topic}
@@ -298,8 +305,9 @@ function PipelineAcademicCard({
       </div>
 
       <div style={drawerFieldGroupStyle}>
-        <label style={drawerLabelStyle}>Materia di tesi</label>
+        <label style={drawerLabelStyle}>Materia</label>
         <input
+          className="drawer-control-focus"
           type="text"
           placeholder="es. Marketing Strategico"
           value={data.thesis_subject}
@@ -332,8 +340,9 @@ function PipelineAcademicCard({
       {data.foreign_language && (
         <div style={drawerFieldGroupStyle}>
           <label style={drawerLabelStyle}>Lingua tesi</label>
-          <input
-            type="text"
+        <input
+          className="drawer-control-focus"
+          type="text"
             placeholder="es. Inglese"
             value={data.thesis_language}
             onChange={e => onChange('thesis_language', e.target.value)}
@@ -449,12 +458,16 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
     setStudentSearch(student.name);
   };
 
-  const handleConsentChange = (key: string, value: boolean) => {
-    setMarketingConsents(prev => ({ ...prev, [key]: value }));
+  const handleConsentChange = (key: string, value: boolean | null) => {
+    setMarketingConsents(prev => {
+      const next = { ...prev };
+      if (value === null) delete next[key];   // `Non richiesto` = key absent
+      else next[key] = value;
+      return next;
+    });
   };
 
   const handleConsentSave = () => {
-    toast.success('Consenso marketing aggiornato');
     setEditingConsent(null);
   };
 
@@ -744,6 +757,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <div style={{ position: 'relative' }}>
                     <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={{ ...drawerInputStyle, paddingLeft: '2.25rem' }}
                       placeholder="Cerca per nome, email o ID..."
@@ -797,6 +811,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
                     <DrawerLabel>Nome</DrawerLabel>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={drawerInputStyle}
                       value={formData.first_name}
@@ -807,6 +822,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                   <DrawerFieldGroup style={{ marginBottom: 0 }}>
                     <DrawerLabel>Cognome</DrawerLabel>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       style={drawerInputStyle}
                       value={formData.last_name}
@@ -867,6 +883,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                 <DrawerMicroLabel>Email principale</DrawerMicroLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="email"
                     style={{ ...drawerInputStyle, flex: 1 }}
                     value={formData.email}
@@ -930,7 +947,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                       type="button"
                       onClick={() => handleRemoveEmail(email)}
                       className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive-foreground)' }}
+                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive)' }}
                       title="Rimuovi email"
                     >
                       <Trash2 size={14} />
@@ -950,6 +967,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               {/* Aggiungi email */}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
+                  className="drawer-control-focus"
                   type="email"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
@@ -976,6 +994,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                 <DrawerMicroLabel>Telefono principale</DrawerMicroLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="tel"
                     style={{ ...drawerInputStyle, flex: 1 }}
                     value={formData.phone}
@@ -1053,7 +1072,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
                       type="button"
                       onClick={() => handleRemovePhone(phone)}
                       className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive-foreground)' }}
+                      style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', flexShrink: 0, color: 'var(--destructive)' }}
                       title="Rimuovi telefono"
                     >
                       <Trash2 size={14} />
@@ -1073,6 +1092,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               {/* Aggiungi telefono */}
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
+                  className="drawer-control-focus"
                   type="tel"
                   value={newPhone}
                   onChange={e => setNewPhone(e.target.value)}
@@ -1123,6 +1143,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── IN CARICO A ── */}
             <DrawerSection title="In carico a" icon={<User size={16} />}>
               <select
+                className="drawer-control-focus"
                 style={drawerSelectStyle}
                 value={formData.assigned_to}
                 onChange={e => setFormData(prev => ({ ...prev, assigned_to: e.target.value }))}
@@ -1137,6 +1158,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── SERVIZIO ── */}
             <DrawerSection title="Servizio" icon={<TrendingUp size={16} />}>
               <select
+                className="drawer-control-focus"
                 style={drawerSelectStyle}
                 value={formData.service_link}
                 onChange={e => setFormData(prev => ({ ...prev, service_link: e.target.value }))}
@@ -1153,6 +1175,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
               <DrawerFieldGroup style={{ marginBottom: 0 }}>
                 <DrawerLabel>Data di acquisizione</DrawerLabel>
                 <input
+                  className="drawer-control-focus"
                   type="date"
                   style={drawerInputStyle}
                   value={formData.created_at}
@@ -1164,6 +1187,7 @@ export function CreatePipelineDrawer({ open, onOpenChange }: CreatePipelineDrawe
             {/* ── NOTE ── */}
             <DrawerSection title="Note" icon={<FileText size={16} />} bordered={false}>
               <textarea
+                className="drawer-control-focus"
                 style={{ ...drawerInputStyle, minHeight: '100px', resize: 'vertical' }}
                 placeholder="Aggiungi note sulla pipeline..."
                 value={formData.notes}

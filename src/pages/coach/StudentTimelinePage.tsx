@@ -537,7 +537,7 @@ export function StudentTimelinePage() {
   }));
 
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       {/* Breadcrumb */}
       <div className="mb-6">
         <p

@@ -9,23 +9,40 @@ import {
 
 interface UserTopbarMenuProps {
   displayName: string;
-  profilePath: string;
-  logoutPath: string;
+  /**
+   * Destination for the "Informazioni Account" item — the role's Account page
+   * (`/public-view/account`, `/student-view/account`, `/impostazioni/account`).
+   * Coach has no Account page yet and passes its Profile route as a documented
+   * interim (see `CoachHeader`).
+   */
+  accountPath: string;
+  /** Fallback navigation target on logout when `onLogout` is not provided. */
+  logoutPath?: string;
+  /**
+   * Custom logout handler. When provided it fully owns logout (e.g. clearing a
+   * prototype account session and routing), and `logoutPath` is ignored.
+   */
+  onLogout?: () => void;
 }
 
 export function UserTopbarMenu({
   displayName,
-  profilePath,
+  accountPath,
   logoutPath,
+  onLogout,
 }: UserTopbarMenuProps) {
   const navigate = useNavigate();
 
-  function handleGoToProfile() {
-    navigate(profilePath);
+  function handleGoToAccount() {
+    navigate(accountPath);
   }
 
   function handleLogout() {
-    navigate(logoutPath);
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    if (logoutPath) navigate(logoutPath);
   }
 
   return (
@@ -38,7 +55,7 @@ export function UserTopbarMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onSelect={handleGoToProfile}>
+        <DropdownMenuItem onSelect={handleGoToAccount}>
           <UserRound size={16} />
           Informazioni Account
         </DropdownMenuItem>

@@ -1,17 +1,247 @@
-import { FileText, CheckCircle, Clock, AlertCircle, Download } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { SottocheckHistoryStatusBadge, type SottocheckHistoryStatus } from '@/app/components/SottocheckHistoryStatusBadge';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { HistoryCheckTitle } from '@/app/components/HistoryCheckTitle';
+import { getPersistentTesiChecksForOwner, renamePersistentCheckTitle } from '@/app/data/tesicheckPersistentCheck';
+import { DEMO_ACCOUNT_ID } from '@/app/data/tesicheckAccountSession';
+import { STUDENT_VIEW_STUDENT_ID } from '@/app/utils/studentView';
+import { getFileTypeFromName } from '@/app/utils/fileTypeUtils';
 
-type HistoryItemStatus = 'completed' | 'processing' | 'error';
+/**
+ * Consumer TesiCheck History / Storico.
+ *
+ * - `context="standalone"` → authenticated standalone workspace (`/public-view/history`)
+ * - `context="student"`    → Student shell (`/student-view/history`)
+ * - no `context`           → legacy `/public` acquisition route: unchanged mock
+ *   behaviour, deliberately NOT wired to the persistent paid-check store.
+ */
+type ConsumerHistoryContext = 'standalone' | 'student';
 
-interface HistoryItem {
+interface HistoryPageProps {
+  context?: ConsumerHistoryContext;
+}
+
+const CONTEXT_CONFIG: Record<
+  ConsumerHistoryContext,
+  {
+    ownerContext: ConsumerHistoryContext;
+    ownerId: string;
+    reportBasePath: string;
+    /** New-check entry point for the empty state, or null when none is safe. */
+    newCheckPath: string | null;
+    newCheckLabel: string;
+  }
+> = {
+  standalone: {
+    ownerContext: 'standalone',
+    ownerId: DEMO_ACCOUNT_ID,
+    reportBasePath: '/public-view/report',
+    // `/public-view/sottocheck` is the canonical authenticated standalone paid
+    // flow (`PublicPaidSottocheckPage`): upload → title → quote → gateway →
+    // persistent `standalone` check → report. Safe as the empty-state entry point.
+    newCheckPath: '/public-view/sottocheck',
+    newCheckLabel: 'Nuovo TesiCheck',
+  },
+  student: {
+    ownerContext: 'student',
+    ownerId: STUDENT_VIEW_STUDENT_ID,
+    reportBasePath: '/student-view/report',
+    newCheckPath: '/student-view/sottocheck',
+    newCheckLabel: 'Nuovo TesiCheck',
+  },
+};
+
+function formatLongDate(value: string) {
+  return new Date(value).toLocaleDateString('it-IT', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export function HistoryPage({ context }: HistoryPageProps) {
+  if (!context) {
+    return <LegacyPublicHistory />;
+  }
+  return <ConsumerTesiCheckHistory context={context} />;
+}
+
+function ConsumerTesiCheckHistory({ context }: { context: ConsumerHistoryContext }) {
+  const navigate = useNavigate();
+  const config = CONTEXT_CONFIG[context];
+  // Prototype localStorage store: bump a local counter to re-read after a rename.
+  const [renameVersion, setRenameVersion] = useState(0);
+  const checks = useMemo(
+    () => getPersistentTesiChecksForOwner(config.ownerContext, config.ownerId),
+    [config.ownerContext, config.ownerId, renameVersion],
+  );
+
+  const handleRename = (checkId: string, nextTitle: string) => {
+    renamePersistentCheckTitle(checkId, nextTitle);
+    setRenameVersion((value) => value + 1);
+  };
+
+  return (
+    <div className="py-[32px]">
+      <div className="mb-8">
+        <h1
+          style={{
+            fontFamily: 'var(--font-alegreya)',
+            fontSize: 'var(--text-h1)',
+            fontWeight: 'var(--font-weight-bold)',
+            lineHeight: 1.5,
+            color: 'var(--foreground)',
+          }}
+        >
+          Storico TesiCheck
+        </h1>
+        <p
+          className="mt-1 text-[var(--muted-foreground)]"
+          style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 'var(--font-weight-regular)',
+          }}
+        >
+          I TesiCheck completati restano sempre disponibili qui: puoi riaprire ogni report quando vuoi.
+        </p>
+      </div>
+
+      {checks.length === 0 ? (
+        <HistoryEmptyState
+          onNewCheck={config.newCheckPath ? () => navigate(config.newCheckPath as string) : undefined}
+          newCheckLabel={config.newCheckLabel}
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          {checks.map((check) => {
+            // Document identity visual: format-driven icon + colour from the shared
+            // presentation-only utility (PDF red, DOC/DOCX blue, else muted).
+            const fileInfo = getFileTypeFromName(check.document.name);
+            const DocumentIcon = fileInfo.icon;
+            return (
+              <div
+                key={check.id}
+                className="bg-[var(--card)] border border-[var(--border)] px-[24px] py-[16px]"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                  <div className="flex gap-4 min-w-0">
+                    <div
+                      className="w-11 h-11 shrink-0 flex items-center justify-center bg-[var(--muted)]"
+                      style={{ borderRadius: 'var(--radius)' }}
+                    >
+                      <DocumentIcon className={`w-5 h-5 ${fileInfo.color}`} />
+                    </div>
+
+                    <div className="min-w-0">
+                      <HistoryCheckTitle
+                        title={check.title}
+                        onRename={(nextTitle) => handleRename(check.id, nextTitle)}
+                      />
+
+                      <div
+                        className="mt-1 flex flex-col gap-0.5"
+                        style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 'var(--text-label)',
+                          fontWeight: 'var(--font-weight-regular)',
+                        }}
+                      >
+                        <span className="truncate text-[var(--muted-foreground)]">
+                          {check.document.name}
+                        </span>
+                        <span className="text-[var(--muted-foreground)]">
+                          Completato il {formatLongDate(check.completedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-3 pl-[60px] sm:flex-col sm:items-end sm:gap-3 sm:pl-0">
+                    <SottocheckActionButton
+                      className="px-[16px] py-[10px]"
+                      onClick={() => navigate(`${config.reportBasePath}/${check.id}`)}
+                    >
+                      Apri report
+                    </SottocheckActionButton>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryEmptyState({
+  onNewCheck,
+  newCheckLabel,
+}: {
+  onNewCheck?: () => void;
+  newCheckLabel: string;
+}) {
+  return (
+    <div
+      className="bg-[var(--card)] border border-[var(--border)] px-[24px] py-[40px] text-center"
+      style={{ borderRadius: 'var(--radius)' }}
+    >
+      <div
+        className="w-11 h-11 mx-auto flex items-center justify-center bg-[var(--muted)]"
+        style={{ borderRadius: 'var(--radius)' }}
+      >
+        <FileText className="w-5 h-5 text-[var(--muted-foreground)]" />
+      </div>
+      <h2
+        className="mt-4"
+        style={{
+          fontFamily: 'var(--font-alegreya)',
+          fontSize: 'var(--text-h3)',
+          fontWeight: 'var(--font-weight-medium)',
+          color: 'var(--foreground)',
+        }}
+      >
+        Nessun TesiCheck nello storico
+      </h2>
+      <p
+        className="mt-2 mx-auto max-w-[420px] text-[var(--muted-foreground)]"
+        style={{
+          fontFamily: 'var(--font-inter)',
+          fontSize: 'var(--text-label)',
+          fontWeight: 'var(--font-weight-regular)',
+          lineHeight: 1.6,
+        }}
+      >
+        I TesiCheck completati compariranno qui con il titolo, il documento e la data di completamento.
+      </p>
+      {onNewCheck && (
+        <SottocheckActionButton className="mt-5 px-[16px] py-[10px]" onClick={onNewCheck}>
+          {newCheckLabel}
+        </SottocheckActionButton>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Legacy `/public/history` — unchanged. Not part of the paid-consumer        */
+/* History redesign and deliberately not wired to `public-tesicheck-checks-v1`. */
+/* -------------------------------------------------------------------------- */
+
+interface LegacyHistoryItem {
   id: string;
   documentName: string;
   pagesSelected: number;
   price: number;
-  status: HistoryItemStatus;
+  status: SottocheckHistoryStatus;
   createdAt: string;
 }
 
-const mockHistory: HistoryItem[] = [
+const mockHistory: LegacyHistoryItem[] = [
   {
     id: '1',
     documentName: 'Tesi_Capitolo_1.pdf',
@@ -30,7 +260,7 @@ const mockHistory: HistoryItem[] = [
   },
 ];
 
-function formatDate(dateString: string) {
+function formatLegacyDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleDateString('it-IT', {
     day: '2-digit',
@@ -41,92 +271,29 @@ function formatDate(dateString: string) {
   });
 }
 
-function StatusBadge({ status }: { status: HistoryItemStatus }) {
-  if (status === 'completed') {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-        style={{
-          borderRadius: 'var(--radius-badge)',
-          background: 'rgba(11,182,63,0.10)',
-          color: 'var(--primary)',
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          fontWeight: 'var(--font-weight-medium)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        <CheckCircle className="w-3 h-3" />
-        Completato
-      </span>
-    );
-  }
-
-  if (status === 'processing') {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-        style={{
-          borderRadius: 'var(--radius-badge)',
-          background: 'rgba(46,144,250,0.10)',
-          color: 'var(--chart-2)',
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          fontWeight: 'var(--font-weight-medium)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        <Clock className="w-3 h-3" />
-        In elaborazione
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-      style={{
-        borderRadius: 'var(--radius-badge)',
-        background: 'rgba(220,38,38,0.10)',
-        color: 'var(--destructive)',
-        fontFamily: 'var(--font-inter)',
-        fontSize: '11px',
-        fontWeight: 'var(--font-weight-medium)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}
-    >
-      <AlertCircle className="w-3 h-3" />
-      Errore
-    </span>
-  );
-}
-
-function downloadReport(check: HistoryItem) {
+function downloadLegacyReport(check: LegacyHistoryItem) {
   const reportLines = [
-    'Report Sottocheck',
+    'Report TesiCheck',
     `ID controllo: ${check.id}`,
     `Documento: ${check.documentName}`,
     `Pagine analizzate: ${check.pagesSelected}`,
     `Costo: EUR ${check.price.toFixed(2)}`,
     `Stato: ${check.status}`,
-    `Creato il: ${formatDate(check.createdAt)}`,
+    `Creato il: ${formatLegacyDate(check.createdAt)}`,
   ];
 
   const blob = new Blob([reportLines.join('\n')], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `report-sottocheck-${check.id}.txt`;
+  link.download = `report-tesicheck-${check.id}.txt`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
-export function HistoryPage() {
+function LegacyPublicHistory() {
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{
@@ -137,7 +304,7 @@ export function HistoryPage() {
             color: 'var(--foreground)',
           }}
         >
-          Storico Sottocheck
+          Storico TesiCheck
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"
@@ -180,7 +347,7 @@ export function HistoryPage() {
                   >
                     {check.documentName}
                   </h3>
-                  <StatusBadge status={check.status} />
+                  <SottocheckHistoryStatusBadge status={check.status} />
                 </div>
 
                 <div
@@ -193,23 +360,25 @@ export function HistoryPage() {
                 >
                   <span>{check.pagesSelected} pagine</span>
                   <span>€{check.price.toFixed(2)}</span>
-                  <span>{formatDate(check.createdAt)}</span>
+                  <span>{formatLegacyDate(check.createdAt)}</span>
                 </div>
 
-                <button
-                  onClick={() => downloadReport(check)}
-                  className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Scarica report
-                </button>
+                {check.status === 'completed' && (
+                  <button
+                    onClick={() => downloadLegacyReport(check)}
+                    className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Scarica report
+                  </button>
+                )}
               </div>
             </div>
           </div>

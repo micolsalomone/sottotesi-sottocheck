@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 
 interface TimelineControlsProps {
@@ -19,26 +18,19 @@ export function TimelineControls({
   onFilterChange,
   onEditTimeline,
 }: TimelineControlsProps) {
-  const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const currentFilterLabel = FILTER_OPTIONS.find(o => o.value === filterMode)?.label || 'Tutte le fasi';
-
   return (
     <div className="py-6 flex items-center justify-end gap-3">
       {/* Filter Dropdown */}
-      <div ref={filterRef} className="relative">
-        <button
-          onClick={() => { setFilterOpen(prev => !prev); }}
-          className="flex items-center gap-[8px] px-[14px] py-[8px] border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] transition-colors"
+      <div className="relative">
+        <Filter
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[14px] top-1/2 w-[14px] h-[14px] -translate-y-1/2 text-[var(--muted-foreground)]"
+        />
+        <select
+          aria-label="Filtra le fasi della timeline"
+          className="control-focus-ring appearance-none cursor-pointer pl-[36px] pr-[36px] py-[8px] border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] transition-colors"
+          value={filterMode}
+          onChange={(event) => onFilterChange(event.target.value as TimelineControlsProps['filterMode'])}
           style={{
             borderRadius: 'var(--radius)',
             fontFamily: 'var(--font-inter)',
@@ -47,42 +39,14 @@ export function TimelineControls({
             color: 'var(--foreground)',
           }}
         >
-          <Filter className="w-[14px] h-[14px] text-[var(--muted-foreground)]" />
-          <span>{currentFilterLabel}</span>
-          <ChevronDown
-            className="w-[14px] h-[14px] text-[var(--muted-foreground)] transition-transform"
-            style={{ transform: filterOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-          />
-        </button>
-
-        {filterOpen && (
-          <div
-            className="absolute right-0 top-full mt-[4px] z-50 border border-[var(--border)] bg-[var(--card)] py-[4px] min-w-[180px]"
-            style={{
-              borderRadius: 'var(--radius)',
-              boxShadow: 'var(--elevation-md)',
-            }}
-          >
-            {FILTER_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                onClick={() => { onFilterChange(option.value); setFilterOpen(false); }}
-                className={`w-full text-left px-[14px] py-[8px] transition-colors ${
-                  filterMode === option.value
-                    ? 'bg-[var(--muted)] text-[var(--foreground)]'
-                    : 'text-[var(--foreground)] hover:bg-[var(--muted)]'
-                }`}
-                style={{
-                  fontFamily: 'var(--font-inter)',
-                  fontSize: 'var(--text-label)',
-                  fontWeight: filterMode === option.value ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        )}
+          {FILTER_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <ChevronDown
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[14px] top-1/2 w-[14px] h-[14px] -translate-y-1/2 text-[var(--muted-foreground)]"
+        />
       </div>
 
       {/* Edit Timeline Button */}

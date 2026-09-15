@@ -6,6 +6,7 @@ import {
 import { toast } from 'sonner';
 import { useLavorazioni, REFERENTI_SOTTOTESI, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { StudentService, Pipeline, Student, StudentAcademicRecord, Quote } from '../data/LavorazioniContext';
+import { marketingConsentLabel, readMarketingConsentForContact } from '../data/marketingConsent';
 import { useAreeTematiche } from '../data/AreeTematicheContext';
 import {
   DrawerOverlay,
@@ -64,30 +65,34 @@ function ContactBlock({ pipeline }: { pipeline: Pipeline }) {
     border: '1px solid var(--border)',
   });
 
-  const consentBadge = (key: string) => (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.375rem',
-        marginTop: '0.375rem',
-      }}
-    >
-      {consents[key]
-        ? <CheckCircle size={12} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-        : <Circle size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
-      <span
+  const consentBadge = (key: string) => {
+    // Tri-state read-only: absent key = `Non richiesto`, distinct from `Non consentito`.
+    const state = readMarketingConsentForContact(consents, key);
+    return (
+      <div
         style={{
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          lineHeight: '1.5',
-          color: consents[key] ? 'var(--primary)' : 'var(--muted-foreground)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          marginTop: '0.375rem',
         }}
       >
-        {consents[key] ? 'Consenso marketing' : 'Nessun consenso'}
-      </span>
-    </div>
-  );
+        {state === true
+          ? <CheckCircle size={12} style={{ color: 'var(--foreground)', flexShrink: 0 }} />
+          : <Circle size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+        <span
+          style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: '11px',
+            lineHeight: '1.5',
+            color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
+          }}
+        >
+          {marketingConsentLabel(state)}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -185,7 +190,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
   const statusBg = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
     : lifecycleLabel === 'Scaduto'
-      ? 'color-mix(in srgb, var(--destructive-foreground) 10%, transparent)'
+      ? 'color-mix(in srgb, var(--destructive) 10%, transparent)'
       : lifecycleLabel === 'In scadenza'
         ? 'color-mix(in srgb, var(--chart-3) 10%, transparent)'
         : 'var(--muted)';
@@ -193,7 +198,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
   const statusColor = lifecycleLabel === 'Accettato' || lifecycleLabel === 'Pagato'
     ? 'var(--primary)'
     : lifecycleLabel === 'Scaduto'
-      ? 'var(--destructive-foreground)'
+      ? 'var(--destructive)'
       : lifecycleLabel === 'In scadenza'
         ? 'var(--chart-3)'
         : 'var(--muted-foreground)';
@@ -239,7 +244,7 @@ function QuoteCard({ quote, isLinked }: { quote: Quote; isLinked: boolean }) {
           fontSize: '10px',
           padding: '2px 6px',
           borderRadius: 'var(--radius-badge)',
-          border: '1px solid var(--border)',
+          border: lifecycleLabel === 'Scaduto' ? '1px solid var(--destructive)' : '1px solid var(--border)',
           backgroundColor: statusBg,
           color: statusColor,
           fontWeight: 'var(--font-weight-semibold)',
@@ -418,6 +423,9 @@ export function CreateLavorazioneDrawer({
 
       // Costruisce il campo contacts dal pipeline (email/telefoni principali + aggiuntivi)
       const pipelineSource = `pipeline:${selectedPipeline.id}`;
+      // Per-email consent carries over per contact from the Pipeline map:
+      // explicit `true`/`false` under that email's key transfers as-is; a missing
+      // key stays unknown (`null`). Never collapse to one global Student value.
       const contactEmails = [
         {
           email: selectedPipeline.email,
@@ -425,6 +433,7 @@ export function CreateLavorazioneDrawer({
           purposes: ['generic', 'service_access'] as ('generic' | 'service_access')[],
           source: pipelineSource,
           added_at: today,
+          marketing_consent: readMarketingConsentForContact(selectedPipeline.marketing_consents, selectedPipeline.email),
         },
         ...(selectedPipeline.emails || []).map(email => ({
           email,
@@ -432,6 +441,7 @@ export function CreateLavorazioneDrawer({
           purposes: ['generic'] as ('generic' | 'service_access')[],
           source: pipelineSource,
           added_at: today,
+          marketing_consent: readMarketingConsentForContact(selectedPipeline.marketing_consents, email),
         })),
       ];
       const contactPhones = [
@@ -463,7 +473,6 @@ export function CreateLavorazioneDrawer({
           phones: contactPhones,
         },
         status: 'active',
-        marketing_consent: (selectedPipeline.marketing_consents && selectedPipeline.marketing_consents[selectedPipeline.email]) || false,
         academic_records: [newAcademicRecord],
         created_at: new Date().toISOString().split('T')[0],
       };
@@ -589,6 +598,7 @@ export function CreateLavorazioneDrawer({
                         }}
                       />
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         value={pipelineSearch}
                         onChange={e => setPipelineSearch(e.target.value)}
@@ -807,6 +817,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel required>Servizio</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.service_id}
                       onChange={e => setFormData(prev => ({ ...prev, service_id: e.target.value }))}
                       required
@@ -824,6 +835,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel required>Referente Sottotesi</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.referente}
                       onChange={e => setFormData(prev => ({ ...prev, referente: e.target.value }))}
                       required
@@ -839,6 +851,7 @@ export function CreateLavorazioneDrawer({
                   <DrawerFieldGroup>
                     <DrawerLabel>Area tematica</DrawerLabel>
                     <select
+                      className="drawer-control-focus"
                       value={formData.area_tematica}
                       onChange={e => setFormData(prev => ({ ...prev, area_tematica: e.target.value }))}
                       style={drawerSelectStyle}
@@ -854,6 +867,7 @@ export function CreateLavorazioneDrawer({
                     <DrawerFieldGroup style={{ marginBottom: 0 }}>
                       <DrawerLabel>Inizio piano</DrawerLabel>
                       <input
+                        className="drawer-control-focus"
                         type="date"
                         value={formData.plan_start_date}
                         onChange={e => setFormData(prev => ({ ...prev, plan_start_date: e.target.value }))}
@@ -863,6 +877,7 @@ export function CreateLavorazioneDrawer({
                     <DrawerFieldGroup style={{ marginBottom: 0 }}>
                       <DrawerLabel>Scadenza piano</DrawerLabel>
                       <input
+                        className="drawer-control-focus"
                         type="date"
                         value={formData.plan_end_date}
                         onChange={e => setFormData(prev => ({ ...prev, plan_end_date: e.target.value }))}

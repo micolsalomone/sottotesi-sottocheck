@@ -35,6 +35,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 // ─── Single Academic Record Form ────────────────────────────
@@ -196,8 +197,9 @@ function AcademicRecordPanel({
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Livello</label>
+                <label style={drawerLabelStyle}>Livello di laurea</label>
                 <select
+                  className="drawer-control-focus"
                   value={record.degree_level}
                   onChange={e => onChange({ ...record, degree_level: e.target.value as DegreeLevel | '' })}
                   style={drawerSelectStyle}
@@ -209,8 +211,9 @@ function AcademicRecordPanel({
                 </select>
               </div>
               <div style={drawerFieldGroupStyle}>
-                <label style={drawerLabelStyle}>Tipo tesi</label>
+                <label style={drawerLabelStyle}>Tipologia</label>
                 <select
+                  className="drawer-control-focus"
                   value={record.thesis_type}
                   onChange={e => onChange({ ...record, thesis_type: e.target.value as ThesisType | '' })}
                   style={drawerSelectStyle}
@@ -224,8 +227,9 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Corso di studi</label>
+              <label style={drawerLabelStyle}>Corso di laurea</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Economia Aziendale"
                 value={record.course_name}
@@ -235,8 +239,9 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Università (opzionale)</label>
+              <label style={drawerLabelStyle}>Università</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Università di Bologna"
                 value={record.university_name}
@@ -246,8 +251,9 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Relatore tesi</label>
+              <label style={drawerLabelStyle}>Professore</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Prof. Rossi"
                 value={record.thesis_professor}
@@ -257,8 +263,9 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Oggetto tesi</label>
+              <label style={drawerLabelStyle}>Argomento</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. L'impatto dell'AI nel marketing digitale"
                 value={record.thesis_topic}
@@ -268,8 +275,9 @@ function AcademicRecordPanel({
             </div>
 
             <div style={drawerFieldGroupStyle}>
-              <label style={drawerLabelStyle}>Materia di tesi</label>
+              <label style={drawerLabelStyle}>Materia</label>
               <input
+                className="drawer-control-focus"
                 type="text"
                 placeholder="es. Marketing Strategico"
                 value={record.thesis_subject}
@@ -310,6 +318,7 @@ function AcademicRecordPanel({
               <div style={drawerFieldGroupStyle}>
                 <label style={drawerLabelStyle}>Lingua tesi</label>
                 <input
+                  className="drawer-control-focus"
                   type="text"
                   placeholder="es. Inglese"
                   value={record.thesis_language}
@@ -372,7 +381,7 @@ function AcademicRecordPanel({
                     fontFamily: 'var(--font-inter)',
                     fontSize: '11px',
                     fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--destructive-foreground)',
+                    color: 'var(--destructive)',
                     padding: '0.25rem 0',
                     lineHeight: '1.5',
                   }}
@@ -409,7 +418,7 @@ export function CreateStudentDrawer({
 }: CreateStudentDrawerProps) {
   const isEditMode = !!editStudent;
   const navigate = useNavigate();
-  const { data: lavorazioni, pipelines } = useLavorazioni();
+  const { data: lavorazioni, pipelines, students } = useLavorazioni();
 
   // Sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -426,7 +435,11 @@ export function CreateStudentDrawer({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState(''); // mantenuto per compatibilità
   const [phone, setPhone] = useState(''); // mantenuto per compatibilità
-  const [marketingConsent, setMarketingConsent] = useState(false); // mantenuto per compatibilità
+  // Commercial-communications consent is PER EMAIL: it rides on each
+  // `ContactEmail.marketing_consent` inside the `emails` state below, is edited
+  // inside every email card by `ContactManager` (`mode='student'`), and is
+  // persisted by this drawer's existing `Salva modifiche` transaction. There is
+  // no separate global Student consent state, no separate save, no auto-save.
 
   // ─── Contatti strutturati ──────────────────────────────────
   const [emails, setEmails] = useState<ContactEmail[]>([]);
@@ -466,30 +479,37 @@ export function CreateStudentDrawer({
       setLastName(editStudent.last_name || '');
       setEmail(editStudent.email || '');
       setPhone(editStudent.phone || '');
-      setMarketingConsent(editStudent.marketing_consent || false);
 
-      // Migra contatti alla struttura attuale
+      // Per-email commercial consent (`ContactEmail.marketing_consent`) is read
+      // from the SHARED `students` record so a change made from the Student
+      // Profile in the same session is reflected here; structural contact data
+      // still comes from `editStudent`. Migration below is NON lossy — it
+      // spreads each entry, so `marketing_consent` (and every other field) is
+      // preserved and never rewritten by an unrelated save.
+      const sharedStudent = students.find(s => s.id === editStudent.id);
+      const sharedEmailConsent = (address: string): boolean | null | undefined =>
+        sharedStudent?.contacts?.emails?.find(e => e.email === address)?.marketing_consent;
+
+      // Migra contatti alla struttura attuale — NON lossy: preserva tutti i
+      // purpose validi (incl. `service_access` insieme a `generic`), così
+      // salvare il drawer non altera implicitamente `purposes` / accesso ai
+      // servizi. La gestione dell'accesso ai servizi resta in TimelineDrawer.
       if (editStudent.contacts && editStudent.contacts.emails.length > 0) {
         const migratedEmails = editStudent.contacts.emails.map(e => {
-          const oldPurposes = e.purposes as any[];
-          let newPurposes: ('generic' | 'service_access')[];
-          if (oldPurposes.includes('service_access') || oldPurposes.includes('timeline')) {
-            newPurposes = ['service_access'];
-          } else {
-            newPurposes = ['generic'];
-          }
-          return { ...e, purposes: newPurposes };
+          const old = (e.purposes as string[]).map(p => (p === 'timeline' ? 'service_access' : p));
+          const kept = (['generic', 'service_access'] as const).filter(p => old.includes(p));
+          const sharedConsent = sharedEmailConsent(e.email);
+          return {
+            ...e,
+            purposes: (kept.length ? kept : ['generic']) as ('generic' | 'service_access')[],
+            ...(sharedConsent === undefined ? {} : { marketing_consent: sharedConsent }),
+          };
         });
 
         const migratedPhones = editStudent.contacts.phones.map(p => {
-          const oldPurposes = p.purposes as any[];
-          let newPurposes: ('communications' | 'coaching')[];
-          if (oldPurposes.includes('coaching')) {
-            newPurposes = ['coaching'];
-          } else {
-            newPurposes = ['communications'];
-          }
-          return { ...p, purposes: newPurposes };
+          const old = p.purposes as string[];
+          const kept = (['communications', 'coaching'] as const).filter(x => old.includes(x));
+          return { ...p, purposes: (kept.length ? kept : ['communications']) as ('communications' | 'coaching')[] };
         });
 
         setEmails(migratedEmails);
@@ -529,7 +549,6 @@ export function CreateStudentDrawer({
       setLastName('');
       setEmail('');
       setPhone('');
-      setMarketingConsent(false);
       setEmails([]);
       setPhones([]);
 
@@ -645,6 +664,10 @@ export function CreateStudentDrawer({
       finalRecords[finalRecords.length - 1].is_current = true;
     }
 
+    // Per-email commercial consent is already carried on each `emails` entry
+    // (`ContactEmail.marketing_consent`), edited inside the email cards and
+    // persisted here with the rest of `contacts`. No global Student field is
+    // written; `purposes` / service access are never touched by it.
     const student: Student = {
       id: studentId,
       name: fullName,
@@ -655,7 +678,6 @@ export function CreateStudentDrawer({
       status: isEditMode ? editStudent!.status : 'active',
       academic_records: finalRecords,
       created_at: isEditMode ? editStudent!.created_at : today,
-      marketing_consent: marketingConsent,
       contacts: { emails, phones },
     };
 
@@ -742,17 +764,18 @@ export function CreateStudentDrawer({
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Nome *</label>
                   <input
+                    className="drawer-control-focus"
                     type="text"
                     placeholder="Nome"
                     value={firstName}
                     onChange={e => { setFirstName(e.target.value); setErrors(prev => ({ ...prev, firstName: '' })); }}
                     style={{
                       ...drawerInputStyle,
-                      borderColor: errors.firstName ? 'var(--destructive-foreground)' : 'var(--border)',
+                      borderColor: errors.firstName ? 'var(--destructive)' : 'var(--border)',
                     }}
                   />
                   {errors.firstName && (
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive)', lineHeight: '1.5' }}>
                       {errors.firstName}
                     </span>
                   )}
@@ -760,24 +783,29 @@ export function CreateStudentDrawer({
                 <div style={drawerFieldGroupStyle}>
                   <label style={drawerLabelStyle}>Cognome *</label>
                   <input
+                    className="drawer-control-focus"
                     type="text"
                     placeholder="Cognome"
                     value={lastName}
                     onChange={e => { setLastName(e.target.value); setErrors(prev => ({ ...prev, lastName: '' })); }}
                     style={{
                       ...drawerInputStyle,
-                      borderColor: errors.lastName ? 'var(--destructive-foreground)' : 'var(--border)',
+                      borderColor: errors.lastName ? 'var(--destructive)' : 'var(--border)',
                     }}
                   />
                   {errors.lastName && (
-                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive-foreground)', lineHeight: '1.5' }}>
+                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--destructive)', lineHeight: '1.5' }}>
                       {errors.lastName}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Contact Manager */}
+              {/* Contact Manager — CONTACT DATA only (service/timeline access is
+                  managed in TimelineDrawer). Per-email commercial consent is
+                  edited inside each email card and travels on the `emails`
+                  state; it is saved with the rest of the contacts by
+                  `Salva modifiche`. */}
               <ContactManager
                 emails={emails}
                 phones={phones}
@@ -1019,7 +1047,7 @@ export function CreateStudentDrawer({
                       ...(editStudent.status === 'active'
                         ? { color: 'var(--primary)', borderColor: 'var(--primary)', backgroundColor: 'color-mix(in srgb, var(--primary) 8%, transparent)' }
                         : editStudent.status === 'blocked'
-                          ? { color: 'var(--destructive-foreground)', borderColor: 'var(--destructive-foreground)', backgroundColor: 'color-mix(in srgb, var(--destructive-foreground) 8%, transparent)' }
+                          ? { color: 'var(--destructive)', borderColor: 'var(--destructive)', backgroundColor: 'color-mix(in srgb, var(--destructive) 8%, transparent)' }
                           : { color: 'var(--muted-foreground)', borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }
                       ),
                     }}>
@@ -1053,6 +1081,7 @@ export function CreateStudentDrawer({
                         ) : (
                           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <select
+                              className="drawer-control-focus"
                               value={selectedTimelineServiceId}
                               onChange={(e) => setSelectedTimelineServiceId(e.target.value)}
                               style={{ ...drawerSelectStyle, flex: 1 }}

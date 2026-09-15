@@ -610,14 +610,6 @@ export function CoachPage() {
       <div className="page-header" style={{ position: 'relative' }}>
         <h1 className="page-title">Gestione Coach</h1>
         <p className="page-subtitle">Gestione coach e carico lavoro</p>
-        <style>{`
-          @media (max-width: 768px) {
-            .page-header {
-              margin-left: var(--spacing-4) !important;
-              margin-right: var(--spacing-4) !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Stats cards */}
@@ -682,11 +674,8 @@ export function CoachPage() {
 
       {/* Action toolbar */}
       <div className="action-toolbar" style={{ position: 'relative' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
+        <div className="action-toolbar-left" style={{
           gap: 'var(--spacing-2)',
-          flex: 1,
           width: '100%',
         }}>
           <input
@@ -713,28 +702,6 @@ export function CoachPage() {
             Nuovo Coach
           </button>
         </div>
-
-        <style>{`
-          @media (max-width: 768px) {
-            .action-toolbar {
-              margin-left: var(--spacing-4) !important;
-              margin-right: var(--spacing-4) !important;
-              flex-direction: column !important;
-              align-items: stretch !important;
-            }
-            .action-toolbar > div {
-              width: 100% !important;
-            }
-            .action-toolbar-right {
-              width: 100% !important;
-              justify-content: stretch !important;
-            }
-            .action-toolbar-right .btn {
-              width: 100% !important;
-              justify-content: center !important;
-            }
-          }
-        `}</style>
       </div>
 
       {/* Filtri multipli */}
@@ -1077,6 +1044,7 @@ export function CoachPage() {
                                     return (
                                       <button
                                         key={tab}
+                                        className="control-focus-ring"
                                         onClick={(e) => { e.stopPropagation(); setLavorazioniTabForCoach(coach.id, tab); }}
                                         style={{
                                           padding: '0.25rem 0.75rem',
@@ -1419,6 +1387,7 @@ export function CoachPage() {
                           return (
                             <button
                               key={tab}
+                              className="control-focus-ring"
                               onClick={() => setLavorazioniTabForCoach(coach.id, tab)}
                               style={{
                                 padding: '0.2rem 0.625rem',

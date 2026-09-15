@@ -255,6 +255,7 @@ export function CreateCoachDrawer({ isOpen, onClose, onSave, editCoach, auditInf
             <DrawerFieldGroup>
               <DrawerLabel required>Nome completo</DrawerLabel>
               <input
+                className="drawer-control-focus"
                 type="text"
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
@@ -321,6 +322,7 @@ export function CreateCoachDrawer({ isOpen, onClose, onSave, editCoach, auditInf
             <DrawerFieldGroup style={{ marginBottom: 0 }}>
               <DrawerLabel>Riferimento pagamento (IBAN)</DrawerLabel>
               <input
+                className="drawer-control-focus"
                 type="text"
                 value={paymentReference}
                 onChange={e => setPaymentReference(e.target.value)}

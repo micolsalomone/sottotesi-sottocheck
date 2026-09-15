@@ -1,12 +1,11 @@
-import { FileText, CheckCircle, Clock, AlertCircle, Download } from 'lucide-react';
-
-type HistoryItemStatus = 'completed' | 'processing' | 'error';
+import { FileText, Download } from 'lucide-react';
+import { SottocheckHistoryStatusBadge, type SottocheckHistoryStatus } from '@/app/components/SottocheckHistoryStatusBadge';
 
 interface HistoryItem {
   id: string;
   documentName: string;
   pagesSelected: number;
-  status: HistoryItemStatus;
+  status: SottocheckHistoryStatus;
   createdAt: string;
 }
 
@@ -38,72 +37,9 @@ function formatDate(dateString: string) {
   });
 }
 
-function StatusBadge({ status }: { status: HistoryItemStatus }) {
-  if (status === 'completed') {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-        style={{
-          borderRadius: 'var(--radius-badge)',
-          background: 'rgba(11,182,63,0.10)',
-          color: 'var(--primary)',
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          fontWeight: 'var(--font-weight-medium)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        <CheckCircle className="w-3 h-3" />
-        Completato
-      </span>
-    );
-  }
-
-  if (status === 'processing') {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-        style={{
-          borderRadius: 'var(--radius-badge)',
-          background: 'rgba(46,144,250,0.10)',
-          color: 'var(--chart-2)',
-          fontFamily: 'var(--font-inter)',
-          fontSize: '11px',
-          fontWeight: 'var(--font-weight-medium)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        <Clock className="w-3 h-3" />
-        In elaborazione
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-[10px] py-[4px]"
-      style={{
-        borderRadius: 'var(--radius-badge)',
-        background: 'rgba(220,38,38,0.10)',
-        color: 'var(--destructive)',
-        fontFamily: 'var(--font-inter)',
-        fontSize: '11px',
-        fontWeight: 'var(--font-weight-medium)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}
-    >
-      <AlertCircle className="w-3 h-3" />
-      Errore
-    </span>
-  );
-}
-
 function downloadReport(check: HistoryItem) {
   const reportLines = [
-    'Report Sottocheck',
+    'Report TesiCheck',
     `ID controllo: ${check.id}`,
     `Documento: ${check.documentName}`,
     `Pagine analizzate: ${check.pagesSelected}`,
@@ -115,14 +51,14 @@ function downloadReport(check: HistoryItem) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `report-sottocheck-${check.id}.txt`;
+  link.download = `report-tesicheck-${check.id}.txt`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
 export function ArchivioPage() {
   return (
-    <div className="px-[40px] py-[32px]">
+    <div className="py-[32px]">
       <div className="mb-8">
         <h1
           style={{
@@ -133,7 +69,7 @@ export function ArchivioPage() {
             color: 'var(--foreground)',
           }}
         >
-          Storico Sottocheck
+          Storico TesiCheck
         </h1>
         <p
           className="mt-1 text-[var(--muted-foreground)]"
@@ -176,7 +112,7 @@ export function ArchivioPage() {
                   >
                     {check.documentName}
                   </h3>
-                  <StatusBadge status={check.status} />
+                  <SottocheckHistoryStatusBadge status={check.status} />
                 </div>
 
                 <div
@@ -191,20 +127,22 @@ export function ArchivioPage() {
                   <span>{formatDate(check.createdAt)}</span>
                 </div>
 
-                <button
-                  onClick={() => downloadReport(check)}
-                  className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-                  style={{
-                    borderRadius: 'var(--radius)',
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-medium)',
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Scarica report
-                </button>
+                {check.status === 'completed' && (
+                  <button
+                    onClick={() => downloadReport(check)}
+                    className="mt-3 inline-flex items-center gap-2 px-[12px] py-[8px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Scarica report
+                  </button>
+                )}
               </div>
             </div>
           </div>

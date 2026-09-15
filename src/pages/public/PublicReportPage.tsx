@@ -1,0 +1,155 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Download, Mail } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router';
+import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { getPersistentTesiCheck } from '@/app/data/tesicheckPersistentCheck';
+import { DEMO_ACCOUNT_ID, getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { isProfileCompletionPromptPending } from '@/app/data/standaloneProfile';
+import { StandaloneProfileCompletionModal } from '@/app/components/profile/StandaloneProfileCompletionModal';
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('it-IT', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export function PublicReportPage() {
+  const navigate = useNavigate();
+  const { checkId } = useParams();
+
+  const session = useMemo(() => getAccountSession(), []);
+  const accountEmail = session?.emailVerified ? session.email : null;
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  useEffect(() => {
+    setShowCompletionModal(Boolean(accountEmail && isProfileCompletionPromptPending(accountEmail)));
+  }, [accountEmail]);
+
+  const check = checkId ? getPersistentTesiCheck(checkId) : null;
+  const completedAt = check ? new Date(check.completedAt) : null;
+  const isValidCheck = check
+    && check.owner.context === 'standalone'
+    && check.owner.id === DEMO_ACCOUNT_ID
+    && check.status === 'completed'
+    && check.report.availability === 'available'
+    && completedAt
+    && !Number.isNaN(completedAt.getTime());
+
+  const downloadReport = () => {
+    if (!check) return;
+    const content = [
+      'Report TesiCheck',
+      `Check ID: ${check.id}`,
+      `Titolo: ${check.title}`,
+      `Documento: ${check.document.name}`,
+      `Completato: ${formatDate(check.completedAt)}`,
+    ].join('\n');
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report-tesicheck-${check.id}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!isValidCheck) {
+    return (
+      <ReportState
+        title="Report non disponibile"
+        description="Non abbiamo trovato un report disponibile per questo controllo."
+        onAction={() => navigate('/public-view')}
+      />
+    );
+  }
+
+  const previewUrl = new URL('sottocheck-output-preview.html', window.location.origin + import.meta.env.BASE_URL);
+  previewUrl.searchParams.set('mode', 'authenticated-public');
+  previewUrl.searchParams.set('back', '/public-view/history');
+  previewUrl.searchParams.set('documentName', check.document.name);
+  previewUrl.searchParams.set('completedAt', formatDate(check.completedAt));
+  Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+    .map((link) => link.getAttribute('href') || '')
+    .filter((href) => href.endsWith('.css'))
+    .forEach((href) => previewUrl.searchParams.append('css', new URL(href, window.location.origin).toString()));
+
+  return (
+    <div className="py-[32px]">
+      {accountEmail && (
+        <StandaloneProfileCompletionModal
+          isOpen={showCompletionModal}
+          email={accountEmail}
+          onClose={() => setShowCompletionModal(false)}
+        />
+      )}
+
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)', lineHeight: 1.3 }}>
+            Report TesiCheck
+          </h1>
+          <p className="mt-1" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', fontWeight: 'var(--font-weight-medium)', color: 'var(--foreground)' }}>
+            {check.title}
+          </p>
+          <p className="mt-0.5 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
+            {check.document.name} · Completato il {formatDate(check.completedAt)}
+          </p>
+        </div>
+        <SottocheckActionButton onClick={downloadReport} icon={<Download className="h-4 w-4" />}>
+          Scarica report
+        </SottocheckActionButton>
+      </header>
+
+      <iframe
+        title={`Report TesiCheck ${check.title}`}
+        src={previewUrl.toString()}
+        className="w-full border-0 bg-[var(--background)]"
+        style={{ height: '820px', borderRadius: 'var(--radius)' }}
+      />
+
+      <section className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <article className="border border-[var(--border)] bg-[var(--card)] p-6" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}>
+          <p className="uppercase tracking-[0.08em] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
+            Storico TesiCheck
+          </p>
+          <h2 className="mt-2" style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)' }}>
+            Salvato nel tuo Storico TesiCheck
+          </h2>
+          <p className="mt-2 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.6 }}>
+            Potrai consultare questo report anche in seguito. Scarica una copia se vuoi conservarla anche offline.
+          </p>
+          <SottocheckActionButton className="mt-5" onClick={downloadReport} icon={<Download className="h-4 w-4" />}>
+            Scarica report
+          </SottocheckActionButton>
+        </article>
+
+        <article className="border border-[var(--border)] bg-[var(--card)] p-6" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-sm)' }}>
+          <p className="uppercase tracking-[0.08em] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
+            Supporto Sottotesi
+          </p>
+          <h2 className="mt-2" style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h3)', fontWeight: 'var(--font-weight-bold)' }}>
+            Hai bisogno di aiuto sul report?
+          </h2>
+          <p className="mt-2 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', lineHeight: 1.6 }}>
+            Contatta Sottotesi per ricevere supporto operativo sul tuo report.
+          </p>
+          <a href="mailto:info@sottotesi.it?subject=Supporto%20report%20TesiCheck" className="mt-5 inline-flex items-center gap-2 text-[var(--foreground)] hover:underline" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+            <Mail className="h-4 w-4" /> Scrivi a Sottotesi
+          </a>
+        </article>
+      </section>
+    </div>
+  );
+}
+
+function ReportState({ title, description, onAction }: { title: string; description: string; onAction: () => void }) {
+  return (
+    <div className="py-[32px]">
+      <section className="max-w-[720px] border border-[var(--border)] bg-[var(--card)] p-6 md:p-8" style={{ borderRadius: 'var(--radius)' }}>
+        <h1 style={{ fontFamily: 'var(--font-alegreya)', fontSize: 'var(--text-h1)', fontWeight: 'var(--font-weight-bold)' }}>{title}</h1>
+        <p className="mt-3 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-base)', lineHeight: 1.6 }}>{description}</p>
+        <SottocheckActionButton className="mt-6" onClick={onAction}>Torna all'area TesiCheck</SottocheckActionButton>
+      </section>
+    </div>
+  );
+}

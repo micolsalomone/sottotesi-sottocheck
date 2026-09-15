@@ -504,6 +504,7 @@ export function IncassiPage() {
         <div className="action-toolbar-right">
           <select
             className="select-dropdown"
+            aria-label="Filtra incassi per stato"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >

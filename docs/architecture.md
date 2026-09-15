@@ -124,17 +124,27 @@ Oggi il progetto espone **quattro viste** separate: Admin, Coach, Student e Publ
 | `/student-view` | Student | StudentLayout | Dashboard student dedicata — solo URL diretto |
 | `/student-view/studenti` | Student | StudentLayout | Studenti vista student (riuso pagine coach) |
 | `/student-view/studenti/:studentId` | Student | StudentLayout | Timeline studente (riuso pagine coach) |
-| `/student-view/sottocheck` | Student | StudentLayout | Sottocheck vista student (riuso pagine coach) |
+| `/student-view/sottocheck` | Student | StudentLayout | TesiCheck self-service a pagamento |
+| `/student-view/report/:checkId` | Student | StudentLayout | Report TesiCheck autenticato |
 | `/student-view/history` | Student | StudentLayout | Cronologia vista student |
 | `/student-view/archivio` | Student | StudentLayout | Archivio vista student (riuso pagine coach) |
-| `/student-view/profilo` | Student | StudentLayout | Profilo student |
+| `/student-view/profilo` | Student | StudentLayout | Profilo student (dati personali/accademici + consenso commerciale dell'email primaria dentro la sezione `Contatti`, tri-state su `Student.contacts.emails[primaria].marketing_consent` `boolean\|null`; nessuna sezione globale). Legge/scrive il `Student` strutturato del dominio (`LavorazioniContext`) risolto tramite bridge prototipale `STUDENT_VIEW_STUDENT_RECORD_ID` (`STU-052`), distinto dall'identità piatta `S-052`. Nessuna logica Pipeline/CRM. Termini/Privacy stanno su `/student-view/account`, non qui. Nel sidebar è nello slot secondario in basso. Cross-link a `/student-view/account`. Vedi `docs/views/student.md` |
+| `/student-view/account` | Student | StudentLayout | Account student (accesso + stato legale) — superficie distinta dal Profilo. Stesso `Student` strutturato per l'email; nessun modello password/legale studente nel prototipo → righe neutre (`Stato non disponibile`), nessuna data/versione/accettazione fabbricata. Raggiungibile dal menu utente in alto a destra e dal cross-link del Profilo, non dal sidebar. Vedi `docs/views/student.md` |
 | `/student-view/*` | Student | StudentLayout | NotFound student |
-| `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck |
-| `/public-view/sottocheck` | Public | PublicLayout | Sottocheck vista public |
+| `/public-view` | Public | PublicLayout | Dashboard public focalizzata su Sottocheck. `PublicLayout` ha un guard prototipale: senza sessione account standalone (`getAccountSession()`) reindirizza a `/public`. Non tocca Student/Coach/Admin |
+| `/public-view/sottocheck` | Public | PublicLayout | TesiCheck self-service a pagamento per l'utente standalone autenticato (`PublicPaidSottocheckPage`): upload → titolo → conteggio/prezzo mock → un'unica CTA pagamento → gateway → check persistente `owner.context='standalone'` → `/public-view/report/:checkId`. Nessuno step account (sessione già presente). Sostituisce la vecchia pagina mock |
+| `/public-view/report/:checkId` | Public | PublicLayout | Report TesiCheck autenticato |
 | `/public-view/history` | Public | PublicLayout | Storico Sottocheck vista public |
-| `/public-view/profilo` | Public | PublicLayout | Profilo public |
+| `/public-view/profilo` | Public | PublicLayout | Profilo standalone (dati personali + arricchimento Pipeline + sezione `Comunicazioni` = consenso commerciale). Il consenso va all'identità risolta: Pipeline → `marketing_consents[emailVerificata]` (tri-state: chiave assente = sconosciuto); Student risolto → `marketing_consent` della sola email account verificata (`contacts.emails[]`), nessun valore globale, nessuna Pipeline creata. Termini/Privacy stanno su `/public-view/account`. Nel sidebar è nello slot secondario in basso. Cross-link a `/public-view/account` |
+| `/public-view/account` | Public | PublicLayout | Account standalone (accesso + stato legale) — superficie distinta dal Profilo. Email account read-only + entry al recupero password prototipo (`?returnTo=/public-view/account`); stato Termini/Privacy in sola lettura letto dalla persistenza prototipo Slice A (registry `RegisteredAccount` + mirror sessione); assente → `Stato non registrato nel prototipo`. Non è `/public/account` (che resta il gate account del checkout). Raggiungibile dal menu utente in alto a destra e dal cross-link del Profilo, non dal sidebar |
 | `/public-view/*` | Public | PublicLayout | NotFound public |
-| `/public` | Public Landing | Standalone | Landing pubblica non loggata |
-| `/public/sottocheck` | Public Landing | Standalone | Flusso check pubblico |
+| `/public` | Public Landing | Standalone | Landing pubblica non loggata. Header CTA `Accedi` / `Registrati` portano alle route dirette qui sotto; con sessione standalone valida diventano un unico `Vai al tuo account` → `/public-view` |
+| `/public/login` | Public Landing | Standalone | Accesso standalone diretto (nessun pre-check / checkout) → `/public-view` |
+| `/public/register` | Public Landing | Standalone | Registrazione standalone diretta → verifica email prototipo → create/dedupe Pipeline CRM (regola di acquisizione canonica) → `/public-view` |
+| `/public/password-recovery` | Public Landing | Standalone | GUI prototipo di recupero password (solo handoff): richiesta email → stato "controlla la tua email". Nessun invio email, nessun token. `?returnTo=` whitelist chiusa (`/public/login`, `/public/account`, `/public-view/account`) per tornare all'origine |
+| `/public/reset-password` | Public Landing | Standalone | GUI prototipo di reset password (solo handoff): nuova password + conferma → stato "password aggiornata". Nessun token/link/backend |
+| `/public/account` | Public Landing | Standalone | Checkout standalone: stage `checkout_account` (login/registrazione) → `checkout_verify_email` (verifica OTP) → `checkout_payment` → `redirecting` → `payment_success`. **Solo checkout** — mai riusato come pagina Account/impostazioni autenticata (quella è `/public-view/account`) |
+| `/public/sottocheck` | Public Landing | Standalone | Legacy ritirata: `loader` che reindirizza a `/public`. La UI mock a pagamento non è più raggiungibile |
 | `/public/history` | Public Landing | Standalone | Storico pubblico |
 | `/public/output-preview` | Public Landing | Standalone | Anteprima output Sottocheck |
+| `/public/success` | Public Landing | Standalone | Legacy: `PublicSuccessPage`, non referenziata da alcuna navigazione in-app |

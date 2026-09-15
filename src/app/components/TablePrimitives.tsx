@@ -908,7 +908,7 @@ const PAYOUT_STATUS_COLORS: Record<PayoutStatusValue, string> = {
   waiting_due_date:   'var(--chart-2)',
   ready_to_pay:       'var(--chart-3)',
   paid:               'var(--primary)',
-  disputed:           'var(--destructive-foreground)',
+  disputed:           'var(--destructive)',
 };
 
 const PAYOUT_STATUS_LABELS: Record<PayoutStatusValue, string> = {
@@ -1071,10 +1071,10 @@ export const NextDueDateDisplay = ({
   let label: string;
 
   if (diffDays < 0) {
-    color = 'var(--destructive-foreground)';
+    color = 'var(--destructive)';
     label = `${Math.abs(diffDays)}g fa`;
   } else if (diffDays === 0) {
-    color = 'var(--destructive-foreground)';
+    color = 'var(--destructive)';
     label = 'Oggi';
   } else if (diffDays <= 7) {
     color = 'var(--chart-3)';
@@ -1126,7 +1126,7 @@ export const Scad40ggDisplay = ({
   const color = isPaid
     ? 'var(--foreground)'
     : isOverdue
-    ? 'var(--destructive-foreground)'
+    ? 'var(--destructive)'
     : isWarning
     ? 'var(--chart-3)'
     : 'var(--foreground)';
@@ -1143,7 +1143,7 @@ export const Scad40ggDisplay = ({
       {!isPaid && daysLeft <= 14 && (
         <span style={{
           fontSize: 'var(--text-xs)',
-          color: isOverdue ? 'var(--destructive-foreground)' : 'var(--chart-3)',
+          color: isOverdue ? 'var(--destructive)' : 'var(--chart-3)',
           marginLeft: '0.2rem',
         }}>
           ({daysLeft > 0 ? `-${daysLeft}gg` : `+${Math.abs(daysLeft)}gg`})

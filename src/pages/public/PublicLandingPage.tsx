@@ -1,6 +1,7 @@
 import { SottocheckUploadForm, UploadedDocument } from '@/app/components/SottocheckUploadForm';
 import { SottocheckPricingPreview } from '@/app/components/SottocheckPricingPreview';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
+import { CheckTitleField } from '@/app/components/CheckTitleField';
 import SottotesiLogodefDefault from '@/imports/SottotesiLogodefDefault';
 import PlanningSticker from '@/imports/Planning.png';
 import MatchSticker from '@/imports/Match.png';
@@ -20,16 +21,38 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import {
+  claimPrecheckSession,
+  clearPrecheckSession,
+  createTemporaryDocumentRef,
+  getPrecheckSession,
+  savePrecheckSession,
+  setPrecheckFlowStage,
+  type TesiCheckPrecheckSession,
+} from '@/app/data/tesicheckPrecheckSession';
+import { formatCheckoutPrice } from '@/app/utils/formatCheckoutPrice';
+import { deriveDefaultCheckTitle } from '@/app/utils/deriveCheckTitle';
+import { getAccountSession, isPaymentEnabled } from '@/app/data/tesicheckAccountSession';
+
+const DEMO_CHARACTER_COUNT = 28500;
+const DEMO_PRICE = 14.9;
 
 export function PublicLandingPage() {
   const navigate = useNavigate();
-  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
-  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  // Landing stays a marketing/acquisition page even when a session exists; only
+  // the account CTA changes to route a returning user straight to the workspace.
+  const accountSession = getAccountSession();
+  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(() => getPrecheckSession()?.document ?? null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'valid' | 'invalid'>(() => getPrecheckSession()?.validationState ?? 'idle');
+  const [precheckSession, setPrecheckSession] = useState<TesiCheckPrecheckSession | null>(() => getPrecheckSession());
+  // Semantic check title — seeded from the filename, editable here, and carried on
+  // the pre-check session through the whole checkout.
+  const [title, setTitle] = useState<string>(() => getPrecheckSession()?.title ?? '');
   const [isPriceCalculating, setIsPriceCalculating] = useState(false);
   const pricingTimerRef = useRef<number | null>(null);
-  const canProceedToPayment = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
-  const isPricingUpdated = !!uploadedDocument && uploadStatus === 'valid' && !isPriceCalculating;
+  const canProceedToPayment = !!precheckSession && !isPriceCalculating;
+  const isPricingUpdated = !!precheckSession && !isPriceCalculating;
+  const isCheckoutInProgress = !!precheckSession && precheckSession.flowStage !== 'quote_ready';
 
   const clearPricingTimer = () => {
     if (pricingTimerRef.current) {
@@ -38,41 +61,91 @@ export function PublicLandingPage() {
     }
   };
 
-  const runPriceCalculationLoader = () => {
+  const runPriceCalculationLoader = (document: UploadedDocument, temporaryDocumentRef: string) => {
     clearPricingTimer();
     setIsPriceCalculating(true);
+    const defaultTitle = deriveDefaultCheckTitle(document.name);
+    setTitle(defaultTitle);
     pricingTimerRef.current = window.setTimeout(() => {
+      const nextSession: TesiCheckPrecheckSession = {
+        document,
+        title: defaultTitle,
+        temporaryDocumentRef,
+        validationState: 'valid',
+        characterCount: DEMO_CHARACTER_COUNT,
+        price: DEMO_PRICE,
+        flowStage: 'quote_ready',
+        claim: { status: 'guest' },
+      };
+      savePrecheckSession(nextSession);
+      setPrecheckSession(nextSession);
       setIsPriceCalculating(false);
       pricingTimerRef.current = null;
     }, 700);
   };
 
+  // Persist an edited title onto the existing pre-check session so it survives
+  // navigation into the checkout. A blank title falls back to the filename default.
+  const commitTitle = (nextTitle: string) => {
+    setTitle(nextTitle);
+    if (!precheckSession) return;
+    const resolved = nextTitle.trim() || deriveDefaultCheckTitle(precheckSession.document.name);
+    const nextSession = { ...precheckSession, title: resolved };
+    savePrecheckSession(nextSession);
+    setPrecheckSession(nextSession);
+  };
+
   const handleUploadStatusChange = (status: 'idle' | 'valid' | 'invalid') => {
     setUploadStatus(status);
+  };
+
+  const handleUploadedDocument = (document: UploadedDocument, status: 'idle' | 'valid' | 'invalid') => {
+    setUploadedDocument(document);
+    clearPrecheckSession();
+    setPrecheckSession(null);
     if (status === 'valid') {
-      runPriceCalculationLoader();
+      // A new document always derives a fresh default title.
+      runPriceCalculationLoader(document, createTemporaryDocumentRef());
       return;
     }
+    setTitle('');
     clearPricingTimer();
     setIsPriceCalculating(false);
   };
 
-  const handleUploadedDocument = (document: UploadedDocument) => {
-    setUploadedDocument(document);
-  };
-
   const handleFileCleared = () => {
     setUploadedDocument(null);
+    setPrecheckSession(null);
+    setTitle('');
+    clearPrecheckSession();
     clearPricingTimer();
     setIsPriceCalculating(false);
   };
 
   const handlePayment = () => {
-    if (!canProceedToPayment || isPaymentProcessing) return;
-    setIsPaymentProcessing(true);
-    setTimeout(() => {
-      navigate('/public/success');
-    }, 900);
+    if (!canProceedToPayment) return;
+
+    // Distinction: authenticated *before* checkout entry vs *during* checkout.
+    // If a verified standalone session already exists when checkout starts, the
+    // account step and the `Completa il pagamento` recap add nothing — claim the
+    // pre-check now (ownership as usual) and go straight to the gateway. A visitor
+    // who is not authenticated, or who authenticates inside `/public/account`,
+    // keeps the recap (see `PublicAccountGatePage`). No second payment path: the
+    // gateway, idempotency and materialization recovery all stay in the gate page.
+    const session = getAccountSession();
+    if (session && isPaymentEnabled(session)) {
+      claimPrecheckSession(session.id);
+      const redirectingSession = setPrecheckFlowStage('redirecting');
+      if (!redirectingSession) return;
+      setPrecheckSession(redirectingSession);
+      navigate('/public/account');
+      return;
+    }
+
+    const checkoutSession = setPrecheckFlowStage('checkout_account');
+    if (!checkoutSession) return;
+    setPrecheckSession(checkoutSession);
+    navigate('/public/account');
   };
 
   return (
@@ -84,35 +157,51 @@ export function PublicLandingPage() {
           </a>
 
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href="https://www.sottotesi.it/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-                color: 'var(--foreground)',
-              }}
-            >
-              Accedi
-            </a>
-            <a
-              href="https://www.sottotesi.it/consulenza-tesi/antiplagio-revisione/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
-              style={{
-                borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-inter)',
-                fontSize: 'var(--text-label)',
-                fontWeight: 'var(--font-weight-medium)',
-              }}
-            >
-              Registrati
-            </a>
+            {accountSession ? (
+              <button
+                type="button"
+                onClick={() => navigate('/public-view')}
+                className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
+                style={{
+                  borderRadius: 'var(--radius)',
+                  fontFamily: 'var(--font-inter)',
+                  fontSize: 'var(--text-label)',
+                  fontWeight: 'var(--font-weight-medium)',
+                }}
+              >
+                Vai al tuo account
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/public/login')}
+                  className="inline-flex items-center justify-center px-[14px] py-[10px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  Accedi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/public/register')}
+                  className="inline-flex items-center justify-center px-[14px] py-[10px] bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
+                  style={{
+                    borderRadius: 'var(--radius)',
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 'var(--font-weight-medium)',
+                  }}
+                >
+                  Registrati
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -128,7 +217,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-medium)',
               }}
             >
-              Tesicheck
+              TesiCheck
             </p>
             <h1
               className="max-w-[760px]"
@@ -190,7 +279,7 @@ export function PublicLandingPage() {
           <div className="flex justify-center lg:justify-end">
             <img
               src={PlanningSticker}
-              alt="Illustrazione mappa Tesicheck"
+              alt="Illustrazione mappa TesiCheck"
               className="w-[240px] h-auto md:w-[300px] lg:w-[320px]"
             />
           </div>
@@ -404,63 +493,87 @@ export function PublicLandingPage() {
               </p>
             </div>
 
-            <SottocheckUploadForm
-              onFileSelected={handleUploadedDocument}
-              onStatusChange={handleUploadStatusChange}
-              onFileCleared={handleFileCleared}
-              disabled={false}
-            />
-
-            <div
-              className="border border-[var(--border)] bg-[var(--background)] p-4"
-              style={{
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--elevation-sm)',
-              }}
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-[760px] space-y-4">
-                  <SottocheckPricingPreview isUpdated={isPricingUpdated} isLoading={isPriceCalculating} />
-                  {isPricingUpdated && (
-                    <p
-                      className="text-[var(--primary)]"
-                      style={{
-                        fontFamily: 'var(--font-inter)',
-                        fontSize: 'var(--text-label)',
-                        fontWeight: 'var(--font-weight-medium)',
-                      }}
-                    >
-                      Prezzo aggiornato in base al documento caricato.
-                    </p>
-                  )}
-                </div>
-
-                <SottocheckActionButton
-                  type="button"
-                  onClick={handlePayment}
-                  disabled={!canProceedToPayment}
-                  loading={isPaymentProcessing}
-                  icon={<CreditCard className="w-4 h-4" />}
-                  className="lg:mt-0"
-                >
-                  {isPaymentProcessing ? 'Elaborazione...' : 'Procedi al pagamento'}
+            {isCheckoutInProgress ? (
+              <div className="border border-[var(--border)] bg-[var(--background)] p-5" style={{ borderRadius: 'var(--radius)' }}>
+                <p className="uppercase tracking-[0.08em] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-medium)' }}>
+                  Hai un TesiCheck in corso
+                </p>
+                <p className="mt-3" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                  {precheckSession.title}
+                </p>
+                <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
+                  {precheckSession.document.name}
+                </p>
+                <p className="mt-1 text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)' }}>
+                  {precheckSession.characterCount.toLocaleString('it-IT')} caratteri · {formatCheckoutPrice(precheckSession.price)}
+                </p>
+                <SottocheckActionButton className="mt-5" onClick={() => navigate('/public/account')} icon={<ArrowRight className="h-4 w-4" />}>
+                  Riprendi il checkout
                 </SottocheckActionButton>
               </div>
-            </div>
+            ) : (
+              <>
+                <SottocheckUploadForm
+                  onFileSelected={handleUploadedDocument}
+                  onStatusChange={handleUploadStatusChange}
+                  onFileCleared={handleFileCleared}
+                  disabled={false}
+                />
 
-            {uploadedDocument && uploadStatus === 'valid' && (
-              <div className="border-t border-[var(--border)] pt-6" style={{ marginTop: '24px' }}>
-                <p
-                  className="max-w-[600px] text-[var(--muted-foreground)]"
+                {uploadedDocument && uploadStatus === 'valid' && (
+                  <CheckTitleField
+                    value={title}
+                    onChange={commitTitle}
+                    onBlur={() => {
+                      if (!title.trim() && precheckSession) {
+                        commitTitle(deriveDefaultCheckTitle(precheckSession.document.name));
+                      }
+                    }}
+                  />
+                )}
+
+                <div
+                  className="border border-[var(--border)] bg-[var(--background)] p-4"
                   style={{
-                    fontFamily: 'var(--font-inter)',
-                    fontSize: 'var(--text-label)',
-                    fontWeight: 'var(--font-weight-regular)'
+                    borderRadius: 'var(--radius)',
+                    boxShadow: 'var(--elevation-sm)',
                   }}
                 >
-                  Il documento e pronto. Il box prezzo qui sopra è stato aggiornato e il pagamento è disponibile.
-                </p>
-              </div>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-[760px] space-y-4">
+                      <SottocheckPricingPreview
+                        isUpdated={isPricingUpdated}
+                        isLoading={isPriceCalculating}
+                        characterCount={precheckSession?.characterCount}
+                        price={precheckSession?.price}
+                      />
+                      {isPricingUpdated && (
+                        <p className="text-[var(--primary)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-medium)' }}>
+                          Prezzo aggiornato in base al documento caricato.
+                        </p>
+                      )}
+                    </div>
+
+                    <SottocheckActionButton
+                      type="button"
+                      onClick={handlePayment}
+                      disabled={!canProceedToPayment}
+                      icon={<CreditCard className="w-4 h-4" />}
+                      className="lg:mt-0"
+                    >
+                      Procedi al pagamento
+                    </SottocheckActionButton>
+                  </div>
+                </div>
+
+                {uploadedDocument && uploadStatus === 'valid' && (
+                  <div className="border-t border-[var(--border)] pt-6" style={{ marginTop: '24px' }}>
+                    <p className="max-w-[600px] text-[var(--muted-foreground)]" style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', fontWeight: 'var(--font-weight-regular)' }}>
+                      Il documento e pronto. Il box prezzo qui sopra è stato aggiornato e il pagamento è disponibile.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -537,7 +650,7 @@ export function PublicLandingPage() {
                 </a>
 
                 <a
-                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20Sottocheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
+                  href="mailto:info@sottotesi.it?subject=Richiesta%20informazioni%20TesiCheck&body=Ciao%2C%20vorrei%20maggiori%20informazioni%20sul%20check%20e%20sul%20supporto%20Sottotesi."
                   className="inline-flex items-center gap-2 px-[16px] py-[11px] border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)] transition-colors"
                   style={{
                     borderRadius: 'var(--radius)',
@@ -581,7 +694,7 @@ export function PublicLandingPage() {
                 fontWeight: 'var(--font-weight-regular)',
               }}
             >
-              <strong className="text-[var(--foreground)]">Tesicheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
+              <strong className="text-[var(--foreground)]">TesiCheck</strong> ti accompagna nel controllo del testo con un flusso chiaro, riservato e pensato per il lavoro sulla tesi.
             </p>
 
             <a

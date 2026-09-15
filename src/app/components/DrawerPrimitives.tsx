@@ -22,6 +22,7 @@
 
 import React from 'react';
 import { X, ChevronDown, ChevronUp, ExternalLink, BookOpen, GraduationCap, User, Globe, Search, Plus } from 'lucide-react';
+import type { ServiceStatus } from '../data/LavorazioniContext';
 
 // ─── Larghezze standard drawer ────────────────────────────────
 export const DRAWER_WIDTH_DEFAULT = '520px';
@@ -130,7 +131,7 @@ export const SERVICE_STATUS_COLORS: Record<string, string> = {
   active: 'var(--primary)',
   paused: 'var(--chart-2)',
   completed: 'var(--muted-foreground)',
-  cancelled: 'var(--destructive-foreground)',
+  cancelled: 'var(--destructive)',
   expired: 'var(--muted-foreground)',
 };
 
@@ -947,7 +948,7 @@ export function DrawerLinkedServiceCard({
 }: {
   id: string;
   serviceName: string;
-  status: string;
+  status?: ServiceStatus;
   coachName?: string;
   referente?: string;
   onNavigate: () => void;
@@ -981,7 +982,7 @@ export function DrawerLinkedServiceCard({
           >
             {serviceName}
           </span>
-          <DrawerStatusPill status={status} />
+          {status && <DrawerStatusPill status={status} />}
         </div>
         <div
           style={{
@@ -1278,7 +1279,7 @@ export function DrawerAcademicSnippet({
                   lineHeight: '1.5',
                 }}
               >
-                Relatore: {record!.thesis_professor}
+                Professore: {record!.thesis_professor}
               </span>
             </div>
           )}
@@ -1307,7 +1308,11 @@ export function DrawerAcademicSnippet({
                     background: 'var(--card)',
                   }}
                 >
-                  {record!.thesis_type === 'compilativa' ? 'Tesi compilativa' : 'Tesi sperimentale'}
+                  {record!.thesis_type === 'compilativa'
+                    ? 'Tesi compilativa'
+                    : record!.thesis_type === 'sperimentale'
+                      ? 'Tesi sperimentale'
+                      : 'Esame'}
                 </span>
               )}
               {record!.foreign_language && record!.thesis_language && (
@@ -1419,6 +1424,7 @@ export function DrawerSearchSelect({
         />
         <input
           type="text"
+          className="drawer-control-focus"
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}

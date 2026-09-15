@@ -21,7 +21,7 @@ import {
 } from '../../app/components/TablePrimitives';
 import { useTableResize } from '../../app/hooks/useTableResize';
 import { toast } from 'sonner';
-import { StatusBadge, type StatusType } from '../../app/components/StatusBadge';
+import { SottocheckJobStatusBadge, type SottocheckJobStatus } from '../../app/components/SottocheckJobStatusBadge';
 import { TableActions, type TableAction } from '../../app/components/TableActions';
 import { ConfirmDialog } from '../../app/components/ConfirmDialog';
 import { BulkActionsBar, type BulkAction } from '../../app/components/BulkActionsBar';
@@ -44,7 +44,7 @@ interface CoachingCheckJob {
   student_id: string;
   service_id: string;
   lavorazione_name: string;
-  status: 'completed' | 'running' | 'failed' | 'pending';
+  status: SottocheckJobStatus;
   startedAt: string;
   completedAt: string | null;
   document_name?: string;
@@ -60,20 +60,6 @@ interface CoachingCheckJob {
   updated_by?: string;
   updated_at?: string;
 }
-
-const STATUS_MAP: Record<string, StatusType> = {
-  completed: 'completed',
-  running: 'in-progress',
-  failed: 'error',
-  pending: 'pending',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  completed: 'Completato',
-  running: 'In corso',
-  failed: 'Fallito',
-  pending: 'In attesa',
-};
 
 const mockJobs: CoachingCheckJob[] = [
   {
@@ -539,9 +525,8 @@ export function JobPage() {
   return (
     <div>
       <div className="page-header" style={{ position: 'relative' }}>
-        <h1 className="page-title">Sottocheck Coaching</h1>
+        <h1 className="page-title">TesiCheck Coaching</h1>
         <p className="page-subtitle">Controlli Check Plagio/AI avviati dai coach durante i piani coaching</p>
-        <style>{`@media (max-width: 768px) { .page-header { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; } }`}</style>
       </div>
 
       {/* Mini Stats */}
@@ -574,7 +559,7 @@ export function JobPage() {
           <input type="text" placeholder="Cerca per ID, coach, studente o lavorazione..." className="search-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }} />
         </div>
         <style>{`
-          @media (max-width: 768px) { .action-toolbar { margin-left: var(--spacing-4) !important; margin-right: var(--spacing-4) !important; flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }
+          @media (max-width: 768px) { .action-toolbar { flex-direction: column !important; align-items: stretch !important; } .action-toolbar > div { width: 100% !important; } }
         `}</style>
       </div>
 
@@ -689,7 +674,7 @@ export function JobPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                        <SottocheckJobStatusBadge status={job.status} />
                       </TableCell>
                       <TableCell><CellTextPrimary>{formatDateTimeIT(job.startedAt)}</CellTextPrimary></TableCell>
                       <TableCell align="center" onClick={(e) => e.stopPropagation()}>
@@ -750,7 +735,7 @@ export function JobPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <StatusBadge status={STATUS_MAP[job.status]} label={STATUS_LABELS[job.status]} />
+                      <SottocheckJobStatusBadge status={job.status} />
                       <TableActions actions={getTableActions(job)} />
                     </div>
                   </ResponsiveMobileCardHeader>
@@ -831,7 +816,7 @@ export function JobPage() {
                   </div>
                   <div>
                     <div style={labelStyle}>Stato</div>
-                    <StatusBadge status={STATUS_MAP[selectedJob.status]} label={STATUS_LABELS[selectedJob.status]} />
+                    <SottocheckJobStatusBadge status={selectedJob.status} />
                   </div>
                   {selectedJob.document_name && (
                     <div>

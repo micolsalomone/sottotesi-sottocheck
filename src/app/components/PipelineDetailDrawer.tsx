@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ExternalLink, Plus, TrendingUp, Mail, MessageCircle,
-  Phone, Pencil, Save, Trash2, CheckCircle, Circle,
+  Phone, Pencil, Save, Trash2, CheckCircle, Circle, MinusCircle,
   GraduationCap, ChevronRight, AlertTriangle,
   User, FileText, Tag, Settings2, Hash, X,
 } from 'lucide-react';
@@ -11,6 +11,12 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLavorazioni, ADMIN_USERS, SERVICE_CATALOG } from '../data/LavorazioniContext';
 import type { Pipeline, Quote, QuoteStatus, DegreeLevel, ThesisType } from '../data/LavorazioniContext';
+import {
+  deriveRecontactSummary,
+  readMarketingConsentForContact,
+  recontactSummaryLabel,
+} from '../data/marketingConsent';
+import { MarketingConsentSelect } from './MarketingConsentSelect';
 
 const CURRENT_ADMIN = 'Francesca';
 import {
@@ -72,6 +78,7 @@ const DEGREE_LEVELS: { value: DegreeLevel; label: string }[] = [
 const THESIS_TYPES: { value: ThesisType; label: string }[] = [
   { value: 'compilativa', label: 'Compilativa' },
   { value: 'sperimentale', label: 'Sperimentale' },
+  { value: 'esame', label: 'Esame' },
 ];
 
 interface PipelineDetailDrawerProps {
@@ -406,8 +413,22 @@ export function PipelineDetailDrawer({
 
   if (!open) return null;
 
-  // ─── Consent row (riusabile) ──────────────────────────────
+  // ─── Consent row (riusabile) — per-contact tri-state ──────
+  // Same click-to-edit + inline Save-icon pattern as every other field in this
+  // drawer. The dropdown is `Non richiesto` (key absent) / `Consentito` (true) /
+  // `Non consentito` (false); selecting `Non richiesto` removes the key from the
+  // local map, then `saveConsent` (the drawer's existing persist path) writes it.
+  const setContactConsent = (contactKey: string, value: boolean | null) => {
+    setMarketingConsents(prev => {
+      const next = { ...prev };
+      if (value === null) delete next[contactKey];
+      else next[contactKey] = value;
+      return next;
+    });
+  };
+
   const ConsentRow = ({ contactKey }: { contactKey: string }) => {
+    const state = readMarketingConsentForContact(marketingConsents, contactKey);
     if (editingConsent === contactKey) {
       return (
         <div style={{
@@ -420,21 +441,19 @@ export function PipelineDetailDrawer({
           gap: '0.5rem',
           marginTop: '0.375rem',
         }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}>
-            <input
-              type="checkbox"
-              checked={marketingConsents[contactKey] || false}
-              onChange={(e) => setMarketingConsents(prev => ({ ...prev, [contactKey]: e.target.checked }))}
-              style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-            />
-            <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5' }}>
-              Consenso marketing
-            </span>
-          </label>
+          <span style={{ fontFamily: 'var(--font-inter)', fontSize: '11px', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>
+            Comunicazioni commerciali
+          </span>
+          <MarketingConsentSelect
+            value={state}
+            onChange={(value) => setContactConsent(contactKey, value)}
+            ariaLabel={`Consenso comunicazioni commerciali per ${contactKey}`}
+          />
           <button onClick={saveConsent} style={saveBtnStyle} title="Salva consenso"><Save size={12} /></button>
         </div>
       );
     }
+    const ConsentIcon = state === true ? CheckCircle : state === false ? MinusCircle : Circle;
     return (
       <div
         onClick={() => setEditingConsent(contactKey)}
@@ -451,23 +470,31 @@ export function PipelineDetailDrawer({
         }}
         title="Clicca per modificare consenso"
       >
-        {marketingConsents[contactKey]
-          ? <CheckCircle size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-          : <Circle size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+        <ConsentIcon size={14} style={{ color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)', flexShrink: 0 }} />
         <span style={{
           fontFamily: 'var(--font-inter)',
           fontSize: '11px',
-          color: marketingConsents[contactKey] ? 'var(--primary)' : 'var(--muted-foreground)',
+          color: state === true ? 'var(--foreground)' : 'var(--muted-foreground)',
           lineHeight: '1.5',
           flex: 1,
-          fontWeight: marketingConsents[contactKey] ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
+          fontWeight: state === true ? 'var(--font-weight-medium)' : 'var(--font-weight-regular)',
         }}>
-          {marketingConsents[contactKey] ? 'Consenso marketing attivo' : 'Nessun consenso marketing'}
+          {state === true ? 'Consentito' : state === false ? 'Non consentito' : 'Non richiesto'}
         </span>
         <Pencil size={10} style={{ color: 'var(--muted-foreground)', opacity: 0.4, flexShrink: 0 }} />
       </div>
     );
   };
+
+  // Read-only person-level summary of recontact permission across current
+  // contacts (any `true` → consentito; else any `false` → non consentito; else
+  // non richiesto). Detail rows above stay authoritative per channel.
+  const recontactSummary = deriveRecontactSummary(marketingConsents, [
+    primaryEmail,
+    ...additionalEmails,
+    primaryPhone,
+    ...additionalPhones,
+  ].map(v => (v ?? '').trim()).filter(Boolean));
 
   return (
     <>
@@ -518,6 +545,26 @@ export function PipelineDetailDrawer({
           Ultimo aggiornamento: {pipeline.updated_by || '—'} — {pipeline.updated_at ? fmtTimestamp(pipeline.updated_at) : fmtTimestamp(pipeline.created_at)}
         </DrawerMetaRow>
 
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: '0.5rem',
+          padding: '0.5rem 1.5rem',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          <span style={microLabelStyle}>Ricontatto commerciale</span>
+          <span style={{
+            fontFamily: 'var(--font-inter)',
+            fontSize: 'var(--text-label)',
+            fontWeight: 'var(--font-weight-medium)',
+            color: recontactSummary === 'granted' ? 'var(--foreground)' : 'var(--muted-foreground)',
+            lineHeight: '1.5',
+          }}>
+            {recontactSummaryLabel(recontactSummary)}
+          </span>
+        </div>
+
         <DrawerBody padding="0">
 
           {/* ─── Anagrafica ─────────────────────────────── */}
@@ -534,6 +581,7 @@ export function PipelineDetailDrawer({
                 {editingField === 'first_name' ? (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -563,6 +611,7 @@ export function PipelineDetailDrawer({
                 {editingField === 'last_name' ? (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
+                      className="drawer-control-focus"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -715,11 +764,12 @@ export function PipelineDetailDrawer({
                     flexDirection: 'column',
                     gap: '0.75rem',
                   }}>
-                    {/* Livello + Tipo tesi */}
+                    {/* Livello + Tipologia */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Livello</label>
                         <select
+                          className="drawer-control-focus"
                           value={academicData.degree_level ?? ''}
                           onChange={e => handleAcademicChange('degree_level', e.target.value as DegreeLevel)}
                           style={drawerSelectStyle}
@@ -731,8 +781,9 @@ export function PipelineDetailDrawer({
                         </select>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={microLabelStyle}>Tipo tesi</label>
+                        <label style={microLabelStyle}>Tipologia</label>
                         <select
+                          className="drawer-control-focus"
                           value={academicData.thesis_type ?? ''}
                           onChange={e => handleAcademicChange('thesis_type', e.target.value as ThesisType)}
                           style={drawerSelectStyle}
@@ -749,6 +800,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Corso di studi</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Economia Aziendale"
                         value={academicData.course_name ?? ''}
@@ -761,6 +813,7 @@ export function PipelineDetailDrawer({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <label style={microLabelStyle}>Università</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Università di Bologna"
                         value={academicData.university_name ?? ''}
@@ -771,8 +824,9 @@ export function PipelineDetailDrawer({
 
                     {/* Relatore */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Relatore tesi</label>
+                      <label style={microLabelStyle}>Professore</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Prof. Rossi"
                         value={academicData.thesis_professor ?? ''}
@@ -783,8 +837,9 @@ export function PipelineDetailDrawer({
 
                     {/* Oggetto */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Oggetto tesi</label>
+                      <label style={microLabelStyle}>Argomento</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. L'impatto dell'AI nel marketing digitale"
                         value={academicData.thesis_topic ?? ''}
@@ -795,8 +850,9 @@ export function PipelineDetailDrawer({
 
                     {/* Materia */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={microLabelStyle}>Materia di tesi</label>
+                      <label style={microLabelStyle}>Materia</label>
                       <input
+                        className="drawer-control-focus"
                         type="text"
                         placeholder="es. Marketing Strategico"
                         value={academicData.thesis_subject ?? ''}
@@ -829,6 +885,7 @@ export function PipelineDetailDrawer({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={microLabelStyle}>Lingua tesi</label>
                         <input
+                          className="drawer-control-focus"
                           type="text"
                           placeholder="es. Inglese"
                           value={academicData.thesis_language ?? ''}
@@ -903,6 +960,7 @@ export function PipelineDetailDrawer({
               {editingField === 'primary_email' ? (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="email"
                     value={primaryEmail}
                     onChange={(e) => setPrimaryEmail(e.target.value)}
@@ -945,7 +1003,7 @@ export function PipelineDetailDrawer({
                         {email}
                       </span>
                       <button onClick={() => window.open(`mailto:${email}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Invia email"><Mail size={14} /></button>
-                      <button onClick={() => handleRemoveEmail(email)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive-foreground)' }} title="Rimuovi email"><Trash2 size={14} /></button>
+                      <button onClick={() => handleRemoveEmail(email)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive)' }} title="Rimuovi email"><Trash2 size={14} /></button>
                     </div>
                     <ConsentRow contactKey={email} />
                   </div>
@@ -956,6 +1014,7 @@ export function PipelineDetailDrawer({
             {/* Aggiungi email */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                className="drawer-control-focus"
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
@@ -983,6 +1042,7 @@ export function PipelineDetailDrawer({
               {editingField === 'primary_phone' ? (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
+                    className="drawer-control-focus"
                     type="tel"
                     value={primaryPhone}
                     onChange={(e) => setPrimaryPhone(e.target.value)}
@@ -1029,7 +1089,7 @@ export function PipelineDetailDrawer({
                       <span style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-label)', color: 'var(--foreground)', lineHeight: '1.5', flex: 1 }}>{phone}</span>
                       <button onClick={() => window.open(`https://wa.me/${phone.replace(/[^\d+]/g, '')}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Apri WhatsApp"><MessageCircle size={14} /></button>
                       <button onClick={() => window.open(`tel:${phone}`, '_blank')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto' }} title="Chiama"><Phone size={14} /></button>
-                      <button onClick={() => handleRemovePhone(phone)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive-foreground)' }} title="Rimuovi telefono"><Trash2 size={14} /></button>
+                      <button onClick={() => handleRemovePhone(phone)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minWidth: 'auto', color: 'var(--destructive)' }} title="Rimuovi telefono"><Trash2 size={14} /></button>
                     </div>
                     <ConsentRow contactKey={phone} />
                   </div>
@@ -1040,6 +1100,7 @@ export function PipelineDetailDrawer({
             {/* Aggiungi telefono */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
+                className="drawer-control-focus"
                 type="tel"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
@@ -1130,6 +1191,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Collegamento a servizio</label>
                   <select
+                    className="drawer-control-focus"
                     value={serviceLink}
                     onChange={(e) => setServiceLink(e.target.value)}
                     style={drawerSelectStyle}
@@ -1145,6 +1207,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Link esterno</label>
                   <input
+                    className="drawer-control-focus"
                     type="url"
                     placeholder="https://docs.google.com/..."
                     value={externalLink}
@@ -1156,6 +1219,7 @@ export function PipelineDetailDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <label style={microLabelStyle}>Data acquisizione</label>
                   <input
+                    className="drawer-control-focus"
                     type="date"
                     value={createdAt}
                     onChange={(e) => setCreatedAt(e.target.value)}
@@ -1308,7 +1372,7 @@ export function PipelineDetailDrawer({
                           clearQuoteDirty(quote.id);
                           toast.success('Preventivo rimosso');
                         }}
-                        style={{ background: 'none', border: 'none', color: 'var(--destructive-foreground)', cursor: 'pointer', padding: '0.25rem' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--destructive)', cursor: 'pointer', padding: '0.25rem' }}
                         title="Rimuovi preventivo"
                       >
                         <Trash2 size={14} />
@@ -1320,6 +1384,7 @@ export function PipelineDetailDrawer({
                         <div style={microLabelStyle}>N. Preventivo</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={{ ...drawerInputStyle, flex: 1 }}
                             value={quote.number.split('/')[0] || ''}
@@ -1335,6 +1400,7 @@ export function PipelineDetailDrawer({
                           />
 
                           <input
+                            className="drawer-control-focus"
                             type="text"
                             style={{ ...drawerInputStyle, width: '65px' }}
                             value={quote.number.split('/')[1] || new Date().getFullYear().toString()}
@@ -1353,6 +1419,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Stato</div>
                         <select
+                          className="drawer-control-focus"
                           style={drawerSelectStyle}
                           value={quote.status}
                           onChange={e => {
@@ -1388,6 +1455,7 @@ export function PipelineDetailDrawer({
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={microLabelStyle}>Importo lordo preventivo</div>
                       <input
+                        className="drawer-control-focus"
                         type="number"
                         min="0"
                         step="0.01"
@@ -1411,6 +1479,7 @@ export function PipelineDetailDrawer({
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={microLabelStyle}>Servizio preventivo</div>
                       <select
+                        className="drawer-control-focus"
                         style={drawerSelectStyle}
                         value={quote.service_link || ''}
                         onChange={e => {
@@ -1501,6 +1570,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Inviato il</div>
                         <input
+                          className="drawer-control-focus"
                           type="date"
                           style={drawerInputStyle}
                           value={quote.sent_at || ''}
@@ -1516,6 +1586,7 @@ export function PipelineDetailDrawer({
                       <div>
                         <div style={microLabelStyle}>Scadenza</div>
                         <input
+                          className="drawer-control-focus"
                           type="date"
                           style={drawerInputStyle}
                           value={quote.expires_at || ''}
@@ -1576,6 +1647,7 @@ export function PipelineDetailDrawer({
             {editingField === 'notes' ? (
               <div>
                 <textarea
+                  className="drawer-control-focus"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   autoFocus

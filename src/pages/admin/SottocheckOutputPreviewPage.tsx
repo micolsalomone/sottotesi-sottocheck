@@ -14,13 +14,13 @@ export function SottocheckOutputPreviewPage() {
   return (
     <div
       style={{
-        margin: '-1.5rem calc(-1.5rem - 40px)',
+        margin: '-1.5rem -40px',
         height: 'calc(100vh - var(--header-height, 72px))',
         overflow: 'hidden',
       }}
     >
       <iframe
-        title="Sottocheck Output Preview"
+        title="TesiCheck Output Preview"
         src={previewSrc}
         style={{
           width: '100%',

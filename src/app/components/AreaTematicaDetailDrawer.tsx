@@ -141,6 +141,7 @@ export function AreaTematicaDetailDrawer({
             <DrawerFieldGroup>
               <DrawerLabel required>Nome</DrawerLabel>
               <input
+                className="drawer-control-focus"
                 type="text"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
@@ -151,6 +152,7 @@ export function AreaTematicaDetailDrawer({
             <DrawerFieldGroup>
               <DrawerLabel>Descrizione</DrawerLabel>
               <input
+                className="drawer-control-focus"
                 type="text"
                 value={editDescription}
                 onChange={e => setEditDescription(e.target.value)}
