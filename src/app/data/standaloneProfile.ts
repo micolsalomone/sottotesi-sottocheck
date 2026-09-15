@@ -270,6 +270,36 @@ export function writeStandalonePhoneConsent(
 }
 
 /**
+ * Confirmed account-email replacement (Account page's "Modifica email" flow,
+ * called only after the new address passes the prototype's demo
+ * verification step, alongside `changeAccountEmail` in
+ * `tesicheckAccountSession.ts`). Moves the WHOLE profile record — personal
+ * info, phone, academic records — from the old email key to the new one,
+ * updating `.email`. No-op when there is nothing stored under the old key
+ * yet, or either email is invalid.
+ *
+ * Consent deliberately does NOT transfer: the new key's `commercial_consents`
+ * entry is left absent (reads back "Non richiesto" / unknown via
+ * `readStandaloneCommercialConsent`), never copied from the old email's
+ * entry. The stale old-email key, if any, is left in place untouched — same
+ * "stale key is inert" behaviour already used when a phone number changes
+ * (see the `commercial_consents` doc comment above); nothing reads it once
+ * the profile itself has moved to the new key.
+ */
+export function renameStandaloneProfileEmail(oldEmail: string | null | undefined, newEmail: string | null | undefined): void {
+  const oldKey = normalizeEmail(oldEmail);
+  const newKey = normalizeEmail(newEmail);
+  if (!oldKey || !newKey || oldKey === newKey) return;
+  const all = readAll();
+  const existing = all[oldKey];
+  if (!existing) return;
+  const { [oldKey]: _moved, ...rest } = all;
+  const consents = { ...existing.commercial_consents };
+  delete consents[oldKey];
+  writeAll({ ...rest, [newKey]: { ...existing, email: newKey, commercial_consents: consents } });
+}
+
+/**
  * Registration seed: mirrors the ALREADY-explicit registration choice (first
  * name + commercial consent) onto this prototype-local Profile store, in
  * PARALLEL with — never instead of — the acquisition Pipeline/Student write

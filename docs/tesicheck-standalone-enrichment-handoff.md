@@ -1987,3 +1987,95 @@ unchanged, no new errors in any of the four touched files. `git diff --stat`
 against Admin, Pipeline/CRM, `StandaloneProfileCompletionModal.tsx`,
 `DashboardPage.tsx`, and the registration controller pages — empty, confirming
 §21.11.
+
+## 22. Slice E — self-service `Modifica email` (verified account-email change)
+
+**Problem.** Neither Account page could change its own email — §21 moved the
+row onto Account but left it read-only (documented as a known gap at the
+time). Account email is both login identity and service/contact email, so a
+change is a verified replacement, never a silent inline edit — and because
+commercial consent belongs to the exact contact (MODEL B, §21), the new
+address must start unexpressed, never inheriting the old address's Sì/No.
+
+### 22.1 Shared modal — `src/app/components/account/ChangeEmailModal.tsx` (new)
+
+Two-step bespoke fixed-overlay modal, modelled on the existing shell
+(`StandaloneProfileCompletionModal`) — no new visual language. Props:
+`isOpen`, `currentEmail`, `onClose`, optional `isEmailTaken(email): boolean`
+(the standalone page passes `findRegisteredAccount`-backed check; Student
+passes none — no such registry exists there), `onVerified(newEmail)`.
+
+- **Step 1 (`edit`)** — `Nuova email` field (reuses `EMAIL_PATTERN` and
+  `TextField` from `standaloneAuthForms.tsx`, the same registration
+  building blocks). Blocks `Continua` on empty / invalid format / same as
+  `currentEmail` (case-insensitive) / `isEmailTaken`. `Annulla` or the X
+  close **immediately** — nothing entered is at risk of looking silently
+  lost, so no confirmation is asked here.
+- **Step 2 (`verify`)** — reuses registration's exact verification rule: any
+  well-formed 6-digit code succeeds (`/^\d{6}$/`, same format-only check as
+  `VerifyEmailForm`); a malformed code shows the same inline error and stays
+  on the step. **No demo/correct-code concept, no hint of any kind is shown
+  in the UI** — an earlier draft of this slice introduced a hardcoded demo
+  code + an inline hint explaining it; both were removed on review to match
+  the registration convention exactly (no developer-facing copy in a
+  user-facing prototype surface). A quiet note
+  (`La tua email attuale resterà invariata fino alla verifica.`) states the
+  mutation boundary in-page.
+- **Verification is the ONLY mutation boundary.** `onVerified` fires ONLY on
+  a well-formed code; nothing is written — no session, registry, Profile or
+  Student contact, no "pending email" of any kind — before that. The caller
+  performs the actual persistence and owns closing the modal + the toast.
+- **Step 2 close needs a confirm, Step 1 doesn't.** Closing (X or the
+  overlay click) on Step 2 opens a small nested confirm
+  (`Annullare la modifica dell'email?` / `La nuova email non verrà
+  salvata.`, actions `Continua modifica` / `Annulla modifica`) rendered as a
+  second stacked overlay on the same shell tokens — `Continua modifica`
+  just dismisses it (code/email preserved, still on Step 2); `Annulla
+  modifica` discards the whole flow. `Indietro` is a step-back, not a close,
+  so it never asks. This gate exists ONLY because the user has progressed
+  further by Step 2; Step 1 stays a one-click close.
+- **A cancelled attempt reserves nothing.** The component holds no state
+  once closed (the `isOpen` effect resets `step`/`newEmail`/`code`/errors on
+  every reopen) — retrying with the exact same candidate email afterwards
+  re-runs the normal validation/`isEmailTaken` check as a fresh attempt,
+  never treated as already-taken or already-changed. No pending-email
+  storage, expiration, reservation, or resend state exists — explicitly out
+  of scope for this prototype (see `production-handoff.md`).
+
+### 22.2 New persistence helpers (both no-ops until the caller invokes them post-verification)
+
+| File | New export | Behaviour |
+| --- | --- | --- |
+| `tesicheckAccountSession.ts` | `changeAccountEmail(newEmail)` | Renames the matching `tesicheck-registered-accounts-v1` entry (deletes the old normalized key, re-inserts under the new one, keeping `firstName`/`password`/legal fields) and updates the session's own `email` — every other session field untouched. |
+| `standaloneProfile.ts` | `renameStandaloneProfileEmail(oldEmail, newEmail)` | Moves the WHOLE `StandaloneProfile` record (personal info, phone, `academic_records[]`) from the old email key to the new one. The new key's `commercial_consents` entry is left absent on purpose (never seeded from the old email's entry) — reads back "Non richiesto" via `readStandaloneCommercialConsent`. The stale old-email key is left in place, inert, same convention already used when a phone number changes. |
+| `pages/student/AccountPage.tsx` (local, not exported) | `withStudentPrimaryEmailChanged(emails, newEmail)` | Returns a new `ContactEmail[]` with ONLY the `is_primary` entry's `.email` replaced; `is_primary`, `purposes`, `source`/`added_at`, and every OTHER contact are untouched. `marketing_consent` on that one entry is deleted (reset to unset) in the same write — never carried over. Kept local (not in `marketingConsent.ts`) since it changes a contact VALUE, not a consent. |
+
+### 22.3 Page wiring
+
+| File | Change |
+| --- | --- |
+| `PublicAccountPage.tsx` | `Email account` row gains a `Modifica email` action opening `ChangeEmailModal` (`isEmailTaken` = `findRegisteredAccount(candidate) !== null`). The account email, previously read straight from the immutable `session` `useMemo`, is now its own `email` state so the row / consent reads react to a change. `handleEmailVerified` calls `changeAccountEmail` + `renameStandaloneProfileEmail`, updates local `email`, re-reads `commercialConsent` from the new key (comes back unexpressed), closes the modal, toasts `Email aggiornata`. |
+| `student/AccountPage.tsx` | `Email` row gains the same `Modifica email` action (rendered only when a `primaryEmail` already resolves) — no `isEmailTaken` passed (no Student-side registry to check against). `handleEmailVerified` writes `withStudentPrimaryEmailChanged` via the page's existing `updateStudent`, resets local `commercialConsent` to `null`, closes the modal, toasts `Email aggiornata`. `primaryEmail` itself is already a `useMemo` over `student.contacts.emails`, so it reflects the change automatically on the next render — no extra state needed there. |
+
+### 22.4 Scope protection
+
+Untouched: registration (`RegisterForm`/`VerifyEmailForm`), password flows
+(both pages' existing presentational password UI), Terms/Privacy state,
+Admin, Pipeline/CRM, `StudentService`, academic records, the
+Profile-completion modal, Dashboard. Self-service still exposes exactly one
+account email and one primary phone — no "keep old email as secondary
+contact" option was added (a backend/CRM handoff decision, documented in
+`production-handoff.md`, not this prototype's to make).
+
+### 22.5 Verification
+
+`npm run build` passes; `git diff --check` clean (only the same pre-existing
+LF→CRLF advisory warnings as §21); `npx tsc --noEmit` at the **42-error
+baseline**, unchanged, zero new errors in any of the five touched/added
+files. Manually driven end-to-end with a headless-browser script against the
+dev server (both Account pages: validation blocks, verification step, the
+Step 1 vs Step 2 close/confirm distinction, `Annulla modifica` discarding
+with the email left unchanged, retry with the same previously-cancelled
+candidate email succeeding normally, the new email appearing immediately
+with `Email aggiornata`, and the newsletter question rendering unselected
+for the new address) — zero console errors observed.

@@ -309,6 +309,84 @@ eventuale double opt-in. Il prototipo non li modella e non dichiara conformità
 legale. Wording finale delle checkbox, base giuridica, titolare del trattamento,
 retention e URL delle policy restano responsabilità di cliente/legale.
 
+## Modifica email (cambio email account)
+
+Entrambe le superfici Account (`/public-view/account`, `/student-view/account`)
+espongono ora `Modifica email` sulla riga dell'email account/primaria. Regola
+canonica: **nuovo indirizzo → verifica → sostituzione confermata**. Nessuna
+sostituzione silenziosa inline: l'email è sia identità di accesso sia contatto
+di servizio, quindi cambiarla richiede lo stesso rigore di un cambio identità,
+non la stessa semantica di un campo di testo qualunque.
+
+- **Modale condiviso a due step** (`ChangeEmailModal.tsx`, nuovo), stesso
+  guscio prototipale già in uso (`StandaloneProfileCompletionModal`), nessun
+  nuovo linguaggio visivo. Step 1: nuova email (validazione: non vuota,
+  formato valido, diversa dall'attuale, più un controllo di collisione
+  economico dove disponibile — solo standalone, via il registry
+  `tesicheck-registered-accounts-v1`; lo Student non ha un registry
+  equivalente, quindi nessun controllo di unicità è offerto lì). Step 2:
+  verifica — **stessa regola prototipale della verifica di registrazione
+  esistente** (`VerifyEmailForm`): un codice a 6 cifre qualsiasi, ben
+  formato, è sufficiente; nessun codice "corretto" nascosto, nessun
+  suggerimento/nota per sviluppatori visibile nella UI (una bozza iniziale
+  introduceva un codice demo `123456` con una nota inline — rimossi in
+  revisione per allinearsi esattamente alla convenzione di registrazione:
+  una superficie rivolta all'utente non deve mostrare copy da sviluppatore).
+- **La verifica è l'UNICO punto di mutazione.** Nessuna scrittura — sessione,
+  registry, Profilo standalone, contatto Student, o una qualsiasi forma di
+  "email in sospeso" — avviene prima che il codice passi il controllo di
+  formato. Annullare prima della verifica (Step 1: X/Annulla, chiusura
+  immediata, nessuna conferma) lascia l'account invariato. Allo Step 2,
+  l'utente ha già proceduto oltre, quindi chiudere (X o click
+  sull'overlay) chiede prima conferma con un piccolo dialogo impilato
+  (`Annullare la modifica dell'email?` / `La nuova email non verrà
+  salvata.`, azioni `Continua modifica` / `Annulla modifica`);
+  `Indietro` resta un passo indietro nel flusso, non una chiusura, e non
+  chiede mai conferma. In ogni caso nessuna email "in sospeso" viene mai
+  persistita: annullare allo Step 2 non riserva l'indirizzo tentato — un
+  nuovo tentativo con lo stesso indirizzo successivamente ripete
+  semplicemente la normale validazione/controllo di collisione, come se
+  fosse il primo tentativo.
+- **Al successo**: il modale si chiude, la pagina Account mostra
+  immediatamente il nuovo indirizzo, appare la conferma transitoria condivisa
+  (`Email aggiornata`, stesso meccanismo `sonner` `toast` già in uso), si
+  resta sulla pagina Account (nessun redirect).
+- **Il consenso NON si trasferisce.** Perché il consenso appartiene al
+  contatto esatto (MODEL B, vedi "Consenso comunicazioni commerciali" sopra),
+  la preferenza newsletter del nuovo indirizzo parte sempre non espressa (né
+  Sì né No) — mai copiata dal vecchio indirizzo (né `true→true` né
+  `false→false`).
+  - Standalone: `changeAccountEmail` (`tesicheckAccountSession.ts`) rinomina
+    la voce del registry `tesicheck-registered-accounts-v1` e aggiorna
+    l'email della sessione; `renameStandaloneProfileEmail`
+    (`standaloneProfile.ts`) sposta l'INTERO record `StandaloneProfile`
+    (anagrafica, telefono, `academic_records[]`) dalla vecchia alla nuova
+    chiave email, senza mai seminare la nuova chiave di
+    `commercial_consents` dal valore precedente. La vecchia chiave, se
+    presente, resta sul posto ma inerte — stessa convenzione già usata per
+    un numero di telefono sostituito.
+  - Student: `withStudentPrimaryEmailChanged` (locale a
+    `student/AccountPage.tsx`) sostituisce **solo** il valore `.email` della
+    voce `contacts.emails[]` con `is_primary === true`, preservando
+    `is_primary`, `purposes`, `source`/`added_at` e ogni altro contatto
+    (email o telefono); `marketing_consent` su quella stessa voce viene
+    azzerato (tornando a non espresso) nella stessa scrittura. Nessun
+    consenso globale Student è stato introdotto; nessuna infrastruttura di
+    autenticazione è stata aggiunta al modello Student.
+- **Fuori scope, deliberatamente non costruito**: ri-autenticazione reale,
+  invio email reale, gestione conflitti di unicità lato produzione,
+  scadenza/reinvio del codice, rate limiting, token di sicurezza,
+  invalidazione sessione lato produzione, persistenza di un'email "in
+  sospeso", opzione self-service per mantenere il vecchio indirizzo come
+  contatto secondario (decisione di backend/CRM, non di questo prototipo).
+
+**La produzione deve fornire**: ri-autenticazione/verifica di sicurezza dove
+necessario, ciclo di vita reale del token di verifica, risoluzione dei
+conflitti di unicità email, invio email reale, sostituzione dell'identità di
+sessione/account, sincronizzazione CRM/Profilo, audit/log di sicurezza, e la
+decisione se il vecchio indirizzo resti come contatto CRM secondario. Questo
+prototipo comunica solo il contratto UX atteso.
+
 ## Ciclo di vita self-service Student — assunzione di prototipo
 
 `/student-view/account` (e, per estensione, l'intera vista Student

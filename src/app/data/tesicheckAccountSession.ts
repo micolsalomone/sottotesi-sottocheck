@@ -219,6 +219,43 @@ export function confirmAccountEmail(): TesiCheckAccountSession | null {
 }
 
 /**
+ * Confirmed account-email replacement for the Account page's "Modifica
+ * email" flow — call ONLY after the new address has passed the prototype's
+ * demo verification step; there is no earlier partial-mutation path. Renames
+ * the matching `tesicheck-registered-accounts-v1` entry (deletes the old
+ * normalized key, re-inserts under the new one, keeping `firstName`/
+ * `password`/legal fields untouched) so `logout → login` keeps working under
+ * the new address, then updates the session's own `email`. Everything else
+ * on the session (`id`, `firstName`, `emailVerified`, legal flags) is
+ * preserved — this only ever changes the email value itself. Consent
+ * (`standaloneProfile.ts`'s `commercial_consents`, keyed by email) is
+ * intentionally NOT touched here — see `renameStandaloneProfileEmail`, which
+ * the caller invokes separately, and which never copies the old email's
+ * consent onto the new one.
+ */
+export function changeAccountEmail(newEmail: string): TesiCheckAccountSession | null {
+  const session = getAccountSession();
+  if (!session) return null;
+  const trimmed = newEmail.trim();
+  const oldKey = normalizeEmail(session.email);
+  const newKey = normalizeEmail(trimmed);
+  if (oldKey !== newKey) {
+    const accounts = readRegisteredAccounts();
+    const existing = accounts[oldKey];
+    if (existing) {
+      delete accounts[oldKey];
+      accounts[newKey] = { ...existing, email: trimmed };
+      try {
+        localStorage.setItem(REGISTERED_ACCOUNTS_KEY, JSON.stringify(accounts));
+      } catch {
+        // Prototype-only persistence.
+      }
+    }
+  }
+  return saveAccountSession({ ...session, email: trimmed });
+}
+
+/**
  * Drops only the authenticated standalone account session (domain A). Deliberately
  * leaves everything else untouched: the registered-accounts registry (so the same
  * account can log back in), the in-progress pre-check/checkout session, persistent

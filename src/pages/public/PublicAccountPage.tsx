@@ -5,11 +5,13 @@ import { FormSection, TextField } from '@/app/components/profile/ProfileFormPrim
 import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { AccountInfoRow, CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
-import { getAccountSession } from '@/app/data/tesicheckAccountSession';
+import { ChangeEmailModal } from '@/app/components/account/ChangeEmailModal';
+import { changeAccountEmail, findRegisteredAccount, getAccountSession } from '@/app/data/tesicheckAccountSession';
 import {
   getStandaloneProfile,
   readStandaloneCommercialConsent,
   readStandalonePhoneConsent,
+  renameStandaloneProfileEmail,
   updateStandaloneProfile,
   writeStandaloneCommercialConsent,
   writeStandalonePhoneConsent,
@@ -96,18 +98,38 @@ import {
  * as too weak and used the brand green rather than the repo's near-black
  * `action-primary` selected treatment.
  *
- * No account-email-change affordance exists here YET (audited: no
- * email-change/re-verification flow exists anywhere in this prototype, only
- * the one-time registration `VerifyEmailForm` and the separate password
- * recovery GUI). Adding a non-functional "Modifica email" button would be a
- * dead control, so none is added — see the production-handoff note for the
- * next small Account slice this would require.
+ * **Modifica email.** `Email account` now carries a `Modifica email` action
+ * that opens the shared `ChangeEmailModal` (two steps: enter new email →
+ * verify — same prototype verification rule as registration's
+ * `VerifyEmailForm`, any well-formed 6-digit code succeeds, no real email
+ * delivery). Nothing is written anywhere until that step succeeds; on
+ * success `changeAccountEmail`
+ * (session + `tesicheck-registered-accounts-v1` registry rename) and
+ * `renameStandaloneProfileEmail` (moves the whole `standaloneProfile.ts`
+ * record — personal info, phone, academic records — to the new email key)
+ * both run, the local `email` state updates, and a shared toast confirms
+ * (`Email aggiornata`). The account-email consent preference is deliberately
+ * NOT carried over: the new email's `commercial_consents` entry is never
+ * seeded from the old one, so it reads back unexpressed (neither Sì nor No)
+ * until the user picks again — consent belongs to the exact contact, not the
+ * person (MODEL B, same invariant as a changed phone number). See
+ * `ChangeEmailModal` for the interaction and the production-handoff doc for
+ * what a real implementation must add (re-authentication, real delivery,
+ * uniqueness, session/CRM identity replacement, audit logging).
  */
 
 const PASSWORD_RECOVERY_PATH = '/public/password-recovery?returnTo=/public-view/account';
 
 export function PublicAccountPage() {
   const session = useMemo(() => getAccountSession(), []);
+
+  // The account/login email itself is the one piece of `session` this page
+  // can change (via `Modifica email`) — tracked as its own state, kept in
+  // sync with the session/registry/profile writes on successful verification.
+  // Every other session field (`id`, `firstName`, legal flags) is immutable
+  // here and still read straight from `session`.
+  const [email, setEmail] = useState<string>(session?.email ?? '');
+  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
   const [commercialConsent, setCommercialConsent] = useState<boolean | null>(() =>
     session ? readStandaloneCommercialConsent(session.email) : null,
@@ -140,14 +162,14 @@ export function PublicAccountPage() {
   // displayed value happen together.
   const handleChangeCommercialConsent = (next: boolean) => {
     setCommercialConsent(next);
-    writeStandaloneCommercialConsent(session.email, next);
+    writeStandaloneCommercialConsent(email, next);
     toast.success('Preferenza aggiornata');
   };
 
   const handleChangePhoneConsent = (next: boolean) => {
     if (phoneValueDirty) return; // guarded by `disabled` below too
     setPhoneConsent(next);
-    writeStandalonePhoneConsent(session.email, phoneValue, next);
+    writeStandalonePhoneConsent(email, phoneValue, next);
     toast.success('Preferenza WhatsApp aggiornata');
   };
 
@@ -157,10 +179,24 @@ export function PublicAccountPage() {
   const handleSavePhoneValue = () => {
     const trimmedPhone = phoneDraft.trim();
     if (trimmedPhone === phoneValue) return;
-    updateStandaloneProfile(session.email, (profile) => ({ ...profile, phone: trimmedPhone }));
+    updateStandaloneProfile(email, (profile) => ({ ...profile, phone: trimmedPhone }));
     setPhoneValue(trimmedPhone);
-    setPhoneConsent(readStandalonePhoneConsent(session.email, trimmedPhone));
+    setPhoneConsent(readStandalonePhoneConsent(email, trimmedPhone));
     toast.success('Recapito aggiornato');
+  };
+
+  // Confirmed account-email replacement — called only after the modal's demo
+  // verification code succeeds; no earlier partial mutation exists. Renames
+  // the session/registry entry and moves the whole standalone Profile record
+  // to the new email key, then re-reads the email consent from that new key
+  // (never copied from the old one — starts unexpressed, MODEL B).
+  const handleEmailVerified = (newEmail: string) => {
+    changeAccountEmail(newEmail);
+    renameStandaloneProfileEmail(email, newEmail);
+    setEmail(newEmail);
+    setCommercialConsent(readStandaloneCommercialConsent(newEmail));
+    setIsChangeEmailOpen(false);
+    toast.success('Email aggiornata');
   };
 
   return (
@@ -169,7 +205,25 @@ export function PublicAccountPage() {
         <FormSection title="Accesso">
           <div className="flex flex-col gap-6">
             <div>
-              <AccountInfoRow label="Email account" value={session.email} />
+              <AccountInfoRow
+                label="Email account"
+                value={email}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setIsChangeEmailOpen(true)}
+                    className="control-focus-ring inline-flex items-center border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] hover:bg-[var(--muted)]"
+                    style={{
+                      borderRadius: 'var(--radius)',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 'var(--font-weight-medium)',
+                    }}
+                  >
+                    Modifica email
+                  </button>
+                }
+              />
               <p
                 className="mt-2 text-[var(--muted-foreground)]"
                 style={{ fontFamily: 'var(--font-inter)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
@@ -329,6 +383,14 @@ export function PublicAccountPage() {
           <CrossSurfaceLink to="/public-view/profilo" label="Vai al profilo personale" />
         </div>
       </div>
+
+      <ChangeEmailModal
+        isOpen={isChangeEmailOpen}
+        currentEmail={email}
+        onClose={() => setIsChangeEmailOpen(false)}
+        isEmailTaken={(candidate) => findRegisteredAccount(candidate) !== null}
+        onVerified={handleEmailVerified}
+      />
     </PageShell>
   );
 }

@@ -1,17 +1,38 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useLavorazioni } from '@/app/data/LavorazioniContext';
+import { useLavorazioni, type ContactEmail } from '@/app/data/LavorazioniContext';
 import { STUDENT_VIEW_STUDENT_RECORD_ID } from '@/app/utils/studentView';
 import { FormSection, ReadOnlyField, TextField } from '@/app/components/profile/ProfileFormPrimitives';
 import { CommercialConsentField } from '@/app/components/profile/CommercialConsentField';
 import { SottocheckActionButton } from '@/app/components/SottocheckActionButton';
 import { AccountInfoRow, CrossSurfaceLink } from '@/app/components/account/AccountPrimitives';
+import { ChangeEmailModal } from '@/app/components/account/ChangeEmailModal';
 import {
   readStudentEmailConsent,
   readStudentPhoneConsent,
   withStudentEmailConsent,
   withStudentPhoneConsent,
 } from '@/app/data/marketingConsent';
+
+/**
+ * Return a NEW email array with the PRIMARY entry's `email` value replaced
+ * (`Modifica email` flow only). Preserves that entry's `is_primary`,
+ * `purposes`, `source`/`added_at` and every other email contact untouched —
+ * this changes ONLY the value of the one contact this page ever exposes.
+ * Because consent belongs to the exact address (MODEL B), the changed
+ * entry's `marketing_consent` is reset to unset (unknown) rather than
+ * carried over; it never touches any other contact's consent. A no-op when
+ * no primary email entry exists to rename (not expected once this page's
+ * `primaryEmail` is non-empty, but kept defensive).
+ */
+function withStudentPrimaryEmailChanged(emails: ContactEmail[] | undefined, newEmail: string): ContactEmail[] {
+  const list: ContactEmail[] = emails ? emails.map((entry) => ({ ...entry })) : [];
+  const index = list.findIndex((entry) => entry.is_primary);
+  if (index === -1) return list;
+  const { marketing_consent: _resetConsent, ...rest } = list[index];
+  list[index] = { ...rest, email: newEmail };
+  return list;
+}
 
 /**
  * Student Account page (`/student-view/account`).
@@ -109,6 +130,23 @@ import {
  * primary email and the primary phone (one of each) — never additional
  * contacts. Multi-contact management stays an Admin-only capability
  * (`CreateStudentDrawer` → `ContactManager`), unaffected by this page.
+ *
+ * **Modifica email.** The `Email` row carries a `Modifica email` action that
+ * opens the SAME shared `ChangeEmailModal` the standalone Account page uses
+ * (two steps: new email → verification, same prototype rule as
+ * registration's `VerifyEmailForm` — any well-formed 6-digit code succeeds,
+ * no real email delivery). On success `withStudentPrimaryEmailChanged` replaces ONLY the PRIMARY
+ * `contacts.emails[]` entry's `email` value via `updateStudent` — `is_primary`,
+ * `purposes`, `source`/`added_at`, every OTHER email contact, every phone
+ * contact, `StudentService` and all academic data are untouched. Because
+ * consent belongs to the exact address (MODEL B), that entry's
+ * `marketing_consent` is reset to unset in the same write — the new address
+ * always starts unexpressed (neither Sì nor No), never inherited from the
+ * old one. There is no Student-side "already registered" registry (unlike
+ * standalone), so no email-uniqueness check is offered here — see the
+ * production-handoff doc. This is a UI/domain handoff representation only;
+ * production auth/CRM synchronization for a real Student identity change is
+ * explicitly out of scope (no auth storage is added to the Student model).
  */
 export function AccountPage() {
   const { students, updateStudent } = useLavorazioni();
@@ -135,6 +173,8 @@ export function AccountPage() {
   const [commercialConsent, setCommercialConsent] = useState<boolean | null>(() =>
     readStudentEmailConsent(student?.contacts?.emails, primaryEmail),
   );
+
+  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
   const [phoneDraft, setPhoneDraft] = useState('');
 
@@ -198,6 +238,25 @@ export function AccountPage() {
     toast.success('Preferenza WhatsApp aggiornata');
   };
 
+  // Confirmed account-email replacement — called only after the modal's demo
+  // verification code succeeds; no earlier partial mutation exists. Replaces
+  // ONLY the primary email contact's value, resetting its consent to unknown
+  // in the same write (MODEL B — consent belongs to the exact address, never
+  // carried over). Every other contact, phone, and Student field is
+  // untouched by `withStudentPrimaryEmailChanged`.
+  const handleEmailVerified = (newEmail: string) => {
+    updateStudent(student.id, (prev) => ({
+      ...prev,
+      contacts: {
+        emails: withStudentPrimaryEmailChanged(prev.contacts?.emails, newEmail),
+        phones: prev.contacts?.phones ?? [],
+      },
+    }));
+    setCommercialConsent(null);
+    setIsChangeEmailOpen(false);
+    toast.success('Email aggiornata');
+  };
+
   // Gap-fill only, same as the former Student Profile behaviour: fills the
   // EXISTING primary phone contact's value; never creates a new phone contact,
   // never overwrites an already-present number. Never requires a marketing
@@ -255,7 +314,27 @@ export function AccountPage() {
         <FormSection title="Accesso">
           <div className="flex flex-col gap-6">
             <div>
-              <AccountInfoRow label="Email" value={primaryEmail || '—'} />
+              <AccountInfoRow
+                label="Email"
+                value={primaryEmail || '—'}
+                action={
+                  primaryEmail ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsChangeEmailOpen(true)}
+                      className="control-focus-ring inline-flex items-center border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] hover:bg-[var(--muted)]"
+                      style={{
+                        borderRadius: 'var(--radius)',
+                        fontFamily: 'var(--font-inter)',
+                        fontSize: 'var(--text-label)',
+                        fontWeight: 'var(--font-weight-medium)',
+                      }}
+                    >
+                      Modifica email
+                    </button>
+                  ) : undefined
+                }
+              />
               {primaryEmail && (
                 <p
                   className="mt-2 text-[var(--muted-foreground)]"
@@ -491,6 +570,13 @@ export function AccountPage() {
           <CrossSurfaceLink to="/student-view/profilo" label="Vai al profilo personale" />
         </div>
       </div>
+
+      <ChangeEmailModal
+        isOpen={isChangeEmailOpen}
+        currentEmail={primaryEmail}
+        onClose={() => setIsChangeEmailOpen(false)}
+        onVerified={handleEmailVerified}
+      />
     </PageShell>
   );
 }
