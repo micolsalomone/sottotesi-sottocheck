@@ -17,8 +17,8 @@
   --text-base: 16px;
   --text-body: var(--text-base);
   --text-label: 14px;
-  --text-sm: 12px;
-  --text-xs: 11px;
+  --text-sm: 14px;
+  --text-xs: 12px;
   
   /* Font families */
   --font-alegreya: 'Alegreya', serif;
@@ -220,28 +220,28 @@
       font-family: var(--font-alegreya);
       font-size: var(--text-h1);
       font-weight: var(--font-weight-bold);
-      line-height: 1.5;
+      line-height: 1.2;
     }
 
     h2 {
       font-family: var(--font-alegreya);
       font-size: var(--text-h2);
       font-weight: var(--font-weight-bold);
-      line-height: 1.5;
+      line-height: 1.2;
     }
 
     h3 {
       font-family: var(--font-alegreya);
       font-size: var(--text-h3);
-      font-weight: var(--font-weight-regular);
-      line-height: 1.5;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.2;
     }
 
     h4 {
       font-family: var(--font-alegreya);
       font-size: var(--text-h4);
       font-weight: var(--font-weight-medium);
-      line-height: 1.5;
+      line-height: 1.2;
     }
 
     p {
